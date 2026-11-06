@@ -19,7 +19,7 @@ export function periodInfo(slot) {
     type: slot?.type || rule?.defaultType || '일반'
   };
 }
-export function timeSlots(d, calendar = false) {
+export function timeSlots(d, calendar = false, registeredOnly = false) {
   return Array.from({
     length: 6
   }, (_, i) => {
@@ -27,7 +27,8 @@ export function timeSlots(d, calendar = false) {
       slot = db().timetables.find(t => t.date === d && t.period === p),
       info = periodInfo(slot),
       events = db().events.filter(e => e.date === d && e.period === p);
-    const content = `<small>${p}교시${calendar ? '' : ' · ' + esc(settings().periodTimes?.[i] || '')}</small> <strong>${esc(slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '—')}</strong>${events.map(e => `<div>${esc(e.title)}</div>`).join('')}${info.type !== '일반' ? badge(info.type) : ''}${!calendar || state.calendarFilters.detail ? `<small>${esc([settings().timetableDisplay.showLocation ? info.location : '', settings().timetableDisplay.showTeacher ? info.teacher : '', slot?.memo].filter(Boolean).join(' · '))}</small>` : ''}`;
+    if(registeredOnly&&!slot&&!events.length)return '';
+    const content = `<small class="slot-time"><span>${p}교시</span>${!calendar&&settings().periodTimes?.[i]?`<span class="period-time">${esc(settings().periodTimes[i])}</span>`:''}</small> <strong>${esc(slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '')}</strong>${events.map(e => `<div>${esc(e.title)}</div>`).join('')}${info.type !== '일반' ? badge(info.type) : ''}${!calendar || state.calendarFilters.detail ? `<small>${esc([settings().timetableDisplay.showLocation ? info.location : '', settings().timetableDisplay.showTeacher ? info.teacher : '', slot?.memo].filter(Boolean).join(' · '))}</small>` : ''}`;
     return btn(content, () => {
       if (state.dragSlot) {
         const from = state.dragSlot;
@@ -270,3 +271,4 @@ export function bindTimetableDrag() {
     el.onpointercancel = () => clearTimeout(el._touchTimer);
   });
 }
+

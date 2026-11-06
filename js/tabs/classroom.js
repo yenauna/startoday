@@ -21,14 +21,14 @@ export function classroom() {
   state.selected = [];
   state.locked = true;
   const d = C.today();
-  $('#app').innerHTML = `<div class="lockscreen"><div class="row between"><div><h1>오늘의 별 · ${esc(settings().className)}</h1><p>${esc(d)}</p></div><div id="class-clock" class="clock"></div></div>${announcementView()}<section class="panel"><div class="row">${db().events.filter(e => e.date === d || e.isDday).map(e => badge(e.title + (e.isDday ? ' ' + C.dday(e.date, d) : ''))).join('') || '<p>오늘 일정 없음</p>'}</div><div class="schedule" style="margin-top:14px">${timeSlots(d)}</div></section><div class="students">${students().map(s => `<div class="student ${isUnfinished(s.id, d) ? 'unfinished' : ''}"><strong>${esc(displayName(s))}</strong><small>${C.excluded(db(), s.id, d) ? '제외' : isUnfinished(s.id, d) ? '할 일이 남아 있어요' : '오늘 할 일 완료'}</small></div>`).join('')}</div><button type="button" class="lock-exit" id="lock-exit" aria-label="교사 화면 잠금 해제" title="길게 누르기 또는 두 번 탭하여 해제">🔒</button></div>`;
+  $('#app').innerHTML = `<div class="lockscreen"><div class="row between"><div><h1>오늘의 별 · ${esc(settings().className)}</h1><p>${esc(d)}</p></div><div id="class-clock" class="clock"></div></div>${announcementView()}<section class="panel"><div class="row">${db().events.filter(e => e.date === d || e.isDday).map(e => badge(e.title + (e.isDday ? ' ' + C.dday(e.date, d) : ''))).join('') || ''}</div><div class="schedule registered-schedule" style="margin-top:14px">${timeSlots(d,false,true)}</div></section><div class="students">${students().map(s => `<div class="student ${isUnfinished(s.id, d) ? 'unfinished' : ''}"><strong>${esc(displayName(s))}</strong><small>${C.excluded(db(), s.id, d) ? '제외' : isUnfinished(s.id, d) ? '할 일이 남아 있어요' : '오늘 할 일 완료'}</small></div>`).join('')}</div><button type="button" class="lock-exit" id="lock-exit" aria-label="교사 화면 잠금 해제" title="길게 누르기 또는 두 번 탭하여 해제">🔒</button></div>`;
   const tick = () => {
     if (C.today() !== d) {
       classroom();
       return;
     }
     if ($('#class-clock')) $('#class-clock').textContent = new Date().toLocaleTimeString('ko-KR', {
-      hour12: false,
+      hour12: true, hour:'numeric',minute:'2-digit',
       timeZone: 'Asia/Seoul'
     });
   };
@@ -84,3 +84,4 @@ export function classroom() {
     if (e.ctrlKey && e.key === 'Enter') run(unlock);
   };
 }
+

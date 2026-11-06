@@ -20,7 +20,12 @@ const db=C.initialDB();db.students=[{id:'s1',no:1,name:'가상학생'}];db.assig
 let revision=0;
 async function commit(ops,rev=revision){const r=await pg.query('select public.startoday_commit($1,$2,$3::jsonb) as rev',[classId,rev,JSON.stringify(ops)]);revision=Number(r.rows[0].rev);return revision}
 await commit(C.TABLES.filter(t=>t!=='areas').flatMap(t=>db[t].map(data=>({table:t,id:data.id,data}))));
-await pg.exec('reset role');await pg.exec(schema);await pg.exec(schema);await pg.exec('set role authenticated');await asUser(owner);
+await pg.exec('reset role');
+await pg.exec("create table public.startoday_tags(id text primary key,data jsonb);insert into public.startoday_tags values('legacy','{}');alter table public.startoday_tags enable row level security;grant select on public.startoday_tags to authenticated;");
+await pg.exec(schema);await pg.exec(schema);
+assert.equal((await pg.query('select count(*)::int as count from public.startoday_tags')).rows[0].count,1);
+await pg.exec('set role authenticated');await asUser(owner);
+await assert.rejects(pg.query('select * from public.startoday_tags'),/permission denied/);
 assert.equal((await snapshot()).class_id,classId);
 assert.equal((await snapshot()).data.students.length,1);
 await commit(db.areas.map(data=>({table:'areas',id:data.id,data})));
@@ -48,4 +53,5 @@ await commit(C.taskStateOps(snap.data,db.assignments[0],'2026-11-05','s1','면�
 assert.equal((await snapshot()).data.records.length,0);
 console.log('PASS: SQL 재실행, 초기화, 테이블 직접 쓰기 차단, 원자적 저장/롤백, 최초 시각 불변, 충돌 검출, 교사별 RLS 격리, 2세대 백업, 자동 기록 삭제');
 await pg.close();
+
 

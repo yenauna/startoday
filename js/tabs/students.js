@@ -24,10 +24,7 @@ export function studentDetail(id, from = state.date.slice(0, 7) + '-01', to = st
   modal(name(id), `<div class="row" style="margin-bottom:14px">${btn('+ 기록', () => recordEditor({
     studentIds: [id],
     date: state.date
-  }))}${btn('학생 수정', () => studentEditor(s))}${btn('보고서로 내보내기', () => reportDialog(id, from, to), 'primary')}${btn('이번 주', () => studentDetail(id, C.addDays(state.date, -((C.weekday(state.date) + 6) % 7)), state.date))}${btn('이번 달', () => studentDetail(id, state.date.slice(0, 7) + '-01', state.date))}</div><div class="row"><input aria-label="기록 조회 시작" type="date" id="student-from" value="${from}"><span>~</span><input aria-label="기록 조회 종료" type="date" id="student-to" value="${to}">${btn('조회', () => studentDetail(id, $('#student-from').value, $('#student-to').value))}</div><div class="panel" style="margin-top:14px"><h3>★ ${score.total} · 기간 요약</h3><div class="chips">${C.areaNames(db(), true).map(a => badge(a + ' ' + score.areas[a])).join('')}</div><p class="muted" style="margin-top:10px">${db().tags.map(t => {
-    const n = records.filter(r => r.tagIds.includes(t.id)).length;
-    return n ? esc(t.label) + ' ' + n + '회' : '';
-  }).filter(Boolean).join(' · ') || '태그 기록 없음'}</p></div><h3>미완료 과제 ${pending.length}건</h3>${pending.map(({
+  }))}${btn('학생 수정', () => studentEditor(s))}${btn('보고서로 내보내기', () => reportDialog(id, from, to), 'primary')}${btn('이번 주', () => studentDetail(id, C.addDays(state.date, -((C.weekday(state.date) + 6) % 7)), state.date))}${btn('이번 달', () => studentDetail(id, state.date.slice(0, 7) + '-01', state.date))}</div><div class="row"><input aria-label="기록 조회 시작" type="date" id="student-from" value="${from}"><span>~</span><input aria-label="기록 조회 종료" type="date" id="student-to" value="${to}">${btn('조회', () => studentDetail(id, $('#student-from').value, $('#student-to').value))}</div><div class="panel" style="margin-top:14px"><h3>★ ${score.total} · 기간 요약</h3><div class="chips">${C.areaNames(db(), true).map(a => badge(a + ' ' + score.areas[a])).join('')}</div></div><h3>미완료 과제 ${pending.length}건</h3>${pending.map(({
     assignment: a,
     date: d
   }) => btn(esc(d + ' ' + a.title), () => taskStateEditor(a, d, id))).join('') || '<p class="muted">남은 과제가 없습니다.</p>'}<details style="margin-top:14px"><summary>과제 처리 이력</summary>${db().assignmentStates.filter(x => x.studentId === id && x.date >= from && x.date <= to).map(x => `<p>${esc(x.date)} · ${esc(db().assignments.find(a => a.id === x.assignmentId)?.title || '(삭제된 과제)')} · ${esc(x.status)} ${esc(x.memo)}</p>`).join('') || '<p>처리 이력 없음</p>'}</details><details><summary>출결 제외 이력</summary><p>${db().attendance.filter(x => x.studentId === id && x.excluded).map(x => esc(x.date)).sort().join(' · ') || '없음'}</p></details><h3 style="margin-top:20px">기록 ${records.length}건</h3>${records.map(r => recordCard(r)).join('') || empty('조회 기간에 기록이 없습니다.')}`);
@@ -101,3 +98,4 @@ export function showPrint(s, from, to, records) {
   document.body.classList.add('report-open');
   root.scrollIntoView();
 }
+

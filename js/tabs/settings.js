@@ -1,7 +1,7 @@
 import { render } from '../app.js';
 import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
-import { commit, db, kindLabel, settings, students, up } from '../shared/data.js';
+import { commit, db, settings, students, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
 import { $, bindLater, btn, checkbox, empty, esc, hashPin, input, localTime, saveFile, select, textarea, toast } from '../shared/ui.js';
 import { studentDetail, studentEditor } from './students.js';
@@ -17,12 +17,7 @@ export function settingsView() {
       deletedAt: C.now(),
       seat: null
     })]);
-  }, 'danger')}</div></td></tr>`).join('')}</tbody></table></div></section><section class="panel"><div class="toolbar"><h3>과목 · 전담 설정</h3>${btn('+ 과목', () => subjectEditor())}</div><div class="table-wrap"><table><thead><tr><th>과목</th><th>구분</th><th>장소</th><th>담당 교사</th><th></th></tr></thead><tbody>${db().subject_rules.map(s => `<tr><td><span class="badge" style="background:${esc(s.color)}">${esc(s.code)}</span></td><td>${s.isSpecialist ? '전담' : '담임'} · ${esc(s.defaultType)}</td><td>${esc(s.location)}</td><td>${esc(s.teacherName)}</td><td>${btn('수정', () => subjectEditor(s))}</td></tr>`).join('')}</tbody></table></div></section><section class="panel"><div class="toolbar"><h3>태그 · 파서 별칭 사전</h3>${btn('+ 태그', () => tagEditor())}</div><div class="table-wrap"><table><thead><tr><th>태그</th><th>성격</th><th>영역</th><th>별칭</th><th></th></tr></thead><tbody>${db().tags.filter(t => !t.deletedAt).map(t => `<tr><td>${esc(t.label)}</td><td>${esc(kindLabel(t.kind))}</td><td>${esc(t.area)}</td><td>${esc(t.aliases.join(', '))}</td><td><div class="row">${btn('수정', () => tagEditor(t))}${btn('삭제', async () => {
-    if (confirm('태그를 삭제할까요? 기존 기록은 그대로 남습니다.')) await commit([up('tags', {
-      ...t,
-      deletedAt: C.now()
-    })]);
-  }, 'danger')}</div></td></tr>`).join('')}</tbody></table></div></section>${bindLater('settings-form', 'submit', async e => {
+  }, 'danger')}</div></td></tr>`).join('')}</tbody></table></div></section><section class="panel"><div class="toolbar"><h3>과목 · 전담 설정</h3>${btn('+ 과목', () => subjectEditor())}</div><div class="table-wrap"><table><thead><tr><th>과목</th><th>구분</th><th>장소</th><th>담당 교사</th><th></th></tr></thead><tbody>${db().subject_rules.map(s => `<tr><td><span class="badge" style="background:${esc(s.color)}">${esc(s.code)}</span></td><td>${s.isSpecialist ? '전담' : '담임'} · ${esc(s.defaultType)}</td><td>${esc(s.location)}</td><td>${esc(s.teacherName)}</td><td>${btn('수정', () => subjectEditor(s))}</td></tr>`).join('')}</tbody></table></div></section>${bindLater('settings-form', 'submit', async e => {
     e.preventDefault();
     const f = new FormData(e.target),
       pin = f.get('classroomPin');
@@ -92,25 +87,7 @@ export function removedStudents() {
     removedStudents();
   })}</div></div>`).join('') || empty('나간 학생이 없습니다.'));
 }
-export function tagEditor(t = null) {
-  const row = t || {
-    id: C.uid(),
-    label: '',
-    kind: '칭찬',
-    area: null,
-    aliases: []
-  };
-  modal(t ? '태그 수정' : '태그 추가', `<div class="formgrid">${input('태그 이름', 'label', row.label, 'text', 'required')}${select('성격', 'kind', [['칭찬', '칭찬'], ['지도', '조언']], row.kind)}${select('기본 영역', 'area', [['', '미지정'], ...C.areaNames(db(), true).filter(a => C.areaNames(db()).includes(a) || a === row.area)], row.area || '')}${input('별칭 · 쉼표로 구분', 'aliases', row.aliases.join(', '))}</div>`, async f => {
-    await commit([up('tags', {
-      ...row,
-      label: f.get('label').trim(),
-      kind: f.get('kind'),
-      area: f.get('area') || null,
-      aliases: f.get('aliases').split(',').map(x => x.trim()).filter(Boolean)
-    })]);
-    closeModal();
-  });
-}
+
 export function subjectEditor(s = null) {
   const row = s || {
     id: C.uid(),
@@ -303,3 +280,4 @@ export async function renameArea(id) {
   await commit(C.areaEditOps(db(), id, name));
   if (state.recordFilters.area === old.name) state.recordFilters.area = name;
 }
+

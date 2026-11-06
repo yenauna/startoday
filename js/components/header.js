@@ -4,7 +4,7 @@ import { db, name, settings } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
 import { $, btn, esc, opts, toast } from '../shared/ui.js';
 import { classroom } from '../tabs/classroom.js';
-import { recordButtons, renderBulkBar, saveDirectRecords } from '../tabs/dashboard.js';
+import { recordButtons, renderSelectionClear, saveDirectRecords } from '../tabs/dashboard.js';
 export function header() {
   return `<header class="top">${btn('<img src="assets/logo-icon.jpg" class="logo" data-logo-slot alt="로고" style="object-fit:cover;border-radius:8px"><strong>오늘의 별</strong><small>' + esc(settings().className) + '</small>', () => {
     state.tab = '대시보드';
@@ -30,27 +30,61 @@ export function renderLogin() {
   })}<small>연결 전 체험 자료와 로그인 후 학급 자료는 별도로 관리됩니다.</small></div>`;
 }
 export function renderShell(renderTab) {
-  return header() + `<div class="shell"><div class="quick-wrap"><form class="quick" id="quick-form"><input id="quick-text" aria-label="빠른 기록 입력" placeholder="예: 3번 2교시 친구를 도와줌 · / 키로 바로 입력" autocomplete="off"><select id="quick-period" aria-label="교시">${opts(['자동', '아침', ...Array.from({
-    length: 7
-  }, (_, i) => `${i + 1}교시`), '점심', '방과후', '기타'], '자동')}</select><div class="record-actions">${recordButtons(saveQuick)}</div></form>${state.selected.length ? `<div class="chips" style="padding-top:7px">${state.selected.map(id => btn(esc(name(id)) + ' ×', () => {
-    state.selected = state.selected.filter(x => x !== id);
-    render();
-  })).join('')}${btn('선택 해제', () => {
-    state.selected = [];
-    render();
-  })}</div>` : ''}</div><nav class="tabs" aria-label="주 메뉴">${['대시보드', '기록', '시간표·일정', '과제', '루틴', '학생', '자리', '설정'].map(t => btn(t, () => {
+  return header() + `<div class="shell">${quickInput()}<nav class="tabs" aria-label="주 메뉴">${['대시보드', '기록', '시간표·일정', '과제', '루틴', '학생', '자리', '설정'].map(t => btn(t, () => {
     state.tab = t;
     render();
-  }, state.tab === t ? 'active' : '', state.tab === t ? 'aria-current="page"' : '')).join('')}</nav>${store.mode === 'demo' ? '<div class="notice">가상 명단으로 체험 중입니다. 이 모드의 자료는 이 브라우저에만 저장됩니다. 실제 학급은 수파베이스 연결 후 구글 로그인으로 사용하세요.</div>' : ''}${settings().lastBackupAt && Date.now() - new Date(settings().lastBackupAt) > 7 * 86400000 ? '<div class="notice">마지막 백업 후 7일이 지났습니다. 설정에서 백업 파일을 내려받으세요.</div>' : !settings().lastBackupAt ? '<div class="muted" style="margin-bottom:10px">아직 백업하지 않았습니다. 설정에서 전체 자료를 내보낼 수 있습니다.</div>' : ''}<main id="main">${renderTab()}</main></div>${renderBulkBar()}`;
+  }, state.tab === t ? 'active' : '', state.tab === t ? 'aria-current="page"' : '')).join('')}</nav>${store.mode === 'demo' ? '<div class="notice">가상 명단으로 체험 중입니다. 이 모드의 자료는 이 브라우저에만 저장됩니다. 실제 학급은 수파베이스 연결 후 구글 로그인으로 사용하세요.</div>' : ''}${settings().lastBackupAt && Date.now() - new Date(settings().lastBackupAt) > 7 * 86400000 ? '<div class="notice">마지막 백업 후 7일이 지났습니다. 설정에서 백업 파일을 내려받으세요.</div>' : !settings().lastBackupAt ? '<div class="muted" style="margin-bottom:10px">아직 백업하지 않았습니다. 설정에서 전체 자료를 내보낼 수 있습니다.</div>' : ''}<main id="main">${renderTab()}</main></div>${renderSelectionClear()}`;
+}
+let quickScope = '',
+  quickText = '',
+  quickPeriod = '자동',
+  quickAreas = [],
+  saving = false;
+function quickInput() {
+  const scope = `${store.mode}:${store.classId}:${settings().academicYear}:${state.date}`;
+  if (scope !== quickScope) {
+    quickScope = scope;
+    quickText = '';
+    quickPeriod = '자동';
+    quickAreas = [];
+  }
+  if (!['대시보드', '기록'].includes(state.tab)) return '';
+  quickAreas = quickAreas.filter(a => C.areaNames(db()).includes(a));
+  return `<div class="quick-wrap">${state.selected.length ? `<div class="chips selected-students" aria-label="선택 학생">${state.selected.map(id => btn(esc(name(id)) + ' ×', () => {
+    state.selected = state.selected.filter(x => x !== id);
+    render();
+  })).join('')}</div>` : ''}<form class="quick" id="quick-form"><textarea id="quick-text" rows="1" aria-label="빠른 기록 입력" placeholder="예: 3번 2교시 친구를 도와줌">${esc(quickText)}</textarea><select id="quick-period" aria-label="교시">${opts(['자동', ...C.PERIODS], quickPeriod)}</select><div class="record-actions">${recordButtons(saveQuick)}</div></form><div class="chips quick-areas" role="group" aria-label="빠른 기록 경험치 영역">${C.areaNames(db()).map(a => btn(esc(a), () => {
+    quickAreas = quickAreas.includes(a) ? quickAreas.filter(x => x !== a) : [...quickAreas, a];
+    render();
+  }, 'area-chip' + (quickAreas.includes(a) ? ' selected' : ''), `aria-pressed="${quickAreas.includes(a)}"`)).join('')}</div></div>`;
 }
 export function bindQuickInput() {
-  $('#quick-form').onsubmit = e => {
+  const form = $('#quick-form');
+  if (!form) return;
+  const field = $('#quick-text'),
+    period = $('#quick-period');
+  const resize = () => {
+    field.style.height = 'auto';
+    field.style.height = field.scrollHeight + 'px';
+    // A tall mobile draft must scroll with the page instead of covering cards.
+    form.closest('.quick-wrap').classList.toggle('quick-expanded', form.closest('.quick-wrap').scrollHeight > window.innerHeight * 0.65);
+  };
+  field.oninput = () => {
+    quickText = field.value;
+    resize();
+  };
+  period.onchange = () => {
+    quickPeriod = period.value;
+  };
+  resize();
+  form.onsubmit = e => {
     e.preventDefault();
     toast('저장할 기록 종류 버튼을 선택하세요.');
   };
 }
 export async function saveQuick(kind) {
-  const text = $('#quick-text').value.trim();
+  if (saving) return;
+  const text = $('#quick-text')?.value.trim();
   if (!text) throw Error('내용을 입력하세요.');
   const parsed = C.parseInput(text, db(), state.selected);
   if (parsed.warnings.length) throw Error(parsed.warnings.join(' '));
@@ -58,7 +92,17 @@ export async function saveQuick(kind) {
   const period = $('#quick-period').value;
   if (period !== '자동') parsed.period = period;
   delete parsed.warnings;
-  await saveDirectRecords(kind, text, parsed.studentIds, parsed.areas, parsed);
-  state.selected = [];
-  render();
+  const scope = quickScope;
+  saving = true;
+  try {
+    await saveDirectRecords(kind, text, parsed.studentIds, [...quickAreas], parsed);
+    if (scope === quickScope && quickText.trim() === text) {
+      quickText = '';
+      quickAreas = [];
+      state.selected = [];
+    }
+    render();
+  } finally {
+    saving = false;
+  }
 }

@@ -23,7 +23,7 @@ export function seatsView() {
   }, (_, col) => {
     const s = students().find(s => s.seat?.row === row && s.seat?.col === col);
     const gap = (st.seatLayout === 'pair' || st.seatLayout === 'group') && col % 2 === 1 && col < cols - 1 ? 22 : 0;
-    return `<div class="seat" data-row="${row}" data-col="${col}" data-student="${s?.id || ''}" draggable="${editMode && !!s}" style="margin-right:${gap}px;${st.seatLayout === 'group' && row % 2 === 1 ? 'margin-bottom:24px;' : ''}${movingStudent === s?.id ? 'outline:3px solid #2563EB;' : ''}"><small>${row + 1}행 ${col + 1}열</small>${s ? btn(esc(name(s.id)), () => editMode ? (movingStudent = s.id, render()) : studentDetail(s.id), 'primary') : ''}${editMode ? btn(movingStudent ? '이 자리로 이동' : '학생 배치', () => movingStudent ? moveTo(row, col) : seatEditor(row, col)) : ''}</div>`;
+    return `<div class="seat" data-row="${row}" data-col="${col}" data-student="${s?.id || ''}" draggable="${editMode && !!s}" style="margin-right:${gap}px;${st.seatLayout === 'group' && row % 2 === 1 ? 'margin-bottom:24px;' : ''}${movingStudent === s?.id ? 'outline:3px solid #2563EB;' : ''}">${s ? btn(esc(name(s.id)), () => editMode ? (movingStudent = s.id, render()) : studentDetail(s.id), 'primary') : ''}${editMode ? btn(movingStudent ? '이 자리로 이동' : '학생 배치', () => movingStudent ? moveTo(row, col) : seatEditor(row, col)) : ''}</div>`;
   })).join('')}</div></div>${!st.frontTop ? '<div class="front" style="margin-top:15px">교실 앞</div>' : ''}${editMode ? unseatedTray() : ''}${bindLater('seat-grid', 'dragover', e => e.preventDefault())}${bindLater('seat-grid', 'dragstart', e => {
     const seat = e.target.closest('[data-student]');
     if (!seat?.dataset.student) return;
@@ -80,7 +80,7 @@ function layoutForm() {
 }
 export function seatEditor(row, col) {
   const current = students().find(s => s.seat?.row === row && s.seat?.col === col);
-  modal(`${row + 1}행 ${col + 1}열 배치`, select('학생 · 기존 자리가 있으면 서로 교환합니다.', 'student', [['', '빈자리'], ...students().map(s => [s.id, name(s.id)])], current?.id || ''), async f => {
+  modal('학생 배치', select('학생 · 기존 자리가 있으면 서로 교환합니다.', 'student', [['', '빈자리'], ...students().map(s => [s.id, name(s.id)])], current?.id || ''), async f => {
     const id = f.get('student'),
       next = db().students.find(s => s.id === id),
       ops = [];
@@ -99,3 +99,4 @@ export function seatEditor(row, col) {
     closeModal();
   });
 }
+

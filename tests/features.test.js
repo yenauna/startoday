@@ -102,7 +102,7 @@ function setup() {
   }];
   return db;
 }
-test('영역 이름 변경은 기존 기록·태그·과제 참조를 원자적으로 이동', () => {
+test('영역 이름 변경은 기존 기록·과제 참조를 원자적으로 이동', () => {
   let db = setup();
   db.records = [{
     id: 'r',
@@ -116,16 +116,11 @@ test('영역 이름 변경은 기존 기록·태그·과제 참조를 원자적�
     id: 'a',
     statArea: '알바'
   }];
-  db.tags.push({
-    id: 't',
-    area: '알바'
-  });
   db = C.applyOps(db, C.areaEditOps(db, 'area-6', '1인1역'));
   assert(C.areaNames(db).includes('1인1역'));
   assert.equal(db.records[0].areas[0], '1인1역');
   assert.equal(db.records[0].area, '1인1역');
   assert.equal(db.assignments[0].statArea, '1인1역');
-  assert.equal(db.tags.at(-1).area, '1인1역');
   assert.equal(C.scores(db, 's1', '2026-11-06', '2026-11-06').areas['1인1역'], 1);
   assert.throws(() => C.areaEditOps(db, 'area-6', '과제'));
 });
@@ -202,3 +197,4 @@ test('좌석 교환·빈자리 이동·미배치 학생 이동의 고유 위치 
   assert.throws(() => C.seatMoveOps(db, 's3', 20, 0));
   assert.deepEqual(C.seatMoveOps(db, 's3', 0, 0), []);
 });
+

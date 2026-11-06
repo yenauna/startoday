@@ -1,7 +1,7 @@
 export const DEFAULT_AREAS = ['학습태도', '과제', '관계', '도전', '생활', '알바'];
 export const KINDS = ['칭찬', '지도', '관찰', '추가기록'];
 export const STATUSES = ['진행중', '완료', '늦게완료', '안함', '면제'];
-export const TABLES = ['students', 'tags', 'incidents', 'records', 'assignments', 'assignmentStates', 'events', 'routines', 'routineStates', 'subject_rules', 'timetables', 'quests', 'settings', 'attendance', 'areas'];
+export const TABLES = ['students', 'incidents', 'records', 'assignments', 'assignmentStates', 'events', 'routines', 'routineStates', 'subject_rules', 'timetables', 'quests', 'settings', 'attendance', 'areas'];
 export const uid = () => {
   if (crypto.randomUUID) return crypto.randomUUID();
   const b = crypto.getRandomValues(new Uint8Array(16));
@@ -75,31 +75,6 @@ export function initialDB() {
     defaultType: '일반',
     sortOrder: i
   }));
-  db.tags = [{
-    id: uid(),
-    label: '발표 참여',
-    kind: '칭찬',
-    area: '학습태도',
-    aliases: ['발표 잘함']
-  }, {
-    id: uid(),
-    label: '복도 질주',
-    kind: '지도',
-    area: '생활',
-    aliases: ['복도에서 뛰', '복도 뛰']
-  }, {
-    id: uid(),
-    label: '친구 도움',
-    kind: '칭찬',
-    area: '관계',
-    aliases: ['친구를 도와']
-  }, {
-    id: uid(),
-    label: '과제 미제출',
-    kind: '지도',
-    area: '과제',
-    aliases: ['안냄', '미제출']
-  }];
   return db;
 }
 export const targeted = (a, s) => a.target === 'all' || a.target?.studentIds?.includes(s);
@@ -111,6 +86,7 @@ export function assignmentStatus(db, a, d, s) {
   return db.assignmentStates.find(x => x.id === stateId(a, d, s))?.status || '진행중';
 }
 export function routineStatus(db, r, d, s) {
+  if (db.routines.find(row => row.id === r)?.exceptions?.[d]?.exempt) return '면제';
   return db.routineStates.find(x => x.id === stateId(r, d, s))?.status || '진행중';
 }
 export function excluded(db, s, d) {
@@ -164,7 +140,6 @@ export function taskStateOps(db, a, d, s, status, memo = '') {
       date: d,
       period: '기타',
       studentIds: [s],
-      tagIds: [],
       areas: a.statArea ? [a.statArea] : [],
       area: a.statArea || null,
       kind: status === '안함' ? '지도' : '칭찬',
@@ -213,46 +188,43 @@ export function parseRoster(text, start = 1) {
 export function parseInput(text, db, selected = []) {
   let ids = [...selected],
     warnings = [];
-  const period = text.match(/아침|[1-7]\s*교시|점심|방과후/)?.[0].replace(/\s/g, '') || '기타';
+  const period = text.match(/아침|[1-6]\s*교시|쉬는\s*시간|점심|방과후/)?.[0].replace(/\s/g, '') || '기타';
   if (!selected.length) {
     const numbers = new Set();
-    for (const m of text.matchAll(/((?:\d{1,3}\s*[,， ]\s*)*\d{1,3})\s*번/g)) for (const n of m[1].split(/[,，\s]+/)) if (n) numbers.add(Number(n));
+    for (const m of text.matchAll(/(?<![\p{L}\p{N}_])((?:\d{1,3}\s*[,， ]\s*)*\d{1,3})\s*번(?!\d)/gu)) for (const n of m[1].split(/[,，\s]+/)) if (n) numbers.add(Number(n));
     const candidates = activeStudents(db);
-    ids = candidates.filter(s => numbers.has(s.no) || text.includes(s.name)).map(s => s.id);
-    for (const token of text.split(/[\s,]+/).filter(t => /^[가-힣]{2,}$/.test(t))) {
-      const matches = candidates.filter(s => s.name.includes(token));
-      if (matches.length) {
-        ids.push(...matches.map(s => s.id));
-        if (matches.length > 1) warnings.push(`이름 후보 확인: ${token}`);
-      }
-    }
+    ids = candidates.filter(s => numbers.has(s.no) || nameInSentence(text, s.name)).map(s => s.id);
     for (const no of numbers) if (!candidates.some(s => s.no === no)) warnings.push(`${no}번 학생을 찾지 못했습니다.`);
     for (const id of ids) {
-      const s = candidates.find(x => x.id === id);
-      if (candidates.filter(x => x.no === s.no || x.name === s.name).length > 1) warnings.push('동명이인·중복 번호를 확인하세요.');
+      const student = candidates.find(s => s.id === id);
+      if (candidates.some(s => s.id !== id && (s.no === student.no || s.name === student.name))) warnings.push('동명이인·중복 번호를 확인하세요.');
     }
   }
   ids = [...new Set(ids)];
   if (!ids.length) warnings.push('학생을 선택하세요.');
-  const tags = db.tags.filter(t => !t.deletedAt && [t.label, ...t.aliases].some(x => x && text.includes(x)));
-  let kind = tags.some(t => t.kind === '지도') ? '지도' : tags.length ? '칭찬' : '관찰';
-  if (/잘함|칭찬/.test(text)) kind = '칭찬';
+  let kind = /잘함|칭찬/.test(text) ? '칭찬' : '관찰';
   if (/추가\s*기록|상담|사건/.test(text)) kind = '추가기록';
-  const action = text.match(/(?:조치|지도내용)\s*[:：]\s*(.+)/)?.[1] || '';
   return {
     date: today(),
     period,
     studentIds: ids,
     kind,
-    tagIds: tags.map(x => x.id),
-    areas: [...new Set(tags.map(x => x.area).filter(a => areaNames(db).includes(a)))],
+    areas: [],
     text,
-    action,
-    warnings,
+    action: text.match(/(?:조치|지도내용)\s*[:：]\s*(.+)/)?.[1] || '',
+    warnings: [...new Set(warnings)],
     extraType: '메모',
     printIncluded: kind !== '추가기록'
   };
 }
+export function nameInSentence(text, name) {
+  if (!name?.trim()) return false;
+  const escaped = [...name].map(ch => '^$.*+?()[]{}|'.includes(ch) || ch.charCodeAt(0) === 92 ? String.fromCharCode(92) + ch : ch).join('');
+  return new RegExp(String.raw`(?<![\p{L}\p{N}_])${escaped}(?:(?:이)?(?:에게|한테|가|이|는|은|를|을|의|와|과|랑|도))?(?![\p{L}\p{N}_])`, 'u').test(text);
+}
+export const PERIODS = ['아침', ...Array.from({
+  length: 6
+}, (_, i) => `${i + 1}교시`), '쉬는시간', '점심', '방과후', '기타'];
 export function reportRecords(db, s, a, b) {
   return db.records.filter(r => r.date >= a && r.date <= b && r.studentIds.includes(s) && (r.kind !== '추가기록' || r.printIncluded === true)).sort((x, y) => x.date.localeCompare(y.date) || x.createdAt.localeCompare(y.createdAt));
 }
@@ -265,6 +237,8 @@ export function redact(text, db, s) {
 }
 export function validateBackup(x) {
   if (!x || x.app !== 'startoday' || x.version !== 1 || !x.data) throw Error('오늘의 별 버전 1 백업 파일이 아닙니다.');
+  delete x.data.tags;
+  for (const row of x.data.records || []) delete row.tagIds;
   if (x.data.areas === undefined) x.data.areas = defaultAreas();
   for (const t of TABLES) {
     if (!Array.isArray(x.data[t])) throw Error(`${t}: 목록 형식 오류`);
@@ -283,11 +257,10 @@ export function validateBackup(x) {
     assignmentIds = new Set(d.assignments.map(a => a.id)),
     routineIds = new Set(d.routines.map(r => r.id));
   for (const s of d.students) if (!Number.isInteger(s.no) || s.no < 1 || typeof s.name !== 'string' || !s.name.trim()) throw Error('학생 번호·이름 형식 오류');
-  for (const r of d.records) if (!r.studentIds.length || r.studentIds.some(id => !studentIds.has(id)) || !Array.isArray(r.tagIds) || r.areas.some(a => !areaNames(d, true).includes(a))) throw Error('기록의 학생·영역 참조 오류');
+  for (const r of d.records) if (!r.studentIds.length || r.studentIds.some(id => !studentIds.has(id)) || r.areas.some(a => !areaNames(d, true).includes(a))) throw Error('기록의 학생·영역 참조 오류');
   for (const row of d.assignmentStates) if (!studentIds.has(row.studentId) || !assignmentIds.has(row.assignmentId) || !STATUSES.includes(row.status) || row.id !== stateId(row.assignmentId, row.date, row.studentId)) throw Error('과제 상태의 학생·날짜 참조 오류');
   for (const row of d.routineStates) if (!studentIds.has(row.studentId) || !routineIds.has(row.routineId) || !['진행중', '완료', '면제'].includes(row.status) || row.id !== stateId(row.routineId, row.date, row.studentId)) throw Error('루틴 상태 참조 오류');
   if (!d.settings[0].timetableDisplay || !Number.isInteger(d.settings[0].seatRows) || !Number.isInteger(d.settings[0].seatCols)) throw Error('화면 설정 형식 오류');
-  for (const t of d.tags) if (!Array.isArray(t.aliases)) throw Error('태그 별칭 형식 오류');
   return d;
 }
 export function linkedIncidentIds(db, id) {
@@ -324,6 +297,8 @@ export function areaNames(db, includeDeleted = false) {
   return areaRows(db, includeDeleted).map(a => a.name);
 }
 export function normalizeDB(db) {
+  delete db.tags;
+  for (const row of db.records || []) delete row.tagIds;
   if (!Array.isArray(db.areas) || !db.areas.length) db.areas = defaultAreas();
   return db;
 }
@@ -361,7 +336,7 @@ export function areaEditOps(db, id, name) {
     } : a
   }));
   if (old.name === name) return ops;
-  for (const table of ['records', 'tags', 'assignments']) for (const row of db[table]) {
+  for (const table of ['records', 'assignments']) for (const row of db[table]) {
     const next = {
       ...row
     };
@@ -429,4 +404,65 @@ export function seatMoveOps(db, studentId, row, col) {
       seat: source.seat && source.seat.row >= 0 && source.seat.col >= 0 && source.seat.row < st.seatRows && source.seat.col < st.seatCols ? source.seat : null
     }
   }] : [])];
+}
+export function pendingRoutines(db, studentId, date) {
+  return excluded(db, studentId, date) ? [] : db.routines.filter(r => !r.deletedAt && targeted(r, studentId) && routineStatus(db, r.id, date, studentId) === '진행중').sort((a, b) => a.sortOrder - b.sortOrder);
+}
+export function normalizeAnnouncement(note = {}) {
+  const sizes = ['normal', 'large', 'huge'],
+    colors = ['default', 'red', 'blue', 'yellow'];
+  const source = Array.isArray(note?.runs) ? note.runs : [{
+    text: note?.text || '',
+    size: note?.size,
+    color: note?.color
+  }];
+  const runs = [];
+  for (const item of source) {
+    if (!item || typeof item.text !== 'string' || !item.text) continue;
+    const run = {
+      text: item.text,
+      size: sizes.includes(item.size) ? item.size : 'normal',
+      color: colors.includes(item.color) ? item.color : 'default'
+    };
+    const prev = runs.at(-1);
+    if (prev && prev.size === run.size && prev.color === run.color) prev.text += run.text;else runs.push(run);
+  }
+  return {
+    text: runs.map(r => r.text).join(''),
+    runs
+  };
+}
+export function formatAnnouncement(note, start, end, patch) {
+  const normalized = normalizeAnnouncement(note);
+  start = Math.max(0, Math.min(normalized.text.length, start));
+  end = Math.max(start, Math.min(normalized.text.length, end));
+  if (start === end) {
+    start = 0;
+    end = normalized.text.length;
+  }
+  let offset = 0;
+  const runs = [];
+  for (const run of normalized.runs) {
+    const a = Math.max(0, start - offset),
+      b = Math.min(run.text.length, end - offset);
+    if (a < b) {
+      if (a) runs.push({
+        ...run,
+        text: run.text.slice(0, a)
+      });
+      runs.push({
+        ...run,
+        ...patch,
+        text: run.text.slice(a, b)
+      });
+      if (b < run.text.length) runs.push({
+        ...run,
+        text: run.text.slice(b)
+      });
+    } else runs.push(run);
+    offset += run.text.length;
+  }
+  return normalizeAnnouncement({
+    runs
+  });
 }

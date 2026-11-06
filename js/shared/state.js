@@ -22,7 +22,6 @@ export const state = {
     to: C.today(),
     student: '',
     kind: '',
-    tag: '',
     area: '',
     q: ''
   },
@@ -34,3 +33,4 @@ export const state = {
   clockTimer: undefined
 };
 export const store = new Store();
+
