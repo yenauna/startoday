@@ -1,8 +1,8 @@
-.lockscreen{position:fixed;inset:0;background:var(--bg);z-index:100;overflow:auto;padding:30px;pointer-events:none;user-select:none}
+.lockscreen{position:fixed;inset:0;background:var(--bg);z-index:100;overflow:auto;padding:60px 30px 30px;pointer-events:none;user-select:none}
 .lockscreen .students{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
 .lockscreen .student{min-height:90px;display:flex;flex-direction:column;justify-content:center}
 .lockscreen strong{font-size:25px}
 .lockscreen h1{font-size:36px}
-.lock-exit{position:fixed;bottom:12px;right:12px;pointer-events:auto!important;z-index:101;touch-action:none}
+.lock-exit{position:fixed;top:8px;bottom:auto;right:8px;pointer-events:auto!important;z-index:101;touch-action:none}
 .clock{font-size:45px;font-variant-numeric:tabular-nums}
 .lockscreen button:not(.lock-exit){pointer-events:none}

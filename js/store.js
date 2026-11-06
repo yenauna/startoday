@@ -1,11 +1,178 @@
-import {TABLES,initialDB,applyOps,uid,now} from './core.js';
+import { TABLES, normalizeDB, initialDB, applyOps, uid, now } from './core.js';
 export class Store {
- constructor(){this.db=null;this.client=null;this.user=null;this.classId=null;this.revision=0;this.mode='none';this.busy=false}
- async connect(){const c=window.STARTODAY_CONFIG||{};if(!c.supabaseUrl||!c.supabaseKey)return false;if(!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(c.supabaseUrl))throw Error('config.js의 Supabase 프로젝트 주소를 확인하세요.');await new Promise((resolve,reject)=>{const el=document.createElement('script');el.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/dist/umd/supabase.min.js';el.onload=resolve;el.onerror=()=>reject(Error('Supabase SDK를 불러오지 못했습니다. 네트워크를 확인하세요.'));document.head.append(el)});this.client=window.supabase.createClient(c.supabaseUrl,c.supabaseKey);const {data,error}=await this.client.auth.getSession();if(error)throw error;this.user=data.session?.user||null;if(this.user){this.mode='cloud';await this.load()}this.client.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){this.user=null;this.db=null;this.mode='none';window.dispatchEvent(new Event('startoday-auth'))}if(event==='SIGNED_IN'&&session?.user.id!==this.user?.id){this.user=session.user;setTimeout(async()=>{try{this.mode='cloud';await this.load();window.dispatchEvent(new Event('startoday-auth'))}catch(e){window.dispatchEvent(new CustomEvent('startoday-error',{detail:e.message}))}},0)}});return true}
- async login(){const {error}=await this.client.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});if(error)throw error}
- async logout(){if(this.busy)throw Error('저장 완료 후 로그아웃하세요.');if(this.mode==='cloud'){const {error}=await this.client.auth.signOut();if(error)throw error}this.db=null;this.user=null;this.mode='none'}
- demo(){this.mode='demo';this.classId='demo';try{this.db=JSON.parse(localStorage.getItem('startoday-demo-v1'))}catch{}if(!this.db){this.db=initialDB();this.db.students=Array.from({length:20},(_,i)=>({id:uid(),no:i<10?i+1:i+41,name:['가온','나래','다온','라온','마루','바다','새봄','아람','여름','지우'][i%10]+(i<10?'':'별'),group:String(i%5+1),seat:{row:Math.floor(i/5),col:i%5},academicYear:2026,createdAt:now()}))}return this.db}
- async load(){const {data,error}=await this.client.rpc('startoday_snapshot');if(error)throw error;this.classId=data.class_id;this.revision=data.revision;this.db=data.data;if(!this.db.settings.length){const seed=initialDB();await this.commit(TABLES.flatMap(t=>seed[t].map(row=>({table:t,id:row.id,data:row}))))}return this.db}
- async commit(ops){if(this.busy)throw Error('저장 중입니다. 잠시 후 다시 시도하세요.');this.busy=true;try{const next=applyOps(this.db,ops);if(this.mode==='demo'){localStorage.setItem('startoday-demo-v1',JSON.stringify(next));this.db=next;return}if(this.mode!=='cloud')throw Error('로그인이 필요합니다.');const {data,error}=await this.client.rpc('startoday_commit',{p_class_id:this.classId,p_revision:this.revision,p_ops:ops});if(error){if(error.message.includes('REVISION_CONFLICT')){await this.load();throw Error('다른 기기에서 변경했습니다. 최신 자료를 불러왔습니다. 내용을 확인한 뒤 다시 저장하세요.')}throw error}this.revision=data;this.db=next}catch(e){throw Error(e.message||'저장에 실패했습니다.')}finally{this.busy=false}}
- async cloudBackup(){if(this.mode!=='cloud')throw Error('구글 로그인 후 사용할 수 있습니다.');const {error}=await this.client.rpc('startoday_backup',{p_class_id:this.classId});if(error)throw error}
+  constructor() {
+    this.db = null;
+    this.client = null;
+    this.user = null;
+    this.classId = null;
+    this.revision = 0;
+    this.mode = 'none';
+    this.busy = false;
+  }
+  async connect() {
+    const c = window.STARTODAY_CONFIG || {};
+    if (!c.supabaseUrl || !c.supabaseKey) return false;
+    if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(c.supabaseUrl)) throw Error('config.js의 Supabase 프로젝트 주소를 확인하세요.');
+    await new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      el.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/dist/umd/supabase.min.js';
+      el.onload = resolve;
+      el.onerror = () => reject(Error('Supabase SDK를 불러오지 못했습니다. 네트워크를 확인하세요.'));
+      document.head.append(el);
+    });
+    this.client = window.supabase.createClient(c.supabaseUrl, c.supabaseKey);
+    const {
+      data,
+      error
+    } = await this.client.auth.getSession();
+    if (error) throw error;
+    this.user = data.session?.user || null;
+    if (this.user) {
+      this.mode = 'cloud';
+      await this.load();
+    }
+    this.client.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        this.user = null;
+        this.db = null;
+        this.mode = 'none';
+        window.dispatchEvent(new Event('startoday-auth'));
+      }
+      if (event === 'SIGNED_IN' && session?.user.id !== this.user?.id) {
+        this.user = session.user;
+        setTimeout(async () => {
+          try {
+            this.mode = 'cloud';
+            await this.load();
+            window.dispatchEvent(new Event('startoday-auth'));
+          } catch (e) {
+            window.dispatchEvent(new CustomEvent('startoday-error', {
+              detail: e.message
+            }));
+          }
+        }, 0);
+      }
+    });
+    return true;
+  }
+  async login() {
+    const {
+      error
+    } = await this.client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: location.origin + location.pathname
+      }
+    });
+    if (error) throw error;
+  }
+  async logout() {
+    if (this.busy) throw Error('저장 완료 후 로그아웃하세요.');
+    if (this.mode === 'cloud') {
+      const {
+        error
+      } = await this.client.auth.signOut();
+      if (error) throw error;
+    }
+    this.db = null;
+    this.user = null;
+    this.mode = 'none';
+  }
+  demo() {
+    this.mode = 'demo';
+    this.classId = 'demo';
+    try {
+      this.db = JSON.parse(localStorage.getItem('startoday-demo-v1'));
+    } catch {}
+    if (!this.db) {
+      this.db = initialDB();
+      this.db.students = Array.from({
+        length: 20
+      }, (_, i) => ({
+        id: uid(),
+        no: i < 10 ? i + 1 : i + 41,
+        name: ['가온', '나래', '다온', '라온', '마루', '바다', '새봄', '아람', '여름', '지우'][i % 10] + (i < 10 ? '' : '별'),
+        group: String(i % 5 + 1),
+        seat: {
+          row: Math.floor(i / 5),
+          col: i % 5
+        },
+        academicYear: 2026,
+        createdAt: now()
+      }));
+    }
+    return normalizeDB(this.db);
+  }
+  async load() {
+    const {
+      data,
+      error
+    } = await this.client.rpc('startoday_snapshot');
+    if (error) throw error;
+    this.classId = data.class_id;
+    this.revision = data.revision;
+    const seedAreas = Array.isArray(data.data.areas) && data.data.areas.length === 0;
+    this.db = normalizeDB(data.data);
+    if (!this.db.settings.length) {
+      const seed = initialDB();
+      await this.commit(TABLES.flatMap(t => seed[t].map(row => ({
+        table: t,
+        id: row.id,
+        data: row
+      }))));
+    } else if (seedAreas) {
+      await this.commit(this.db.areas.map(row => ({
+        table: 'areas',
+        id: row.id,
+        data: row
+      })));
+    }
+    return this.db;
+  }
+  async commit(ops) {
+    if (this.busy) throw Error('저장 중입니다. 잠시 후 다시 시도하세요.');
+    this.busy = true;
+    try {
+      const next = applyOps(this.db, ops);
+      if (this.mode === 'demo') {
+        localStorage.setItem('startoday-demo-v1', JSON.stringify(next));
+        this.db = next;
+        return;
+      }
+      if (this.mode !== 'cloud') throw Error('로그인이 필요합니다.');
+      const {
+        data,
+        error
+      } = await this.client.rpc('startoday_commit', {
+        p_class_id: this.classId,
+        p_revision: this.revision,
+        p_ops: ops
+      });
+      if (error) {
+        if (ops.some(op => op.table === 'areas') && error.message.includes('INVALID_TABLE_OR_ID')) {
+          throw Error('경험치 종류를 저장하려면 Supabase SQL Editor에서 최신 schema.sql을 먼저 실행하세요.');
+        }
+        if (error.message.includes('REVISION_CONFLICT')) {
+          await this.load();
+          throw Error('다른 기기에서 변경했습니다. 최신 자료를 불러왔습니다. 내용을 확인한 뒤 다시 저장하세요.');
+        }
+        throw error;
+      }
+      this.revision = data;
+      this.db = next;
+    } catch (e) {
+      throw Error(e.message || '저장에 실패했습니다.');
+    } finally {
+      this.busy = false;
+    }
+  }
+  async cloudBackup() {
+    if (this.mode !== 'cloud') throw Error('구글 로그인 후 사용할 수 있습니다.');
+    const {
+      error
+    } = await this.client.rpc('startoday_backup', {
+      p_class_id: this.classId
+    });
+    if (error) throw error;
+  }
 }

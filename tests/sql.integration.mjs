@@ -7,8 +7,9 @@ const require=createRequire(import.meta.url);
 const {PGlite}=require(process.env.PGLITE_MODULE||'@electric-sql/pglite');
 const pg=new PGlite();
 await pg.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;grant usage on schema auth to authenticated;grant execute on function auth.uid() to authenticated;`);
-const schema=await readFile(new URL('../supabase/schema.sql',import.meta.url),'utf8');
-await pg.exec(schema);await pg.exec(schema);
+const schema=await readFile(new URL('../schema.sql',import.meta.url),'utf8');
+// Start with the pre-areas schema, then migrate a populated class in place.
+await pg.exec(schema.replaceAll(",'areas'",''));
 const owner='00000000-0000-0000-0000-000000000001',other='00000000-0000-0000-0000-000000000002';
 await pg.query('insert into auth.users(id) values($1),($2)',[owner,other]);
 await pg.exec('set role authenticated');
@@ -18,8 +19,16 @@ await asUser(owner);let snap=await snapshot();const classId=snap.class_id;
 const db=C.initialDB();db.students=[{id:'s1',no:1,name:'가상학생'}];db.assignments=[{id:'a1',title:'연산',date:'2026-11-05',repeat:{type:'daily'},target:'all',statArea:'과제'}];
 let revision=0;
 async function commit(ops,rev=revision){const r=await pg.query('select public.startoday_commit($1,$2,$3::jsonb) as rev',[classId,rev,JSON.stringify(ops)]);revision=Number(r.rows[0].rev);return revision}
-await commit(C.TABLES.flatMap(t=>db[t].map(data=>({table:t,id:data.id,data}))));
+await commit(C.TABLES.filter(t=>t!=='areas').flatMap(t=>db[t].map(data=>({table:t,id:data.id,data}))));
+await pg.exec('reset role');await pg.exec(schema);await pg.exec(schema);await pg.exec('set role authenticated');await asUser(owner);
+assert.equal((await snapshot()).class_id,classId);
 assert.equal((await snapshot()).data.students.length,1);
+await commit(db.areas.map(data=>({table:'areas',id:data.id,data})));
+assert.equal((await snapshot()).data.students.length,1);
+assert.equal((await snapshot()).data.areas.length,6);
+await commit(C.areaEditOps(db,'area-6','1인1역'));
+assert.equal((await snapshot()).data.areas.find(a=>a.id==='area-6').name,'1인1역');
+await assert.rejects(commit([{table:'areas',id:'invalid',data:{id:'invalid',name:'',sortOrder:0}}]),/INVALID_AREA/);
 await assert.rejects(pg.query("insert into public.startoday_students(class_id,owner_id,id,data) values($1,$2,'hack','{}')",[classId,owner]),/permission denied/);
 await commit(C.taskStateOps(db,db.assignments[0],'2026-11-05','s1','완료'));
 snap=await snapshot();assert.equal(snap.data.records.length,1);const original=snap.data.records[0];
@@ -29,6 +38,7 @@ await assert.rejects(commit([{table:'students',id:'s2',data:{id:'s2',no:2,name:'
 assert.equal((await snapshot()).data.students.length,1);
 await assert.rejects(commit([],0),/REVISION_CONFLICT/);
 await asUser(other);assert.equal((await pg.query('select * from public.startoday_students')).rows.length,0);
+assert.equal((await pg.query('select * from public.startoday_areas')).rows.length,0);
 await assert.rejects(commit([]),/FORBIDDEN/);
 const otherSnap=await snapshot();assert.notEqual(otherSnap.class_id,classId);
 await asUser(owner);
@@ -38,3 +48,4 @@ await commit(C.taskStateOps(snap.data,db.assignments[0],'2026-11-05','s1','면�
 assert.equal((await snapshot()).data.records.length,0);
 console.log('PASS: SQL 재실행, 초기화, 테이블 직접 쓰기 차단, 원자적 저장/롤백, 최초 시각 불변, 충돌 검출, 교사별 RLS 격리, 2세대 백업, 자동 기록 삭제');
 await pg.close();
+
