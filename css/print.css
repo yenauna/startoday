@@ -4,3 +4,24 @@
 .report-page .record{break-inside:avoid}
 @media print{body{background:white}body>*:not(.print-root){display:none!important}.print-root{display:block!important;margin:0;padding:0}.report-page{margin:0;padding:0;max-width:none}.report-page button,.no-print{display:none!important}.report-page .record{border-color:#888;background:white;color:black}h1,h2,h3{break-after:avoid}thead{display:table-header-group}@page{size:A4;margin:16mm}}
 body.report-open #app{display:none}
+
+@media screen {
+  .report-page {
+    border-radius: var(--st-radius-card);
+    background: var(--st-surface);
+    color: var(--st-text);
+    box-shadow: var(--st-surface-light), var(--st-shadow-2);
+  }
+}
+/* Paper output remains plain and readable, without screen-only depth effects. */
+@media print {
+  body { background-color: #ffffff; background-image: none; color: #000000; }
+  .report-page, .report-page .record, .report-page table, .report-page th, .report-page td {
+    border-radius: 0;
+    box-shadow: none;
+    background: #ffffff;
+    color: #000000;
+  }
+  .report-page .record { border: 1px solid #888888; }
+  .report-page h1, .report-page h2, .report-page h3, .report-page .action, .report-page small { color: #000000; }
+}

@@ -6,3 +6,21 @@
 .lock-exit{position:fixed;top:8px;bottom:auto;right:8px;pointer-events:auto!important;z-index:101;touch-action:none}
 .clock{font-size:45px;font-variant-numeric:tabular-nums}
 .lockscreen button:not(.lock-exit){pointer-events:none}
+
+/* Classroom mode keeps its lock, hit targets, and layout unchanged. */
+.lockscreen {
+  background-color: var(--st-bg);
+  background-image:
+    radial-gradient(ellipse at 5% 0%, rgba(226, 219, 246, 0.32), transparent 42%),
+    radial-gradient(ellipse at 95% 10%, rgba(220, 235, 247, 0.32), transparent 38%);
+}
+.clock { color: var(--st-text); font-weight: 600; letter-spacing: -0.035em; }
+.lock-exit {
+  border: 0;
+  border-radius: var(--st-radius-pill);
+  color: var(--st-text);
+  background: rgba(252, 252, 254, 0.9);
+  box-shadow: var(--st-surface-light), var(--st-shadow-1);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
