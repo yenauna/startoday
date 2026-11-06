@@ -1,0 +1,6 @@
+.report-page{max-width:190mm;margin:20px auto;background:white;padding:10mm}
+.report-page table{font-size:12px}
+.report-page .body{white-space:pre-wrap}
+.report-page .record{break-inside:avoid}
+@media print{body{background:white}body>*:not(.print-root){display:none!important}.print-root{display:block!important;margin:0;padding:0}.report-page{margin:0;padding:0;max-width:none}.report-page button,.no-print{display:none!important}.report-page .record{border-color:#888;background:white;color:black}h1,h2,h3{break-after:avoid}thead{display:table-header-group}@page{size:A4;margin:16mm}}
+body.report-open #app{display:none}
