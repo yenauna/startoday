@@ -30,8 +30,8 @@ body.report-open #app{display:none}
 .report-toolbar { max-width:190mm; margin:20px auto; }
 .report-review { margin:16px 0; }
 .report-review summary { font-weight:700; padding:8px 0; }
-.print-root.report-color .report-page .record.report-praise { background:#e4f0e9; border-color:#b7d4c1; }
-.print-root.report-color .report-page .record.report-advice { background:#fff1da; border-color:#edd2a1; }
+.print-root.report-color .report-page .record.report-praise { background:#EEF2FF; border-color:#C7D2FE; color:#3730A3; }
+.print-root.report-color .report-page .record.report-advice { background:#FEF2F2; border-color:#FECDD3; color:#991B1B; }
 .print-root.report-monochrome .report-page .record { background:white; color:black; border-color:#888; }
 .print-root.report-monochrome .incident-record { border-left-color:#555; }
 @media print {
@@ -40,3 +40,5 @@ body.report-open #app{display:none}
   .print-root.report-color { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .print-root.report-monochrome { filter:grayscale(1); }
 }
+
+.report-student-meta { margin:0 0 16px; line-height:1.7; }

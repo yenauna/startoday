@@ -456,6 +456,7 @@ header.top .header-more-menu button:hover { background:var(--st-gray-bg); }
 .assignment-matrix { max-height:65vh; overflow:auto; isolation:isolate; }
 .assignment-matrix table { border-collapse:separate; border-spacing:0; }
 .assignment-matrix th { min-width:180px; }
+.assignment-matrix thead th:first-child, .assignment-matrix tbody th:first-child { min-width:95px; max-width:110px; width:100px; }
 .assignment-matrix thead th { position:sticky; top:0; z-index:3; background:#eff1f6; }
 .assignment-matrix tbody th:first-child { position:sticky; left:0; z-index:2; background:#fcfcfe; }
 .assignment-matrix thead th:first-child { left:0; z-index:4; }
@@ -464,8 +465,8 @@ header.top .header-more-menu button:hover { background:var(--st-gray-bg); }
 .detail-record.praise { background:var(--st-blue-bg); color:var(--st-blue-text); }
 .detail-record.advice { background:var(--st-rose-bg); color:var(--st-rose-text); }
 .detail-record.observation { background:var(--st-surface); color:var(--st-text); }
-.detail-record .record-edit { background:var(--st-lavender-bg); color:var(--st-lavender-text); }
-.detail-record .record-delete { background:var(--st-rose-bg); color:var(--st-rose-text); }
+.detail-record .record-edit { background:#EEF2FF; color:#4F46E5; }
+.detail-record .record-delete { background:#4F46E5; color:#EEF2FF; }
 .settings-layout { display:grid; grid-template-columns:175px minmax(0,1fr); gap:22px; align-items:start; }
 .settings-sidebar { display:flex; flex-direction:column; gap:6px; position:sticky; top:125px; }
 .settings-sidebar button { text-align:left; box-shadow:none; background:transparent; }

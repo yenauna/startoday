@@ -2,7 +2,7 @@ import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, name, settings, students, up } from '../shared/data.js';
 import { state } from '../shared/state.js';
-import { $, badge, btn, checkbox, empty, esc, input, select } from '../shared/ui.js';
+import { $, badge, btn, checkbox, empty, esc, input } from '../shared/ui.js';
 import { taskStateEditor } from './assignments.js';
 import { recordCard, recordEditor } from './records.js';
 export function studentsView() {
@@ -66,7 +66,7 @@ export function reportDialog(id, from, to) {
   const list = id ? db().students.filter(s => !s.deletedAt || s.id === id) : students(),
     selected = id ? [id] : list.map(s => s.id);
   if (!list.length) throw Error('내보낼 학생이 없습니다.');
-  modal('학생 보고서 내보내기', `<div class="formgrid">${input('시작일', 'from', from, 'date', 'required')}${input('종료일', 'to', to, 'date', 'required')}${select('출력 방식', 'printMode', [['color', '컬러'], ['mono', '흑백']], settings().reportPrintMode || 'color')}</div><div class="report-targets"><div class="row">${btn('전체 학생 선택', () => document.querySelectorAll('#modal-form [name=reportStudents]').forEach(el => el.checked = true))}${btn('선택 해제', () => document.querySelectorAll('#modal-form [name=reportStudents]').forEach(el => el.checked = false))}</div><div class="checkgrid">${list.map(s => `<label class="inline"><input type="checkbox" name="reportStudents" value="${esc(s.id)}" ${selected.includes(s.id) ? 'checked' : ''}>${esc(s.no + '. ' + s.name)}</label>`).join('')}</div></div>${checkbox('작성 및 수정일 포함', 'includeTimestamps')}<p class="muted">추가 기록은 인쇄 포함으로 지정한 건만 출력합니다.</p>`, async f => {
+  modal('학생 보고서 내보내기', `<div class="formgrid">${input('시작일', 'from', from, 'date', 'required')}${input('종료일', 'to', to, 'date', 'required')}</div><div class="report-targets"><div class="row">${btn('전체 학생 선택', () => document.querySelectorAll('#modal-form [name=reportStudents]').forEach(el => el.checked = true))}${btn('선택 해제', () => document.querySelectorAll('#modal-form [name=reportStudents]').forEach(el => el.checked = false))}</div><div class="checkgrid">${list.map(s => `<label class="inline"><input type="checkbox" name="reportStudents" value="${esc(s.id)}" ${selected.includes(s.id) ? 'checked' : ''}>${esc(s.no + '. ' + s.name)}</label>`).join('')}</div></div>${checkbox('작성 및 수정일 포함', 'includeTimestamps')}<p class="muted">추가 기록은 인쇄 포함으로 지정한 건만 출력합니다.</p>`, async f => {
     const from = f.get('from'),
       to = f.get('to');
     C.dates(from, to);
@@ -78,7 +78,7 @@ export function reportDialog(id, from, to) {
       records: C.reportRecords(db(), student.id, from, to)
     }));
     closeModal();
-    showReports(reports, from, to, f.get('printMode'), !!f.get('includeTimestamps'));
+    showReports(reports, from, to, settings().reportPrintMode || 'color', !!f.get('includeTimestamps'));
   }, '보고서 열기');
 }
 export function reportPreview(s, from, to) {
@@ -91,7 +91,7 @@ export function showPrint(s, from, to, records) {
   }], from, to, settings().reportPrintMode || 'color', false);
 }
 function reportPage(s, from, to, records, timestamps) {
-  return `<section class="report-page"><p>오늘의 별 · ${esc(settings().className)}</p><h1>${esc(settings().reportHeader)}</h1><p>${esc(s.no)}. ${esc(s.name)}<br>${esc(C.formatDate(from))} ~ ${esc(C.formatDate(to))}</p><h2>기간 요약</h2><p>칭찬 ${records.filter(r => r.kind === '칭찬').length}건 · 조언 ${records.filter(r => r.kind === '지도').length}건</p><table><thead><tr>${C.areaNames(db(), true).map(a => `<th>${esc(a)}</th>`).join('')}</tr></thead><tbody><tr>${C.areaNames(db(), true).map(a => `<td>${records.filter(r => (r.areas || []).includes(a)).reduce((n, r) => n + C.delta(r), 0)}</td>`).join('')}</tr></tbody></table><h2 style="margin-top:22px">학교생활 기록</h2>${records.map(r => `<article class="record ${r.kind === '칭찬' ? 'report-praise' : r.kind === '지도' ? 'report-advice' : ''} ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><strong>${esc(C.formatDate(r.date))} ${esc(r.period)} · ${esc(C.recordLabel(r))}</strong>${timestamps ? `<small class="report-timestamps">작성 ${esc(C.formatTimestamp(r.createdAt))}${r.updatedAt ? ' · 수정 ' + esc(C.formatTimestamp(r.updatedAt)) : ''}</small>` : ''}<div class="body">${esc(r.text)}</div>${r.action ? `<p class="body" style="margin-top:8px">지도 내용: ${esc(r.action)}</p>` : ''}</article>`).join('')}</section>`;
+  return `<section class="report-page"><p>오늘의 별 · ${esc(settings().className)}</p><h1>${esc(settings().reportHeader)}</h1><div class="report-student-meta"><strong>${esc(s.no)}. ${esc(s.name)}</strong><br><span class="muted">${esc(C.formatDate(from))} ~ ${esc(C.formatDate(to))}</span></div><h2>기간 요약</h2><p>칭찬 ${records.filter(r => r.kind === '칭찬').length}건 · 조언 ${records.filter(r => r.kind === '지도').length}건</p><table><thead><tr>${C.areaNames(db(), true).map(a => `<th>${esc(a)}</th>`).join('')}</tr></thead><tbody><tr>${C.areaNames(db(), true).map(a => `<td>${records.filter(r => (r.areas || []).includes(a)).reduce((n, r) => n + C.delta(r), 0)}</td>`).join('')}</tr></tbody></table><h2 style="margin-top:22px">학교생활 기록</h2>${records.map(r => `<article class="record ${r.kind === '칭찬' ? 'report-praise' : r.kind === '지도' ? 'report-advice' : ''} ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><strong>${esc(C.formatDate(r.date))} ${esc(r.period)} · ${esc(C.recordLabel(r))}</strong>${timestamps ? `<small class="report-timestamps">작성 ${esc(C.formatTimestamp(r.createdAt))}${r.updatedAt ? ' · 수정 ' + esc(C.formatTimestamp(r.updatedAt)) : ''}</small>` : ''}<div class="body">${esc(r.text)}</div>${r.action ? `<p class="body" style="margin-top:8px">지도 내용: ${esc(r.action)}</p>` : ''}</article>`).join('')}</section>`;
 }
 function showReports(reports, from, to, mode, timestamps = false) {
   const root = document.createElement('div');
