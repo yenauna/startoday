@@ -8,10 +8,20 @@ import { studentDetail, studentEditor } from './students.js';
 export function settingsView() {
   const st = settings(),
     bytes = new Blob([JSON.stringify(db())]).size;
-  return `${areasSettings()}<div class="toolbar"><div><h2>설정</h2><small>학급과 기록 방식을 선생님께 맞추세요.</small></div></div><div class="grid2"><section class="panel"><h3>학급 · 화면</h3><form id="settings-form"><div class="formgrid">${input('학급 이름', 'className', st.className, 'text', 'required')}${input('학년도', 'academicYear', st.academicYear, 'number', 'min="2020" max="2100" required')}${input('학교명 · 학생 아이디 준비용', 'schoolName', st.schoolName || '')}${select('교실 화면 이름 표기', 'nameDisplayMode', [['number', '번호만 · 기본'], ['masked', '이름 가림 · 김●수'], ['alias', '교사가 정한 별칭']], st.nameDisplayMode)}${input('자리 행', 'seatRows', st.seatRows, 'number', 'min="1" max="12" required')}${input('자리 열', 'seatCols', st.seatCols, 'number', 'min="1" max="12" required')}<div class="span2">${input('보고서 제목', 'reportHeader', st.reportHeader)}</div><div>${checkbox('시간표에 선생님 표시', 'showTeacher', st.timetableDisplay.showTeacher)}</div><div>${checkbox('시간표에 장소 표시', 'showLocation', st.timetableDisplay.showLocation)}</div><div class="span2">${input('교실 화면 해제 비밀번호 · 새로 설정할 때만 입력', 'classroomPin', '', 'password', 'minlength="4" autocomplete="new-password"')}</div>${(st.periodTimes || []).map((time, i) => input(`${i + 1}교시 시간 · 표시용`, 'period-' + i, time)).join('')}</div><button class="primary" style="margin-top:15px">설정 저장</button></form></section><section class="panel"><h3>백업과 복원</h3><p class="muted">${store.mode === 'cloud' ? '학생의 텍스트 자료는 외부 서버인 수파베이스에 저장됩니다.' : '체험 모드 자료는 현재 브라우저에만 저장됩니다.'}</p><p>학급 데이터 약 <strong>${(bytes / 1024).toFixed(1)} KB</strong><br><small>텍스트 JSON 기준 추정치입니다. 실제 DB·백업·인증 저장량은 수파베이스 대시보드에서 확인하세요.</small></p><p class="muted">마지막 파일 백업: ${st.lastBackupAt ? esc(localTime(st.lastBackupAt)) : '없음'}</p><div class="row">${btn('전체 JSON 내려받기', downloadBackup, 'primary')}${btn('JSON 가져오기', () => $('#backup-input').click())}${btn('클라우드에 한 벌 더 저장', async () => {
+  const calendar = st.academicCalendar || {};
+  return `<div class="toolbar"><div><h2>설정</h2><small>학급과 기록 방식을 선생님께 맞추세요.</small></div></div><form id="settings-form"><section class="panel"><h3>기본 정보</h3><div class="formgrid">${input('학급 이름', 'className', st.className, 'text', 'required')}${input('학년도', 'academicYear', st.academicYear, 'number', 'min="2020" max="2100" required')}${input('학교명', 'schoolName', st.schoolName || '')}</div></section><section class="panel"><h3>교실 화면</h3><div class="formgrid">${select('이름 표시 방식', 'nameDisplayMode', [['real', '실명 그대로 노출'], ['number', '번호만 · 기본'], ['masked', '이름 가림 · 김●수'], ['alias', '교사가 정한 별칭']], st.nameDisplayMode)}${checkbox('학생 점수 표시', 'classroomShowScores', !!st.classroomShowScores)}${input('화면 해제 비밀번호 · 변경할 때만 입력', 'classroomPin', '', 'password', 'minlength="4" autocomplete="new-password"')}</div></section><section class="panel"><h3>보고서</h3><div class="formgrid">${input('보고서 제목', 'reportHeader', st.reportHeader)}${select('기본 출력 방식', 'reportPrintMode', [['color', '컬러'], ['mono', '흑백']], st.reportPrintMode || 'color')}</div></section><section class="panel"><h3>학사일정</h3><div class="formgrid">${Array.from({
+    length: 6
+  }, (_, i) => input(`${i + 1}교시 시간`, 'period-' + i, st.periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i])).join('')}${checkbox('시간표에 선생님 표시', 'showTeacher', st.timetableDisplay.showTeacher)}${checkbox('시간표에 장소 표시', 'showLocation', st.timetableDisplay.showLocation)}${[['term1Start', '1학기 개학일'], ['summerEnd', '여름방학식'], ['term2Start', '2학기 개학일'], ['winterEnd', '겨울방학식']].map(([key, label]) => input(label, key, calendar[key] || '', 'date')).join('')}<div class="span2">${checkbox('봄방학 사용', 'springBreak', !!calendar.springBreak)}</div><fieldset id="spring-dates" class="span2 formgrid" ${calendar.springBreak ? '' : 'disabled'}>${input('겨울방학 후 개학일', 'winterReturn', calendar.winterReturn || '', 'date')}${input('봄방학식 · 종업식/졸업식', 'springEnd', calendar.springEnd || '', 'date')}</fieldset><div class="span2"><label>자율휴업일 · 여러 날짜 선택 후 추가</label><div class="row"><input id="holiday-date" type="date" aria-label="자율휴업일 추가 날짜">${btn('날짜 추가', () => {
+    const field = $('#holiday-date'),
+      date = field.value;
+    if (!date) return;
+    const holder = $('#holiday-dates');
+    if (![...holder.querySelectorAll('input')].some(i => i.value === date)) holder.insertAdjacentHTML('beforeend', holidayChip(date));
+    field.value = '';
+  })}</div><div id="holiday-dates" class="chips">${(calendar.holidays || []).map(holidayChip).join('')}</div></div></div><p class="muted">개학식·방학식·종업식·자율휴업일은 일정 달력에 자동 반영됩니다.</p></section><button class="primary settings-save">설정 저장</button></form><section class="panel"><h3>백업과 복원</h3><p class="muted">${store.mode === 'cloud' ? '학생의 텍스트 자료는 외부 서버인 수파베이스에 저장됩니다.' : '체험 모드 자료는 현재 브라우저에만 저장됩니다.'}</p><p>학급 데이터 약 <strong>${(bytes / 1024).toFixed(1)} KB</strong><br><small>텍스트 JSON 기준 추정치입니다. 실제 DB·백업·인증 저장량은 수파베이스 대시보드에서 확인하세요.</small></p><p class="muted">마지막 파일 백업: ${st.lastBackupAt ? esc(localTime(st.lastBackupAt)) : '없음'}</p><div class="row">${btn('전체 JSON 내려받기', downloadBackup, 'primary')}${btn('JSON 가져오기', () => $('#backup-input').click())}${btn('클라우드에 한 벌 더 저장', async () => {
     await store.cloudBackup();
     toast('클라우드 백업을 저장했습니다. 최근 2세대를 보관합니다.');
-  })}${btn('클라우드 백업 복구', cloudRestore)}</div><input id="backup-input" type="file" accept="application/json,.json" hidden><div class="notice">사진·음성은 저장하지 않습니다. 백업 파일에는 학생 기록이 포함되므로 안전한 곳에 보관하세요.</div><h3 style="margin-top:22px">학년도 전환</h3><p class="muted">현재 학생을 새 고유 ID로 복제합니다. 지난 기록은 보존하고 새 학생에게는 연결하지 않습니다.</p>${btn('다음 학년으로 이어 가기', rollover)}</section></div><section class="panel"><div class="toolbar"><h3>학생 명단</h3><div class="row">${btn('명단 붙여넣기', rosterPaste, 'primary')}${btn('+ 학생', () => studentEditor())}${btn('나간 학생 보기', removedStudents)}</div></div><div class="table-wrap"><table><thead><tr><th>번호</th><th>이름</th><th>모둠</th><th>별칭</th><th></th></tr></thead><tbody>${students().map(s => `<tr><td>${s.no}</td><td>${esc(s.name)}</td><td>${esc(s.group)}</td><td>${esc(s.alias || '')}</td><td><div class="row">${btn('수정', () => studentEditor(s))}${btn('삭제', async () => {
+  })}${btn('클라우드 백업 복구', cloudRestore)}</div><input id="backup-input" type="file" accept="application/json,.json" hidden><div class="notice">사진·음성은 저장하지 않습니다. 백업 파일에는 학생 기록이 포함되므로 안전한 곳에 보관하세요.</div><h3 style="margin-top:22px">학년도 전환</h3><p class="muted">현재 학생을 새 고유 ID로 복제합니다. 지난 기록은 보존하고 새 학생에게는 연결하지 않습니다.</p>${btn('다음 학년으로 이어 가기', rollover)}</section><section class="panel"><div class="toolbar"><h3>학생 명단</h3><div class="row">${btn('명단 붙여넣기', rosterPaste, 'primary')}${btn('+ 학생', () => studentEditor())}${btn('나간 학생 보기', removedStudents)}</div></div><div class="table-wrap"><table><thead><tr><th>번호</th><th>이름</th><th>별칭</th><th></th></tr></thead><tbody>${students().map(s => `<tr><td>${s.no}</td><td>${esc(s.name)}</td><td>${esc(s.alias || '')}</td><td><div class="row">${btn('수정', () => studentEditor(s))}${btn('삭제', async () => {
     if (confirm(`${s.name} 학생을 명단에서 뺄까요? 기록과 과제 상태는 보존합니다.`)) await commit([up('students', {
       ...s,
       deletedAt: C.now(),
@@ -27,8 +37,16 @@ export function settingsView() {
       academicYear: Number(f.get('academicYear')),
       schoolName: f.get('schoolName').trim(),
       nameDisplayMode: f.get('nameDisplayMode'),
-      seatRows: Number(f.get('seatRows')),
-      seatCols: Number(f.get('seatCols')),
+      classroomShowScores: !!f.get('classroomShowScores'),
+      reportPrintMode: f.get('reportPrintMode'),
+      academicCalendar: {
+        ...calendar,
+        ...Object.fromEntries(['term1Start', 'summerEnd', 'term2Start', 'winterEnd'].map(key => [key, f.get(key) || ''])),
+        springBreak: !!f.get('springBreak'),
+        winterReturn: f.get('winterReturn') ?? calendar.winterReturn ?? '',
+        springEnd: f.get('springEnd') ?? calendar.springEnd ?? '',
+        holidays: [...new Set(f.getAll('holidays'))].sort()
+      },
       reportHeader: f.get('reportHeader'),
       periodTimes: Array.from({
         length: 6
@@ -41,22 +59,24 @@ export function settingsView() {
     };
     if (pin) next.classroomPinHash = await hashPin(pin);
     await commit([up('settings', next)]);
-  })}${bindLater('backup-input', 'change', e => importBackup(e.target.files[0]))}`;
+  })}${bindLater('settings-form', 'change', e => {
+    if (e.target.name === 'springBreak') $('#spring-dates').disabled = !e.target.checked;
+  })}${areasSettings()}${bindLater('backup-input', 'change', e => importBackup(e.target.files[0]))}`;
 }
 export function rosterPaste() {
-  modal('명단 붙여넣기', `${textarea('번호 이름 모둠 · 탭/쉼표/공백 구분 모두 인식', 'roster', '')}<p class="muted">예: 1 김민준 1모둠<br>51 이서연 2모둠<br>이름만 붙이면 다음 번호부터 제안합니다.</p>`, async f => {
+  modal('명단 붙여넣기', `${textarea('번호 이름 · 탭/쉼표/공백 구분 모두 인식', 'roster', '')}<p class="muted">예: 1 김민준<br>51 이서연<br>이름만 붙이면 다음 번호부터 제안합니다.</p>`, async f => {
     const rows = C.parseRoster(f.get('roster'), Math.max(0, ...students().map(s => s.no)) + 1);
     if (!rows.length) throw Error('명단을 붙여 넣으세요.');
     rosterPreview(rows);
   }, '등록 미리보기');
 }
 export function rosterPreview(rows) {
-  modal('명단 확인 · 수정 후 한 번에 등록', `<p class="muted">동명이인도 고유 ID로 각각 등록합니다. 번호는 입력한 그대로 유지합니다.</p><div class="table-wrap"><table><thead><tr><th>번호</th><th>이름</th><th>모둠</th></tr></thead><tbody>${rows.map((s, i) => `<tr><td><input aria-label="${i + 1}행 번호" name="no-${i}" type="number" min="1" required value="${s.no}" style="width:75px"></td><td><input aria-label="${i + 1}행 이름" name="name-${i}" required value="${esc(s.name)}"></td><td><input aria-label="${i + 1}행 모둠" name="group-${i}" value="${esc(s.group)}"></td></tr>`).join('')}</tbody></table></div>`, async f => {
+  modal('명단 확인 · 수정 후 한 번에 등록', `<p class="muted">동명이인도 고유 ID로 각각 등록합니다. 번호는 입력한 그대로 유지합니다.</p><div class="table-wrap"><table><thead><tr><th>번호</th><th>이름</th></tr></thead><tbody>${rows.map((s, i) => `<tr><td><input aria-label="${i + 1}행 번호" name="no-${i}" type="number" min="1" required value="${s.no}" style="width:75px"></td><td><input aria-label="${i + 1}행 이름" name="name-${i}" required value="${esc(s.name)}"></td></tr>`).join('')}</tbody></table></div>`, async f => {
     const next = rows.map((_, i) => ({
       id: C.uid(),
       no: Number(f.get('no-' + i)),
       name: f.get('name-' + i).trim(),
-      group: f.get('group-' + i),
+      group: '',
       academicYear: settings().academicYear,
       seat: null,
       createdAt: C.now()
@@ -87,7 +107,6 @@ export function removedStudents() {
     removedStudents();
   })}</div></div>`).join('') || empty('나간 학생이 없습니다.'));
 }
-
 export function subjectEditor(s = null) {
   const row = s || {
     id: C.uid(),
@@ -243,41 +262,89 @@ export function rollover() {
     closeModal();
   });
 }
+function holidayChip(date) {
+  return `<label class="holiday-chip"><input type="checkbox" name="holidays" value="${esc(date)}" checked>${esc(date)}</label>`;
+}
+let areaDraftScope = '',
+  areaDraft = null,
+  areaDraftBase = '',
+  draggedArea = null;
+function captureAreas() {
+  for (const row of areaDraft || []) {
+    const field = $('#area-' + row.id);
+    if (field) row.name = field.value;
+  }
+}
 export function areasSettings() {
-  return `<section class="panel"><h3>경험치 종류</h3><p class="muted">이름 변경은 기존 기록에도 반영됩니다. 삭제한 영역의 지난 기록과 통계는 보존합니다.</p>${C.areaRows(db(), true).map((a, i, list) => `<div class="row" style="margin-bottom:8px"><input aria-label="경험치 이름 ${esc(a.name)}" id="area-${esc(a.id)}" value="${esc(a.name)}" ${a.deletedAt ? 'disabled' : ''}>${a.deletedAt ? '<span>삭제됨</span>' : btn('이름 저장', () => renameArea(a.id))}${btn('↑', () => moveArea(a.id, -1), '', `aria-label="${esc(a.name)} 위로" ${i === 0 ? 'disabled' : ''}`)}${btn('↓', () => moveArea(a.id, 1), '', `aria-label="${esc(a.name)} 아래로" ${i === list.length - 1 ? 'disabled' : ''}`)}${btn(a.deletedAt ? '복원' : '삭제', async () => {
-    if (!a.deletedAt && !confirm('이 영역을 삭제할까요? 지난 기록은 보존됩니다.')) return;
-    await commit(C.areaRows(db(), true).map(x => up('areas', x.id === a.id ? {
-      ...x,
-      deletedAt: a.deletedAt ? null : C.now()
-    } : x)));
-  })}</div>`).join('')}<div class="row"><input id="new-area" aria-label="새 경험치 이름" placeholder="새 경험치 이름">${btn('영역 추가', async () => {
+  const scope = `${store.mode}:${store.classId}:${settings().academicYear}`;
+  const source = JSON.stringify(C.areaRows(db(), true));
+  if (areaDraftScope !== scope || !areaDraft || source !== areaDraftBase && JSON.stringify(areaDraft) === areaDraftBase) {
+    areaDraftScope = scope;
+    areaDraft = JSON.parse(source);
+    areaDraftBase = source;
+  }
+  return `<section class="panel"><h3>경험치 종류</h3><p class="muted">카드를 끌어서 순서를 바꾸세요. 변경한 이름과 순서는 아래 버튼으로 한 번에 저장합니다. 삭제한 영역의 지난 기록은 보존됩니다.</p><div class="area-cards">${areaDraft.map((a, i) => `<div class="area-card" draggable="true" data-area-id="${esc(a.id)}"><span class="area-drag-handle" draggable="true" title="끌어서 순서 변경" aria-hidden="true">⠿</span><input id="area-${esc(a.id)}" aria-label="경험치 이름 ${esc(a.name)}" value="${esc(a.name)}" ${a.deletedAt ? 'disabled' : ''}>${a.deletedAt ? '<small>삭제됨</small>' : ''}${btn('↑', () => moveArea(a.id, -1), '', `aria-label="${esc(a.name)} 위로" ${i === 0 ? 'disabled' : ''}`)}${btn('↓', () => moveArea(a.id, 1), '', `aria-label="${esc(a.name)} 아래로" ${i === areaDraft.length - 1 ? 'disabled' : ''}`)}${btn(a.deletedAt ? '복원' : '삭제', () => {
+    captureAreas();
+    a.deletedAt = a.deletedAt ? null : C.now();
+    render();
+  })}</div>`).join('')}</div><div class="row"><input id="new-area" aria-label="새 경험치 이름" placeholder="새 경험치 이름">${btn('영역 추가', () => {
+    captureAreas();
     const name = $('#new-area').value.trim();
-    if (!name) throw Error('영역 이름을 입력하세요.');
-    if (C.areaNames(db(), true).includes(name)) throw Error('같은 이름의 영역이 있습니다.');
-    const rows = C.areaRows(db(), true);
-    await commit([...rows.map(a => up('areas', a)), up('areas', {
+    if (!name) throw Error('이름을 입력하세요.');
+    areaDraft.push({
       id: C.uid(),
       name,
-      sortOrder: rows.length,
       deletedAt: null
-    })]);
+    });
+    render();
+  })}${btn('경험치 순서/이름 저장', async () => {
+    captureAreas();
+    if (JSON.stringify(C.areaRows(db(), true)) !== areaDraftBase) throw Error('경험치 목록이 다른 곳에서 변경되었습니다. 변경 취소 후 다시 확인하세요.');
+    const old = C.areaRows(db(), true).find(a => a.name === state.recordFilters.area);
+    const ops = C.areaBatchOps(db(), areaDraft);
+    await commit(ops);
+    if (old) state.recordFilters.area = areaDraft.find(a => a.id === old.id).name;
+    areaDraft = structuredClone(C.areaRows(db(), true));
+    areaDraftBase = JSON.stringify(areaDraft);
+    render();
+  }, 'primary')}${btn('변경 취소', () => {
+    areaDraft = null;
+    render();
   })}</div></section>`;
 }
-export async function moveArea(id, direction) {
-  const rows = C.areaRows(db(), true),
-    i = rows.findIndex(a => a.id === id),
+export function moveArea(id, direction) {
+  captureAreas();
+  const i = areaDraft.findIndex(a => a.id === id),
     j = i + direction;
-  if (i < 0 || j < 0 || j >= rows.length) return;
-  [rows[i], rows[j]] = [rows[j], rows[i]];
-  await commit(rows.map((a, sortOrder) => up('areas', {
-    ...a,
-    sortOrder
-  })));
+  if (i < 0 || j < 0 || j >= areaDraft.length) return;
+  [areaDraft[i], areaDraft[j]] = [areaDraft[j], areaDraft[i]];
+  render();
 }
-export async function renameArea(id) {
-  const old = C.areaRows(db(), true).find(a => a.id === id);
-  const name = $('#area-' + id).value.trim();
-  await commit(C.areaEditOps(db(), id, name));
-  if (state.recordFilters.area === old.name) state.recordFilters.area = name;
-}
-
+document.addEventListener('input', e => {
+  if (e.target.closest?.('.area-card')) captureAreas();
+});
+document.addEventListener('dragstart', e => {
+  const card = e.target.closest?.('[data-area-id]');
+  if (!card) return;
+  captureAreas();
+  draggedArea = card.dataset.areaId;
+  e.dataTransfer.setData('text/plain', draggedArea);
+  e.dataTransfer.effectAllowed = 'move';
+});
+document.addEventListener('dragover', e => {
+  if (draggedArea && e.target.closest?.('[data-area-id]')) e.preventDefault();
+});
+document.addEventListener('drop', e => {
+  const card = e.target.closest?.('[data-area-id]');
+  if (!card || !draggedArea) return;
+  e.preventDefault();
+  captureAreas();
+  const from = areaDraft.findIndex(a => a.id === draggedArea),
+    to = areaDraft.findIndex(a => a.id === card.dataset.areaId);
+  if (from >= 0 && to >= 0) {
+    areaDraft.splice(to, 0, areaDraft.splice(from, 1)[0]);
+    render();
+  }
+  draggedArea = null;
+});
+document.addEventListener('dragend', () => draggedArea = null);

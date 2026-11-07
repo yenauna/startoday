@@ -526,8 +526,8 @@ export function pendingRoutines(db, studentId, date) {
   return excluded(db, studentId, date) ? [] : db.routines.filter(r => !r.deletedAt && targeted(r, studentId) && routineStatus(db, r.id, date, studentId) === '진행중').sort((a, b) => a.sortOrder - b.sortOrder);
 }
 export function normalizeAnnouncement(note = {}) {
-  const sizes = ['normal', 'large', 'huge'],
-    colors = ['default', 'red', 'blue', 'yellow'];
+  const sizes = ['normal', 'large', 'huge', '18', '24', '32', '40', '48', '64'],
+    colors = ['default', 'red', 'blue', 'yellow', 'green', 'purple', 'orange', 'gray'];
   const source = Array.isArray(note?.runs) ? note.runs : [{
     text: note?.text || '',
     size: note?.size,
@@ -589,4 +589,68 @@ export function recordLabel(record) {
     관찰: '기록',
     추가기록: '추가 기록'
   }[record.kind] || record.kind;
+}
+
+// Academic dates are derived from settings; manual events remain independent.
+export function calendarEvents(db) {
+  const schedule = db.settings.find(s => s.id === 'main')?.academicCalendar || {};
+  const definitions = [['term1Start', '개학식'], ['summerEnd', '여름방학식'], ['term2Start', '개학식'], ['winterEnd', '겨울방학식']];
+  if (schedule.springBreak) definitions.push(['winterReturn', '개학식'], ['springEnd', '종업식']);
+  const derived = definitions.filter(([key]) => /^\d{4}-\d{2}-\d{2}$/.test(schedule[key] || '')).map(([key, title]) => ({
+    id: 'academic:' + key,
+    date: schedule[key],
+    title,
+    description: '학사일정 · 설정에서 관리',
+    period: null,
+    academic: true
+  }));
+  for (const date of new Set(schedule.holidays || [])) if (/^\d{4}-\d{2}-\d{2}$/.test(date)) derived.push({
+    id: 'academic:holiday:' + date,
+    date,
+    title: '자율휴업일',
+    description: '학사일정 · 재량휴업일',
+    period: null,
+    academic: true
+  });
+  return [...db.events, ...derived];
+}
+// Rename all references from the original names in one pass, including swaps.
+export function areaBatchOps(db, draft) {
+  const rows = draft.map((a, sortOrder) => ({
+    ...a,
+    name: a.name.trim(),
+    sortOrder
+  }));
+  if (rows.some(a => !a.name) || new Set(rows.map(a => a.name)).size !== rows.length) throw Error('경험치 이름을 비우거나 중복할 수 없습니다.');
+  if (new Set(rows.map(a => a.id)).size !== rows.length || areaRows(db, true).some(a => !rows.some(r => r.id === a.id))) throw Error('경험치 목록을 다시 확인하세요.');
+  const renamed = new Map(areaRows(db, true).map(a => [a.name, rows.find(r => r.id === a.id).name]));
+  const ops = rows.map(data => ({
+    table: 'areas',
+    id: data.id,
+    data
+  }));
+  for (const r of db.records) {
+    const areas = (r.areas || []).map(a => renamed.get(a) || a),
+      area = renamed.get(r.area) || r.area;
+    if (JSON.stringify(areas) !== JSON.stringify(r.areas || []) || area !== r.area) ops.push({
+      table: 'records',
+      id: r.id,
+      data: {
+        ...r,
+        areas,
+        ...(r.area !== undefined ? {
+          area
+        } : {})
+      }
+    });
+  }
+  for (const a of db.assignments) if (renamed.has(a.statArea) && renamed.get(a.statArea) !== a.statArea) ops.push({
+    table: 'assignments',
+    id: a.id,
+    data: {
+      ...a,
+      statArea: renamed.get(a.statArea)
+    }
+  });
+  return ops;
 }

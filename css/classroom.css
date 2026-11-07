@@ -24,3 +24,13 @@
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
+
+.classroom-heading { display:flex; align-items:center; gap:32px; padding-bottom:20px; }
+.classroom-brand { flex:0 0 auto; }
+.classroom-brand h1 { margin:0; font-size:30px; }
+.classroom-brand small { display:block; font-size:18px; }
+.classroom-datetime { flex:1; display:flex; justify-content:center; align-items:center; gap:32px; font-size:clamp(28px,3.5vw,56px); font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.035em; }
+.classroom-datetime .clock { font-size:inherit; }
+.classroom-datetime>time,.classroom-datetime>.clock { white-space:nowrap; }
+.classroom-score { color:#B77908; font-size:21px; font-weight:700; }
+@media(max-width:800px) { .classroom-heading{flex-wrap:wrap;gap:12px;} .classroom-datetime{flex-wrap:wrap;gap:12px;justify-content:flex-start;} }

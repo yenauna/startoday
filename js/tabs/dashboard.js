@@ -12,7 +12,7 @@ import { dayEditor, periodInfo, timeSlots } from './timetable.js';
 export function weekSummary() {
   const start = C.addDays(state.date, -((C.weekday(state.date) + 6) % 7)),
     end = C.addDays(start, 4);
-  return [...db().events.filter(e => e.date >= start && e.date <= end).map(e => `${e.date.slice(5)} ${e.title}`), ...db().timetables.filter(t => t.date >= start && t.date <= end && periodInfo(t).type !== '일반').map(t => `${t.date.slice(5)} ${t.period}교시 ${t.subjectCode} ${periodInfo(t).type}`)].join(' · ') || '';
+  return [...C.calendarEvents(db()).filter(e => e.date >= start && e.date <= end).map(e => `${e.date.slice(5)} ${e.title}`), ...db().timetables.filter(t => t.date >= start && t.date <= end && periodInfo(t).type !== '일반').map(t => `${t.date.slice(5)} ${t.period}교시 ${t.subjectCode} ${periodInfo(t).type}`)].join(' · ') || '';
 }
 export function dashboard() {
   if (state.dashMode !== 'normal') return checkView();
@@ -31,7 +31,7 @@ export function dashboard() {
   })}${btn('출결', () => {
     state.dashMode = 'attendance';
     render();
-  })}</div></div>${announcementEditor()}<section class="panel"><div class="row between"><div class="row"><strong>오늘 일정</strong>${db().events.filter(e => e.date === state.date && e.period == null).map(e => btn(esc(e.title), () => dayEditor(state.date, '일정', null, e), 'event')).join('') || ''}${db().events.filter(e => e.isDday).sort((a, b) => a.date.localeCompare(b.date)).map(e => badge(e.title + ' ' + C.dday(e.date, state.date))).join('')}</div>${btn('+ 일정', () => dayEditor(state.date))}</div><div class="schedule registered-schedule" style="margin-top:12px">${timeSlots(state.date, false, true)}</div>${weekSummary() ? `<div class="ticker">${esc(weekSummary())}</div>` : ''}</section><div class="summary"><div class="metric"><small>오늘 함께하는 학생</small><strong>${list.filter(s => !C.excluded(db(), s.id, state.date)).length}<small> / ${list.length}명</small></strong></div><div class="metric"><small>할 일을 모두 마친 학생</small><strong>${completed}<small>명</small></strong></div><div class="metric"><small>오늘 남긴 기록</small><strong>${db().records.filter(r => r.date === state.date).length}<small>건</small></strong></div></div><div class="toolbar"><strong>우리 반 학생 <span class="muted">${list.length}명</span></strong><div class="row">${btn('번호순', () => setDashboardOrder('number'), dashboardOrder() === 'number' ? 'primary' : '', `aria-pressed="${dashboardOrder() === 'number'}"`)}${btn('자리대로', () => setDashboardOrder('seats'), dashboardOrder() === 'seats' ? 'primary' : '', `aria-pressed="${dashboardOrder() === 'seats'}"`)}</div></div><section class="${state.compact ? 'compact' : ''}">${dashboardStudents(list)}</section>${!list.length ? empty('아직 등록된 학생이 없습니다.', '설정에서 명단을 붙여 넣거나 학생을 추가하세요.') : ''}${bindLater('dash-date', 'change', e => {
+  })}</div></div>${announcementEditor()}<section class="panel"><div class="row between"><div class="row"><strong>오늘 일정</strong>${C.calendarEvents(db()).filter(e => e.date === state.date && (e.period == null || e.period === 0 || e.period === 7)).map(e => btn(esc(e.title) + (e.description ? `<small class="event-description">${esc(e.description)}</small>` : ''), () => dayEditor(state.date, '일정', null, e), 'event')).join('') || ''}${C.calendarEvents(db()).filter(e => e.isDday).sort((a, b) => a.date.localeCompare(b.date)).map(e => badge(e.title + ' ' + C.dday(e.date, state.date))).join('')}</div>${btn('+ 일정', () => dayEditor(state.date))}</div><div class="schedule registered-schedule" style="margin-top:12px">${timeSlots(state.date, false, true)}</div>${weekSummary() ? `<div class="ticker">${esc(weekSummary())}</div>` : ''}</section><div class="summary"><div class="metric"><small>오늘 함께하는 학생</small><strong>${list.filter(s => !C.excluded(db(), s.id, state.date)).length}<small> / ${list.length}명</small></strong></div><div class="metric"><small>할 일을 모두 마친 학생</small><strong>${completed}<small>명</small></strong></div><div class="metric"><small>오늘 남긴 기록</small><strong>${db().records.filter(r => r.date === state.date).length}<small>건</small></strong></div></div><div class="toolbar"><strong>우리 반 학생 <span class="muted">${list.length}명</span></strong><div class="row">${btn('번호순', () => setDashboardOrder('number'), dashboardOrder() === 'number' ? 'primary' : '', `aria-pressed="${dashboardOrder() === 'number'}"`)}${btn('자리대로', () => setDashboardOrder('seats'), dashboardOrder() === 'seats' ? 'primary' : '', `aria-pressed="${dashboardOrder() === 'seats'}"`)}</div></div><section class="${state.compact ? 'compact' : ''}">${dashboardStudents(list)}</section>${!list.length ? empty('아직 등록된 학생이 없습니다.', '설정에서 명단을 붙여 넣거나 학생을 추가하세요.') : ''}${bindLater('dash-date', 'change', e => {
     state.date = e.target.value || C.today();
     render();
   })}`;
@@ -50,10 +50,10 @@ export function studentCard(s) {
     state.selected = state.selected.includes(s.id) ? state.selected.filter(x => x !== s.id) : [...state.selected, s.id];
     render();
   });
-  return `<article role="button" tabindex="0" aria-pressed="${state.selected.includes(s.id)}" data-action="${id}" class="student ${isUnfinished(s.id, state.date) ? 'unfinished' : ''} ${missing.length ? 'has-pending' : ''} ${state.selected.includes(s.id) ? 'selected' : ''} ${ex ? 'excluded' : ''}"><div class="student-head"><strong>${esc(s.no)} · ${esc(s.name)}</strong>${btn('⋯', () => studentDetail(s.id), '', 'aria-label="' + esc(s.name) + ' 상세 보기"')}${ex ? badge('제외') : ''}</div><div class="score" aria-label="누적 별 점수 ${score.total}"><span class="score-star" aria-hidden="true">★</span><strong class="score-total">${score.total}</strong> <small>${C.areaNames(db(), true).filter(a => score.areas[a]).map(a => esc(a) + score.areas[a]).join(' ') || '기록 없음'}</small></div><div class="pending-tasks">${missing.slice(0, 2).map(({
+  return `<article role="button" tabindex="0" aria-pressed="${state.selected.includes(s.id)}" data-action="${id}" class="student ${isUnfinished(s.id, state.date) ? 'unfinished' : ''} ${missing.length ? 'has-pending' : ''} ${state.selected.includes(s.id) ? 'selected' : ''} ${ex ? 'excluded' : ''}"><div class="student-head"><strong>${esc(s.no)} · ${esc(s.name)}</strong>${btn('⋯', () => studentDetail(s.id), '', 'aria-label="' + esc(s.name) + ' 상세 보기"')}${ex ? badge('제외') : ''}</div><div class="score" aria-label="누적 별 점수 ${score.total}"><span class="score-star" aria-hidden="true">★</span><strong class="score-total">${score.total}</strong> <small>${C.areaNames(db(), true).filter(a => score.areas[a]).map(a => `<span class="area-score">${esc(a === '학습태도' ? '태도' : a)} ${score.areas[a]}</span>`).join(' ') || ''}</small></div><div class="pending-tasks">${missing.slice(0, 2).map(({
     assignment: a,
     date: d
-  }) => btn(`${d < state.date ? '이전 · ' : ''}${esc(a.title)}`, () => taskStateEditor(a, d, s.id), 'task ' + (d < state.date ? 'overdue' : ''))).join('')}${missing.length > 2 ? btn('+ ' + (missing.length - 2) + '개', () => studentDetail(s.id), 'task pending-more') : ''}</div>${routines.length ? `<div class="routine-indicator"><div class="routine-names">${routines.map(r => btn(esc(r.title), () => setRoutine(r, state.date, s.id, '완료'), 'routine-task')).join('')}</div>${btn('루틴 ' + routines.length, () => routineChecklist(s, routines), 'routine-count')}</div>` : ''}</article>`;
+  }) => btn(`${d < state.date ? '이전 · ' : ''}${esc(a.title)}`, () => taskStateEditor(a, d, s.id), 'task ' + (d < state.date ? 'overdue' : ''))).join('')}${missing.length > 2 ? btn('+ ' + (missing.length - 2) + '개', () => studentDetail(s.id), 'task pending-more') : ''}</div>${routines.length ? `<div class="routine-indicator"><div class="routine-names">${routines.map(r => btn(esc(r.title), () => setRoutine(r, state.date, s.id, '완료'), 'routine-task')).join('')}</div></div>` : ''}</article>`;
 }
 const checkDrafts = new Map();
 const recordKinds = [['칭찬', '칭찬', 'praise'], ['관찰', '기록', 'note'], ['추가기록', '추가기록', 'extra'], ['지도', '조언', 'advice']];
@@ -127,13 +127,23 @@ const noticeDrafts = new Map();
 const noticeSizes = {
     normal: 24,
     large: 36,
-    huge: 52
+    huge: 52,
+    '18': 24,
+    '24': 32,
+    '32': 128 / 3,
+    '40': 160 / 3,
+    '48': 64,
+    '64': 256 / 3
   },
   noticeColors = {
     default: '#1E293B',
     red: '#B91C1C',
     blue: '#1D4ED8',
-    yellow: '#FFE066'
+    yellow: '#FFE066',
+    green: '#15803D',
+    purple: '#7E22CE',
+    orange: '#C2410C',
+    gray: '#64748B'
   };
 function noticeKey() {
   return `${store.mode}:${store.classId}:${settings().academicYear}`;
@@ -170,7 +180,7 @@ function noticeDraft() {
 export function announcementEditor() {
   const draft = noticeDraft();
   if (draft.dirty) queueNotice(draft);
-  return `<section class="panel notice-panel"><div id="notice-toolbar" class="row" role="toolbar" aria-label="알림 서식">${select('글씨 크기', 'notice-size', [['normal', '보통'], ['large', '크게'], ['huge', '아주 크게']], draft.note.runs[0]?.size || 'normal')}${select('글씨 색상', 'notice-color', [['default', '기본'], ['red', '빨강'], ['blue', '파랑'], ['yellow', '노랑']], draft.note.runs[0]?.color || 'default')}<small id="notice-status" role="status">${draft.error ? '저장 실패 · 입력하면 다시 시도합니다.' : draft.dirty ? '자동 저장 대기 중' : '자동 저장됨'}</small></div><div id="notice-editor" contenteditable="true" role="textbox" aria-label="알림 내용" aria-multiline="true" spellcheck="false">${noticeMarkup(draft.note)}</div></section>`;
+  return `<section class="panel notice-panel"><div id="notice-toolbar" class="row" role="toolbar" aria-label="알림 서식">${select('글씨 크기', 'notice-size', [['normal', '보통'], ['large', '크게'], ['huge', '아주 크게'], ...['18', '24', '32', '40', '48', '64'].map(n => [n, n + 'pt'])], draft.note.runs[0]?.size || 'normal')}${select('글씨 색상', 'notice-color', [['default', '기본'], ['red', '빨강'], ['blue', '파랑'], ['yellow', '노랑'], ['green', '초록'], ['purple', '보라'], ['orange', '주황'], ['gray', '회색']], draft.note.runs[0]?.color || 'default')}<small id="notice-status" role="status">${draft.error ? '저장 실패 · 입력하면 다시 시도합니다.' : draft.dirty ? '자동 저장 대기 중' : '자동 저장됨'}</small></div><div id="notice-editor" contenteditable="true" role="textbox" aria-label="알림 내용" aria-multiline="true" spellcheck="false">${noticeMarkup(draft.note)}</div></section>`;
 }
 // Delegate editor events once, so repeated renders cannot duplicate input handlers.
 for (const type of ['input', 'mouseup', 'keyup', 'pointerdown', 'change', 'paste', 'drop']) {

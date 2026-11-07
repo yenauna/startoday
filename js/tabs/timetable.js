@@ -26,9 +26,11 @@ export function timeSlots(d, calendar = false, registeredOnly = false) {
     const p = i + 1,
       slot = db().timetables.find(t => t.date === d && t.period === p),
       info = periodInfo(slot),
-      events = db().events.filter(e => e.date === d && e.period === p);
-    if(registeredOnly&&!slot&&!events.length)return '';
-    const content = `<small class="slot-time"><span>${p}교시</span>${!calendar&&settings().periodTimes?.[i]?`<span class="period-time">${esc(settings().periodTimes[i])}</span>`:''}</small> <strong>${esc(slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '')}</strong>${events.map(e => `<div>${esc(e.title)}</div>`).join('')}${info.type !== '일반' ? badge(info.type) : ''}${!calendar || state.calendarFilters.detail ? `<small>${esc([settings().timetableDisplay.showLocation ? info.location : '', settings().timetableDisplay.showTeacher ? info.teacher : '', slot?.memo].filter(Boolean).join(' · '))}</small>` : ''}`;
+      events = C.calendarEvents(db()).filter(e => e.date === d && e.period === p);
+    if (registeredOnly && !slot && !events.length) return '';
+    const detail = !calendar || state.calendarFilters.detail;
+    const teacher = info.teacher ? info.teacher.replace(/선생님$/, '') + '선생님' : '';
+    const content = `<small class="slot-time"><span>${p}교시</span>${!calendar && settings().periodTimes?.[i] ? `<span class="period-time">${esc(settings().periodTimes[i])}</span>` : ''}</small><div class="slot-content"><strong>${esc(slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '')}</strong><div class="slot-description">${events.map(e => `<span class="slot-note">${esc(e.title)}${e.description ? ' · ' + esc(e.description) : ''}</span>`).join('')}${slot?.memo ? `<span class="slot-note">${esc(slot.memo)}</span>` : ''}${info.type !== '일반' ? badge(info.type) : ''}${detail && settings().timetableDisplay.showLocation && info.location ? `<span class="slot-location">${esc(info.location)}</span>` : ''}${detail && settings().timetableDisplay.showTeacher && teacher ? `<span class="slot-teacher">${esc(teacher)}</span>` : ''}</div></div>`;
     return btn(content, () => {
       if (state.dragSlot) {
         const from = state.dragSlot;
@@ -71,9 +73,9 @@ export function calendarView() {
     length: days
   }, (_, i) => {
     const d = C.addDays(start, i),
-      events = db().events.filter(e => e.date === d && e.period == null),
+      events = C.calendarEvents(db()).filter(e => e.date === d && (e.period == null || e.period === 0 || e.period === 7)),
       tasks = db().assignments.filter(a => C.occurs(a, d));
-    return `<div class="day ${d.slice(0, 7) !== state.calendarDate.slice(0, 7) ? 'faded' : ''} ${d === C.today() ? 'today' : ''}">${btn(`<span>${Number(d.slice(-2))}${state.calendarMode === 'week' ? '일' : ''}</span><small>＋</small>`, () => dayEditor(d), 'day-head')}${state.calendarFilters.events ? events.map(e => btn(esc(e.title) + (e.isDday ? ' ' + badge(C.dday(e.date)) : ''), () => dayEditor(d, '일정', null, e), 'event')).join('') : ''}${state.calendarFilters.time ? timeSlots(d, true) : ''}${state.calendarFilters.tasks ? tasks.map(a => {
+    return `<div class="day ${d.slice(0, 7) !== state.calendarDate.slice(0, 7) ? 'faded' : ''} ${d === C.today() ? 'today' : ''}">${btn(`<span>${Number(d.slice(-2))}${state.calendarMode === 'week' ? '일' : ''}</span><small>＋</small>`, () => dayEditor(d), 'day-head')}${state.calendarFilters.events ? events.map(e => btn(esc(e.title) + (e.description ? `<small class="event-description">${esc(e.description)}</small>` : '') + (e.isDday ? ' ' + badge(C.dday(e.date)) : ''), () => dayEditor(d, '일정', null, e), 'event')).join('') : ''}${state.calendarFilters.time ? timeSlots(d, true) : ''}${state.calendarFilters.tasks ? tasks.map(a => {
       const targets = students().filter(s => C.targeted(a, s.id) && !C.excluded(db(), s.id, d)),
         done = targets.filter(s => ['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, d, s.id))).length;
       return `<div class="taskline">${btn(esc(a.title) + ` <small>${done}/${targets.length}</small>`, () => {
@@ -85,6 +87,14 @@ export function calendarView() {
   }).join('')}</div></div>`;
 }
 export function dayEditor(d, mode = '일정', period = 1, event = null) {
+  if (event?.academic) {
+    modal('학사일정', `<h3>${esc(event.title)}</h3><p>${esc(event.date)}</p><p>${esc(event.description)}</p>${btn('학사일정 설정', () => {
+      closeModal();
+      state.tab = '설정';
+      render();
+    })}`);
+    return;
+  }
   if (mode === '과제') {
     closeModal();
     assignmentEditor(null, d);
@@ -271,4 +281,3 @@ export function bindTimetableDrag() {
     el.onpointercancel = () => clearTimeout(el._touchTimer);
   });
 }
-

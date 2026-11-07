@@ -30,14 +30,15 @@ export function renderLogin() {
   })}<small>연결 전 체험 자료와 로그인 후 학급 자료는 별도로 관리됩니다.</small></div>`;
 }
 export function renderShell(renderTab) {
-  return header() + `<div class="shell">${quickInput()}<nav class="tabs" aria-label="주 메뉴">${['대시보드', '기록', '시간표·일정', '과제', '루틴', '학생', '자리', '설정'].map(t => btn(t === '기록' ? '관찰기록' : t, () => {
+  return `<div class="sticky-navigation">${header()}<nav class="tabs" aria-label="주 메뉴">${['대시보드', '기록', '시간표·일정', '과제', '루틴', '학생', '자리', '설정'].map(t => btn(t, () => {
     state.tab = t;
     render();
-  }, state.tab === t ? 'active' : '', state.tab === t ? 'aria-current="page"' : '')).join('')}</nav>${store.mode === 'demo' ? '<div class="notice">가상 명단으로 체험 중입니다. 이 모드의 자료는 이 브라우저에만 저장됩니다. 실제 학급은 수파베이스 연결 후 구글 로그인으로 사용하세요.</div>' : ''}${settings().lastBackupAt && Date.now() - new Date(settings().lastBackupAt) > 7 * 86400000 ? '<div class="notice">마지막 백업 후 7일이 지났습니다. 설정에서 백업 파일을 내려받으세요.</div>' : !settings().lastBackupAt ? '<div class="muted" style="margin-bottom:10px">아직 백업하지 않았습니다. 설정에서 전체 자료를 내보낼 수 있습니다.</div>' : ''}<main id="main">${renderTab()}</main></div>${renderSelectionClear()}`;
+  }, state.tab === t ? 'active' : '', state.tab === t ? 'aria-current="page"' : '')).join('')}</nav></div><div class="shell">${quickInput()}${store.mode === 'demo' ? '<div class="notice">가상 명단으로 체험 중입니다. 이 모드의 자료는 이 브라우저에만 저장됩니다. 실제 학급은 수파베이스 연결 후 구글 로그인으로 사용하세요.</div>' : ''}${settings().lastBackupAt && Date.now() - new Date(settings().lastBackupAt) > 7 * 86400000 ? '<div class="notice">마지막 백업 후 7일이 지났습니다. 설정에서 백업 파일을 내려받으세요.</div>' : !settings().lastBackupAt ? '<div class="muted" style="margin-bottom:10px">아직 백업하지 않았습니다. 설정에서 전체 자료를 내보낼 수 있습니다.</div>' : ''}<main id="main">${renderTab()}</main></div>${renderSelectionClear()}`;
 }
 let quickScope = '',
   quickText = '',
   quickPeriod = '자동',
+  quickDate = '',
   quickAreas = [],
   saving = false;
 function quickInput() {
@@ -47,16 +48,17 @@ function quickInput() {
     quickText = '';
     quickPeriod = '자동';
     quickAreas = [];
+    quickDate = state.date;
   }
   if (!['대시보드', '기록'].includes(state.tab)) return '';
   quickAreas = quickAreas.filter(a => C.areaNames(db()).includes(a));
-  return `<div class="quick-wrap">${state.selected.length ? `<div class="chips selected-students" aria-label="선택 학생">${state.selected.map(id => btn(esc(name(id)) + ' ×', () => {
+  return `<div class="quick-wrap quick-composer-card">${state.selected.length ? `<div class="chips selected-students" aria-label="선택 학생">${state.selected.map(id => btn(esc(name(id)) + ' ×', () => {
     state.selected = state.selected.filter(x => x !== id);
     render();
-  })).join('')}</div>` : ''}<form class="quick" id="quick-form"><textarea id="quick-text" rows="1" aria-label="빠른 기록 입력" placeholder="예: 3번 2교시 친구를 도와줌">${esc(quickText)}</textarea><div class="quick-controls"><select id="quick-period" aria-label="교시">${opts([['자동', autoPeriodLabel()], ...C.PERIODS], quickPeriod)}</select><div class="record-actions">${recordButtons(saveQuick)}</div></div></form><div class="chips quick-areas" role="group" aria-label="빠른 기록 경험치 영역">${C.areaNames(db()).map(a => btn(esc(a), () => {
+  })).join('')}</div>` : ''}<form class="quick" id="quick-form"><div class="quick-main"><textarea id="quick-text" rows="1" aria-label="빠른 기록 입력" placeholder="예: 3번 2교시 친구를 도와줌">${esc(quickText)}</textarea><div class="chips quick-areas" role="group" aria-label="빠른 기록 경험치 영역">${C.areaNames(db()).map(a => btn(esc(a), () => {
     quickAreas = quickAreas.includes(a) ? quickAreas.filter(x => x !== a) : [...quickAreas, a];
     render();
-  }, 'area-chip' + (quickAreas.includes(a) ? ' selected' : ''), `aria-pressed="${quickAreas.includes(a)}"`)).join('')}</div></div>`;
+  }, 'area-chip' + (quickAreas.includes(a) ? ' selected' : ''), `aria-pressed="${quickAreas.includes(a)}"`)).join('')}</div></div><div class="quick-controls"><label class="quick-date" title="기록 날짜 선택"><span>📅 ${quickDate === C.today() ? '오늘' : esc(quickDate.slice(5))}</span><input type="date" id="quick-date" aria-label="빠른 기록 날짜" value="${esc(quickDate)}" required></label><select id="quick-period" aria-label="교시">${opts([['자동', autoPeriodLabel()], ...C.PERIODS], quickPeriod)}</select><div class="record-actions">${recordButtons(saveQuick)}</div></div></form></div>`;
 }
 export function bindQuickInput() {
   const form = $('#quick-form');
@@ -78,6 +80,12 @@ export function bindQuickInput() {
     quickPeriod = period.value;
     updateAutoPeriod();
   };
+  $('#quick-date').onchange = e => {
+    if (e.target.value) {
+      quickDate = e.target.value;
+      render();
+    }
+  };
   updateAutoPeriod();
   resize();
   form.onsubmit = e => {
@@ -91,7 +99,7 @@ export async function saveQuick(kind) {
   if (!text) throw Error('내용을 입력하세요.');
   const parsed = C.parseInput(text, db(), state.selected);
   if (parsed.warnings.length) throw Error(parsed.warnings.join(' '));
-  parsed.date = state.date;
+  parsed.date = $('#quick-date')?.value || quickDate || state.date;
   const period = $('#quick-period').value;
   if (period !== '자동') parsed.period = period;
   delete parsed.warnings;
@@ -110,13 +118,13 @@ export async function saveQuick(kind) {
   }
 }
 function autoPeriodLabel() {
-  return '시간 자동 · ' + C.inputPeriod(quickText, settings());
+  return '시간자동';
 }
 function updateAutoPeriod() {
   const option = $('#quick-period option[value="자동"]');
   if (option && db()) {
     option.textContent = autoPeriodLabel();
-    $('#quick-period').title = quickPeriod === '자동' ? option.textContent : '직접 선택 · ' + quickPeriod;
+    $('#quick-period').title = quickPeriod === '자동' ? '시간자동 · ' + C.inputPeriod(quickText, settings()) : '직접 선택 · ' + quickPeriod;
   }
 }
 setInterval(updateAutoPeriod, 60000);

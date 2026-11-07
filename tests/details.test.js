@@ -137,7 +137,7 @@ test('추가기록은 실제 하위 라벨만 반환하고 일반 기록 표기�
     kind: '지도'
   }), '조언');
 });
-test('과제가 있는 화면은 TDZ 오류 없이 상태·메모를 렌더링하고 현재 날짜로 편집', () => {
+test('과제 화면은 TDZ 없이 상태·메모를 표시하고 1클릭 순환 및 메모 편집을 지원', async () => {
   const db = fixture(),
     date = '2026-11-07';
   db.assignments = [{
@@ -158,10 +158,36 @@ test('과제가 있는 화면은 TDZ 오류 없이 상태·메모를 렌더링�
     status: '안함',
     memo: '<확인>'
   }];
-  const buttons = [];
+  const buttons = [],
+    listeners = new Map(),
+    timers = new Map();
+  const taskButton = {
+    textContent: '안함',
+    dataset: {
+      taskAssignment: 'a',
+      taskStudent: 'ji',
+      taskDate: date
+    }
+  };
+  let timerId = 0;
   let modalBody = '';
   const context = {
     C,
+    store: {
+      mode: 'demo',
+      classId: 'qa'
+    },
+    document: {
+      addEventListener: (type, fn) => listeners.set(type, fn),
+      querySelectorAll: () => [taskButton]
+    },
+    setTimeout: fn => {
+      timers.set(++timerId, fn);
+      return timerId;
+    },
+    clearTimeout: id => timers.delete(id),
+    run: fn => fn(),
+    commit: async ops => Object.assign(db, C.applyOps(db, ops)),
     state: {
       date
     },
@@ -193,5 +219,18 @@ test('과제가 있는 화면은 TDZ 오류 없이 상태·메모를 렌더링�
   const failed = buttons.find(b => b.label === '안함');
   assert.equal(failed.cls, 'danger');
   failed.callback();
+  assert.equal(taskButton.textContent, '진행중');
+  assert.equal(modalBody, '');
+  await [...timers.values()][0]();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(db.assignmentStates[0].status, '진행중');
+  assert.equal(db.assignmentStates[0].memo, '<확인>');
+  assert.equal(db.records.filter(r => r.autoRef === C.stateId('a', date, 'ji')).length, 0);
+  listeners.get('contextmenu')({
+    target: {
+      closest: () => taskButton
+    },
+    preventDefault() {}
+  });
   assert(modalBody.includes(date));
 });

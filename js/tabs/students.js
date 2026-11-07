@@ -2,14 +2,14 @@ import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, kindLabel, name, settings, students, up } from '../shared/data.js';
 import { state } from '../shared/state.js';
-import { $, badge, btn, checkbox, empty, esc, input, textarea } from '../shared/ui.js';
+import { $, badge, btn, checkbox, empty, esc, input, select, textarea } from '../shared/ui.js';
 import { taskStateEditor } from './assignments.js';
 import { recordCard, recordEditor } from './records.js';
 export function studentsView() {
   const first = state.date.slice(0, 7) + '-01';
-  return `<div class="toolbar"><div><h2>학생</h2><small>이번 달 기록과 아직 남은 일을 살펴보세요.</small></div>${btn('+ 학생', () => studentEditor(), 'primary')}</div><div class="table-wrap"><table><thead><tr><th>학생</th><th>모둠</th><th>이번 달 칭찬 / 조언</th><th>미완료 과제</th><th>최근 기록일</th><th>바로 기록</th></tr></thead><tbody>${students().map(s => {
+  return `<div class="toolbar"><div><h2>학생</h2><small>이번 달 기록과 아직 남은 일을 살펴보세요.</small></div><div class="row">${btn('전체 학생 일괄 내보내기', () => reportDialog(null, first, state.date))}${btn('+ 학생', () => studentEditor(), 'primary')}</div></div><div class="table-wrap"><table><thead><tr><th>학생</th><th>이번 달 칭찬 / 조언</th><th>미완료 과제</th><th>최근 기록일</th><th>바로 기록</th></tr></thead><tbody>${students().map(s => {
     const records = C.scores(db(), s.id, first, state.date).records;
-    return `<tr><td>${btn(esc(name(s.id)), () => studentDetail(s.id))}</td><td>${esc(s.group)}</td><td>${records.filter(r => r.kind === '칭찬').length} / ${records.filter(r => r.kind === '지도').length}</td><td>${C.pending(db(), s.id, state.date).length}</td><td>${esc(db().records.filter(r => r.studentIds.includes(s.id)).map(r => r.date).sort().at(-1) || '—')}</td><td>${btn('+ 기록', () => recordEditor({
+    return `<tr><td>${btn(esc(name(s.id)), () => studentDetail(s.id))}</td><td>${records.filter(r => r.kind === '칭찬').length} / ${records.filter(r => r.kind === '지도').length}</td><td>${C.pending(db(), s.id, state.date).length}</td><td>${esc(db().records.filter(r => r.studentIds.includes(s.id)).map(r => r.date).sort().at(-1) || '—')}</td><td>${btn('+ 기록', () => recordEditor({
       studentIds: [s.id],
       date: state.date
     }))}</td></tr>`;
@@ -40,12 +40,11 @@ export function studentEditor(s = null) {
     studentCode: '',
     createdAt: C.now()
   };
-  modal(s ? '학생 수정' : '학생 추가', `<div class="formgrid">${input('번호', 'no', row.no, 'number', 'min="1" required')}${input('이름', 'name', row.name, 'text', 'required')}${input('모둠', 'group', row.group)}${input('교실 화면 별칭', 'alias', row.alias || '')}</div>`, async f => {
+  modal(s ? '학생 수정' : '학생 추가', `<div class="formgrid">${input('번호', 'no', row.no, 'number', 'min="1" required')}${input('이름', 'name', row.name, 'text', 'required')}${input('교실 화면 별칭', 'alias', row.alias || '')}</div>`, async f => {
     const next = {
       ...row,
       no: Number(f.get('no')),
       name: f.get('name').trim(),
-      group: f.get('group'),
       alias: f.get('alias'),
       deletedAt: null
     };
@@ -65,34 +64,61 @@ export function studentEditor(s = null) {
   });
 }
 export function reportDialog(id, from, to) {
-  const s = db().students.find(x => x.id === id);
-  modal('개별 보고서 · 기간 선택', `<p>${esc(name(id))}</p><div class="formgrid">${input('시작일', 'from', from, 'date', 'required')}${input('종료일', 'to', to, 'date', 'required')}</div><p class="muted">추가 기록은 인쇄 포함을 승인한 건만 출력합니다. 다른 학생의 이름은 ‘다른 학생’으로 바꾸어 미리보기에 표시합니다.</p>`, async f => {
+  const selected = id ? [db().students.find(x => x.id === id)].filter(Boolean) : students();
+  if (!selected.length) throw Error('내보낼 학생이 없습니다.');
+  modal(id ? '개별 보고서 · 기간 선택' : '전체 학생 일괄 내보내기', `<p>${id ? esc(name(id)) : `${selected.length}명 · 학생별로 페이지를 나누어 출력합니다.`}</p><div class="formgrid">${input('시작일', 'from', from, 'date', 'required')}${input('종료일', 'to', to, 'date', 'required')}${select('출력 방식', 'printMode', [['color', '컬러'], ['mono', '흑백']], settings().reportPrintMode || 'color')}</div><p class="muted">추가 기록은 인쇄 포함을 승인한 건만 출력합니다. 다른 학생의 이름은 ‘다른 학생’으로 바꾸어 미리보기에 표시합니다.</p>`, async f => {
     C.dates(f.get('from'), f.get('to'));
-    reportPreview(s, f.get('from'), f.get('to'));
+    reviewReports(selected, f.get('from'), f.get('to'), f.get('printMode'));
   }, '인쇄 내용 확인');
 }
 export function reportPreview(s, from, to) {
-  const records = C.reportRecords(db(), s.id, from, to);
-  modal('인쇄 전 내용 확인', `<div class="notice">각 기록에서 이 학생과 관계없는 내용·다른 학생의 개인정보를 제거해 주세요. 이름 자동 가림만으로 본문 속 모든 개인정보를 판단할 수는 없습니다. 수정한 내용은 이번 보고서에만 적용됩니다.</div>${records.map((r, i) => `<div class="record ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><strong>${esc(r.date)} ${esc(r.period)} · ${esc(C.recordLabel(r))}</strong>${textarea('이 학생의 기록', 'text-' + i, C.redact(r.text, db(), s.id))}${textarea('이 학생에 대한 지도 내용', 'action-' + i, C.redact(r.action, db(), s.id))}</div>`).join('') || empty('인쇄할 기록이 없습니다.')}${checkbox('이 학생의 내용만 남겼으며, 외부에 전달할 개인정보를 확인했습니다.', 'reviewed')}`, async f => {
-    if (!f.get('reviewed')) throw Error('전달 내용을 확인한 뒤 체크해 주세요.');
-    const safe = records.map((r, i) => ({
-      ...r,
-      text: f.get('text-' + i),
-      action: f.get('action-' + i)
+  reviewReports([s], from, to, settings().reportPrintMode || 'color');
+}
+function reviewReports(list, from, to, mode) {
+  const reports = list.map(student => ({
+    student,
+    records: C.reportRecords(db(), student.id, from, to)
+  }));
+  modal('인쇄 전 내용 확인', `<div class="notice">학생별 기록에서 관계없는 내용·다른 학생의 개인정보를 제거해 주세요. 이름 자동 가림만으로 모든 개인정보를 판단할 수는 없습니다. 수정한 내용은 이번 보고서에만 적용됩니다.</div>${reports.map(({
+    student: s,
+    records
+  }, j) => `<details class="report-review" open><summary>${esc(s.no)} · ${esc(s.name)} · 인쇄 내용 확인</summary>${records.map((r, i) => `<div class="record ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><strong>${esc(r.date)} ${esc(r.period)} · ${esc(C.recordLabel(r))}</strong>${textarea('이 학생의 기록', `text-${j}-${i}`, C.redact(r.text, db(), s.id))}${textarea('이 학생에 대한 지도 내용', `action-${j}-${i}`, C.redact(r.action, db(), s.id))}</div>`).join('') || empty('인쇄할 기록이 없습니다.')}${checkbox(`${s.name} 학생의 내용과 전달할 개인정보를 확인했습니다.`, `reviewed-${j}`)}</details>`).join('')}`, async f => {
+    if (reports.some((_, j) => !f.get('reviewed-' + j))) throw Error('각 학생의 전달 내용을 확인한 뒤 체크해 주세요.');
+    const safe = reports.map((report, j) => ({
+      ...report,
+      records: report.records.map((r, i) => ({
+        ...r,
+        text: f.get(`text-${j}-${i}`),
+        action: f.get(`action-${j}-${i}`)
+      }))
     }));
     closeModal();
-    showPrint(s, from, to, safe);
+    showReports(safe, from, to, mode);
   }, '보고서 열기');
 }
 export function showPrint(s, from, to, records) {
-  const score = C.scores(db(), s.id, from, to),
-    counts = Object.fromEntries(C.KINDS.map(k => [k, records.filter(r => r.kind === k).length]));
+  showReports([{
+    student: s,
+    records
+  }], from, to, settings().reportPrintMode || 'color');
+}
+function reportPage(s, from, to, records) {
+  return `<section class="report-page"><p>오늘의 별 · ${esc(settings().className)}</p><h1>${esc(settings().reportHeader)}</h1><p>${esc(s.no)}. ${esc(s.name)}<br>${esc(from)} ~ ${esc(to)}</p><h2>기간 요약</h2><p>칭찬 ${records.filter(r => r.kind === '칭찬').length}건 · 조언 ${records.filter(r => r.kind === '지도').length}건</p><table><thead><tr>${C.areaNames(db(), true).map(a => `<th>${esc(a)}</th>`).join('')}</tr></thead><tbody><tr>${C.areaNames(db(), true).map(a => `<td>${records.filter(r => (r.areas || []).includes(a)).reduce((n, r) => n + C.delta(r), 0)}</td>`).join('')}</tr></tbody></table><h2 style="margin-top:22px">학교생활 기록</h2>${records.map(r => `<article class="record ${r.kind === '칭찬' ? 'report-praise' : r.kind === '지도' ? 'report-advice' : ''} ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><strong>${esc(r.date)} ${esc(r.period)} · ${esc(C.recordLabel(r))}</strong><div class="body">${esc(r.text)}</div>${r.action ? `<p class="body" style="margin-top:8px">지도 내용: ${esc(r.action)}</p>` : ''}</article>`).join('')}</section>`;
+}
+function showReports(reports, from, to, mode) {
   const root = document.createElement('div');
-  root.className = 'print-root';
-  root.innerHTML = `<div class="report-page"><div class="no-print row">${btn('인쇄 / PDF 저장', () => window.print(), 'primary')}${btn('보고서 닫기', () => {
+  root.className = 'print-root report-' + (mode === 'mono' ? 'monochrome' : 'color');
+  root.innerHTML = `<div class="no-print row report-toolbar">${select('출력 방식', 'report-mode', [['color', '컬러'], ['mono', '흑백']], mode)}${btn('인쇄 / PDF 저장', () => window.print(), 'primary')}${btn('보고서 닫기', () => {
     root.remove();
     document.body.classList.remove('report-open');
-  })}<small>브라우저 인쇄 설정의 머리글·바닥글을 끄면 출력 시각과 주소가 빠집니다.</small></div><p style="margin-top:20px">오늘의 별 · ${esc(settings().className)}</p><h1>${esc(settings().reportHeader)}</h1><p>${esc(s.no)}. ${esc(s.name)} ${s.group ? '· ' + esc(s.group) + '모둠' : ''}<br>${esc(from)} ~ ${esc(to)}</p><h2>기간 요약</h2><p>총 ${records.length}건 · 칭찬 ${counts['칭찬']} · 조언 ${counts['지도']} · 기록 ${counts['관찰']} · 추가 기록 ${counts['추가기록']}</p><table><thead><tr>${C.areaNames(db(), true).map(a => `<th>${esc(a)}</th>`).join('')}</tr></thead><tbody><tr>${C.areaNames(db(), true).map(a => `<td>${records.filter(r => r.areas.includes(a)).reduce((n, r) => n + C.delta(r), 0)}</td>`).join('')}</tr></tbody></table><h2 style="margin-top:22px">학교생활 기록</h2>${records.map(r => `<article class="record ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><strong>${esc(r.date)} ${esc(r.period)} · ${esc(C.recordLabel(r))}</strong><div class="body">${esc(r.text)}</div>${r.action ? `<p class="body" style="margin-top:8px">지도 내용: ${esc(r.action)}</p>` : ''}</article>`).join('') || '<p>해당 기간에 기록이 없습니다.</p>'}</div>`;
+  })}<small>브라우저 인쇄 설정의 머리글·바닥글을 끄면 출력 시각과 주소가 빠집니다.</small></div>${reports.map(({
+    student,
+    records
+  }) => reportPage(student, from, to, records)).join('')}`;
+  root.querySelector('[name="report-mode"]').onchange = e => {
+    root.classList.toggle('report-monochrome', e.target.value === 'mono');
+    root.classList.toggle('report-color', e.target.value === 'color');
+  };
   document.querySelector('.print-root')?.remove();
   document.body.append(root);
   document.body.classList.add('report-open');

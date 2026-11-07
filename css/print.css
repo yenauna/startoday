@@ -26,3 +26,17 @@ body.report-open #app{display:none}
   .report-page h1, .report-page h2, .report-page h3, .report-page .action, .report-page small { color: #000000; }
 }
 @media print { .report-page .record.incident-record { border-left:4px solid #F59E0B; } }
+
+.report-toolbar { max-width:190mm; margin:20px auto; }
+.report-review { margin:16px 0; }
+.report-review summary { font-weight:700; padding:8px 0; }
+.print-root.report-color .report-page .record.report-praise { background:#e4f0e9; border-color:#b7d4c1; }
+.print-root.report-color .report-page .record.report-advice { background:#fff1da; border-color:#edd2a1; }
+.print-root.report-monochrome .report-page .record { background:white; color:black; border-color:#888; }
+.print-root.report-monochrome .incident-record { border-left-color:#555; }
+@media print {
+  .report-page { break-after:page; page-break-after:always; }
+  .report-page:last-child { break-after:auto; page-break-after:auto; }
+  .print-root.report-color { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .print-root.report-monochrome { filter:grayscale(1); }
+}
