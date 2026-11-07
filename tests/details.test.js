@@ -163,6 +163,7 @@ test('과제 화면은 TDZ 없이 상태·메모를 표시하고 1클릭 순환 
     timers = new Map();
   const taskButton = {
     textContent: '안함',
+    className: 'task-status task-status-notdone',
     dataset: {
       taskAssignment: 'a',
       taskStudent: 'ji',
@@ -217,7 +218,12 @@ test('과제 화면은 TDZ 없이 상태·메모를 표시하고 1클릭 순환 
   const html = context.renderAssignments();
   assert(html.includes('&lt;확인&gt;'));
   const failed = buttons.find(b => b.label === '안함');
-  assert.equal(failed.cls, 'danger');
+  assert.equal(failed.cls, 'task-status task-status-notdone');
+  failed.callback();
+  assert.equal(taskButton.className, 'task-status task-status-pending');
+  failed.callback();
+  assert.equal(taskButton.textContent, '안함');
+  assert.equal(taskButton.className, 'task-status task-status-notdone');
   failed.callback();
   assert.equal(taskButton.textContent, '진행중');
   assert.equal(modalBody, '');
@@ -233,4 +239,24 @@ test('과제 화면은 TDZ 없이 상태·메모를 표시하고 1클릭 순환 
     preventDefault() {}
   });
   assert(modalBody.includes(C.formatDate(date)));
+  db.attendance = [{
+    id: 'excluded',
+    studentId: 'son',
+    date,
+    excluded: true
+  }];
+  Object.assign(db, C.applyOps(db, C.taskStateOps(db, db.assignments[0], date, 'son', '안함', '제외 전 메모')));
+  buttons.length = 0;
+  context.renderAssignments();
+  await buttons.find(b => b.label === '✓ 전원 완료').callback();
+  assert.equal(db.assignmentStates.filter(s => s.status === '완료').length, 2);
+  assert.equal(db.assignmentStates.find(s => s.studentId === 'son').status, '안함');
+  assert.equal(db.assignmentStates.find(s => s.studentId === 'ji').memo, '<확인>');
+  buttons.length = 0;
+  context.renderAssignments();
+  await buttons.find(b => b.label === '↩ 전원 미완료').callback();
+  assert.equal(db.assignmentStates.filter(s => s.status === '진행중').length, 2);
+  assert.equal(db.records.filter(r => r.autoRef).length, 1);
+  assert.equal(db.records[0].studentIds[0], 'son');
+  assert.equal(db.assignmentStates.find(s => s.studentId === 'ji').memo, '<확인>');
 });

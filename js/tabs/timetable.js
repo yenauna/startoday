@@ -46,7 +46,7 @@ export function calendarView() {
     start = state.calendarMode === 'month' ? C.addDays(first, -C.weekday(first)) : C.addDays(state.calendarDate, -((C.weekday(state.calendarDate) + 6) % 7)),
     days = state.calendarMode === 'month' ? 42 : 5;
   const heads = state.calendarMode === 'month' ? ['일', '월', '화', '수', '목', '금', '토'] : ['월', '화', '수', '목', '금'];
-  return `<div class="toolbar"><div><h2>시간표·일정</h2><small>종일 일정 · 교시별 수업과 행사 · 마감 과제</small></div><div class="row">${btn('‹', () => {
+  return `<div class="toolbar"><div><h2>일정</h2><small>종일 일정 · 교시별 수업과 행사 · 마감 과제</small></div><div class="row">${btn('‹', () => {
     if (state.calendarMode === 'week') state.calendarDate = C.addDays(state.calendarDate, -7);else {
       const dt = new Date(first + 'T12:00Z');
       dt.setUTCMonth(dt.getUTCMonth() - 1);
@@ -82,7 +82,7 @@ export function calendarView() {
         state.date = d;
         state.tab = '과제';
         render();
-      }, 'task')}</div>`;
+      }, 'task calendar-task' + (done < targets.length ? ' has-incomplete' : ''))}</div>`;
     }).join('') : ''}</div>`;
   }).join('')}</div></div>`;
 }

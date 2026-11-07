@@ -10,18 +10,35 @@ export function header() {
     state.tab = '대시보드';
     state.dashMode = 'normal';
     render();
-  }, 'brand brand-home', 'aria-label="오늘의 별 홈"')}<div class="row">${btn('새로고침', async () => {
-    if (store.mode === 'cloud') {
-      await store.load();
-      render();
-      toast('최신 자료를 불러왔습니다.');
-    }
-  })}${btn('교실 화면', classroom)}${btn('로그아웃', async () => {
+  }, 'brand brand-home', 'aria-label="오늘의 별 홈"')}<div class="row">${btn('교실 화면', classroom)}<div class="header-more">${btn('⋮', () => toggleMore(), 'more-toggle', 'id="header-more-toggle" aria-label="더보기" aria-haspopup="menu" aria-expanded="false" aria-controls="header-more-menu"')}<div id="header-more-menu" class="header-more-menu" role="menu" hidden>${btn('🪑 자리 배치', () => openMoreTab('자리'), '', 'role="menuitem"')}${btn('⚙️ 설정', () => openMoreTab('설정'), '', 'role="menuitem"')}${btn('🚪 로그아웃', async () => {
+    toggleMore(false);
     await store.logout();
     state.selected = [];
     render();
-  })}</div></header>`;
+  }, '', 'role="menuitem"')}</div></div></div></header>`;
 }
+function toggleMore(open) {
+  const menu = $('#header-more-menu'),
+    button = $('#header-more-toggle');
+  if (!menu || !button) return;
+  const show = open ?? menu.hidden;
+  menu.hidden = !show;
+  button.setAttribute('aria-expanded', String(show));
+}
+function openMoreTab(tab) {
+  toggleMore(false);
+  state.tab = tab;
+  render();
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest?.('.header-more')) toggleMore(false);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    toggleMore(false);
+    if (e.target.closest?.('.header-more')) $('#header-more-toggle')?.focus();
+  }
+});
 export function renderLogin() {
   clearInterval(state.clockTimer);
   $('#app').innerHTML = `<div class="panel login"><img src="assets/logo-icon.jpg" class="logo" alt="로고" style="width:54px;height:54px;border-radius:12px;margin-bottom:18px;object-fit:cover"><h1>오늘의 별</h1><p>오늘의 작은 행동을 기록하고,<br>아이들의 성장을 함께 살펴보세요.</p><p>생활지도 기록 · 과제와 루틴 · 시간표와 일정<br>선생님의 학급 운영을 한곳에서 관리합니다.</p>${store.client ? btn('구글 계정으로 시작하기', () => store.login(), 'primary') : '<div class="notice">아직 연결 전입니다. config.js에 수파베이스 프로젝트 주소와 공개 키를 입력하면 구글 로그인이 활성화됩니다.</div>'}${btn('가상 명단으로 먼저 살펴보기', () => {
@@ -30,7 +47,7 @@ export function renderLogin() {
   })}<small>연결 전 체험 자료와 로그인 후 학급 자료는 별도로 관리됩니다.</small></div>`;
 }
 export function renderShell(renderTab) {
-  return `<div class="sticky-navigation">${header()}<nav class="tabs" aria-label="주 메뉴">${['대시보드', '기록', '시간표·일정', '과제', '루틴', '학생', '자리', '설정'].map(t => btn(t, () => {
+  return `<div class="sticky-navigation">${header()}<nav class="tabs" aria-label="주 메뉴">${['대시보드', '기록', '시간표·일정', '과제', '루틴', '학생'].map(t => btn(t === '시간표·일정' ? '일정' : t, () => {
     state.tab = t;
     render();
   }, state.tab === t ? 'active' : '', state.tab === t ? 'aria-current="page"' : '')).join('')}</nav></div><div class="shell">${quickInput()}${store.mode === 'demo' ? '<div class="notice">가상 명단으로 체험 중입니다. 이 모드의 자료는 이 브라우저에만 저장됩니다. 실제 학급은 수파베이스 연결 후 구글 로그인으로 사용하세요.</div>' : ''}${settings().lastBackupAt && Date.now() - new Date(settings().lastBackupAt) > 7 * 86400000 ? '<div class="notice">마지막 백업 후 7일이 지났습니다. 설정에서 백업 파일을 내려받으세요.</div>' : !settings().lastBackupAt ? '<div class="muted" style="margin-bottom:10px">아직 백업하지 않았습니다. 설정에서 전체 자료를 내보낼 수 있습니다.</div>' : ''}<main id="main">${renderTab()}</main></div>`;

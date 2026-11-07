@@ -391,14 +391,8 @@ header.top .brand-home small { display:block; white-space:nowrap; overflow:hidde
 .student-choice-chip span { display:block; padding:6px 12px; border-radius:9999px; background:var(--st-gray-bg); color:var(--st-gray-text); box-shadow:var(--st-surface-light); }
 .student-choice-chip input:checked+span { background:#0F172A; color:#FBBF24; }
 .student-choice-chip input:focus-visible+span { outline:2px solid var(--st-blue-text); outline-offset:3px; }
-.detail-record { --record-edit-bg:#e5effb; --record-edit-text:#365c85; }
-.detail-record.praise { background:var(--st-mint-bg); color:var(--st-mint-text); --record-edit-bg:#e4f0e9; --record-edit-text:#3d6a55; }
-.detail-record.advice { background:#fff1da; color:#895b23; --record-edit-bg:#fff1da; --record-edit-text:#895b23; }
-.detail-record.observation { background:var(--st-blue-bg); color:var(--st-blue-text); }
 .detail-record .record-controls { gap:5px; }
 .detail-record .record-controls button { padding:2px 8px; min-height:25px; font-size:12px; border-radius:999px; }
-.detail-record .record-edit { background:var(--record-edit-bg); color:var(--record-edit-text); }
-.detail-record .record-delete { background:var(--record-edit-text); color:var(--record-edit-bg); }
 .routine-calendar-pill { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:2px 4px; width:100%; padding:3px 6px; border-radius:12px; background:var(--st-gray-bg); font-size:12px; text-align:left; }
 .routine-calendar-pill small { font-size:10px; white-space:nowrap; }
 .routine-calendar-pill.done { background:var(--st-mint-bg); color:var(--st-mint-text); }
@@ -445,3 +439,42 @@ header.top .brand-home small { display:block; white-space:nowrap; overflow:hidde
 .date-control input[type=date] { position:absolute; inset:0; opacity:0; width:100%; height:100%; min-width:0; cursor:pointer; }
 .date-control input[type=date]::-webkit-calendar-picker-indicator { position:absolute; inset:0; width:100%; height:100%; margin:0; cursor:pointer; }
 .date-control:focus-within { outline:2px solid var(--st-blue-text); outline-offset:2px; }
+
+.header-more { position:relative; }
+header.top .more-toggle { font-size:24px; line-height:1; min-width:38px; }
+.header-more-menu { position:absolute; right:0; top:calc(100% + 8px); min-width:175px; padding:6px; border:1px solid var(--st-line); border-radius:16px; background:var(--st-surface); box-shadow:var(--st-shadow-3); z-index:105; }
+header.top .header-more-menu button { display:block; width:100%; text-align:left; padding:10px 12px; font-size:14px; white-space:nowrap; border-radius:10px; box-shadow:none; }
+header.top .header-more-menu button:hover { background:var(--st-gray-bg); }
+.routine-undo { position:fixed; bottom:24px; right:24px; z-index:130; display:flex; align-items:center; gap:12px; max-width:calc(100vw - 32px); padding:12px 16px; background:#0F172A; color:#fff; border-radius:16px; box-shadow:var(--st-shadow-3); font-size:14px; }
+.routine-undo button { flex-shrink:0; background:var(--st-blue-bg); color:var(--st-blue-text); font-size:13px; padding:6px 10px; min-height:32px; }
+.classroom-pending { display:flex; flex-wrap:wrap; justify-content:center; gap:5px; margin-top:8px; }
+.classroom-pending .badge { font-size:14px; background:var(--st-gray-bg); color:var(--st-gray-text); }
+.task-status { min-width:68px; background:var(--st-gray-bg); color:var(--st-gray-text); }
+.task-status.task-status-complete { background:var(--st-blue-bg); color:var(--st-blue-text); }
+.task-status.task-status-notdone { background:var(--st-rose-bg); color:var(--st-rose-text); }
+.task-status.task-status-pending { background:var(--st-gray-bg); color:var(--st-gray-text); }
+.assignment-matrix { max-height:65vh; overflow:auto; isolation:isolate; }
+.assignment-matrix table { border-collapse:separate; border-spacing:0; }
+.assignment-matrix th { min-width:180px; }
+.assignment-matrix thead th { position:sticky; top:0; z-index:3; background:#eff1f6; }
+.assignment-matrix tbody th:first-child { position:sticky; left:0; z-index:2; background:#fcfcfe; }
+.assignment-matrix thead th:first-child { left:0; z-index:4; }
+.calendar-task { background:#fff; color:var(--st-text); }
+.calendar-task.has-incomplete { background:var(--st-rose-bg); color:var(--st-rose-text); }
+.detail-record.praise { background:var(--st-blue-bg); color:var(--st-blue-text); }
+.detail-record.advice { background:var(--st-rose-bg); color:var(--st-rose-text); }
+.detail-record.observation { background:var(--st-surface); color:var(--st-text); }
+.detail-record .record-edit { background:var(--st-lavender-bg); color:var(--st-lavender-text); }
+.detail-record .record-delete { background:var(--st-rose-bg); color:var(--st-rose-text); }
+.settings-layout { display:grid; grid-template-columns:175px minmax(0,1fr); gap:22px; align-items:start; }
+.settings-sidebar { display:flex; flex-direction:column; gap:6px; position:sticky; top:125px; }
+.settings-sidebar button { text-align:left; box-shadow:none; background:transparent; }
+.settings-sidebar button.active { background:#0F172A; color:#FBBF24; }
+.settings-content { min-width:0; }
+.settings-content [hidden],.header-more-menu[hidden] { display:none!important; }
+@media(max-width:700px) {
+  .settings-layout { grid-template-columns:minmax(0,1fr); gap:14px; }
+  .settings-sidebar { position:static; flex-direction:row; overflow-x:auto; padding:4px 0 8px; }
+  .settings-sidebar button { flex-shrink:0; white-space:nowrap; }
+  .routine-undo { bottom:24px; right:16px; gap:8px; padding:10px 12px; flex-wrap:wrap; }
+}

@@ -63,9 +63,9 @@ export function assignmentEditor(a = null, d = state.date) {
 export function assignmentsView() {
   const assignments = db().assignments.filter(a => !a.deletedAt),
     daily = assignments.filter(a => C.occurs(a, state.date));
-  return `<div class="toolbar"><div><h2>과제</h2><small>과제 × 날짜 × 학생마다 상태가 독립적으로 저장됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input id="assignment-date" aria-label="과제 날짜" type="date" value="${state.date}"></span>${btn('+ 과제', () => assignmentEditor(), 'primary')}</div></div><section class="panel"><h3>${esc(C.formatDate(state.date))} 과제 상태</h3>${daily.length ? `<div class="table-wrap"><table><thead><tr><th>학생</th>${daily.map(a => `<th>${esc(a.title)}<div>${btn('✓ 전원 완료', () => completeAll(a, state.date), 'complete-all')}</div></th>`).join('')}</tr></thead><tbody>${students().map(s => `<tr><th>${esc(name(s.id))}${C.excluded(db(), s.id, state.date) ? badge('제외') : ''}</th>${daily.map(a => {
+  return `<div class="toolbar"><div><h2>과제</h2><small>과제 × 날짜 × 학생마다 상태가 독립적으로 저장됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input id="assignment-date" aria-label="과제 날짜" type="date" value="${state.date}"></span>${btn('+ 과제', () => assignmentEditor(), 'primary')}</div></div><section class="panel"><h3>${esc(C.formatDate(state.date))} 과제 상태</h3>${daily.length ? `<div class="table-wrap assignment-matrix"><table><thead><tr><th>학생</th>${daily.map(a => `<th>${esc(a.title)}<div>${btn(allTaskTargetsComplete(a, state.date) ? '↩ 전원 미완료' : '✓ 전원 완료', () => completeAll(a, state.date), 'complete-all')}</div></th>`).join('')}</tr></thead><tbody>${students().map(s => `<tr><th>${esc(name(s.id))}${C.excluded(db(), s.id, state.date) ? badge('제외') : ''}</th>${daily.map(a => {
     const taskState = db().assignmentStates.find(x => x.id === C.stateId(a.id, state.date, s.id));
-    return `<td>${C.targeted(a, s.id) ? btn(esc(taskState?.status || '진행중'), () => queueTaskToggle(a, state.date, s.id), taskState?.status === '안함' ? 'danger' : '', `data-task-assignment="${esc(a.id)}" data-task-student="${esc(s.id)}" data-task-date="${state.date}" title="클릭: 상태 변경 · 더블클릭/우클릭: 메모 수정"`) + `<div class="muted">${esc(taskState?.memo || '')}</div>` : '—'}</td>`;
+    return `<td>${C.targeted(a, s.id) ? btn(esc(taskState?.status || '진행중'), () => queueTaskToggle(a, state.date, s.id), taskStatusClass(taskState?.status || '진행중'), `data-task-assignment="${esc(a.id)}" data-task-student="${esc(s.id)}" data-task-date="${state.date}" title="클릭: 상태 변경 · 더블클릭/우클릭: 메모 수정"`) + `<div class="muted">${esc(taskState?.memo || '')}</div>` : '—'}</td>`;
   }).join('')}</tr>`).join('')}</tbody></table></div>` : empty('이 날짜에 등록된 과제가 없습니다.', '새 과제를 등록하거나 날짜를 바꾸세요.')}</section><section class="panel"><h3>등록한 과제</h3>${assignments.map(a => `<div class="record"><div class="row between"><div><strong>${esc(a.title)}</strong> ${badge(a.repeat.type === 'none' ? '1회' : a.repeat.type === 'daily' ? '매일' : '매주 ' + a.repeat.weekdays.map(n => '일월화수목금토'[n]).join('·'))}<div class="muted">${esc(C.formatDate(a.date))}${a.endDate ? ' ~ ' + esc(C.formatDate(a.endDate)) : ''} · ${a.target === 'all' ? '전체 학생' : esc(a.target.studentIds.map(name).join(', '))} · ${esc(a.statArea || '영역 미지정')}</div></div><div class="row">${btn('수정', () => assignmentEditor(a))}${btn('복사', () => assignmentEditor({
     ...a,
     id: C.uid(),
@@ -131,6 +131,7 @@ function cancelTaskToggle(key) {
   if (pending) {
     clearTimeout(pending.timer);
     pending.button.textContent = pending.previous;
+    pending.button.className = pending.previousClass;
     taskToggles.delete(key);
   }
 }
@@ -146,7 +147,11 @@ function queueTaskToggle(a, date, studentId) {
   const next = statuses[(statuses.indexOf(current?.status || '진행중') + 1) % statuses.length];
   const button = [...document.querySelectorAll('[data-task-assignment]')].find(b => b.dataset.taskAssignment === a.id && b.dataset.taskStudent === studentId && b.dataset.taskDate === date);
   const previous = button?.textContent || current?.status || '진행중';
-  if (button) button.textContent = next;
+  const previousClass = button?.className || '';
+  if (button) {
+    button.textContent = next;
+    button.className = taskStatusClass(next);
+  }
   // Immediate visual feedback; a short window lets double-click open memo without changing data.
   const timer = setTimeout(() => {
     taskToggles.delete(key);
@@ -158,7 +163,10 @@ function queueTaskToggle(a, date, studentId) {
           await commit(C.taskStateOps(db(), a, date, studentId, next, latest?.memo || ''));
         });
       } catch (error) {
-        if (button?.isConnected) button.textContent = previous;
+        if (button?.isConnected) {
+          button.textContent = previous;
+          button.className = previousClass;
+        }
         throw error;
       }
     });
@@ -168,7 +176,8 @@ function queueTaskToggle(a, date, studentId) {
     button: button || {
       textContent: previous
     },
-    previous
+    previous,
+    previousClass
   });
 }
 for (const type of ['dblclick', 'contextmenu']) document.addEventListener(type, e => {
@@ -190,10 +199,18 @@ async function completeAll(a, date) {
   await persistAssignment(async () => {
     if (scope !== assignmentScope()) return;
     const targets = students().filter(s => C.targeted(a, s.id) && !C.excluded(db(), s.id, date));
+    const status = targets.length && targets.every(s => ['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, date, s.id))) ? '진행중' : '완료';
     const ops = targets.flatMap(s => {
       const current = db().assignmentStates.find(x => x.id === C.stateId(a.id, date, s.id));
-      return C.taskStateOps(db(), a, date, s.id, '완료', current?.memo || '');
+      return C.taskStateOps(db(), a, date, s.id, status, current?.memo || '');
     });
-    if (ops.length) await commit(ops, `${targets.length}명 완료 처리했습니다.`);
+    if (ops.length) await commit(ops, `${targets.length}명 ${status} 처리했습니다.`);
   });
+}
+function allTaskTargetsComplete(a, date) {
+  const target = students().filter(s => C.targeted(a, s.id) && !C.excluded(db(), s.id, date));
+  return target.length > 0 && target.every(s => ['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, date, s.id)));
+}
+function taskStatusClass(status) {
+  return 'task-status ' + (['완료', '늦게완료', '면제'].includes(status) ? 'task-status-complete' : status === '안함' ? 'task-status-notdone' : 'task-status-pending');
 }

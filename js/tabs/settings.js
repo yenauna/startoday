@@ -5,11 +5,16 @@ import { commit, db, settings, students, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
 import { $, bindLater, btn, checkbox, empty, esc, hashPin, input, localTime, saveFile, select, textarea, toast } from '../shared/ui.js';
 import { studentDetail, studentEditor } from './students.js';
+const settingsCategories = ['기본 정보', '교실 화면', '학사일정', '과목·전담', '경험치 종류', '학생 명단', '데이터 백업'];
+let settingsCategory = '기본 정보';
 export function settingsView() {
   const st = settings(),
     bytes = new Blob([JSON.stringify(db())]).size;
   const calendar = st.academicCalendar || {};
-  return `<div class="toolbar"><div><h2>설정</h2><small>학급과 기록 방식을 선생님께 맞추세요.</small></div></div><form id="settings-form"><section class="panel"><h3>기본 정보</h3><div class="formgrid">${input('학급 이름', 'className', st.className, 'text', 'required')}${input('학년도', 'academicYear', st.academicYear, 'number', 'min="2020" max="2100" required')}${input('학교명', 'schoolName', st.schoolName || '')}</div></section><section class="panel"><h3>교실 화면</h3><div class="formgrid">${select('이름 표시 방식', 'nameDisplayMode', [['real', '실명 그대로 노출'], ['number', '번호만 · 기본'], ['masked', '이름 가림 · 김●수'], ['alias', '교사가 정한 별칭']], st.nameDisplayMode)}${checkbox('학생 점수 표시', 'classroomShowScores', !!st.classroomShowScores)}${input('화면 해제 비밀번호 · 변경할 때만 입력', 'classroomPin', '', 'password', 'minlength="4" autocomplete="new-password"')}</div></section><section class="panel"><h3>보고서</h3><div class="formgrid">${input('보고서 제목', 'reportHeader', st.reportHeader)}${select('기본 출력 방식', 'reportPrintMode', [['color', '컬러'], ['mono', '흑백']], st.reportPrintMode || 'color')}</div></section><section class="panel"><h3>학사일정</h3><div class="formgrid">${Array.from({
+  return `<div class="toolbar"><div><h2>설정</h2><small>학급과 기록 방식을 선생님께 맞추세요.</small></div></div><div id="settings-layout" class="settings-layout"><nav class="settings-sidebar" aria-label="설정 카테고리">${settingsCategories.map(category => btn(esc(category), () => {
+    settingsCategory = category;
+    applySettingsCategory();
+  }, settingsCategory === category ? 'active' : '', `data-settings-tab="${esc(category)}" aria-pressed="${settingsCategory === category}"`)).join('')}</nav><div class="settings-content"><form id="settings-form" novalidate><section class="panel" data-settings-category="기본 정보"><h3>기본 정보</h3><div class="formgrid">${input('학급 이름', 'className', st.className, 'text', 'required')}${input('학년도', 'academicYear', st.academicYear, 'number', 'min="2020" max="2100" required')}${input('학교명', 'schoolName', st.schoolName || '')}</div></section><section class="panel" data-settings-category="교실 화면" hidden><h3>교실 화면</h3><div class="formgrid">${select('이름 표시 방식', 'nameDisplayMode', [['real', '실명 그대로 노출'], ['number', '번호만 · 기본'], ['masked', '이름 가림 · 김●수'], ['alias', '교사가 정한 별칭']], st.nameDisplayMode)}${checkbox('학생 점수 표시', 'classroomShowScores', !!st.classroomShowScores)}${input('화면 해제 비밀번호 · 변경할 때만 입력', 'classroomPin', '', 'password', 'minlength="4" autocomplete="new-password"')}</div></section><section class="panel" data-settings-category="기본 정보"><h3>보고서</h3><div class="formgrid">${input('보고서 제목', 'reportHeader', st.reportHeader)}${select('기본 출력 방식', 'reportPrintMode', [['color', '컬러'], ['mono', '흑백']], st.reportPrintMode || 'color')}</div></section><section class="panel" data-settings-category="학사일정" hidden><h3>학사일정</h3><div class="formgrid">${Array.from({
     length: 6
   }, (_, i) => input(`${i + 1}교시 시간`, 'period-' + i, st.periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i])).join('')}${checkbox('시간표에 선생님 표시', 'showTeacher', st.timetableDisplay.showTeacher)}${checkbox('시간표에 장소 표시', 'showLocation', st.timetableDisplay.showLocation)}${[['term1Start', '1학기 개학일'], ['summerEnd', '여름방학식'], ['term2Start', '2학기 개학일'], ['winterEnd', '겨울방학식']].map(([key, label]) => input(label, key, calendar[key] || '', 'date')).join('')}<div class="span2">${checkbox('봄방학 사용', 'springBreak', !!calendar.springBreak)}</div><fieldset id="spring-dates" class="span2 formgrid" ${calendar.springBreak ? '' : 'disabled'}>${input('겨울방학 후 개학일', 'winterReturn', calendar.winterReturn || '', 'date')}${input('봄방학식 · 종업식/졸업식', 'springEnd', calendar.springEnd || '', 'date')}</fieldset><div class="span2"><label>자율휴업일 · 여러 날짜 선택 후 추가</label><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate('')) || '날짜 선택'}</span><input id="holiday-date" type="date" aria-label="자율휴업일 추가 날짜"></span>${btn('날짜 추가', () => {
     const field = $('#holiday-date'),
@@ -18,17 +23,24 @@ export function settingsView() {
     const holder = $('#holiday-dates');
     if (![...holder.querySelectorAll('input')].some(i => i.value === date)) holder.insertAdjacentHTML('beforeend', holidayChip(date));
     field.value = '';
-  })}</div><div id="holiday-dates" class="chips">${(calendar.holidays || []).map(holidayChip).join('')}</div></div></div><p class="muted">개학식·방학식·종업식·자율휴업일은 일정 달력에 자동 반영됩니다.</p></section><button class="primary settings-save">설정 저장</button></form><section class="panel"><h3>백업과 복원</h3><p class="muted">${store.mode === 'cloud' ? '학생의 텍스트 자료는 외부 서버인 수파베이스에 저장됩니다.' : '체험 모드 자료는 현재 브라우저에만 저장됩니다.'}</p><p>학급 데이터 약 <strong>${(bytes / 1024).toFixed(1)} KB</strong><br><small>텍스트 JSON 기준 추정치입니다. 실제 DB·백업·인증 저장량은 수파베이스 대시보드에서 확인하세요.</small></p><p class="muted">마지막 파일 백업: ${st.lastBackupAt ? esc(localTime(st.lastBackupAt)) : '없음'}</p><div class="row">${btn('전체 JSON 내려받기', downloadBackup, 'primary')}${btn('JSON 가져오기', () => $('#backup-input').click())}${btn('클라우드에 한 벌 더 저장', async () => {
+  })}</div><div id="holiday-dates" class="chips">${(calendar.holidays || []).map(holidayChip).join('')}</div></div></div><p class="muted">개학식·방학식·종업식·자율휴업일은 일정 달력에 자동 반영됩니다.</p></section><button class="primary settings-save">설정 저장</button></form><section class="panel" data-settings-category="데이터 백업" hidden><h3>백업과 복원</h3><p class="muted">${store.mode === 'cloud' ? '학생의 텍스트 자료는 외부 서버인 수파베이스에 저장됩니다.' : '체험 모드 자료는 현재 브라우저에만 저장됩니다.'}</p><p>학급 데이터 약 <strong>${(bytes / 1024).toFixed(1)} KB</strong><br><small>텍스트 JSON 기준 추정치입니다. 실제 DB·백업·인증 저장량은 수파베이스 대시보드에서 확인하세요.</small></p><p class="muted">마지막 파일 백업: ${st.lastBackupAt ? esc(localTime(st.lastBackupAt)) : '없음'}</p><div class="row">${btn('전체 JSON 내려받기', downloadBackup, 'primary')}${btn('JSON 가져오기', () => $('#backup-input').click())}${btn('클라우드에 한 벌 더 저장', async () => {
     await store.cloudBackup();
     toast('클라우드 백업을 저장했습니다. 최근 2세대를 보관합니다.');
-  })}${btn('클라우드 백업 복구', cloudRestore)}</div><input id="backup-input" type="file" accept="application/json,.json" hidden><div class="notice">사진·음성은 저장하지 않습니다. 백업 파일에는 학생 기록이 포함되므로 안전한 곳에 보관하세요.</div><h3 style="margin-top:22px">학년도 전환</h3><p class="muted">현재 학생을 새 고유 ID로 복제합니다. 지난 기록은 보존하고 새 학생에게는 연결하지 않습니다.</p>${btn('다음 학년으로 이어 가기', rollover)}</section><section class="panel"><div class="toolbar"><h3>학생 명단</h3><div class="row">${btn('명단 붙여넣기', rosterPaste, 'primary')}${btn('+ 학생', () => studentEditor())}${btn('나간 학생 보기', removedStudents)}</div></div><div class="table-wrap"><table><thead><tr><th>번호</th><th>이름</th><th>별칭</th><th></th></tr></thead><tbody>${students().map(s => `<tr><td>${s.no}</td><td>${esc(s.name)}</td><td>${esc(s.alias || '')}</td><td><div class="row">${btn('수정', () => studentEditor(s))}${btn('삭제', async () => {
+  })}${btn('클라우드 백업 복구', cloudRestore)}</div><input id="backup-input" type="file" accept="application/json,.json" hidden><div class="notice">사진·음성은 저장하지 않습니다. 백업 파일에는 학생 기록이 포함되므로 안전한 곳에 보관하세요.</div><h3 style="margin-top:22px">학년도 전환</h3><p class="muted">현재 학생을 새 고유 ID로 복제합니다. 지난 기록은 보존하고 새 학생에게는 연결하지 않습니다.</p>${btn('다음 학년으로 이어 가기', rollover)}</section><section class="panel" data-settings-category="학생 명단" hidden><div class="toolbar"><h3>학생 명단</h3><div class="row">${btn('명단 붙여넣기', rosterPaste, 'primary')}${btn('+ 학생', () => studentEditor())}${btn('나간 학생 보기', removedStudents)}</div></div><div class="table-wrap"><table><thead><tr><th>번호</th><th>이름</th><th>별칭</th><th></th></tr></thead><tbody>${students().map(s => `<tr><td>${s.no}</td><td>${esc(s.name)}</td><td>${esc(s.alias || '')}</td><td><div class="row">${btn('수정', () => studentEditor(s))}${btn('삭제', async () => {
     if (confirm(`${s.name} 학생을 명단에서 뺄까요? 기록과 과제 상태는 보존합니다.`)) await commit([up('students', {
       ...s,
       deletedAt: C.now(),
       seat: null
     })]);
-  }, 'danger')}</div></td></tr>`).join('')}</tbody></table></div></section><section class="panel"><div class="toolbar"><h3>과목 · 전담 설정</h3>${btn('+ 과목', () => subjectEditor())}</div><div class="table-wrap"><table><thead><tr><th>과목</th><th>구분</th><th>장소</th><th>담당 교사</th><th></th></tr></thead><tbody>${db().subject_rules.map(s => `<tr><td><span class="badge" style="background:${esc(s.color)}">${esc(s.code)}</span></td><td>${s.isSpecialist ? '전담' : '담임'} · ${esc(s.defaultType)}</td><td>${esc(s.location)}</td><td>${esc(s.teacherName)}</td><td>${btn('수정', () => subjectEditor(s))}</td></tr>`).join('')}</tbody></table></div></section>${bindLater('settings-form', 'submit', async e => {
+  }, 'danger')}</div></td></tr>`).join('')}</tbody></table></div></section><section class="panel" data-settings-category="과목·전담" hidden><div class="toolbar"><h3>과목 · 전담 설정</h3>${btn('+ 과목', () => subjectEditor())}</div><div class="table-wrap"><table><thead><tr><th>과목</th><th>구분</th><th>장소</th><th>담당 교사</th><th></th></tr></thead><tbody>${db().subject_rules.map(s => `<tr><td><span class="badge" style="background:${esc(s.color)}">${esc(s.code)}</span></td><td>${s.isSpecialist ? '전담' : '담임'} · ${esc(s.defaultType)}</td><td>${esc(s.location)}</td><td>${esc(s.teacherName)}</td><td>${btn('수정', () => subjectEditor(s))}</td></tr>`).join('')}</tbody></table></div></section>${bindLater('settings-form', 'submit', async e => {
     e.preventDefault();
+    const invalid = e.target.querySelector(':invalid');
+    if (invalid) {
+      settingsCategory = invalid.closest('[data-settings-category]')?.dataset.settingsCategory || settingsCategory;
+      applySettingsCategory();
+      e.target.reportValidity();
+      return;
+    }
     const f = new FormData(e.target),
       pin = f.get('classroomPin');
     const next = {
@@ -61,7 +73,7 @@ export function settingsView() {
     await commit([up('settings', next)]);
   })}${bindLater('settings-form', 'change', e => {
     if (e.target.name === 'springBreak') $('#spring-dates').disabled = !e.target.checked;
-  })}${areasSettings()}${bindLater('backup-input', 'change', e => importBackup(e.target.files[0]))}`;
+  })}${areasSettings()}${bindLater('backup-input', 'change', e => importBackup(e.target.files[0]))}</div></div>${bindSettingsCategory()}`;
 }
 export function rosterPaste() {
   modal('명단 붙여넣기', `${textarea('번호 이름 · 탭/쉼표/공백 구분 모두 인식', 'roster', '')}<p class="muted">예: 1 김민준<br>51 이서연<br>이름만 붙이면 다음 번호부터 제안합니다.</p>`, async f => {
@@ -283,7 +295,7 @@ export function areasSettings() {
     areaDraft = JSON.parse(source);
     areaDraftBase = source;
   }
-  return `<section class="panel"><h3>경험치 종류</h3><p class="muted">카드를 끌어서 순서를 바꾸세요. 변경한 이름과 순서는 아래 버튼으로 한 번에 저장합니다. 삭제한 영역의 지난 기록은 보존됩니다.</p><div class="area-cards">${areaDraft.map((a, i) => `<div class="area-card" draggable="true" data-area-id="${esc(a.id)}"><span class="area-drag-handle" draggable="true" title="끌어서 순서 변경" aria-hidden="true">⠿</span><input id="area-${esc(a.id)}" aria-label="경험치 이름 ${esc(a.name)}" value="${esc(a.name)}" ${a.deletedAt ? 'disabled' : ''}>${a.deletedAt ? '<small>삭제됨</small>' : ''}${btn('↑', () => moveArea(a.id, -1), '', `aria-label="${esc(a.name)} 위로" ${i === 0 ? 'disabled' : ''}`)}${btn('↓', () => moveArea(a.id, 1), '', `aria-label="${esc(a.name)} 아래로" ${i === areaDraft.length - 1 ? 'disabled' : ''}`)}${btn(a.deletedAt ? '복원' : '삭제', () => {
+  return `<section class="panel" data-settings-category="경험치 종류" hidden><h3>경험치 종류</h3><p class="muted">카드를 끌어서 순서를 바꾸세요. 변경한 이름과 순서는 아래 버튼으로 한 번에 저장합니다. 삭제한 영역의 지난 기록은 보존됩니다.</p><div class="area-cards">${areaDraft.map((a, i) => `<div class="area-card" draggable="true" data-area-id="${esc(a.id)}"><span class="area-drag-handle" draggable="true" title="끌어서 순서 변경" aria-hidden="true">⠿</span><input id="area-${esc(a.id)}" aria-label="경험치 이름 ${esc(a.name)}" value="${esc(a.name)}" ${a.deletedAt ? 'disabled' : ''}>${a.deletedAt ? '<small>삭제됨</small>' : ''}${btn('↑', () => moveArea(a.id, -1), '', `aria-label="${esc(a.name)} 위로" ${i === 0 ? 'disabled' : ''}`)}${btn('↓', () => moveArea(a.id, 1), '', `aria-label="${esc(a.name)} 아래로" ${i === areaDraft.length - 1 ? 'disabled' : ''}`)}${btn(a.deletedAt ? '복원' : '삭제', () => {
     captureAreas();
     a.deletedAt = a.deletedAt ? null : C.now();
     render();
@@ -348,3 +360,19 @@ document.addEventListener('drop', e => {
   draggedArea = null;
 });
 document.addEventListener('dragend', () => draggedArea = null);
+function bindSettingsCategory() {
+  setTimeout(applySettingsCategory, 0);
+  return '';
+}
+function applySettingsCategory() {
+  const layout = $('#settings-layout');
+  if (!layout) return;
+  layout.querySelectorAll('[data-settings-category]').forEach(panel => panel.hidden = panel.dataset.settingsCategory !== settingsCategory);
+  layout.querySelectorAll('[data-settings-tab]').forEach(button => {
+    const active = button.dataset.settingsTab === settingsCategory;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  const form = $('#settings-form');
+  if (form) form.hidden = !['기본 정보', '교실 화면', '학사일정'].includes(settingsCategory);
+}
