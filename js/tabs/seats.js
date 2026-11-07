@@ -1,102 +1,142 @@
-import { closeModal, modal } from '../components/modal.js';
 import { render } from '../app.js';
 import * as C from '../core.js';
-import { commit, db, name, settings, students, up } from '../shared/data.js';
-import { $, bindLater, btn, esc, input, select } from '../shared/ui.js';
-import { studentDetail } from './students.js';
+import { commit, db, name, settings, students } from '../shared/data.js';
+import { store } from '../shared/state.js';
+import { bindLater, btn, esc, run } from '../shared/ui.js';
+let movingStudent = null,
+  seatScope = '',
+  initializing = false,
+  pointerDrag = null,
+  swallowUntil = 0;
+function scope() {
+  return `${store.mode}:${store.classId}:${db()?.settings?.[0]?.academicYear}`;
+}
 export function seatsView() {
+  if (seatScope !== scope()) {
+    seatScope = scope();
+    movingStudent = null;
+  }
+  const ops = C.autoSeatOps(db());
+  if (ops.length && !initializing) {
+    initializing = true;
+    setTimeout(() => run(async () => {
+      try {
+        await commit(C.autoSeatOps(db()), '');
+      } finally {
+        initializing = false;
+      }
+    }), 0);
+  }
   const st = settings(),
     rows = Number(st.seatRows),
     cols = Number(st.seatCols);
   const order = Array.from({
     length: rows
   }, (_, i) => st.frontTop ? i : rows - 1 - i);
-  return `<div class="toolbar"><h2>자리</h2><div class="row">${btn(editMode ? '배치 완료' : '배치 변경', () => {
-    editMode = !editMode;
+  return `<div class="toolbar"><div><h2>자리</h2><small>학생을 끌거나, 학생 선택 후 빈칸·다른 학생을 눌러 이동하세요.</small></div><div class="row">${movingStudent ? btn('선택 취소', () => {
     movingStudent = null;
     render();
-  }, 'primary')}${btn('교실 앞 ' + (st.frontTop ? '아래로' : '위로'), () => commit([up('settings', {
-    ...st,
-    frontTop: !st.frontTop
-  })]))}<small>${editMode ? '카드를 끌어 교환·이동하세요. 터치·키보드는 학생 선택 후 목적지를 누르세요.' : '학생 버튼으로 기록 확인'}</small></div></div>${layoutForm()}${st.frontTop ? '<div class="front">교실 앞</div>' : ''}<div style="overflow:auto"><div id="seat-grid" class="seats" style="grid-template-columns:repeat(${cols},minmax(110px,1fr));min-width:${cols * 120}px;gap:${st.seatLayout === 'exam' ? 28 : 12}px">${order.flatMap(row => Array.from({
+  }) : ''}${btn('교실 앞 ' + (st.frontTop ? '아래로' : '위로'), () => commit([{
+    table: 'settings',
+    id: st.id,
+    data: {
+      ...st,
+      frontTop: !st.frontTop
+    }
+  }]))}</div></div>${st.frontTop ? '<div class="front">교실 앞</div>' : ''}<div class="seat-canvas"><div id="seat-grid" class="seats free-seats" style="grid-template-columns:repeat(${cols},minmax(100px,1fr));min-width:${cols * 110}px">${order.flatMap(row => Array.from({
     length: cols
   }, (_, col) => {
-    const s = students().find(s => s.seat?.row === row && s.seat?.col === col);
-    const gap = (st.seatLayout === 'pair' || st.seatLayout === 'group') && col % 2 === 1 && col < cols - 1 ? 22 : 0;
-    return `<div class="seat" data-row="${row}" data-col="${col}" data-student="${s?.id || ''}" draggable="${editMode && !!s}" style="margin-right:${gap}px;${st.seatLayout === 'group' && row % 2 === 1 ? 'margin-bottom:24px;' : ''}${movingStudent === s?.id ? 'outline:3px solid #2563EB;' : ''}">${s ? btn(esc(name(s.id)), () => editMode ? (movingStudent = s.id, render()) : studentDetail(s.id), 'primary') : ''}${editMode ? btn(movingStudent ? '이 자리로 이동' : '학생 배치', () => movingStudent ? moveTo(row, col) : seatEditor(row, col)) : ''}</div>`;
-  })).join('')}</div></div>${!st.frontTop ? '<div class="front" style="margin-top:15px">교실 앞</div>' : ''}${editMode ? unseatedTray() : ''}${bindLater('seat-grid', 'dragover', e => e.preventDefault())}${bindLater('seat-grid', 'dragstart', e => {
-    const seat = e.target.closest('[data-student]');
-    if (!seat?.dataset.student) return;
-    e.dataTransfer.setData('text/plain', seat.dataset.student);
-  })}${bindLater('seat-grid', 'drop', e => {
-    e.preventDefault();
-    const seat = e.target.closest('[data-row]');
-    if (seat) return moveTo(Number(seat.dataset.row), Number(seat.dataset.col), e.dataTransfer.getData('text/plain'));
+    const student = students().find(s => s.seat?.row === row && s.seat?.col === col);
+    return btn(student ? esc(name(student.id)) : '', () => chooseSeat(row, col, student?.id), 'seat seat-cell' + (student ? ' occupied' : ' empty') + (movingStudent === student?.id ? ' selected' : ''), `data-row="${row}" data-col="${col}" data-student="${esc(student?.id || '')}" draggable="${!!student}" aria-label="${student ? esc(name(student.id)) : '빈자리'}" aria-pressed="${!!student && movingStudent === student.id}"`);
+  })).join('')}</div></div>${!st.frontTop ? '<div class="front">교실 앞</div>' : ''}${bindLater('seat-grid', 'keydown', e => {
+    if (e.key === 'Escape') {
+      movingStudent = null;
+      render();
+    }
   })}`;
 }
-let editMode = false,
-  movingStudent = null;
+function chooseSeat(row, col, id) {
+  if (performance.now() < swallowUntil) return;
+  if (movingStudent) {
+    if (movingStudent === id) {
+      movingStudent = null;
+      render();
+    } else return moveTo(row, col);
+  } else if (id) {
+    movingStudent = id;
+    render();
+  }
+}
 export async function moveTo(row, col, id = movingStudent) {
-  if (!editMode || !id) return;
-  await commit(C.seatMoveOps(db(), id, row, col));
+  if (!id) return;
+  const ops = C.seatMoveOps(db(), id, row, col);
+  if (ops.length) await commit(ops, '');
   movingStudent = null;
   render();
 }
-function unseatedTray() {
-  return `<section class="panel" id="unseated-tray"><h3>아직 배치하지 않은 학생</h3><div class="row">${students().filter(s => !s.seat || s.seat.row >= settings().seatRows || s.seat.col >= settings().seatCols).map(s => `<span draggable="true" data-student="${esc(s.id)}">${btn(esc(name(s.id)), () => {
-    movingStudent = s.id;
-    render();
-  }, movingStudent === s.id ? 'primary' : '')}</span>`).join('') || '<p>모든 학생이 배치되었습니다.</p>'}</div></section>${bindLater('unseated-tray', 'dragstart', e => {
-    const item = e.target.closest('[data-student]');
-    if (item) e.dataTransfer.setData('text/plain', item.dataset.student);
-  })}`;
+document.addEventListener('dragstart', e => {
+  const cell = e.target.closest?.('#seat-grid [data-student]');
+  if (!cell?.dataset.student) return;
+  movingStudent = cell.dataset.student;
+  e.dataTransfer.setData('application/x-startoday-student', movingStudent);
+  e.dataTransfer.effectAllowed = 'move';
+  cell.classList.add('dragging');
+});
+document.addEventListener('dragover', e => {
+  if (e.target.closest?.('#seat-grid .seat-cell')) e.preventDefault();
+});
+document.addEventListener('drop', e => {
+  const cell = e.target.closest?.('#seat-grid .seat-cell'),
+    id = e.dataTransfer.getData('application/x-startoday-student');
+  if (!cell || !id) return;
+  e.preventDefault();
+  run(() => moveTo(Number(cell.dataset.row), Number(cell.dataset.col), id));
+});
+document.addEventListener('dragend', () => document.querySelectorAll('.seat.dragging').forEach(el => el.classList.remove('dragging')));
+document.addEventListener('pointerdown', e => {
+  const cell = e.target.closest?.('#seat-grid .occupied');
+  if (!cell || e.pointerType !== 'touch') return;
+  pointerDrag = {
+    id: cell.dataset.student,
+    x: e.clientX,
+    y: e.clientY,
+    active: false,
+    scope: scope(),
+    pointerId: e.pointerId,
+    cell
+  };
+});
+document.addEventListener('pointermove', e => {
+  const drag = pointerDrag;
+  if (!drag || drag.pointerId !== e.pointerId) return;
+  if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 8) drag.active = true;
+  if (!drag.active) return;
+  e.preventDefault();
+  drag.cell.classList.add('dragging');
+  if (!drag.ghost) {
+    drag.ghost = document.createElement('div');
+    drag.ghost.className = 'seat-drag-ghost';
+    drag.ghost.textContent = name(drag.id);
+    document.body.append(drag.ghost);
+  }
+  drag.ghost.style.left = e.clientX + 12 + 'px';
+  drag.ghost.style.top = e.clientY + 12 + 'px';
+  document.querySelectorAll('.seat.drop-target').forEach(el => el.classList.remove('drop-target'));
+  document.elementFromPoint(e.clientX, e.clientY)?.closest('#seat-grid .seat-cell')?.classList.add('drop-target');
+}, {
+  passive: false
+});
+function endPointer(e, cancel = false) {
+  const drag = pointerDrag;
+  if (!drag || drag.pointerId !== e.pointerId) return;
+  pointerDrag = null;
+  drag.ghost?.remove();
+  document.querySelectorAll('.seat.dragging,.seat.drop-target').forEach(el => el.classList.remove('dragging', 'drop-target'));
+  if (!drag.active) return;
+  swallowUntil = performance.now() + 600;
+  e.preventDefault();
+  const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest('#seat-grid .seat-cell');
+  if (!cancel && cell && drag.scope === scope()) run(() => moveTo(Number(cell.dataset.row), Number(cell.dataset.col), drag.id));
 }
-function layoutForm() {
-  const st = settings();
-  return `<form id="seat-layout" class="panel row">${select('자리 대형', 'layout', [['pair', '짝 대형'], ['exam', '시험 대형'], ['group', '모둠 대형'], ['custom', '사용자 정의']], st.seatLayout || 'custom')}${input('행', 'rows', st.seatRows, 'number', 'required min="1" max="12"')}${input('열', 'cols', st.seatCols, 'number', 'required min="1" max="12"')}<button type="submit">대형 적용</button></form>${bindLater('seat-layout', 'change', e => {
-    if (e.target.name !== 'layout' || e.target.value === 'custom') return;
-    const form = e.currentTarget,
-      cols = e.target.value === 'exam' ? 5 : 6;
-    form.elements.cols.value = cols;
-    form.elements.rows.value = Math.min(12, Math.max(1, Math.ceil(students().length / cols)));
-  })}${bindLater('seat-layout', 'submit', async e => {
-    e.preventDefault();
-    const f = new FormData(e.target),
-      rows = Number(f.get('rows')),
-      cols = Number(f.get('cols'));
-    if (!Number.isInteger(rows) || !Number.isInteger(cols) || rows < 1 || cols < 1 || rows > 12 || cols > 12) throw Error('행·열은 1~12 사이로 입력하세요.');
-    const outside = students().filter(s => s.seat && (s.seat.row >= rows || s.seat.col >= cols));
-    if (outside.length && !confirm('범위를 벗어난 ' + outside.length + '명은 미배치 목록으로 옮깁니다. 적용할까요?')) return;
-    await commit([up('settings', {
-      ...settings(),
-      seatRows: rows,
-      seatCols: cols,
-      seatLayout: f.get('layout')
-    }), ...outside.map(s => up('students', {
-      ...s,
-      seat: null
-    }))]);
-  })}`;
-}
-export function seatEditor(row, col) {
-  const current = students().find(s => s.seat?.row === row && s.seat?.col === col);
-  modal('학생 배치', select('학생 · 기존 자리가 있으면 서로 교환합니다.', 'student', [['', '빈자리'], ...students().map(s => [s.id, name(s.id)])], current?.id || ''), async f => {
-    const id = f.get('student'),
-      next = db().students.find(s => s.id === id),
-      ops = [];
-    if (current && current.id !== id) ops.push(up('students', {
-      ...current,
-      seat: next?.seat || null
-    }));
-    if (next) ops.push(up('students', {
-      ...next,
-      seat: {
-        row,
-        col
-      }
-    }));
-    await commit(ops);
-    closeModal();
-  });
-}
-
+document.addEventListener('pointerup', e => endPointer(e));
+document.addEventListener('pointercancel', e => endPointer(e, true));

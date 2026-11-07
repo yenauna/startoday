@@ -53,7 +53,7 @@ export function calendarView() {
       state.calendarDate = dt.toISOString().slice(0, 10);
     }
     render();
-  })}<strong>${esc(state.calendarMode === 'month' ? state.calendarDate.slice(0, 7) : start + ' 주간')}</strong>${btn('›', () => {
+  })}<strong>${esc(state.calendarMode === 'month' ? state.calendarDate.slice(0, 7).replace('-', '.') : C.formatDate(start) + ' 주간')}</strong>${btn('›', () => {
     if (state.calendarMode === 'week') state.calendarDate = C.addDays(state.calendarDate, 7);else {
       const dt = new Date(first + 'T12:00Z');
       dt.setUTCMonth(dt.getUTCMonth() + 1);
@@ -88,7 +88,7 @@ export function calendarView() {
 }
 export function dayEditor(d, mode = '일정', period = 1, event = null) {
   if (event?.academic) {
-    modal('학사일정', `<h3>${esc(event.title)}</h3><p>${esc(event.date)}</p><p>${esc(event.description)}</p>${btn('학사일정 설정', () => {
+    modal('학사일정', `<h3>${esc(event.title)}</h3><p>${esc(C.formatDate(event.date))}</p><p>${esc(event.description)}</p>${btn('학사일정 설정', () => {
       closeModal();
       state.tab = '설정';
       render();
@@ -110,7 +110,7 @@ export function dayEditor(d, mode = '일정', period = 1, event = null) {
     isDday: false,
     createdAt: C.now()
   };
-  modal(d + ' · 통합 등록', `<div class="row" style="margin-bottom:18px">${['일정', '시간표', '과제'].map(t => btn(t, () => dayEditor(d, t, period), mode === t ? 'primary' : '')).join('')}</div>${mode === '일정' ? `<div class="formgrid">${input('일정 이름', 'title', r.title, 'text', 'required')}${select('시간', 'period', [['', '종일'], [0, '아침'], ...[1, 2, 3, 4, 5, 6].map(p => [p, p + '교시']), [7, '방과후']], r.period ?? '')}<div class="span2">${textarea('설명', 'description', r.description)}</div>${checkbox('D-Day 표시', 'isDday', r.isDday)}</div>${event ? btn('이 일정 삭제', async () => {
+  modal(C.formatDate(d) + ' · 통합 등록', `<div class="row" style="margin-bottom:18px">${['일정', '시간표', '과제'].map(t => btn(t, () => dayEditor(d, t, period), mode === t ? 'primary' : '')).join('')}</div>${mode === '일정' ? `<div class="formgrid">${input('일정 이름', 'title', r.title, 'text', 'required')}${select('시간', 'period', [['', '종일'], [0, '아침'], ...[1, 2, 3, 4, 5, 6].map(p => [p, p + '교시']), [7, '방과후']], r.period ?? '')}<div class="span2">${textarea('설명', 'description', r.description)}</div>${checkbox('D-Day 표시', 'isDday', r.isDday)}</div>${event ? btn('이 일정 삭제', async () => {
     if (confirm('일정을 삭제할까요?')) {
       await commit([{
         table: 'events',

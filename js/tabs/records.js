@@ -43,7 +43,7 @@ export function recordEditor(seed = {}, existing = false) {
   const warnings = seed.warnings || [];
   modal(existing ? '기록 수정' : '기록 확인 후 저장', `${warnings.length ? `<div class="notice">${warnings.map(esc).join('<br>')}</div>` : ''}${existing ? `<p class="muted">최초 작성: ${esc(localTime(r.createdAt))}<br>최근 수정: ${esc(localTime(r.updatedAt))}</p>` : ''}${r.autoRef ? '<div class="notice">과제 자동 기록입니다. 과제 상태를 통해 수정하면 기록과 상태가 함께 바뀝니다.</div>' : ''}<div class="formgrid">${input('날짜', 'date', r.date, 'date', 'required')}${select('교시', 'period', ['아침', ...Array.from({
     length: 6
-  }, (_, i) => `${i + 1}교시`), '쉬는시간', '점심', '방과후', '기타'], r.period)}<div class="span2"><label>학생 · 복수 선택 가능</label>${multiple(studentList.map(s => [s.id, (s.deletedAt ? '(나간 학생) ' : '') + s.no + '. ' + s.name]), 'students', r.studentIds)}</div>${select('구분', 'kind', C.KINDS.map(k => [k, kindLabel(k)]), r.kind)}<div><label>경험치 영역</label>${multiple(C.areaNames(db(), true).filter(a => !C.areaRows(db(), true).find(x => x.name === a)?.deletedAt || r.areas.includes(a)).map(a => [a, a]), 'areas', r.areas)}</div><div class="span2">${textarea('내용 · 입력 원문을 보존합니다.', 'text', r.text)}</div><div class="span2">${textarea('지도 내용 · 필요하면 내용과 나누어 수정하세요.', 'action', r.action)}</div><div class="span2" id="extra-panel">${select('추가 기록 유형', 'extraType', ['메모', '사건', '상담'], r.extraType || '메모')}${input('새 사건 제목 · 사건 유형에서 새 사안을 만들 때', 'incidentTitle', r.kind === '추가기록' && r.extraType === '사건' ? r.text.slice(0, 40) : '')}${select('기존 사건 연결', 'incidentId', [['', '연결하지 않음'], ...db().incidents.map(i => [i.id, i.title + ' (' + i.status + ')'])], r.incidentId || '')}<div id="counsel-panel" class="panel" style="margin-top:12px">${select('상담 방식', 'method', ['전화', '대면', '문자·기타'], r.counseling?.method || '대면')}<div class="row" style="margin-top:12px">${checkbox('학생 참석', 'studentAttendee', r.counseling?.attendees?.student)}${checkbox('보호자 참석/통화', 'guardian', r.counseling?.attendees?.guardian)}${checkbox('추가 참석자', 'additional', r.counseling?.attendees?.additional)}</div><div id="guardian-info">${input('보호자 정보', 'guardianInfo', r.counseling?.attendees?.guardianInfo || '')}</div><div id="additional-info">${input('추가 참석자 정보', 'additionalInfo', r.counseling?.attendees?.additionalInfo || '')}</div></div><div class="row" style="margin-top:12px">${checkbox('가정 통보했음', 'notified', r.notified)}${checkbox('가정 발송 보고서에 인쇄 포함', 'printIncluded', r.kind === '추가기록' ? r.printIncluded : false)}</div></div></div>`, async f => {
+  }, (_, i) => `${i + 1}교시`), '쉬는시간', '점심', '방과후', '기타'], r.period)}<div class="span2"><label>학생 · 복수 선택 가능</label>${studentChips(studentList, r.studentIds)}</div><div class="record-kind-row span2">${select('구분', 'kind', C.KINDS.map(k => [k, kindLabel(k)]), r.kind)}<div id="extra-type-control">${select('추가기록 유형', 'extraType', ['메모', '사건', '상담'], r.extraType || '메모')}</div></div><div><label>경험치 영역</label>${multiple(C.areaNames(db(), true).filter(a => !C.areaRows(db(), true).find(x => x.name === a)?.deletedAt || r.areas.includes(a)).map(a => [a, a]), 'areas', r.areas)}</div><div class="span2">${textarea('내용 · 입력 원문을 보존합니다.', 'text', r.text)}</div><div class="span2">${textarea('지도 내용 · 필요하면 내용과 나누어 수정하세요.', 'action', r.action)}</div><div class="span2" id="extra-panel">${input('새 사건 제목 · 사건 유형에서 새 사안을 만들 때', 'incidentTitle', db().incidents.find(i => i.id === r.incidentId)?.title || C.incidentTitle(db(), r.studentIds, r.date))}${select('기존 사건 연결', 'incidentId', [['', '연결하지 않음'], ...db().incidents.map(i => [i.id, i.title + ' (' + i.status + ')'])], r.incidentId || '')}<div id="counsel-panel" class="panel" style="margin-top:12px">${select('상담 방식', 'method', ['전화', '대면', '문자·기타'], r.counseling?.method || '대면')}<div class="row" style="margin-top:12px">${checkbox('학생 참석', 'studentAttendee', r.counseling?.attendees?.student)}${checkbox('보호자 참석/통화', 'guardian', r.counseling?.attendees?.guardian)}${checkbox('추가 참석자', 'additional', r.counseling?.attendees?.additional)}</div><div id="guardian-info">${input('보호자 정보', 'guardianInfo', r.counseling?.attendees?.guardianInfo || '')}</div><div id="additional-info">${input('추가 참석자 정보', 'additionalInfo', r.counseling?.attendees?.additionalInfo || '')}</div></div><div class="row" style="margin-top:12px">${checkbox('가정 통보했음', 'notified', r.notified)}${checkbox('가정 발송 보고서에 인쇄 포함', 'printIncluded', r.kind === '추가기록' ? r.printIncluded : false)}</div></div></div>`, async f => {
     const ids = f.getAll('students');
     if (!ids.length) throw Error('학생을 1명 이상 선택하세요.');
     if (!f.get('text').trim()) throw Error('기록 내용을 입력하세요.');
@@ -118,9 +118,20 @@ export function recordEditor(seed = {}, existing = false) {
     render();
   });
   const form = $('#modal-form');
+  let autoTitle = form.elements.incidentTitle.value,
+    titleEdited = !!r.incidentId;
+  form.elements.incidentTitle.oninput = () => {
+    titleEdited = form.elements.incidentTitle.value !== autoTitle;
+  };
   const update = () => {
+    const generated = C.incidentTitle(db(), [...form.querySelectorAll('[name=students]:checked')].map(el => el.value), form.elements.date.value);
+    if (!titleEdited || form.elements.incidentTitle.value === autoTitle) {
+      form.elements.incidentTitle.value = generated;
+      autoTitle = generated;
+    }
     const extra = form.elements.kind.value === '추가기록';
     $('#extra-panel').hidden = !extra;
+    $('#extra-type-control').hidden = !extra;
     $('#counsel-panel').hidden = form.elements.extraType.value !== '상담';
     $('#guardian-info').hidden = !form.elements.guardian.checked;
     $('#additional-info').hidden = !form.elements.additional.checked;
@@ -137,12 +148,12 @@ export function recordEditor(seed = {}, existing = false) {
     }
   };
 }
-export function recordCard(r, controls = true) {
-  return `<article class="record ${r.kind === '칭찬' ? 'praise' : r.kind === '지도' ? 'advice' : ''} ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><div class="row between"><div class="row"><strong>${esc(r.studentIds.map(name).join(', '))}</strong>${badge(C.recordLabel(r))}<small>${esc(r.date)} ${esc(r.period)}</small>${r.autoRef ? badge('자동') : ''}${r.kind === '추가기록' ? badge(r.printIncluded ? '인쇄 포함' : '비공개') : ''}${r.notified ? badge('가정 통보') : ''}</div>${controls ? `<div class="row">${r.incidentId ? btn('사건 보기', () => incidentDetail(r.incidentId)) : ''}${r.autoRef ? btn('과제 상태', () => {
+export function recordCard(r, controls = true, detail = false) {
+  return `<article class="record ${detail ? 'detail-record' : ''} ${r.kind === '칭찬' ? 'praise' : r.kind === '지도' ? 'advice' : r.kind === '관찰' ? 'observation' : ''} ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><div class="row between"><div class="row"><strong>${esc(r.studentIds.map(name).join(', '))}</strong>${badge(C.recordLabel(r))}<small>${esc(C.formatDate(r.date))} ${esc(r.period)}</small>${r.autoRef ? badge('자동') : ''}${r.kind === '추가기록' ? badge(r.printIncluded ? '인쇄 포함' : '비공개') : ''}${r.notified ? badge('가정 통보') : ''}</div>${controls ? `<div class="row record-controls">${r.incidentId ? btn('사건 보기', () => incidentDetail(r.incidentId)) : ''}${r.autoRef ? btn('과제 상태', () => {
     const state = db().assignmentStates.find(s => s.id === r.autoRef),
       a = db().assignments.find(a => a.id === state?.assignmentId);
     if (a) taskStateEditor(a, state.date, state.studentId);
-  }) : btn('수정', () => recordEditor(r, true))}${btn('삭제', async () => {
+  }) : btn('수정', () => recordEditor(r, true), 'record-edit')}${btn('삭제', async () => {
     if (r.autoRef) {
       if (!confirm('자동 기록을 삭제하면 연결된 과제를 진행중으로 되돌립니다. 계속할까요?')) return;
       const state = db().assignmentStates.find(s => s.id === r.autoRef),
@@ -157,7 +168,7 @@ export function recordCard(r, controls = true) {
       id: r.id,
       remove: true
     }]);
-  }, 'danger')}</div>` : ''}</div><div class="body">${esc(r.text)}</div>${r.action ? `<div class="action">지도 내용 · ${esc(r.action)}</div>` : ''}<div class="chips" style="margin-top:8px">${(r.areas || []).map(badge).join('')}</div></article>`;
+  }, 'danger record-delete')}</div>` : ''}</div><div class="body">${esc(r.text)}</div>${r.action ? `<div class="action">지도 내용 · ${esc(r.action)}</div>` : ''}<div class="chips" style="margin-top:8px">${(r.areas || []).map(badge).join('')}</div></article>`;
 }
 export function recordsView() {
   const f = state.recordFilters,
@@ -183,7 +194,7 @@ export function incidentList() {
     extraType: '사건',
     printIncluded: false,
     studentIds: state.selected
-  }))}${db().incidents.map(i => `<div class="record"><div class="row between"><div><strong>${esc(i.title)}</strong> ${badge(i.status)}<div class="muted">${esc(i.date)} · ${esc(i.studentIds.map(name).join(', '))}</div></div>${btn('타임라인', () => incidentDetail(i.id))}</div></div>`).join('') || empty('등록된 사건이 없습니다.')}`);
+  }))}${db().incidents.map(i => `<div class="record"><div class="row between"><div><strong>${esc(i.title)}</strong> ${badge(i.status)}<div class="muted">${esc(C.formatDate(i.date))} · ${esc(i.studentIds.map(name).join(', '))}</div></div>${btn('타임라인', () => incidentDetail(i.id))}</div></div>`).join('') || empty('등록된 사건이 없습니다.')}`);
 }
 export function incidentDetail(id) {
   const incident = db().incidents.find(i => i.id === id);
@@ -203,14 +214,14 @@ export function incidentDetail(id) {
     extraType: '메모',
     incidentId: id,
     printIncluded: false
-  }))}${btn('기록 연결', () => linkRecords(id))}${btn('사건 연결', () => linkIncidents(id))}</div><div class="panel" style="margin-top:12px"><small>${esc(incident.date)} · ${esc(incident.studentIds.map(name).join(', '))}</small><p style="white-space:pre-wrap">${esc(incident.description)}</p></div>${[...linked].filter(x => x !== id).map(x => {
+  }))}${btn('기록 연결', () => linkRecords(id))}${btn('사건 연결', () => linkIncidents(id))}</div><div class="panel" style="margin-top:12px"><small>${esc(C.formatDate(incident.date))} · ${esc(incident.studentIds.map(name).join(', '))}</small><p style="white-space:pre-wrap">${esc(incident.description)}</p></div>${[...linked].filter(x => x !== id).map(x => {
     const i = db().incidents.find(v => v.id === x);
     return i ? badge('연결: ' + i.title) : '';
   }).join('')}${records.map(r => `<small>${esc(db().incidents.find(i => i.id === r.incidentId)?.title)}</small>${recordCard(r)}`).join('')}`);
 }
 export function linkRecords(id) {
   const list = [...db().records].sort((a, b) => b.date.localeCompare(a.date));
-  modal('과거 기록 연결', `<p class="muted">체크한 기록을 이 사건에 연결합니다. 다른 사건에 속한 기록은 이동됩니다.</p><input id="link-search" placeholder="기록 내용·학생 검색" aria-label="연결할 기록 검색" style="width:100%;margin-bottom:12px">${list.map(r => `<label class="record inline" data-search="${esc(r.text + ' ' + r.studentIds.map(name).join(' '))}"><input type="checkbox" name="records" value="${esc(r.id)}" ${r.incidentId === id ? 'checked' : ''}><span>${esc(r.date)} · ${esc(r.studentIds.map(name).join(', '))}<br>${esc(r.text)}</span></label>`).join('')}`, async f => {
+  modal('과거 기록 연결', `<p class="muted">체크한 기록을 이 사건에 연결합니다. 다른 사건에 속한 기록은 이동됩니다.</p><input id="link-search" placeholder="기록 내용·학생 검색" aria-label="연결할 기록 검색" style="width:100%;margin-bottom:12px">${list.map(r => `<label class="record inline" data-search="${esc(r.text + ' ' + r.studentIds.map(name).join(' '))}"><input type="checkbox" name="records" value="${esc(r.id)}" ${r.incidentId === id ? 'checked' : ''}><span>${esc(C.formatDate(r.date))} · ${esc(r.studentIds.map(name).join(', '))}<br>${esc(r.text)}</span></label>`).join('')}`, async f => {
     const chosen = new Set(f.getAll('records'));
     const ops = list.filter(r => chosen.has(r.id) || r.incidentId === id).map(r => up('records', {
       ...r,
@@ -244,4 +255,7 @@ export function linkIncidents(id) {
     await commit(ops);
     incidentDetail(id);
   });
+}
+function studentChips(list, selected) {
+  return `<div class="student-choice-chips" role="group" aria-label="기록 대상 학생">${list.map(s => `<label class="student-choice-chip"><input type="checkbox" name="students" value="${esc(s.id)}" ${selected.includes(s.id) ? 'checked' : ''}><span>${esc((s.deletedAt ? '(나간 학생) ' : '') + s.no + '. ' + s.name)}</span></label>`).join('')}</div>`;
 }

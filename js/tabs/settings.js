@@ -11,7 +11,7 @@ export function settingsView() {
   const calendar = st.academicCalendar || {};
   return `<div class="toolbar"><div><h2>설정</h2><small>학급과 기록 방식을 선생님께 맞추세요.</small></div></div><form id="settings-form"><section class="panel"><h3>기본 정보</h3><div class="formgrid">${input('학급 이름', 'className', st.className, 'text', 'required')}${input('학년도', 'academicYear', st.academicYear, 'number', 'min="2020" max="2100" required')}${input('학교명', 'schoolName', st.schoolName || '')}</div></section><section class="panel"><h3>교실 화면</h3><div class="formgrid">${select('이름 표시 방식', 'nameDisplayMode', [['real', '실명 그대로 노출'], ['number', '번호만 · 기본'], ['masked', '이름 가림 · 김●수'], ['alias', '교사가 정한 별칭']], st.nameDisplayMode)}${checkbox('학생 점수 표시', 'classroomShowScores', !!st.classroomShowScores)}${input('화면 해제 비밀번호 · 변경할 때만 입력', 'classroomPin', '', 'password', 'minlength="4" autocomplete="new-password"')}</div></section><section class="panel"><h3>보고서</h3><div class="formgrid">${input('보고서 제목', 'reportHeader', st.reportHeader)}${select('기본 출력 방식', 'reportPrintMode', [['color', '컬러'], ['mono', '흑백']], st.reportPrintMode || 'color')}</div></section><section class="panel"><h3>학사일정</h3><div class="formgrid">${Array.from({
     length: 6
-  }, (_, i) => input(`${i + 1}교시 시간`, 'period-' + i, st.periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i])).join('')}${checkbox('시간표에 선생님 표시', 'showTeacher', st.timetableDisplay.showTeacher)}${checkbox('시간표에 장소 표시', 'showLocation', st.timetableDisplay.showLocation)}${[['term1Start', '1학기 개학일'], ['summerEnd', '여름방학식'], ['term2Start', '2학기 개학일'], ['winterEnd', '겨울방학식']].map(([key, label]) => input(label, key, calendar[key] || '', 'date')).join('')}<div class="span2">${checkbox('봄방학 사용', 'springBreak', !!calendar.springBreak)}</div><fieldset id="spring-dates" class="span2 formgrid" ${calendar.springBreak ? '' : 'disabled'}>${input('겨울방학 후 개학일', 'winterReturn', calendar.winterReturn || '', 'date')}${input('봄방학식 · 종업식/졸업식', 'springEnd', calendar.springEnd || '', 'date')}</fieldset><div class="span2"><label>자율휴업일 · 여러 날짜 선택 후 추가</label><div class="row"><input id="holiday-date" type="date" aria-label="자율휴업일 추가 날짜">${btn('날짜 추가', () => {
+  }, (_, i) => input(`${i + 1}교시 시간`, 'period-' + i, st.periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i])).join('')}${checkbox('시간표에 선생님 표시', 'showTeacher', st.timetableDisplay.showTeacher)}${checkbox('시간표에 장소 표시', 'showLocation', st.timetableDisplay.showLocation)}${[['term1Start', '1학기 개학일'], ['summerEnd', '여름방학식'], ['term2Start', '2학기 개학일'], ['winterEnd', '겨울방학식']].map(([key, label]) => input(label, key, calendar[key] || '', 'date')).join('')}<div class="span2">${checkbox('봄방학 사용', 'springBreak', !!calendar.springBreak)}</div><fieldset id="spring-dates" class="span2 formgrid" ${calendar.springBreak ? '' : 'disabled'}>${input('겨울방학 후 개학일', 'winterReturn', calendar.winterReturn || '', 'date')}${input('봄방학식 · 종업식/졸업식', 'springEnd', calendar.springEnd || '', 'date')}</fieldset><div class="span2"><label>자율휴업일 · 여러 날짜 선택 후 추가</label><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate('')) || '날짜 선택'}</span><input id="holiday-date" type="date" aria-label="자율휴업일 추가 날짜"></span>${btn('날짜 추가', () => {
     const field = $('#holiday-date'),
       date = field.value;
     if (!date) return;
@@ -94,7 +94,7 @@ export function rosterPreview(rows) {
         s.deletedAt = null;
       }
     }
-    await commit(next.map(s => up('students', s)));
+    await commit(C.withAutoSeats(db(), next.map(s => up('students', s))));
     closeModal();
   }, '명단 등록');
 }
@@ -258,12 +258,12 @@ export function rollover() {
       ...r,
       deletedAt: C.now()
     }));
-    await commit(ops);
+    await commit(C.withAutoSeats(db(), ops));
     closeModal();
   });
 }
 function holidayChip(date) {
-  return `<label class="holiday-chip"><input type="checkbox" name="holidays" value="${esc(date)}" checked>${esc(date)}</label>`;
+  return `<label class="holiday-chip"><input type="checkbox" name="holidays" value="${esc(date)}" checked>${esc(C.formatDate(date))}</label>`;
 }
 let areaDraftScope = '',
   areaDraft = null,

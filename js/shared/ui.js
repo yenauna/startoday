@@ -18,7 +18,13 @@ export const opts = (values, value) => values.map(v => {
   const [key, label] = Array.isArray(v) ? v : [v, v];
   return `<option value="${esc(key)}" ${String(value) === String(key) ? 'selected' : ''}>${esc(label)}</option>`;
 }).join('');
-export const input = (label, key, value = '', type = 'text', attrs = '') => `<label>${label}<input name="${key}" type="${type}" value="${esc(value)}" ${attrs}></label>`;
+export const input = (label, key, value = '', type = 'text', attrs = '') => `<label>${label}${type === 'date' ? dateField(value, `name="${esc(key)}" aria-label="${esc(label)}" ${attrs}`) : `<input name="${key}" type="${type}" value="${esc(value)}" ${attrs}>`}</label>`;
+export function dateField(value, attrs = '') {
+  return `<span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(value)) || '날짜 선택'}</span><input type="date" value="${esc(value)}" ${attrs}></span>`;
+}
+for (const type of ['input', 'change']) document.addEventListener(type, e => {
+  if (e.target.matches?.('.date-control input[type=date]')) e.target.parentElement.querySelector('.date-display').textContent = C.formatDate(e.target.value) || '날짜 선택';
+});
 export const select = (label, key, values, value = '') => `<label>${label}<select name="${key}">${opts(values, value)}</select></label>`;
 export const textarea = (label, key, value = '') => `<label>${label}<textarea name="${key}">${esc(value)}</textarea></label>`;
 export const checkbox = (label, key, value = false) => `<label class="inline"><input type="checkbox" name="${key}" ${value ? 'checked' : ''}>${label}</label>`;
@@ -45,9 +51,7 @@ export function bindLater(id, event, fn) {
   return '';
 }
 export function localTime(s) {
-  return new Date(s).toLocaleString('sv-SE', {
-    timeZone: 'Asia/Seoul'
-  });
+  return C.formatTimestamp(s);
 }
 export async function hashPin(pin) {
   if (!crypto.subtle) throw Error('교실 비밀번호는 HTTPS 또는 localhost 접속에서 설정하세요.');

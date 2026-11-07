@@ -39,11 +39,11 @@ let routineMonth = '';
 export function routinesView() {
   const routines = db().routines.filter(r => !r.deletedAt).sort((a, b) => a.sortOrder - b.sortOrder);
   if (!routineMonth) routineMonth = state.date.slice(0, 7);
-  return `<div class="toolbar"><div><h2>루틴</h2><small>반복할 루틴과 날짜별 예외를 관리합니다. 점수에는 영향을 주지 않습니다.</small></div>${btn('+ 루틴', () => routineEditor(), 'primary')}</div><section class="panel"><div class="toolbar"><h3>${esc(routineMonth)}</h3><div class="row">${btn('이전 달', () => changeRoutineMonth(-1))}${btn('오늘', () => {
+  return `<div class="toolbar"><div><h2>루틴</h2><small>반복할 루틴과 날짜별 예외를 관리합니다. 점수에는 영향을 주지 않습니다.</small></div>${btn('+ 루틴', () => routineEditor(), 'primary')}</div><section class="panel"><div class="toolbar"><h3>${esc(routineMonth.replace('-', '.'))}</h3><div class="row">${btn('이전 달', () => changeRoutineMonth(-1))}${btn('오늘', () => {
     state.date = C.today();
     routineMonth = state.date.slice(0, 7);
     render();
-  })}${btn('다음 달', () => changeRoutineMonth(1))}</div></div>${routineCalendar(routines)}</section><section class="panel"><div class="toolbar"><h3>루틴 목록</h3><input aria-label="루틴 날짜" type="date" id="routine-date" value="${state.date}"></div><div class="table-wrap"><table><thead><tr><th>루틴</th><th>대상</th><th>선택일 진행</th><th>관리</th></tr></thead><tbody>${routines.map(r => {
+  })}${btn('다음 달', () => changeRoutineMonth(1))}</div></div>${routineCalendar(routines)}</section><section class="panel"><div class="toolbar"><h3>루틴 목록</h3><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input aria-label="루틴 날짜" type="date" id="routine-date" value="${state.date}"></span></div><div class="table-wrap"><table><thead><tr><th>루틴</th><th>대상</th><th>선택일 진행</th><th>관리</th></tr></thead><tbody>${routines.map(r => {
     const target = students().filter(s => C.targeted(r, s.id) && !C.excluded(db(), s.id, state.date)),
       done = target.filter(s => C.routineStatus(db(), r.id, state.date, s.id) === '완료').length;
     const exception = r.exceptions?.[state.date];
@@ -71,17 +71,22 @@ function routineCalendar(routines) {
   return `<div class="routine-calendar">${['일', '월', '화', '수', '목', '금', '토'].map(d => `<div class="weekday">${d}</div>`).join('')}${Array.from({
     length: 42
   }, (_, i) => {
-    const d = C.addDays(start, i),
-      exceptions = routines.filter(r => r.exceptions?.[d]?.exempt);
-    return btn(`<strong>${Number(d.slice(-2))}</strong>${exceptions.map(r => `<small>${esc(r.title)} · 쉬는 날</small>`).join('')}`, () => {
+    const d = C.addDays(start, i);
+    const items = routines.map(r => {
+      const target = students().filter(s => C.targeted(r, s.id) && !C.excluded(db(), s.id, d));
+      const done = target.filter(s => C.routineStatus(db(), r.id, d, s.id) === '완료').length;
+      const exempt = r.exceptions?.[d]?.exempt;
+      return `<span class="routine-calendar-pill ${exempt ? 'exempt' : target.length && done === target.length ? 'done' : ''}">${esc(r.title)}<small>${exempt ? '쉬는 날' : done + '/' + target.length}</small></span>`;
+    }).join('');
+    return btn(`<strong>${Number(d.slice(-2))}</strong>${items}`, () => {
       state.date = d;
       routineMonth = d.slice(0, 7);
       render();
-    }, 'routine-day' + (d === state.date ? ' selected' : '') + (d.slice(0, 7) !== routineMonth ? ' faded' : ''), `aria-label="${d} 루틴 예외" aria-pressed="${d === state.date}"`);
+    }, 'routine-day' + (d === state.date ? ' selected' : '') + (d.slice(0, 7) !== routineMonth ? ' faded' : ''), `aria-label="${C.formatDate(d)} 루틴 예외" aria-pressed="${d === state.date}"`);
   }).join('')}</div>`;
 }
 async function bulkRoutine(r, status) {
-  if (!confirm(`${r.title}: ${state.date} 대상 학생 전체를 ${status}으로 바꿀까요?`)) return;
+  if (!confirm(`${r.title}: ${C.formatDate(state.date)} 대상 학생 전체를 ${status}으로 바꿀까요?`)) return;
   const target = students().filter(s => C.targeted(r, s.id) && !C.excluded(db(), s.id, state.date));
   if (r.exceptions?.[state.date]?.exempt) return toast('쉬는 날에는 기존 체크 이력을 변경하지 않습니다.');
   await commit(target.map(s => up('routineStates', {
@@ -94,7 +99,7 @@ async function bulkRoutine(r, status) {
   })));
 }
 function exceptionEditor(routines) {
-  return `<section class="panel"><h3>${esc(state.date)} 예외 설정</h3><form id="routine-exception" class="row">${select('루틴', 'routineId', routines.map(r => [r.id, r.title]), routines[0].id)}${select('이날 처리', 'exempt', [['true', '쉬는 날 · 자동 면제'], ['false', '정상 진행']], routines[0].exceptions?.[state.date]?.exempt ? 'true' : 'false')}${input('사유', 'memo', routines[0].exceptions?.[state.date]?.memo || '', 'text', 'placeholder="체험학습 등"')}<button type="submit" class="primary">예외 적용</button></form>${bindLater('routine-exception', 'change', e => {
+  return `<section class="panel"><h3>${esc(C.formatDate(state.date))} 예외 설정</h3><form id="routine-exception" class="row">${select('루틴', 'routineId', routines.map(r => [r.id, r.title]), routines[0].id)}${select('이날 처리', 'exempt', [['true', '쉬는 날 · 자동 면제'], ['false', '정상 진행']], routines[0].exceptions?.[state.date]?.exempt ? 'true' : 'false')}${input('사유', 'memo', routines[0].exceptions?.[state.date]?.memo || '', 'text', 'placeholder="체험학습 등"')}<button type="submit" class="primary">예외 적용</button></form>${bindLater('routine-exception', 'change', e => {
     if (e.target.name !== 'routineId') return;
     const r = routines.find(r => r.id === e.target.value),
       f = e.currentTarget;

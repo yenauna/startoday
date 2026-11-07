@@ -232,5 +232,5 @@ test('과제 화면은 TDZ 없이 상태·메모를 표시하고 1클릭 순환 
     },
     preventDefault() {}
   });
-  assert(modalBody.includes(date));
+  assert(modalBody.includes(C.formatDate(date)));
 });

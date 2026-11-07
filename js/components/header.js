@@ -4,13 +4,13 @@ import { db, name, settings } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
 import { $, btn, esc, opts, toast } from '../shared/ui.js';
 import { classroom } from '../tabs/classroom.js';
-import { recordButtons, renderSelectionClear, saveDirectRecords } from '../tabs/dashboard.js';
+import { recordButtons, saveDirectRecords } from '../tabs/dashboard.js';
 export function header() {
   return `<header class="top">${btn('<img src="assets/logo-icon.jpg" class="logo" data-logo-slot alt="로고" style="object-fit:cover;border-radius:8px"><strong>오늘의 별</strong><small>' + esc(settings().className) + '</small>', () => {
     state.tab = '대시보드';
     state.dashMode = 'normal';
     render();
-  }, 'brand brand-home', 'aria-label="오늘의 별 홈"')}<div class="row"><span class="saved">${esc(store.mode === 'demo' ? '체험 모드 · 이 기기에만 저장' : state.saveNotice || '클라우드 연결됨')}</span>${btn('새로고침', async () => {
+  }, 'brand brand-home', 'aria-label="오늘의 별 홈"')}<div class="row">${btn('새로고침', async () => {
     if (store.mode === 'cloud') {
       await store.load();
       render();
@@ -33,7 +33,7 @@ export function renderShell(renderTab) {
   return `<div class="sticky-navigation">${header()}<nav class="tabs" aria-label="주 메뉴">${['대시보드', '기록', '시간표·일정', '과제', '루틴', '학생', '자리', '설정'].map(t => btn(t, () => {
     state.tab = t;
     render();
-  }, state.tab === t ? 'active' : '', state.tab === t ? 'aria-current="page"' : '')).join('')}</nav></div><div class="shell">${quickInput()}${store.mode === 'demo' ? '<div class="notice">가상 명단으로 체험 중입니다. 이 모드의 자료는 이 브라우저에만 저장됩니다. 실제 학급은 수파베이스 연결 후 구글 로그인으로 사용하세요.</div>' : ''}${settings().lastBackupAt && Date.now() - new Date(settings().lastBackupAt) > 7 * 86400000 ? '<div class="notice">마지막 백업 후 7일이 지났습니다. 설정에서 백업 파일을 내려받으세요.</div>' : !settings().lastBackupAt ? '<div class="muted" style="margin-bottom:10px">아직 백업하지 않았습니다. 설정에서 전체 자료를 내보낼 수 있습니다.</div>' : ''}<main id="main">${renderTab()}</main></div>${renderSelectionClear()}`;
+  }, state.tab === t ? 'active' : '', state.tab === t ? 'aria-current="page"' : '')).join('')}</nav></div><div class="shell">${quickInput()}${store.mode === 'demo' ? '<div class="notice">가상 명단으로 체험 중입니다. 이 모드의 자료는 이 브라우저에만 저장됩니다. 실제 학급은 수파베이스 연결 후 구글 로그인으로 사용하세요.</div>' : ''}${settings().lastBackupAt && Date.now() - new Date(settings().lastBackupAt) > 7 * 86400000 ? '<div class="notice">마지막 백업 후 7일이 지났습니다. 설정에서 백업 파일을 내려받으세요.</div>' : !settings().lastBackupAt ? '<div class="muted" style="margin-bottom:10px">아직 백업하지 않았습니다. 설정에서 전체 자료를 내보낼 수 있습니다.</div>' : ''}<main id="main">${renderTab()}</main></div>`;
 }
 let quickScope = '',
   quickText = '',
@@ -50,15 +50,18 @@ function quickInput() {
     quickAreas = [];
     quickDate = state.date;
   }
-  if (!['대시보드', '기록'].includes(state.tab)) return '';
+  if (!state.selected.length && !['대시보드', '기록'].includes(state.tab)) return '';
   quickAreas = quickAreas.filter(a => C.areaNames(db()).includes(a));
-  return `<div class="quick-wrap quick-composer-card">${state.selected.length ? `<div class="chips selected-students" aria-label="선택 학생">${state.selected.map(id => btn(esc(name(id)) + ' ×', () => {
+  return `<div class="quick-wrap quick-composer-card ${state.selected.length ? 'selection-composer' : ''}" ${state.selected.length ? 'role="region" aria-label="선택 학생 기록"' : ''}>${state.selected.length ? `<div class="selection-composer-head">${btn('✕ 선택 취소', () => {
+    state.selected = [];
+    render();
+  }, 'selection-dismiss')}<div class="chips selected-students" aria-label="선택 학생">${state.selected.map(id => btn(esc(name(id)) + ' ×', () => {
     state.selected = state.selected.filter(x => x !== id);
     render();
-  })).join('')}</div>` : ''}<form class="quick" id="quick-form"><div class="quick-main"><textarea id="quick-text" rows="1" aria-label="빠른 기록 입력" placeholder="예: 3번 2교시 친구를 도와줌">${esc(quickText)}</textarea><div class="chips quick-areas" role="group" aria-label="빠른 기록 경험치 영역">${C.areaNames(db()).map(a => btn(esc(a), () => {
+  })).join('')}</div></div>` : ''}<form class="quick" id="quick-form"><div class="quick-main"><textarea id="quick-text" rows="1" aria-label="빠른 기록 입력" placeholder="예: 3번 2교시 친구를 도와줌">${esc(quickText)}</textarea><div class="chips quick-areas" role="group" aria-label="빠른 기록 경험치 영역">${C.areaNames(db()).map(a => btn(esc(a), () => {
     quickAreas = quickAreas.includes(a) ? quickAreas.filter(x => x !== a) : [...quickAreas, a];
     render();
-  }, 'area-chip' + (quickAreas.includes(a) ? ' selected' : ''), `aria-pressed="${quickAreas.includes(a)}"`)).join('')}</div></div><div class="quick-controls"><label class="quick-date" title="기록 날짜 선택"><span>📅 ${quickDate === C.today() ? '오늘' : esc(quickDate.slice(5))}</span><input type="date" id="quick-date" aria-label="빠른 기록 날짜" value="${esc(quickDate)}" required></label><select id="quick-period" aria-label="교시">${opts([['자동', autoPeriodLabel()], ...C.PERIODS], quickPeriod)}</select><div class="record-actions">${recordButtons(saveQuick)}</div></div></form></div>`;
+  }, 'area-chip' + (quickAreas.includes(a) ? ' selected' : ''), `aria-pressed="${quickAreas.includes(a)}"`)).join('')}</div></div><div class="quick-controls"><label class="quick-date" title="기록 날짜 선택"><span>📅 ${quickDate === C.today() ? '오늘' : esc(C.formatDate(quickDate))}</span><input type="date" id="quick-date" aria-label="빠른 기록 날짜" value="${esc(quickDate)}" required></label><select id="quick-period" aria-label="교시">${opts([['자동', autoPeriodLabel()], ...C.PERIODS], quickPeriod)}</select><div class="record-actions">${recordButtons(saveQuick)}</div></div></form></div>`;
 }
 export function bindQuickInput() {
   const form = $('#quick-form');

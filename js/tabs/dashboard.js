@@ -12,13 +12,13 @@ import { dayEditor, periodInfo, timeSlots } from './timetable.js';
 export function weekSummary() {
   const start = C.addDays(state.date, -((C.weekday(state.date) + 6) % 7)),
     end = C.addDays(start, 4);
-  return [...C.calendarEvents(db()).filter(e => e.date >= start && e.date <= end).map(e => `${e.date.slice(5)} ${e.title}`), ...db().timetables.filter(t => t.date >= start && t.date <= end && periodInfo(t).type !== '일반').map(t => `${t.date.slice(5)} ${t.period}교시 ${t.subjectCode} ${periodInfo(t).type}`)].join(' · ') || '';
+  return [...C.calendarEvents(db()).filter(e => e.date >= start && e.date <= end).map(e => `${C.formatDate(e.date)} ${e.title}`), ...db().timetables.filter(t => t.date >= start && t.date <= end && periodInfo(t).type !== '일반').map(t => `${C.formatDate(t.date)} ${t.period}교시 ${t.subjectCode} ${periodInfo(t).type}`)].join(' · ') || '';
 }
 export function dashboard() {
   if (state.dashMode !== 'normal') return checkView();
   const list = students();
   const completed = list.filter(s => !isUnfinished(s.id, state.date) && !C.excluded(db(), s.id, state.date)).length;
-  return `<div class="toolbar"><div><h2>${esc(settings().className)}의 하루</h2><small>${esc(state.date)} · 작은 기록이 모여 성장이 됩니다.</small></div><div class="row"><input aria-label="대시보드 날짜" type="date" value="${state.date}" id="dash-date">${btn('오늘', () => {
+  return `<div class="toolbar"><div><h2>${esc(settings().className)}의 하루</h2><small>${esc(C.formatDate(state.date))} · 작은 기록이 모여 성장이 됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input aria-label="대시보드 날짜" type="date" value="${state.date}" id="dash-date"></span>${btn('오늘', () => {
     state.date = C.today();
     render();
   })}${btn(state.compact ? '자세히' : '컴팩트', () => {
@@ -180,7 +180,7 @@ function noticeDraft() {
 export function announcementEditor() {
   const draft = noticeDraft();
   if (draft.dirty) queueNotice(draft);
-  return `<section class="panel notice-panel"><div id="notice-toolbar" class="row" role="toolbar" aria-label="알림 서식">${select('글씨 크기', 'notice-size', [['normal', '보통'], ['large', '크게'], ['huge', '아주 크게'], ...['18', '24', '32', '40', '48', '64'].map(n => [n, n + 'pt'])], draft.note.runs[0]?.size || 'normal')}${select('글씨 색상', 'notice-color', [['default', '기본'], ['red', '빨강'], ['blue', '파랑'], ['yellow', '노랑'], ['green', '초록'], ['purple', '보라'], ['orange', '주황'], ['gray', '회색']], draft.note.runs[0]?.color || 'default')}<small id="notice-status" role="status">${draft.error ? '저장 실패 · 입력하면 다시 시도합니다.' : draft.dirty ? '자동 저장 대기 중' : '자동 저장됨'}</small></div><div id="notice-editor" contenteditable="true" role="textbox" aria-label="알림 내용" aria-multiline="true" spellcheck="false">${noticeMarkup(draft.note)}</div></section>`;
+  return `<section class="panel notice-panel"><div id="notice-toolbar" class="row compact-notice-toolbar" role="toolbar" aria-label="알림 서식">${select('', 'notice-size', [['normal', '글씨크기'], ['large', '크게'], ['huge', '아주 크게'], ...['18', '24', '32', '40', '48', '64'].map(n => [n, n + 'pt'])], draft.note.runs[0]?.size || 'normal').replace('<select ', '<select aria-label="글씨크기" ')}${select('', 'notice-color', [['default', '글씨색상'], ['red', '빨강'], ['blue', '파랑'], ['yellow', '노랑'], ['green', '초록'], ['purple', '보라'], ['orange', '주황'], ['gray', '회색']], draft.note.runs[0]?.color || 'default').replace('<select ', '<select aria-label="글씨색상" ')}<small id="notice-status" role="status">${draft.error ? '저장 실패 · 입력하면 다시 시도합니다.' : draft.dirty ? '자동 저장 대기 중' : '자동 저장됨'}</small></div><div id="notice-editor" contenteditable="true" role="textbox" aria-label="알림 내용" aria-multiline="true" spellcheck="false">${noticeMarkup(draft.note)}</div></section>`;
 }
 // Delegate editor events once, so repeated renders cannot duplicate input handlers.
 for (const type of ['input', 'mouseup', 'keyup', 'pointerdown', 'change', 'paste', 'drop']) {
@@ -449,7 +449,7 @@ export function reservationForm() {
       to = f.get('to') || from;
     if (from < C.today()) throw Error('오늘 이후 날짜를 선택하세요.');
     await commit(C.attendanceOps(db(), f.getAll('studentIds'), from, to, f.get('memo')));
-  })}<h3 style="margin-top:16px">예정된 제외 · ${future.length}건</h3>${future.map(a => `<div class="row"><span>${esc(a.date)} · ${esc(students().find(s => s.id === a.studentId)?.name)} · ${esc(a.memo || '')}</span>${btn('예약 취소', () => commit([up('attendance', {
+  })}<h3 style="margin-top:16px">예정된 제외 · ${future.length}건</h3>${future.map(a => `<div class="row"><span>${esc(C.formatDate(a.date))} · ${esc(students().find(s => s.id === a.studentId)?.name)} · ${esc(a.memo || '')}</span>${btn('예약 취소', () => commit([up('attendance', {
     ...a,
     excluded: false
   })]))}</div>`).join('')}</section>`;

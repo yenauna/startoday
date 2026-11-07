@@ -654,3 +654,109 @@ export function areaBatchOps(db, draft) {
   });
   return ops;
 }
+
+// Keep ISO dates in storage; format only text presented to the teacher.
+export function formatDate(value) {
+  if (!value) return '';
+  let date = String(value).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return '';
+  const parsed = new Date(date + 'T12:00:00Z');
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) return '';
+  return date.replaceAll('-', '.') + '.(' + '일월화수목금토'[parsed.getUTCDay()] + ')';
+}
+export function formatTimestamp(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  const day = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+  const time = date.toLocaleTimeString('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  return formatDate(day) + ' ' + time;
+}
+export function incidentTitle(db, ids, date) {
+  const selected = new Set(ids);
+  return [...activeStudents(db).filter(s => selected.has(s.id)), ...db.students.filter(s => s.deletedAt && selected.has(s.id))].map(s => String(s.no) + s.name).join(' ') + (ids.length ? ' ' : '') + formatDate(date);
+}
+export function studentScoreSummary(db, id, date = today()) {
+  const all = scores(db, id, '', date),
+    month = scores(db, id, date.slice(0, 7) + '-01', date);
+  return {
+    total: all.total,
+    change: month.total,
+    praise: all.records.filter(r => r.kind === '칭찬').length,
+    praiseChange: month.records.filter(r => r.kind === '칭찬').length,
+    advice: all.records.filter(r => r.kind === '지도').length,
+    adviceChange: -month.records.filter(r => r.kind === '지도').length,
+    areas: all.areas
+  };
+}
+export function autoSeatOps(db) {
+  const list = activeStudents(db),
+    st = db.settings[0];
+  if (!list.length) return [];
+  const side = Math.min(10, Math.max(1, Math.ceil(Math.sqrt(list.length))));
+  const occupied = new Set(),
+    unplaced = [];
+  let maxRow = -1,
+    maxCol = -1;
+  for (const student of list) {
+    const seat = student.seat,
+      key = seat ? `${seat.row}:${seat.col}` : '';
+    if (seat && Number.isInteger(seat.row) && Number.isInteger(seat.col) && seat.row >= 0 && seat.col >= 0 && seat.row < 12 && seat.col < 12 && !occupied.has(key)) {
+      occupied.add(key);
+      maxRow = Math.max(maxRow, seat.row);
+      maxCol = Math.max(maxCol, seat.col);
+    } else unplaced.push(student);
+  }
+  let rows = Math.min(12, Math.max(side + 2, maxRow + 2, st.seatCanvasVersion ? Number(st.seatRows) || 0 : 0));
+  let cols = Math.min(12, Math.max(side + 2, maxCol + 2, st.seatCanvasVersion ? Number(st.seatCols) || 0 : 0));
+  const candidates = [];
+  // Fill the square first, leaving a border for free arrangements.
+  for (let row = 0; row < side; row++) for (let col = 0; col < side; col++) candidates.push({
+    row,
+    col
+  });
+  for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) if (row >= side || col >= side) candidates.push({
+    row,
+    col
+  });
+  const ops = [];
+  for (const student of unplaced) {
+    const seat = candidates.find(c => !occupied.has(`${c.row}:${c.col}`));
+    if (!seat) throw Error('자리 공간이 부족합니다. 학생 수를 확인하세요.');
+    occupied.add(`${seat.row}:${seat.col}`);
+    ops.push({
+      table: 'students',
+      id: student.id,
+      data: {
+        ...student,
+        seat
+      }
+    });
+  }
+  if (st.seatRows !== rows || st.seatCols !== cols || st.seatCanvasVersion !== 1 || st.seatLayout !== 'custom') ops.push({
+    table: 'settings',
+    id: st.id,
+    data: {
+      ...st,
+      seatRows: rows,
+      seatCols: cols,
+      seatLayout: 'custom',
+      seatCanvasVersion: 1
+    }
+  });
+  return ops;
+}
+export function withAutoSeats(db, ops) {
+  const combined = [...ops, ...autoSeatOps(applyOps(db, ops))];
+  return [...new Map(combined.map(op => [op.table + ':' + op.id, op])).values()];
+}
