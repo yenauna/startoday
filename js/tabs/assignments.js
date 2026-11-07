@@ -64,8 +64,8 @@ export function assignmentsView() {
   const assignments = db().assignments.filter(a => !a.deletedAt),
     daily = assignments.filter(a => C.occurs(a, state.date));
   return `<div class="toolbar"><div><h2>과제</h2><small>과제 × 날짜 × 학생마다 상태가 독립적으로 저장됩니다.</small></div><div class="row"><input id="assignment-date" aria-label="과제 날짜" type="date" value="${state.date}">${btn('+ 과제', () => assignmentEditor(), 'primary')}</div></div><section class="panel"><h3>${esc(state.date)} 과제 상태</h3>${daily.length ? `<div class="table-wrap"><table><thead><tr><th>학생</th>${daily.map(a => `<th>${esc(a.title)}</th>`).join('')}</tr></thead><tbody>${students().map(s => `<tr><th>${esc(name(s.id))}${C.excluded(db(), s.id, state.date) ? badge('제외') : ''}</th>${daily.map(a => {
-    const state = db().assignmentStates.find(x => x.id === C.stateId(a.id, state.date, s.id));
-    return `<td>${C.targeted(a, s.id) ? btn(esc(state?.status || '진행중'), () => taskStateEditor(a, state.date, s.id), state?.status === '안함' ? 'danger' : '') + `<div class="muted">${esc(state?.memo || '')}</div>` : '—'}</td>`;
+    const taskState = db().assignmentStates.find(x => x.id === C.stateId(a.id, state.date, s.id));
+    return `<td>${C.targeted(a, s.id) ? btn(esc(taskState?.status || '진행중'), () => taskStateEditor(a, state.date, s.id), taskState?.status === '안함' ? 'danger' : '') + `<div class="muted">${esc(taskState?.memo || '')}</div>` : '—'}</td>`;
   }).join('')}</tr>`).join('')}</tbody></table></div>` : empty('이 날짜에 등록된 과제가 없습니다.', '새 과제를 등록하거나 날짜를 바꾸세요.')}</section><section class="panel"><h3>등록한 과제</h3>${assignments.map(a => `<div class="record"><div class="row between"><div><strong>${esc(a.title)}</strong> ${badge(a.repeat.type === 'none' ? '1회' : a.repeat.type === 'daily' ? '매일' : '매주 ' + a.repeat.weekdays.map(n => '일월화수목금토'[n]).join('·'))}<div class="muted">${esc(a.date)}${a.endDate ? ' ~ ' + esc(a.endDate) : ''} · ${a.target === 'all' ? '전체 학생' : esc(a.target.studentIds.map(name).join(', '))} · ${esc(a.statArea || '영역 미지정')}</div></div><div class="row">${btn('수정', () => assignmentEditor(a))}${btn('복사', () => assignmentEditor({
     ...a,
     id: C.uid(),
@@ -100,13 +100,13 @@ export function deleteAssignment(a) {
       ...a,
       endDate: C.addDays(cutoff, -1)
     }));
-    for (const state of states) {
+    for (const ast of states) {
       ops.push({
         table: 'assignmentStates',
-        id: state.id,
+        id: ast.id,
         remove: true
       });
-      for (const r of db().records.filter(r => r.autoRef === state.id)) ops.push({
+      for (const r of db().records.filter(r => r.autoRef === ast.id)) ops.push({
         table: 'records',
         id: r.id,
         remove: true
