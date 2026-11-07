@@ -73,7 +73,7 @@ export function reportDialog(id, from, to) {
 }
 export function reportPreview(s, from, to) {
   const records = C.reportRecords(db(), s.id, from, to);
-  modal('인쇄 전 내용 확인', `<div class="notice">각 기록에서 이 학생과 관계없는 내용·다른 학생의 개인정보를 제거해 주세요. 이름 자동 가림만으로 본문 속 모든 개인정보를 판단할 수는 없습니다. 수정한 내용은 이번 보고서에만 적용됩니다.</div>${records.map((r, i) => `<div class="record"><strong>${esc(r.date)} ${esc(r.period)} · ${esc(kindLabel(r.kind))}</strong>${textarea('이 학생의 기록', 'text-' + i, C.redact(r.text, db(), s.id))}${textarea('이 학생에 대한 조치', 'action-' + i, C.redact(r.action, db(), s.id))}</div>`).join('') || empty('인쇄할 기록이 없습니다.')}${checkbox('이 학생의 내용만 남겼으며, 외부에 전달할 개인정보를 확인했습니다.', 'reviewed')}`, async f => {
+  modal('인쇄 전 내용 확인', `<div class="notice">각 기록에서 이 학생과 관계없는 내용·다른 학생의 개인정보를 제거해 주세요. 이름 자동 가림만으로 본문 속 모든 개인정보를 판단할 수는 없습니다. 수정한 내용은 이번 보고서에만 적용됩니다.</div>${records.map((r, i) => `<div class="record ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><strong>${esc(r.date)} ${esc(r.period)} · ${esc(C.recordLabel(r))}</strong>${textarea('이 학생의 기록', 'text-' + i, C.redact(r.text, db(), s.id))}${textarea('이 학생에 대한 지도 내용', 'action-' + i, C.redact(r.action, db(), s.id))}</div>`).join('') || empty('인쇄할 기록이 없습니다.')}${checkbox('이 학생의 내용만 남겼으며, 외부에 전달할 개인정보를 확인했습니다.', 'reviewed')}`, async f => {
     if (!f.get('reviewed')) throw Error('전달 내용을 확인한 뒤 체크해 주세요.');
     const safe = records.map((r, i) => ({
       ...r,
@@ -92,10 +92,9 @@ export function showPrint(s, from, to, records) {
   root.innerHTML = `<div class="report-page"><div class="no-print row">${btn('인쇄 / PDF 저장', () => window.print(), 'primary')}${btn('보고서 닫기', () => {
     root.remove();
     document.body.classList.remove('report-open');
-  })}<small>브라우저 인쇄 설정의 머리글·바닥글을 끄면 출력 시각과 주소가 빠집니다.</small></div><p style="margin-top:20px">오늘의 별 · ${esc(settings().className)}</p><h1>${esc(settings().reportHeader)}</h1><p>${esc(s.no)}. ${esc(s.name)} ${s.group ? '· ' + esc(s.group) + '모둠' : ''}<br>${esc(from)} ~ ${esc(to)}</p><h2>기간 요약</h2><p>총 ${records.length}건 · 칭찬 ${counts['칭찬']} · 조언 ${counts['지도']} · 기록 ${counts['관찰']} · 추가 기록 ${counts['추가기록']}</p><table><thead><tr>${C.areaNames(db(), true).map(a => `<th>${esc(a)}</th>`).join('')}</tr></thead><tbody><tr>${C.areaNames(db(), true).map(a => `<td>${records.filter(r => r.areas.includes(a)).reduce((n, r) => n + C.delta(r), 0)}</td>`).join('')}</tr></tbody></table><h2 style="margin-top:22px">학교생활 기록</h2>${records.map(r => `<article class="record"><strong>${esc(r.date)} ${esc(r.period)} · ${esc(kindLabel(r.kind))}</strong><div class="body">${esc(r.text)}</div>${r.action ? `<p class="body" style="margin-top:8px">조치: ${esc(r.action)}</p>` : ''}</article>`).join('') || '<p>해당 기간에 기록이 없습니다.</p>'}</div>`;
+  })}<small>브라우저 인쇄 설정의 머리글·바닥글을 끄면 출력 시각과 주소가 빠집니다.</small></div><p style="margin-top:20px">오늘의 별 · ${esc(settings().className)}</p><h1>${esc(settings().reportHeader)}</h1><p>${esc(s.no)}. ${esc(s.name)} ${s.group ? '· ' + esc(s.group) + '모둠' : ''}<br>${esc(from)} ~ ${esc(to)}</p><h2>기간 요약</h2><p>총 ${records.length}건 · 칭찬 ${counts['칭찬']} · 조언 ${counts['지도']} · 기록 ${counts['관찰']} · 추가 기록 ${counts['추가기록']}</p><table><thead><tr>${C.areaNames(db(), true).map(a => `<th>${esc(a)}</th>`).join('')}</tr></thead><tbody><tr>${C.areaNames(db(), true).map(a => `<td>${records.filter(r => r.areas.includes(a)).reduce((n, r) => n + C.delta(r), 0)}</td>`).join('')}</tr></tbody></table><h2 style="margin-top:22px">학교생활 기록</h2>${records.map(r => `<article class="record ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><strong>${esc(r.date)} ${esc(r.period)} · ${esc(C.recordLabel(r))}</strong><div class="body">${esc(r.text)}</div>${r.action ? `<p class="body" style="margin-top:8px">지도 내용: ${esc(r.action)}</p>` : ''}</article>`).join('') || '<p>해당 기간에 기록이 없습니다.</p>'}</div>`;
   document.querySelector('.print-root')?.remove();
   document.body.append(root);
   document.body.classList.add('report-open');
   root.scrollIntoView();
 }
-

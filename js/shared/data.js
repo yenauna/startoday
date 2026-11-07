@@ -5,11 +5,9 @@ import { toast } from './ui.js';
 export const db = () => store.db;
 export const settings = () => db().settings[0];
 export const students = () => C.activeStudents(db());
-export const kindLabel = k => ({
-  지도: '조언',
-  관찰: '기록',
-  추가기록: '추가 기록'
-})[k] || k;
+export const kindLabel = k => C.recordLabel({
+  kind: k
+});
 export const name = id => {
   const s = db().students.find(x => x.id === id);
   return s ? (s.deletedAt ? '(나간 학생) ' : '') + s.no + '. ' + s.name : '(나간 학생)';

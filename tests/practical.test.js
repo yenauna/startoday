@@ -20,7 +20,7 @@ function fixture() {
 }
 test('독립된 이름과 한국어 조사만 매칭하고 지우개 같은 부분 단어는 차단', () => {
   const db = fixture();
-  assert.deepEqual(C.parseInput('지우가 라온이의 지우개를 빌림', db).studentIds.sort(), ['s1', 's2']);
+  assert.deepEqual(C.parseInput('지우가 라온이의 지우개를 빌림', db).studentIds.sort(), ['s1']);
   for (const particle of ['가', '이', '는', '은', '를', '을', '의', '와', '과', '랑', '에게', '한테', '도']) assert(C.nameInSentence('지우' + particle + ' 참여', '지우'), particle);
   for (const text of ['지우개', '지우개를', '유지우', '지우면서', '지우는개', '학습지우']) assert(!C.nameInSentence(text, '지우'), text);
   assert(C.nameInSentence('(지우), 라온', '지우'));

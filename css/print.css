@@ -25,3 +25,4 @@ body.report-open #app{display:none}
   .report-page .record { border: 1px solid #888888; }
   .report-page h1, .report-page h2, .report-page h3, .report-page .action, .report-page small { color: #000000; }
 }
+@media print { .report-page .record.incident-record { border-left:4px solid #F59E0B; } }

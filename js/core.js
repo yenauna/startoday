@@ -61,7 +61,7 @@ export function initialDB() {
       showLocation: true,
       viewMode: 'detailed'
     },
-    periodTimes: ['09:00–09:40', '09:50–10:30', '10:40–11:20', '11:30–12:10', '13:00–13:40', '13:50–14:30']
+    periodTimes: [...DEFAULT_PERIOD_TIMES]
   }];
   db.subject_rules = ['국어', '수학', '사회', '과학', '체육', '음악', '미술', '실과', '영어', '창체', '도덕'].map((code, i) => ({
     id: uid(),
@@ -186,18 +186,20 @@ export function parseRoster(text, start = 1) {
   });
 }
 export function parseInput(text, db, selected = []) {
-  let ids = [...selected],
-    warnings = [];
-  const period = text.match(/아침|[1-6]\s*교시|쉬는\s*시간|점심|방과후/)?.[0].replace(/\s/g, '') || '기타';
-  if (!selected.length) {
-    const numbers = new Set();
-    for (const m of text.matchAll(/(?<![\p{L}\p{N}_])((?:\d{1,3}\s*[,， ]\s*)*\d{1,3})\s*번(?!\d)/gu)) for (const n of m[1].split(/[,，\s]+/)) if (n) numbers.add(Number(n));
-    const candidates = activeStudents(db);
-    ids = candidates.filter(s => numbers.has(s.no) || nameInSentence(text, s.name)).map(s => s.id);
-    for (const no of numbers) if (!candidates.some(s => s.no === no)) warnings.push(`${no}번 학생을 찾지 못했습니다.`);
+  const warnings = [],
+    candidates = activeStudents(db),
+    mentions = studentMentions(text, candidates);
+  let ids = [...selected];
+  if (!ids.length) {
+    const subjects = mentions.filter(m => m.role === 'subject');
+    const targets = subjects.length ? subjects : mentions.filter(m => m.role === 'bare');
+    for (const mention of targets) {
+      if (!mention.ids.length) warnings.push(mention.warning || '학생을 확인하세요.');
+      ids.push(...mention.ids);
+    }
     for (const id of ids) {
-      const student = candidates.find(s => s.id === id);
-      if (candidates.some(s => s.id !== id && (s.no === student.no || s.name === student.name))) warnings.push('동명이인·중복 번호를 확인하세요.');
+      const s = candidates.find(row => row.id === id);
+      if (s && candidates.some(row => row.id !== id && (row.name === s.name || row.no === s.no))) warnings.push('동명이인·중복 번호를 확인하세요.');
     }
   }
   ids = [...new Set(ids)];
@@ -206,21 +208,136 @@ export function parseInput(text, db, selected = []) {
   if (/추가\s*기록|상담|사건/.test(text)) kind = '추가기록';
   return {
     date: today(),
-    period,
+    period: inputPeriod(text, db.settings?.[0]),
     studentIds: ids,
     kind,
     areas: [],
     text,
-    action: text.match(/(?:조치|지도내용)\s*[:：]\s*(.+)/)?.[1] || '',
+    action: text.match(/(?:지도\s*내용|조치)\s*[:：]\s*(.+)/)?.[1] || '',
     warnings: [...new Set(warnings)],
     extraType: '메모',
     printIncluded: kind !== '추가기록'
   };
 }
+function escapedName(name) {
+  return [...name].map(ch => '^$.*+?()[]{}|'.includes(ch) || ch.charCodeAt(0) === 92 ? String.fromCharCode(92) + ch : ch).join('');
+}
+const mentionSuffix = String.raw`(?:(?:이)?(?:에게(?:서|는|도|만)?|한테(?:서|는|도|만)?|의|를|을|가|이|은|는|와|과|랑|도))?`;
+function mentionRole(suffix) {
+  if (!suffix) return 'bare';
+  if (/^(?:이)?(?:에게|한테|의|를|을)/.test(suffix)) return 'object';
+  return /^(?:이)?(?:이|가|은|는)$/.test(suffix) ? 'subject' : 'other';
+}
+function studentMentions(text, candidates) {
+  const phrases = new Map(),
+    mentions = [];
+  for (const student of candidates) {
+    for (const [name, full] of [[student.name, true], ...(/^[가-힣]{3}$/.test(student.name) ? [[student.name.slice(1), false]] : [])]) {
+      if (!phrases.has(name)) phrases.set(name, []);
+      phrases.get(name).push({
+        student,
+        full
+      });
+    }
+  }
+  for (const [name, entries] of phrases) {
+    const full = entries.filter(e => e.full),
+      matches = full.length ? full : entries;
+    const ambiguousAlias = !full.length && matches.length !== 1;
+    const regex = new RegExp(String.raw`(?<![\p{L}\p{N}_])${escapedName(name)}(${mentionSuffix})(?![\p{L}\p{N}_])`, 'gu');
+    for (const match of text.matchAll(regex)) mentions.push({
+      start: match.index,
+      length: name.length,
+      role: mentionRole(match[1]),
+      ids: ambiguousAlias ? [] : matches.map(e => e.student.id),
+      warning: `${name}: 이름이 같은 후보가 여러 명입니다. 번호 또는 성명을 입력하세요.`
+    });
+  }
+  const filtered = mentions.filter(m => !mentions.some(other => other.start === m.start && other.length > m.length));
+  const numbers = new RegExp(String.raw`(?<![\p{L}\p{N}_])((?:\d{1,3}\s*[,， ]\s*)*\d{1,3})\s*번(${mentionSuffix})(?![\p{L}\p{N}_])`, 'gu');
+  for (const match of text.matchAll(numbers)) {
+    for (const value of match[1].split(/[,，\s]+/).filter(Boolean)) {
+      const no = Number(value),
+        found = candidates.filter(s => s.no === no);
+      filtered.push({
+        role: mentionRole(match[2]),
+        ids: found.map(s => s.id),
+        warning: `${no}번 학생을 찾지 못했습니다.`
+      });
+    }
+  }
+  return filtered;
+}
 export function nameInSentence(text, name) {
   if (!name?.trim()) return false;
-  const escaped = [...name].map(ch => '^$.*+?()[]{}|'.includes(ch) || ch.charCodeAt(0) === 92 ? String.fromCharCode(92) + ch : ch).join('');
-  return new RegExp(String.raw`(?<![\p{L}\p{N}_])${escaped}(?:(?:이)?(?:에게|한테|가|이|는|은|를|을|의|와|과|랑|도))?(?![\p{L}\p{N}_])`, 'u').test(text);
+  return new RegExp(String.raw`(?<![\p{L}\p{N}_])${escapedName(name)}${mentionSuffix}(?![\p{L}\p{N}_])`, 'u').test(text);
+}
+export function replaceStudentNumbers(text, db) {
+  const candidates = activeStudents(db);
+  const regex = new RegExp(String.raw`(?<![\p{L}\p{N}_])((?:\d{1,3}\s*[,， ]\s*)*\d{1,3})\s*번(${mentionSuffix})(?![\p{L}\p{N}_])`, 'gu');
+  return String(text || '').replace(regex, (whole, list, suffix) => {
+    const values = [...list.matchAll(/\d{1,3}/g)];
+    let replaced = list,
+      lastName = '';
+    for (let i = values.length - 1; i >= 0; i--) {
+      const value = values[i],
+        found = candidates.filter(s => s.no === Number(value[0]));
+      const name = found.length === 1 ? found[0].name : value[0] + (i === values.length - 1 ? '번' : '');
+      if (i === values.length - 1 && found.length === 1) lastName = found[0].name;
+      replaced = replaced.slice(0, value.index) + name + replaced.slice(value.index + value[0].length);
+    }
+    const last = lastName.charCodeAt(lastName.length - 1);
+    if (last >= 0xAC00 && last <= 0xD7A3) {
+      const consonant = (last - 0xAC00) % 28 !== 0;
+      for (const [withFinal, withoutFinal] of [['이', '가'], ['은', '는'], ['을', '를'], ['과', '와']]) if (suffix === withFinal || suffix === withoutFinal) {
+        suffix = consonant ? withFinal : withoutFinal;
+        break;
+      }
+    }
+    return replaced + suffix;
+  });
+}
+export function explicitPeriod(text) {
+  return String(text).match(/아침|(?<!\d)[1-6]\s*교시|쉬는\s*시간|점심|방과후/)?.[0].replace(/\s/g, '') || '';
+}
+export function inputPeriod(text, settings, now = new Date()) {
+  return explicitPeriod(text) || (/(?<!\d)\d+\s*교시/.test(text) ? '기타' : periodAtTime(settings, now));
+}
+export const DEFAULT_PERIOD_TIMES = ['09:00–09:40', '09:50–10:30', '10:40–11:20', '11:30–12:10', '13:00–13:40', '13:50–14:30'];
+export function periodAtTime(settings = {}, now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Seoul',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(now);
+  const minute = Number(parts.find(p => p.type === 'hour').value) * 60 + Number(parts.find(p => p.type === 'minute').value);
+  const ranges = (settings.periodTimes || DEFAULT_PERIOD_TIMES).slice(0, 6).map((value, i) => {
+    const m = String(value).match(/(\d{1,2}):(\d{2})\s*[–—~\-]\s*(\d{1,2}):(\d{2})/);
+    if (!m) return null;
+    if (Number(m[1]) > 23 || Number(m[2]) > 59 || Number(m[3]) > 24 || Number(m[4]) > 59 || Number(m[3]) === 24 && Number(m[4]) !== 0) return null;
+    const start = Number(m[1]) * 60 + Number(m[2]),
+      end = Number(m[3]) * 60 + Number(m[4]);
+    return start < end && end <= 1440 ? {
+      start,
+      end,
+      period: `${i + 1}교시`
+    } : null;
+  }).filter(Boolean).sort((a, b) => a.start - b.start);
+  if (!ranges.length) return '기타';
+  if (minute < ranges[0].start) return '아침';
+  const current = ranges.find(r => minute >= r.start && minute < r.end);
+  if (current) return current.period;
+  if (minute >= ranges.at(-1).end) return '방과후';
+  const gaps = ranges.slice(0, -1).map((r, i) => ({
+    start: r.end,
+    end: ranges[i + 1].start
+  }));
+  const lunch = gaps.filter(g => g.start >= 11 * 60 && g.end <= 14 * 60 && g.end - g.start >= 20).sort((a, b) => b.end - b.start - (a.end - a.start))[0];
+  return lunch && minute >= lunch.start && minute < lunch.end ? '점심' : '쉬는시간';
+}
+export function cumulativeScores(db, studentId, to = today()) {
+  return scores(db, studentId, '', to);
 }
 export const PERIODS = ['아침', ...Array.from({
   length: 6
@@ -465,4 +582,11 @@ export function formatAnnouncement(note, start, end, patch) {
   return normalizeAnnouncement({
     runs
   });
+}
+export function recordLabel(record) {
+  return record.kind === '추가기록' && record.extraType ? record.extraType : {
+    지도: '조언',
+    관찰: '기록',
+    추가기록: '추가 기록'
+  }[record.kind] || record.kind;
 }

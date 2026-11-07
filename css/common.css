@@ -310,3 +310,21 @@ dialog::backdrop { background: rgba(40, 50, 71, 0.3); }
 @media (prefers-reduced-motion: reduce) {
   button, .btn { transition: none; }
 }
+
+/* Time selection and the four recording actions remain a compact single row. */
+.quick-controls { display:flex; flex-wrap:nowrap; align-items:center; gap:6px; max-width:100%; margin-left:auto; }
+.quick .quick-controls .record-actions { display:flex; flex-wrap:nowrap; width:auto; margin-left:0; }
+.quick-controls select { flex:0 1 118px; width:118px; min-width:0; }
+.quick-controls .record-action { white-space:nowrap; padding:8px 10px; font-size:13px; }
+.record.incident-record { border-left:4px solid #F59E0B; background:#FFFBEB; color:var(--st-text); }
+@media(max-width:800px) {
+  .quick-controls { flex:1 0 100%; width:100%; gap:4px; }
+  .quick .quick-controls .record-actions { flex:1 1 auto; gap:4px; min-width:0; }
+  .quick-controls select { flex:0 1 110px; width:110px; font-size:12px; padding:7px 5px; }
+  .quick-controls .record-action { flex:1 1 auto; min-width:0; padding:7px 6px; font-size:12px; }
+}
+@media(max-width:360px) {
+  .quick-controls select { flex-basis:88px; width:88px; }
+  .quick .quick-controls .record-actions { gap:3px; }
+  .quick-controls .record-action { padding-inline:5px; }
+}

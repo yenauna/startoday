@@ -43,21 +43,20 @@ export function isUnfinished(id, d) {
 export function studentCard(s) {
   const missing = C.pending(db(), s.id, state.date),
     ex = C.excluded(db(), s.id, state.date),
-    score = C.scores(db(), s.id, state.date, state.date),
-    routines = C.pendingRoutines(db(), s.id, state.date),
-    recent = db().records.filter(r => r.studentIds.includes(s.id) && r.date <= state.date).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))[0];
+    score = C.cumulativeScores(db(), s.id, state.date),
+    routines = C.pendingRoutines(db(), s.id, state.date);
   const id = String(++state.actionNo);
   state.actions.set(id, () => {
     state.selected = state.selected.includes(s.id) ? state.selected.filter(x => x !== s.id) : [...state.selected, s.id];
     render();
   });
-  return `<article role="button" tabindex="0" aria-pressed="${state.selected.includes(s.id)}" data-action="${id}" class="student ${isUnfinished(s.id, state.date) ? 'unfinished' : ''} ${state.selected.includes(s.id) ? 'selected' : ''} ${ex ? 'excluded' : ''}"><div class="student-head"><strong>${esc(s.no)}. ${esc(s.name)}</strong>${btn('⋯', () => studentDetail(s.id), '', 'aria-label="' + esc(s.name) + ' 상세 보기"')}</div>${ex ? badge('제외') : ''}<div class="score">★${score.total} <small>${C.areaNames(db(), true).filter(a => score.areas[a]).map(a => esc(a) + score.areas[a]).join(' ') || '기록 없음'}</small></div>${missing.slice(0, 2).map(({
+  return `<article role="button" tabindex="0" aria-pressed="${state.selected.includes(s.id)}" data-action="${id}" class="student ${isUnfinished(s.id, state.date) ? 'unfinished' : ''} ${missing.length ? 'has-pending' : ''} ${state.selected.includes(s.id) ? 'selected' : ''} ${ex ? 'excluded' : ''}"><div class="student-head"><strong>${esc(s.no)} · ${esc(s.name)}</strong>${btn('⋯', () => studentDetail(s.id), '', 'aria-label="' + esc(s.name) + ' 상세 보기"')}${ex ? badge('제외') : ''}</div><div class="score" aria-label="누적 별 점수 ${score.total}"><span class="score-star" aria-hidden="true">★</span><strong class="score-total">${score.total}</strong> <small>${C.areaNames(db(), true).filter(a => score.areas[a]).map(a => esc(a) + score.areas[a]).join(' ') || '기록 없음'}</small></div><div class="pending-tasks">${missing.slice(0, 2).map(({
     assignment: a,
     date: d
-  }) => btn(`${d < state.date ? '이전 · ' : ''}${esc(a.title)}`, () => taskStateEditor(a, d, s.id), 'task ' + (d < state.date ? 'overdue' : ''))).join('')}${routines.length ? `<div class="routine-indicator"><div class="routine-names">${routines.map(r => btn(esc(r.title), () => setRoutine(r, state.date, s.id, '완료'), 'routine-task')).join('')}</div>${btn('루틴 ' + routines.length, () => routineChecklist(s, routines), 'routine-count')}</div>` : ''}<div class="detail">${esc(recent?.text || '아직 기록이 없습니다.')}</div></article>`;
+  }) => btn(`${d < state.date ? '이전 · ' : ''}${esc(a.title)}`, () => taskStateEditor(a, d, s.id), 'task ' + (d < state.date ? 'overdue' : ''))).join('')}${missing.length > 2 ? btn('+ ' + (missing.length - 2) + '개', () => studentDetail(s.id), 'task pending-more') : ''}</div>${routines.length ? `<div class="routine-indicator"><div class="routine-names">${routines.map(r => btn(esc(r.title), () => setRoutine(r, state.date, s.id, '완료'), 'routine-task')).join('')}</div>${btn('루틴 ' + routines.length, () => routineChecklist(s, routines), 'routine-count')}</div>` : ''}</article>`;
 }
 const checkDrafts = new Map();
-const recordKinds = [['칭찬', '👏 칭찬', 'praise'], ['관찰', '📝 기록', 'note'], ['추가기록', '➕ 추가 기록', 'extra'], ['지도', '⚠️ 조언', 'advice']];
+const recordKinds = [['칭찬', '칭찬', 'praise'], ['관찰', '기록', 'note'], ['추가기록', '추가기록', 'extra'], ['지도', '조언', 'advice']];
 export function recordButtons(save) {
   return recordKinds.map(([kind, label, cls]) => btn(label, () => save(kind), 'record-action record-' + cls)).join('');
 }
@@ -71,7 +70,8 @@ export async function saveDirectRecords(kind, text, ids, areas = [], seed = {}) 
   await commit([...new Set(ids)].map(id => up('records', newRecord({
     ...seed,
     studentIds: [id],
-    text: text.trim(),
+    text: C.replaceStudentNumbers(text.trim(), db()),
+    action: C.replaceStudentNumbers(seed.action || '', db()),
     kind,
     areas: validAreas,
     extraType: kind === '추가기록' ? '메모' : null,
@@ -173,19 +173,34 @@ export function announcementEditor() {
   return `<section class="panel notice-panel"><div id="notice-toolbar" class="row" role="toolbar" aria-label="알림 서식">${select('글씨 크기', 'notice-size', [['normal', '보통'], ['large', '크게'], ['huge', '아주 크게']], draft.note.runs[0]?.size || 'normal')}${select('글씨 색상', 'notice-color', [['default', '기본'], ['red', '빨강'], ['blue', '파랑'], ['yellow', '노랑']], draft.note.runs[0]?.color || 'default')}<small id="notice-status" role="status">${draft.error ? '저장 실패 · 입력하면 다시 시도합니다.' : draft.dirty ? '자동 저장 대기 중' : '자동 저장됨'}</small></div><div id="notice-editor" contenteditable="true" role="textbox" aria-label="알림 내용" aria-multiline="true" spellcheck="false">${noticeMarkup(draft.note)}</div></section>`;
 }
 // Delegate editor events once, so repeated renders cannot duplicate input handlers.
-for(const type of ['input','mouseup','keyup','pointerdown','change','paste','drop']){
- document.addEventListener(type,e=>{
-  const editor=e.target.closest?.('#notice-editor'),toolbar=e.target.closest?.('#notice-toolbar');
-  if(!editor&&!toolbar)return;
-  const draft=noticeDraft();
-  if(type==='input'&&editor)noticeChanged(draft);
-  if((['mouseup','keyup'].includes(type)&&editor)||(type==='pointerdown'&&toolbar))rememberNoticeSelection(draft);
-  if(type==='change'&&toolbar&&['notice-size','notice-color'].includes(e.target.name)){
-   const field=$('#notice-editor');draft.note=readNotice(field);const range=draft.selection||{start:0,end:draft.note.text.length};draft.note=C.formatAnnouncement(draft.note,range.start,range.end,{[e.target.name==='notice-size'?'size':'color']:e.target.value});field.innerHTML=noticeMarkup(draft.note);restoreNoticeSelection(range);noticeChanged(draft);
-  }
-  if(type==='paste'&&editor){e.preventDefault();insertNoticeText(e.clipboardData.getData('text/plain'),draft)}
-  if(type==='drop'&&editor)e.preventDefault();
- });
+for (const type of ['input', 'mouseup', 'keyup', 'pointerdown', 'change', 'paste', 'drop']) {
+  document.addEventListener(type, e => {
+    const editor = e.target.closest?.('#notice-editor'),
+      toolbar = e.target.closest?.('#notice-toolbar');
+    if (!editor && !toolbar) return;
+    const draft = noticeDraft();
+    if (type === 'input' && editor) noticeChanged(draft);
+    if (['mouseup', 'keyup'].includes(type) && editor || type === 'pointerdown' && toolbar) rememberNoticeSelection(draft);
+    if (type === 'change' && toolbar && ['notice-size', 'notice-color'].includes(e.target.name)) {
+      const field = $('#notice-editor');
+      draft.note = readNotice(field);
+      const range = draft.selection || {
+        start: 0,
+        end: draft.note.text.length
+      };
+      draft.note = C.formatAnnouncement(draft.note, range.start, range.end, {
+        [e.target.name === 'notice-size' ? 'size' : 'color']: e.target.value
+      });
+      field.innerHTML = noticeMarkup(draft.note);
+      restoreNoticeSelection(range);
+      noticeChanged(draft);
+    }
+    if (type === 'paste' && editor) {
+      e.preventDefault();
+      insertNoticeText(e.clipboardData.getData('text/plain'), draft);
+    }
+    if (type === 'drop' && editor) e.preventDefault();
+  });
 }
 function readNotice(editor) {
   const runs = [];
@@ -206,8 +221,8 @@ function readNotice(editor) {
       color: Object.hasOwn(noticeColors, node.dataset.noteColor) ? node.dataset.noteColor : style.color
     };
     if (node.tagName === 'BR') {
-      const block=node.parentElement.closest('div,p');
-      if((block&&!block.textContent&&block.querySelectorAll('br').length===1)||(!node.nextSibling&&node.previousSibling?.nodeName==='BR'))return;
+      const block = node.parentElement.closest('div,p');
+      if (block && !block.textContent && block.querySelectorAll('br').length === 1 || !node.nextSibling && node.previousSibling?.nodeName === 'BR') return;
       runs.push({
         ...next,
         text: '\n'
@@ -265,7 +280,10 @@ function insertNoticeText(text, draft) {
   const editor = $('#notice-editor'),
     selection = window.getSelection();
   editor.focus();
-  if(document.execCommand('insertText',false,text)){rememberNoticeSelection(draft);return;}
+  if (document.execCommand('insertText', false, text)) {
+    rememberNoticeSelection(draft);
+    return;
+  }
   if (!selection?.rangeCount) return;
   const range = selection.getRangeAt(0);
   if (!editor.contains(range.commonAncestorContainer)) return;
