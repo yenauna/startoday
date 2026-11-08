@@ -237,7 +237,7 @@ button:hover, .btn:hover { background: #f0f3f9; }
 .tabs button.active { background: var(--st-lavender-bg); color: var(--st-lavender-text); border-bottom-color: transparent; }
 
 input, select, textarea, .input, .textarea, #notice-editor {
-  border: 0;
+  border: 1px solid rgba(148, 163, 184, 0.45);
   border-radius: var(--st-radius-input);
   background: #eff1f6;
   box-shadow: inset 0 2px 5px rgba(40, 50, 71, 0.045), inset 0 -1px 0 rgba(255, 255, 255, 0.85);
@@ -540,3 +540,20 @@ body:has(.routine-undo) .record-delete-toasts { bottom:120px; }
 .assignment-progress-name { min-width:0; font-size:13px; overflow-wrap:anywhere; }
 .assignment-progress-item .task-status { flex:0 0 auto; min-width:58px; padding:5px 8px; font-size:12px; }
 .assignment-progress-name .badge { font-size:10px; padding:2px 5px; }
+
+/* Keep modal actions reachable while only the body scrolls. Closed dialogs
+   retain the browser's display:none behavior. */
+dialog { flex-direction:column; overflow:hidden; max-height:90dvh; }
+dialog[open] { display:flex; }
+.dialog-head { flex-shrink:0; position:sticky; top:0; z-index:5; }
+.dialog-body { flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; min-height:0; }
+.dialog-body:has(> #modal-form) { padding-bottom:0; }
+.dialog-foot { flex-shrink:0; position:sticky; bottom:0; background:var(--st-surface, #ffffff); border-top:1px solid var(--st-line); padding:14px 22px; margin-top:0; margin-inline:-22px; z-index:5; }
+input, select, textarea, .input, .textarea, #notice-editor, .quick input, .quick textarea { border:1px solid rgba(148, 163, 184, 0.45); }
+@media(max-width:640px) {
+  .toolbar { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; }
+}
+@media(max-width:480px) {
+  .sticky-navigation .tabs { gap:4px; padding-inline:8px; }
+  .sticky-navigation .tabs button { padding:6px 9px; min-height:34px; font-size:13px; }
+}

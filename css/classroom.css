@@ -172,3 +172,5 @@
   .lockscreen .classroom-schedule { max-height:none; overflow:visible; margin:0; }
   .lockscreen .classroom-schedule .event-description { display:block; font-size:10px; }
 }
+
+.lock-exit { display:inline-flex; align-items:center; padding:6px 12px; }

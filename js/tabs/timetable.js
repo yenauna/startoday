@@ -69,7 +69,7 @@ export function calendarView() {
   })}${btn('기본안 일괄 배포', bulkTimetable)}${btn('시수 계산', hoursDialog)}</div></div><div class="row" style="margin-bottom:14px">${[['events', '종일 일정'], ['time', '시간표'], ['tasks', '과제'], ['detail', '자세히 보기']].map(([key, label]) => btn((state.calendarFilters[key] ? '✓ ' : '') + label, () => {
     state.calendarFilters[key] = !state.calendarFilters[key];
     render();
-  }, state.calendarFilters[key] ? 'primary' : '')).join('')}<small>수업을 드래그해 교체 · 터치는 길게 누른 후 대상 교시 선택</small></div><div class="table-wrap"><div class="calendar ${state.calendarMode === 'week' ? 'week' : ''}">${heads.map(h => `<div class="weekday">${h}</div>`).join('')}${Array.from({
+  }, state.calendarFilters[key] ? 'primary' : '')).join('')}<small>수업을 드래그해 교체 · 터치는 길게 누른 후 대상 교시 선택</small></div>${C.calendarEvents(db()).some(event => event.date === C.today()) ? '' : '<div class="empty-calendar-notice" style="color:var(--st-text-muted); font-size:13px; padding:8px 0;">오늘 등록된 일정이 없습니다.</div>'}<div class="table-wrap"><div class="calendar ${state.calendarMode === 'week' ? 'week' : ''}">${heads.map(h => `<div class="weekday">${h}</div>`).join('')}${Array.from({
     length: days
   }, (_, i) => {
     const d = C.addDays(start, i),

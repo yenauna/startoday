@@ -109,7 +109,7 @@
 .student-head { padding:0; margin:0 0 6px; border-radius:0; background:none; box-shadow:none; }
 .student-head>strong { flex:1; min-width:0; }
 .student .score { display:flex; align-items:baseline; gap:3px; font-variant-numeric:tabular-nums; }
-.score-star { color:#F59E0B; font-size:1.15em; line-height:1; flex-shrink:0; }
+.score-star { color:#D97706; font-size:1.15em; line-height:1; flex-shrink:0; }
 .score-total { color:var(--st-text); flex-shrink:0; }
 .student .score small { min-width:0; overflow:hidden; text-overflow:ellipsis; font-weight:400; }
 .student.has-pending .pending-tasks { display:grid; gap:4px; margin-top:7px; }

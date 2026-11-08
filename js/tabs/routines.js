@@ -67,8 +67,9 @@ function changeRoutineMonth(delta) {
 }
 function routineCalendar(routines) {
   const first = routineMonth + '-01',
-    start = C.addDays(first, -C.weekday(first));
-  return `<div class="routine-calendar">${['일', '월', '화', '수', '목', '금', '토'].map(d => `<div class="weekday">${d}</div>`).join('')}${Array.from({
+    offset = (C.weekday(first) + 6) % 7,
+    start = C.addDays(first, -offset);
+  return `<div class="routine-calendar">${['월', '화', '수', '목', '금', '토', '일'].map(d => `<div class="weekday">${d}</div>`).join('')}${Array.from({
     length: 42
   }, (_, i) => {
     const d = C.addDays(start, i);
