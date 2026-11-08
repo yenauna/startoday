@@ -91,11 +91,77 @@
   .lockscreen .classroom-student .classroom-label-number,.lockscreen .classroom-student .classroom-label-name{display:inline;white-space:nowrap;}
   .lockscreen .classroom-student .score { display:flex; flex:0 0 auto; justify-content:center; margin:0; line-height:1.1; }
   .lockscreen .classroom-student .score-star,.lockscreen .classroom-student .score-total { font-size:12px; }
-  .lockscreen .classroom-student .pending-tasks { display:flex; flex-wrap:nowrap; gap:2px; flex:0 0 auto; margin:0; overflow:hidden; }
-  .lockscreen .classroom-student .pending-tasks .task,.lockscreen .classroom-student .routine-task { font-size:11px;line-height:1.1;padding:2px 6px;min-height:0;min-width:0;flex:1 1 0;border-radius:10px; }
+  .lockscreen .classroom-student .pending-tasks { display:flex; flex-direction:column; gap:3px; flex:none; margin:0; overflow:visible; }
+  .lockscreen .classroom-student .pending-tasks .task,.lockscreen .classroom-student .routine-task { font-size:11px;line-height:1.1;padding:2px 6px;min-height:0;min-width:0;flex:none;width:100%;display:block;border-radius:10px; }
   .lockscreen .classroom-student .routine-indicator { display:block; flex:0 0 auto; margin:0; }
-  .lockscreen .classroom-student .routine-names { display:flex;flex-wrap:nowrap;gap:2px; }
+  .lockscreen .classroom-student .routine-names { display:flex;flex-direction:column;gap:3px; }
   .lockscreen .classroom-student .classroom-complete { display:block;font-size:10px;margin:0;line-height:1.2; }
 }
 @media(max-width:360px){.lockscreen .classroom-student .classroom-student-name:has(.classroom-label-name){font-size:11px;}}
 @media(max-width:768px){.lockscreen .class-announcement{max-height:none;}}
+
+.classroom-student-top { flex:0 0 auto; min-width:0; }
+/* Readable content takes priority over compressing every row to equal height. */
+.lockscreen .students.classroom-students.classroom-readable {
+  grid-template-rows:var(--classroom-row-sizes,none);
+  grid-auto-rows:max-content;
+  overflow-y:auto;
+  overflow-x:hidden;
+  pointer-events:auto;
+  touch-action:pan-y;
+  overscroll-behavior:contain;
+  align-content:start;
+}
+.lockscreen .classroom-readable .classroom-student {
+  height:auto;
+  align-self:stretch;
+  pointer-events:none;
+  gap:3px;
+  padding:5px 6px;
+}
+.lockscreen .classroom-readable .pending-tasks {
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  flex:none;
+  margin:0;
+  overflow:visible;
+}
+.lockscreen .classroom-readable .routine-indicator { flex:none; overflow:visible; margin:0; }
+.lockscreen .classroom-readable .routine-names { display:flex; flex-direction:column; gap:3px; }
+.lockscreen .classroom-readable .classroom-student .task,
+.lockscreen .classroom-readable .classroom-student .routine-task {
+  display:block;
+  width:100%;
+  max-width:100%;
+  flex:none;
+  min-height:0;
+  padding:2px 6px;
+  font-size:11px;
+  line-height:1.3;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
+}
+@media(max-width:768px) and (orientation:portrait) {
+  .lockscreen .students.classroom-students { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .lockscreen .classroom-student .classroom-student-name:has(.classroom-label-name) { font-size:13px; }
+}
+@media(max-height:480px) {
+  .lockscreen { padding:5px 8px; gap:4px; }
+  .classroom-top { max-height:27%; }
+  .classroom-heading { gap:7px; padding:0 30px 2px 0; flex-wrap:nowrap; }
+  .classroom-brand h1 { font-size:14px; }
+  .classroom-brand small { font-size:10px; }
+  .classroom-datetime { gap:5px; font-size:16px; flex-wrap:nowrap; }
+  .lockscreen .class-announcement { padding:2px 6px; margin-bottom:3px; }
+  .lockscreen .classroom-schedule { padding:3px 6px; }
+  .classroom-schedule .registered-schedule { margin-top:2px; }
+  .lockscreen .classroom-student-top { display:flex; justify-content:space-between; align-items:center; gap:4px; height:18px; min-height:18px; }
+  .lockscreen .classroom-student-top .student-head { flex:1 1 auto; min-width:0; width:auto; margin:0; justify-content:flex-start; text-align:left; }
+  .lockscreen .classroom-student-top .classroom-student-name { font-size:12px; line-height:18px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; text-align:left; }
+  .lockscreen .classroom-student-top .classroom-score { flex:0 0 auto; margin:0; gap:2px; justify-content:flex-end; line-height:18px; }
+  .lockscreen .classroom-student-top .score-star,.lockscreen .classroom-student-top .score-total { font-size:12px; line-height:18px; }
+}
+.classroom-schedule:not(:has(.classroom-event)):has(.registered-schedule:empty) { display:none; }

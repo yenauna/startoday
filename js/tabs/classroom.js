@@ -102,7 +102,7 @@ function classroomStudent(student, date) {
     tasks = excluded ? [] : C.pending(db(), student.id, date),
     routines = excluded ? [] : C.pendingRoutines(db(), student.id, date);
   const pending = tasks.length + routines.length > 0;
-  return `<article class="student classroom-student ${pending ? 'unfinished has-pending' : ''} ${excluded ? 'excluded' : ''}" aria-label="${esc(displayName(student))}"><div class="student-head"><strong class="classroom-student-name">${settings().nameDisplayMode === 'real' ? `<span class="classroom-label-number">${esc(student.no)} ·</span> <span class="classroom-label-name">${esc(student.name)}</span>` : esc(displayName(student))}</strong></div>${settings().classroomShowScores ? `<div class="score classroom-score"><span class="score-star" aria-hidden="true">★</span><strong class="score-total">${C.cumulativeScores(db(), student.id, date).total}</strong></div>` : ''}<div class="pending-tasks">${tasks.map(({
+  return `<article class="student classroom-student ${pending ? 'unfinished has-pending' : ''} ${excluded ? 'excluded' : ''}" aria-label="${esc(displayName(student))}"><div class="classroom-student-top"><div class="student-head"><strong class="classroom-student-name">${settings().nameDisplayMode === 'real' ? `<span class="classroom-label-number">${esc(student.no)} ·</span> <span class="classroom-label-name">${esc(student.name)}</span>` : esc(displayName(student))}</strong></div>${settings().classroomShowScores ? `<div class="score classroom-score"><span class="score-star" aria-hidden="true">★</span><strong class="score-total">${C.cumulativeScores(db(), student.id, date).total}</strong></div>` : ''}</div><div class="pending-tasks">${tasks.map(({
     assignment: a,
     date: d
   }) => `<span class="task ${d < date ? 'overdue' : ''}" title="${esc(a.title)}">${esc(a.title)}</span>`).join('')}</div>${routines.length ? `<div class="routine-indicator"><div class="routine-names">${routines.map(r => `<span class="routine-task" title="${esc(r.title)}">${esc(r.title)}</span>`).join('')}</div></div>` : ''}${excluded ? '<small class="classroom-complete">제외</small>' : !pending ? '<small class="classroom-complete">오늘 할 일 완료</small>' : ''}</article>`;
@@ -112,9 +112,13 @@ function fitClassroom() {
   const grid = document.querySelector('.classroom-students');
   if (!state.locked || !grid) return;
   const count = grid.children.length,
-    mobile = window.matchMedia('(max-width:768px)').matches;
-  let columns = mobile ? count <= 20 ? 4 : 5 : 1;
-  if (!mobile) {
+    mobile = window.matchMedia('(max-width:768px)').matches,
+    portrait = mobile && window.matchMedia('(orientation:portrait)').matches,
+    lowHeight = window.matchMedia('(max-height:480px)').matches,
+    readable = portrait || lowHeight;
+  grid.classList.toggle('classroom-readable', readable);
+  let columns = portrait ? 3 : lowHeight ? Math.max(1, Math.min(count || 1, Math.floor((grid.clientWidth + 5) / 135))) : mobile ? 5 : 1;
+  if (!mobile && !lowHeight) {
     let best = Infinity;
     const neededHeight = Math.min(220, Math.max(100, ...[...grid.children].map(card => {
       const c = getComputedStyle(card);
@@ -139,6 +143,25 @@ function fitClassroom() {
   grid.style.setProperty('--classroom-cols', columns);
   grid.style.setProperty('--classroom-rows', rows);
   grid.classList.toggle('classroom-dense', grid.clientHeight / rows < 160);
+  if (readable) {
+    // Measure natural content after setting the columns, so long pills wrap
+    // instead of inheriting the previous orientation's narrow dimensions.
+    const heights = Array.from({
+      length: rows
+    }, () => 0);
+    [...grid.children].forEach((card, index) => {
+      const style = getComputedStyle(card);
+      const height = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + [...card.children].reduce((total, child) => {
+        const childStyle = getComputedStyle(child);
+        return total + child.scrollHeight + (parseFloat(childStyle.marginTop) || 0) + (parseFloat(childStyle.marginBottom) || 0);
+      }, 0) + Math.max(0, card.children.length - 1) * (parseFloat(style.rowGap) || 0) + 2;
+      const row = Math.floor(index / columns);
+      heights[row] = Math.max(heights[row], Math.ceil(height));
+    });
+    const gap = parseFloat(getComputedStyle(grid).rowGap) || 0;
+    const extra = Math.max(0, (grid.clientHeight - gap * (rows - 1) - heights.reduce((a, b) => a + b, 0)) / rows);
+    grid.style.setProperty('--classroom-row-sizes', heights.map(height => height + extra + 'px').join(' '));
+  } else grid.style.removeProperty('--classroom-row-sizes');
 }
 window.addEventListener('resize', () => {
   if (state.locked) requestAnimationFrame(fitClassroom);
