@@ -61,13 +61,13 @@ export function studentDetail(id, from = state.date.slice(0, 7) + '-01', to = st
   const score = C.scores(db(), id, from, to),
     records = db().records.filter(r => r.studentIds.includes(id) && r.date >= from && r.date <= to).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
     pending = C.pending(db(), id, state.date);
-  modal(name(id), `<div class="row" style="margin-bottom:14px">${btn('+ 기록', () => recordEditor({
+  modal(name(id), `<div class="student-detail-content" data-student-id="${esc(id)}" data-from="${esc(from)}" data-to="${esc(to)}"><div class="row" style="margin-bottom:14px">${btn('+ 기록', () => recordEditor({
     studentIds: [id],
     date: state.date
   }))}${btn('학생 수정', () => studentEditor(s))}${btn('보고서로 내보내기', () => reportDialog(id, from, to), 'primary')}${btn('이번 주', () => studentDetail(id, C.addDays(state.date, -((C.weekday(state.date) + 6) % 7)), state.date))}${btn('이번 달', () => studentDetail(id, state.date.slice(0, 7) + '-01', state.date))}</div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(from)) || '날짜 선택'}</span><input aria-label="기록 조회 시작" type="date" id="student-from" value="${from}"></span><span>~</span><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(to)) || '날짜 선택'}</span><input aria-label="기록 조회 종료" type="date" id="student-to" value="${to}"></span>${btn('조회', () => studentDetail(id, $('#student-from').value, $('#student-to').value))}</div><div class="panel" style="margin-top:14px"><h3>★ ${score.total} · 기간 요약</h3><div class="chips">${C.areaNames(db(), true).map(a => badge(a + ' ' + score.areas[a])).join('')}</div></div><h3>미완료 과제 ${pending.length}건</h3>${pending.map(({
     assignment: a,
     date: d
-  }) => btn(esc(C.formatDate(d) + ' ' + a.title), () => taskStateEditor(a, d, id))).join('') || '<p class="muted">남은 과제가 없습니다.</p>'}<details style="margin-top:14px"><summary>과제 처리 이력</summary>${db().assignmentStates.filter(x => x.studentId === id && x.date >= from && x.date <= to).map(x => `<p>${esc(C.formatDate(x.date))} · ${esc(db().assignments.find(a => a.id === x.assignmentId)?.title || '(삭제된 과제)')} · ${esc(x.status)} ${esc(x.memo)}</p>`).join('') || '<p>처리 이력 없음</p>'}</details><details><summary>출결 제외 이력</summary><p>${db().attendance.filter(x => x.studentId === id && x.excluded).map(x => esc(C.formatDate(x.date))).sort().join(' · ') || '없음'}</p></details><h3 style="margin-top:20px">기록 ${records.length}건</h3>${records.map(r => recordCard(r, true, true)).join('') || empty('조회 기간에 기록이 없습니다.')}`);
+  }) => btn(esc(C.formatDate(d) + ' ' + a.title), () => taskStateEditor(a, d, id))).join('') || '<p class="muted">남은 과제가 없습니다.</p>'}<details style="margin-top:14px"><summary>과제 처리 이력</summary>${db().assignmentStates.filter(x => x.studentId === id && x.date >= from && x.date <= to).map(x => `<p>${esc(C.formatDate(x.date))} · ${esc(db().assignments.find(a => a.id === x.assignmentId)?.title || '(삭제된 과제)')} · ${esc(x.status)} ${esc(x.memo)}</p>`).join('') || '<p>처리 이력 없음</p>'}</details><details><summary>출결 제외 이력</summary><p>${db().attendance.filter(x => x.studentId === id && x.excluded).map(x => esc(C.formatDate(x.date))).sort().join(' · ') || '없음'}</p></details><h3 style="margin-top:20px">기록 ${records.length}건</h3>${records.map(r => recordCard(r, true, true)).join('') || empty('조회 기간에 기록이 없습니다.')}</div>`);
 }
 export function studentEditor(s = null) {
   const row = s || {
@@ -104,8 +104,19 @@ export function studentEditor(s = null) {
   });
 }
 export function reportDialog(id, from, to) {
-  const list = id ? db().students.filter(s => !s.deletedAt || s.id === id) : students(),
-    selected = id ? [id] : list.map(s => s.id);
+  if (id) {
+    C.dates(from, to);
+    const student = db().students.find(row => row.id === id);
+    if (!student) throw Error('학생을 찾지 못했습니다.');
+    closeModal();
+    showReports([{
+      student,
+      records: C.reportRecords(db(), id, from, to)
+    }], from, to, settings().reportPrintMode || 'color', false);
+    return;
+  }
+  const list = students(),
+    selected = list.map(s => s.id);
   if (!list.length) throw Error('내보낼 학생이 없습니다.');
   modal('학생 보고서 내보내기', `<div class="formgrid">${input('시작일', 'from', from, 'date', 'required')}${input('종료일', 'to', to, 'date', 'required')}</div><div class="report-targets"><div class="row">${btn('전체 학생 선택', () => document.querySelectorAll('#modal-form [name=reportStudents]').forEach(el => el.checked = true))}${btn('선택 해제', () => document.querySelectorAll('#modal-form [name=reportStudents]').forEach(el => el.checked = false))}</div><div class="checkgrid">${list.map(s => `<label class="inline"><input type="checkbox" name="reportStudents" value="${esc(s.id)}" ${selected.includes(s.id) ? 'checked' : ''}>${esc(s.no + '. ' + s.name)}</label>`).join('')}</div></div>${checkbox('작성 및 수정일 포함', 'includeTimestamps')}<p class="muted">추가 기록은 인쇄 포함으로 지정한 건만 출력합니다.</p>`, async f => {
     const from = f.get('from'),

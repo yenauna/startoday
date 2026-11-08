@@ -231,7 +231,7 @@ function assignmentCalendar(assignments) {
       state.date = date;
       assignmentMonth = date.slice(0, 7);
       render();
-    }, 'day-head', `aria-label="${esc(C.formatDate(date))} 과제 조회" aria-pressed="${date === state.date}"`)}${list.map(a => btn(esc(a.title), () => assignmentActions(a, date), 'assignment-calendar-task', `data-assignment-id="${esc(a.id)}" data-assignment-date="${date}"`)).join('')}</div>`;
+    }, 'day-head', `aria-label="${esc(C.formatDate(date))} 과제 조회" aria-pressed="${date === state.date}"`)}${list.map(a => btn(esc(a.title), () => assignmentActions(a, date), 'assignment-calendar-task' + (students().some(student => C.targeted(a, student.id) && !C.excluded(db(), student.id, date) && !['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, date, student.id))) ? ' has-incomplete' : ''), `data-assignment-id="${esc(a.id)}" data-assignment-date="${date}"`)).join('')}</div>`;
   }).join('')}</div>${!assignments.length ? '<p class="muted" style="margin-top:12px">등록한 과제가 없습니다.</p>' : ''}</section>`;
 }
 function moveAssignmentMonth(amount) {
