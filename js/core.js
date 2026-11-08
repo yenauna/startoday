@@ -189,17 +189,18 @@ export function parseInput(text, db, selected = []) {
   const warnings = [],
     candidates = activeStudents(db),
     mentions = studentMentions(text, candidates);
-  let ids = [...selected];
-  if (!ids.length) {
-    const subjects = mentions.filter(m => m.role === 'subject');
-    const targets = subjects.length ? subjects : mentions.filter(m => m.role === 'bare');
+  const subjects = mentions.filter(mention => mention.role === 'subject');
+  // Explicit subjects replace a prior card selection. Otherwise preserve it.
+  let ids = subjects.length ? [] : [...selected];
+  if (subjects.length || !selected.length) {
+    const targets = subjects.length ? subjects : mentions.filter(mention => mention.role === 'bare');
     for (const mention of targets) {
       if (!mention.ids.length) warnings.push(mention.warning || '학생을 확인하세요.');
       ids.push(...mention.ids);
     }
     for (const id of ids) {
-      const s = candidates.find(row => row.id === id);
-      if (s && candidates.some(row => row.id !== id && (row.name === s.name || row.no === s.no))) warnings.push('동명이인·중복 번호를 확인하세요.');
+      const student = candidates.find(row => row.id === id);
+      if (student && candidates.some(row => row.id !== id && (row.name === student.name || row.no === student.no))) warnings.push('동명이인·중복 번호를 확인하세요.');
     }
   }
   ids = [...new Set(ids)];
@@ -222,12 +223,13 @@ export function parseInput(text, db, selected = []) {
 function escapedName(name) {
   return [...name].map(ch => '^$.*+?()[]{}|'.includes(ch) || ch.charCodeAt(0) === 92 ? String.fromCharCode(92) + ch : ch).join('');
 }
-const mentionSuffix = String.raw`(?:(?:이)?(?:에게(?:서|는|도|만)?|한테(?:서|는|도|만)?|의|를|을|가|이|은|는|와|과|랑|하고|도))?`;
+const mentionSuffix = String.raw`(?:(?:이)?(?:(?:에게서|한테서|에게|한테|으로|로|의|을|를)(?:은|는|도|만)?|와|과|랑|하고|이|가|은|는|도))?`;
 function mentionRole(suffix) {
   if (!suffix) return 'bare';
-  if (/^(?:이)?(?:에게|한테|의|를|을)/.test(suffix)) return 'object';
-  if (/^(?:이)?(?:과|와|랑|하고)$/.test(suffix)) return 'conjunction';
-  return /^(?:이)?(?:이|가|은|는)$/.test(suffix) ? 'subject' : 'other';
+  if (/^(?:이)?(?:에게서|한테서|에게|한테|으로|로|의|을|를)(?:은|는|도|만)?$/.test(suffix)) return 'object';
+  if (/^(?:이)?(?:와|과|랑|하고)$/.test(suffix)) return 'conjunct';
+  if (/^(?:이)?(?:이|가|은|는|도)$/.test(suffix)) return 'subject';
+  return 'bare';
 }
 function studentMentions(text, candidates) {
   const phrases = new Map(),
@@ -270,17 +272,24 @@ function studentMentions(text, candidates) {
       });
     }
   }
-  // Resolve coordinated noun phrases backwards from their explicit subject.
-  const ordered = [...filtered].sort((a, b) => b.start - a.start);
-  for (const mention of ordered) {
-    if (!['bare', 'conjunction'].includes(mention.role)) continue;
-    const following = filtered.filter(next => next.start >= mention.end).sort((a, b) => a.start - b.start)[0];
+  const ordered = filtered.sort((a, b) => a.start - b.start || b.end - a.end);
+  // Only adjacent coordinated mentions share a role; intervening words or
+  // sentence boundaries must not pull an unrelated student into the target list.
+  for (let i = ordered.length - 1; i >= 0; i--) {
+    const mention = ordered[i];
+    if (!['bare', 'conjunct'].includes(mention.role)) continue;
+    const following = ordered.find(next => next.start >= mention.end);
     if (!following) continue;
     const gap = text.slice(mention.end, following.start);
-    const connected = mention.role === 'conjunction' ? /^\s*$/.test(gap) : /^\s*[,，]\s*$/.test(gap);
-    if (connected && following.role === 'subject') mention.role = 'subject';
+    const connected = mention.role === 'conjunct' ? /^\s*(?:[,，]\s*)?$/.test(gap) : /^\s*[,，]\s*$/.test(gap);
+    if (!connected) continue;
+    if (mention.role === 'conjunct' && following.role === 'bare') {
+      // A trailing bare name/number closes a coordinated subject list.
+      for (const sibling of ordered) if (sibling.start === following.start && sibling.end === following.end && sibling.role === 'bare') sibling.role = 'subject';
+    }
+    if (['subject', 'object'].includes(following.role)) mention.role = following.role;
   }
-  return filtered;
+  return ordered;
 }
 export function nameInSentence(text, name) {
   if (!name?.trim()) return false;

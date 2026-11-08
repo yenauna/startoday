@@ -27,11 +27,11 @@ test('독립된 이름과 한국어 조사만 매칭하고 지우개 같은 부�
   assert(C.nameInSentence('라온이의 책', '라온'));
   assert.deepEqual(C.parseInput('지우개를 사용', db).studentIds, []);
 });
-test('번호 목록, 중복 이름 경고와 고정 선택 우선 유지', () => {
+test('번호 목록, 중복 이름 경고와 명시적 주어 우선 처리', () => {
   const db = fixture();
   assert.deepEqual(C.parseInput('1, 51번 준비', db).studentIds, ['s2', 's3']);
   assert.equal(C.parseInput('1001번 준비', db).studentIds.length, 0);
-  assert.deepEqual(C.parseInput('지우가 참여', db, ['s3']).studentIds, ['s3']);
+  assert.deepEqual(C.parseInput('지우가 참여', db, ['s3']).studentIds, ['s1']);
   db.students.push({
     id: 's4',
     no: 2,

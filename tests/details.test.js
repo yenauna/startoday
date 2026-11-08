@@ -27,7 +27,7 @@ test('주어만 점수 대상으로 선택하고 상대방·소유자·목적어
   assert.deepEqual(C.parseInput('다온에게 안내', db).studentIds, []);
   assert.deepEqual(C.parseInput('다온의 기록', db).studentIds, []);
   assert.deepEqual(C.parseInput('1, 3번 정리', db).studentIds, ['ji', 'da']);
-  assert.deepEqual(C.parseInput('지우가 3번에게 도움', db, ['son']).studentIds, ['son']);
+  assert.deepEqual(C.parseInput('지우가 3번에게 도움', db, ['son']).studentIds, ['ji']);
 });
 test('성을 뺀 이름은 유일한 후보일 때만 연결하고 중복 시 확인 경고', () => {
   const db = fixture();
