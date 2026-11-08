@@ -487,3 +487,10 @@ header.top .header-more-menu button:hover { background:var(--st-gray-bg); }
 .badge,.subject-chip,.area-chip,.routine-task,.calendar-task,.chips button,.student-choice-chip span { border-radius:12px; padding:4px 10px; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
 .badge,.subject-chip,.area-chip,.routine-task,.calendar-task { white-space:nowrap; }
 .badge,.subject-chip { display:inline-block; vertical-align:middle; }
+
+.event { border-radius:10px; padding:4px 8px; text-align:left; overflow:hidden; }
+.student-period-controls { margin-bottom:16px; }
+.score-change { margin-left:2px; font-weight:600; }
+.score-change.positive { color:var(--st-blue-text); }
+.score-change.negative { color:var(--st-rose-text); }
+.score-change.neutral { color:var(--st-text-muted); }

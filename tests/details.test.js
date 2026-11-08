@@ -71,14 +71,14 @@ test('시스템 시각은 한국 시간과 설정된 1~6교시·쉬는시간·�
   assert.equal(C.periodAtTime(st, new Date('2026-11-07T00:15:00Z')), '1교시');
   assert.equal(C.periodAtTime({
     periodTimes: ['09:99–10:00']
-  }, new Date('2026-11-07T00:15:00Z')), '기타');
+  }, new Date('2026-11-07T00:15:00Z')), '');
   const custom = {
     periodTimes: ['08:30–09:10', '09:20–10:00', '11:00–11:40', '12:30–13:10']
   };
   assert.equal(C.periodAtTime(custom, new Date('2026-11-07T12:00:00+09:00')), '점심');
   assert.equal(C.inputPeriod('1번 4교시 관찰', st, new Date('2026-11-07T00:15:00Z')), '4교시');
   assert.equal(C.inputPeriod('1번 쉬는 시간 관찰', st), '쉬는시간');
-  assert.equal(C.inputPeriod('1번 7교시 관찰', st), '기타');
+  assert.equal(C.inputPeriod('1번 7교시 관찰', st), '');
 });
 test('누적 점수는 선택일까지의 이력만 집계하고 제외일·타학생을 배제', () => {
   const db = fixture();

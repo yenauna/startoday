@@ -42,3 +42,7 @@ body.report-open #app{display:none}
 }
 
 .report-student-meta { margin:0 0 16px; line-height:1.7; }
+
+.report-areas { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; break-inside:avoid; }
+.report-area { display:inline-block; padding:3px 8px; border:1px solid #d8dfe8; border-radius:10px; background:#eceff3; color:#586375; font-size:11px; line-height:1.4; overflow-wrap:anywhere; max-width:100%; }
+@media print { .report-areas,.report-area { break-inside:avoid; } .report-area { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }

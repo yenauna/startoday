@@ -1,18 +1,59 @@
+import { render } from '../app.js';
 import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, name, settings, students, up } from '../shared/data.js';
-import { state } from '../shared/state.js';
+import { state, store } from '../shared/state.js';
 import { $, badge, btn, checkbox, empty, esc, input } from '../shared/ui.js';
 import { taskStateEditor } from './assignments.js';
 import { recordCard, recordEditor } from './records.js';
+let studentRangeScope = '',
+  studentRange = null,
+  studentMonth = '';
+function selectStudentMonth(month) {
+  studentRange = C.monthRange(month);
+  studentMonth = month;
+}
+function selectStudentSemester(term) {
+  const range = C.semesterRange(settings(), term);
+  if (!range) return;
+  studentRange = range;
+  studentMonth = '';
+  render();
+}
 export function studentsView() {
   const today = C.today(),
-    first = today.slice(0, 7) + '-01';
-  const change = n => n > 0 ? '+' + n : String(n);
-  return `<div class="toolbar"><div><h2>학생</h2><small>누적 점수와 이번 달 변화를 살펴보세요.</small></div><div class="row">${btn('학생 선택 / 전체 내보내기', () => reportDialog(null, first, today))}${btn('+ 학생', () => studentEditor(), 'primary')}</div></div><div class="table-wrap"><table class="student-score-table"><thead><tr><th>학생</th><th>전체</th><th>칭찬</th><th>조언</th><th>경험치별</th></tr></thead><tbody>${students().map(s => {
-    const score = C.studentScoreSummary(db(), s.id, today);
-    return `<tr><td>${btn(esc(name(s.id)), () => studentDetail(s.id))}</td><td>${score.total}(${change(score.change)})</td><td>${score.praise}(${change(score.praiseChange)})</td><td>${score.advice}(${change(score.adviceChange)})</td><td>${C.areaNames(db(), true).map(a => `<span class="student-area-total">${esc(a)} ${score.areas[a] || 0}</span>`).join(', ')}</td></tr>`;
-  }).join('')}</tbody></table></div>${!students().length ? empty('등록된 학생이 없습니다.', '학생을 추가하거나 설정에서 명단을 붙여 넣으세요.') : ''}`;
+    scope = `${store.mode}:${store.classId}:${settings().academicYear}`;
+  if (scope !== studentRangeScope || !studentRange) {
+    studentRangeScope = scope;
+    selectStudentMonth(today.slice(0, 7));
+  }
+  const range = {
+    ...studentRange
+  };
+  const change = n => `<span class="score-change ${n > 0 ? 'positive' : n < 0 ? 'negative' : 'neutral'}">(${n > 0 ? '+' : ''}${n})</span>`;
+  return `<div class="toolbar"><div><h2>학생</h2><small>누적 점수 · 선택 기간 변화 ${esc(C.formatDate(range.from))} ~ ${esc(C.formatDate(range.to))}</small></div><div class="row">${btn('학생 선택 / 전체 내보내기', () => reportDialog(null, range.from, range.to))}${btn('+ 학생', () => studentEditor(), 'primary')}</div></div><div class="student-period-controls row"><input type="month" id="student-month" aria-label="학생 조회 월" value="${esc(studentMonth)}">${btn('이번 달', () => {
+    selectStudentMonth(C.today().slice(0, 7));
+    render();
+  })}${btn('지난 달', () => {
+    const d = new Date(C.today() + 'T12:00Z');
+    d.setUTCMonth(d.getUTCMonth() - 1, 1);
+    selectStudentMonth(d.toISOString().slice(0, 7));
+    render();
+  })}${[1, 2].map(term => btn(term + '학기', () => selectStudentSemester(term), '', C.semesterRange(settings(), term) ? '' : 'disabled title="설정에서 학사일정을 먼저 등록하세요"')).join('')}</div><div class="table-wrap"><table class="student-score-table"><thead><tr><th>학생</th><th>전체</th><th>칭찬</th><th>조언</th><th>경험치별</th></tr></thead><tbody>${students().map(student => {
+    const score = C.studentScoreSummary(db(), student.id, today, range.from, range.to);
+    return `<tr><td>${btn(esc(name(student.id)), () => studentDetail(student.id, range.from, range.to))}</td><td>${score.total}${change(score.change)}</td><td>${score.praise}${change(score.praiseChange)}</td><td>${score.advice}${change(score.adviceChange)}</td><td>${C.areaNames(db(), true).map(area => `<span class="student-area-total">${esc(area)} ${score.areas[area] || 0}</span>`).join(', ')}</td></tr>`;
+  }).join('')}</tbody></table></div>${!students().length ? empty('등록된 학생이 없습니다.', '학생을 추가하거나 설정에서 명단을 붙여 넣으세요.') : ''}${bindStudentMonth()}`;
+}
+function bindStudentMonth() {
+  setTimeout(() => {
+    const input = $('#student-month');
+    if (input) input.onchange = () => {
+      if (!input.value) return;
+      selectStudentMonth(input.value);
+      render();
+    };
+  }, 0);
+  return '';
 }
 export function studentDetail(id, from = state.date.slice(0, 7) + '-01', to = state.date) {
   const s = db().students.find(s => s.id === id);
@@ -91,7 +132,7 @@ export function showPrint(s, from, to, records) {
   }], from, to, settings().reportPrintMode || 'color', false);
 }
 function reportPage(s, from, to, records, timestamps) {
-  return `<section class="report-page"><p>오늘의 별 · ${esc(settings().className)}</p><h1>${esc(settings().reportHeader)}</h1><div class="report-student-meta"><strong>${esc(s.no)}. ${esc(s.name)}</strong><br><span class="muted">${esc(C.formatDate(from))} ~ ${esc(C.formatDate(to))}</span></div><h2>기간 요약</h2><p>칭찬 ${records.filter(r => r.kind === '칭찬').length}건 · 조언 ${records.filter(r => r.kind === '지도').length}건</p><table><thead><tr>${C.areaNames(db(), true).map(a => `<th>${esc(a)}</th>`).join('')}</tr></thead><tbody><tr>${C.areaNames(db(), true).map(a => `<td>${records.filter(r => (r.areas || []).includes(a)).reduce((n, r) => n + C.delta(r), 0)}</td>`).join('')}</tr></tbody></table><h2 style="margin-top:22px">학교생활 기록</h2>${records.map(r => `<article class="record ${r.kind === '칭찬' ? 'report-praise' : r.kind === '지도' ? 'report-advice' : ''} ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><strong>${esc(C.formatDate(r.date))} ${esc(r.period)} · ${esc(C.recordLabel(r))}</strong>${timestamps ? `<small class="report-timestamps">작성 ${esc(C.formatTimestamp(r.createdAt))}${r.updatedAt ? ' · 수정 ' + esc(C.formatTimestamp(r.updatedAt)) : ''}</small>` : ''}<div class="body">${esc(r.text)}</div>${r.action ? `<p class="body" style="margin-top:8px">지도 내용: ${esc(r.action)}</p>` : ''}</article>`).join('')}</section>`;
+  return `<section class="report-page"><p>오늘의 별 · ${esc(settings().className)}</p><h1>${esc(settings().reportHeader)}</h1><div class="report-student-meta"><strong>${esc(s.no)}. ${esc(s.name)}</strong><br><span class="muted">${esc(C.formatDate(from))} ~ ${esc(C.formatDate(to))}</span></div><h2>기간 요약</h2><p>칭찬 ${records.filter(r => r.kind === '칭찬').length}건 · 조언 ${records.filter(r => r.kind === '지도').length}건</p><table><thead><tr>${C.areaNames(db(), true).map(a => `<th>${esc(a)}</th>`).join('')}</tr></thead><tbody><tr>${C.areaNames(db(), true).map(a => `<td>${records.filter(r => (r.areas || []).includes(a)).reduce((n, r) => n + C.delta(r), 0)}</td>`).join('')}</tr></tbody></table><h2 style="margin-top:22px">학교생활 기록</h2>${records.map(r => `<article class="record ${r.kind === '칭찬' ? 'report-praise' : r.kind === '지도' ? 'report-advice' : ''} ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><strong>${esc(C.formatDate(r.date))}${C.recordPeriod(r.period) ? ' ' + esc(C.recordPeriod(r.period)) : ''} · ${esc(C.recordLabel(r))}</strong>${timestamps ? `<small class="report-timestamps">작성 ${esc(C.formatTimestamp(r.createdAt))}${r.updatedAt ? ' · 수정 ' + esc(C.formatTimestamp(r.updatedAt)) : ''}</small>` : ''}<div class="body">${esc(r.text)}</div>${r.action ? `<p class="body" style="margin-top:8px">지도 내용: ${esc(r.action)}</p>` : ''}${(r.areas || []).length ? `<div class="report-areas">${(r.areas || []).map(area => `<span class="report-area">${esc(area)}</span>`).join('')}</div>` : ''}</article>`).join('')}</section>`;
 }
 function showReports(reports, from, to, mode, timestamps = false) {
   const root = document.createElement('div');

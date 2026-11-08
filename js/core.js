@@ -138,7 +138,7 @@ export function taskStateOps(db, a, d, s, status, memo = '') {
     data: {
       id: old?.id || `auto:${id}`,
       date: d,
-      period: '기타',
+      period: '',
       studentIds: [s],
       areas: a.statArea ? [a.statArea] : [],
       area: a.statArea || null,
@@ -222,10 +222,11 @@ export function parseInput(text, db, selected = []) {
 function escapedName(name) {
   return [...name].map(ch => '^$.*+?()[]{}|'.includes(ch) || ch.charCodeAt(0) === 92 ? String.fromCharCode(92) + ch : ch).join('');
 }
-const mentionSuffix = String.raw`(?:(?:이)?(?:에게(?:서|는|도|만)?|한테(?:서|는|도|만)?|의|를|을|가|이|은|는|와|과|랑|도))?`;
+const mentionSuffix = String.raw`(?:(?:이)?(?:에게(?:서|는|도|만)?|한테(?:서|는|도|만)?|의|를|을|가|이|은|는|와|과|랑|하고|도))?`;
 function mentionRole(suffix) {
   if (!suffix) return 'bare';
   if (/^(?:이)?(?:에게|한테|의|를|을)/.test(suffix)) return 'object';
+  if (/^(?:이)?(?:과|와|랑|하고)$/.test(suffix)) return 'conjunction';
   return /^(?:이)?(?:이|가|은|는)$/.test(suffix) ? 'subject' : 'other';
 }
 function studentMentions(text, candidates) {
@@ -248,6 +249,7 @@ function studentMentions(text, candidates) {
     for (const match of text.matchAll(regex)) mentions.push({
       start: match.index,
       length: name.length,
+      end: match.index + match[0].length,
       role: mentionRole(match[1]),
       ids: ambiguousAlias ? [] : matches.map(e => e.student.id),
       warning: `${name}: 이름이 같은 후보가 여러 명입니다. 번호 또는 성명을 입력하세요.`
@@ -260,11 +262,23 @@ function studentMentions(text, candidates) {
       const no = Number(value),
         found = candidates.filter(s => s.no === no);
       filtered.push({
+        start: match.index,
+        end: match.index + match[0].length,
         role: mentionRole(match[2]),
         ids: found.map(s => s.id),
         warning: `${no}번 학생을 찾지 못했습니다.`
       });
     }
+  }
+  // Resolve coordinated noun phrases backwards from their explicit subject.
+  const ordered = [...filtered].sort((a, b) => b.start - a.start);
+  for (const mention of ordered) {
+    if (!['bare', 'conjunction'].includes(mention.role)) continue;
+    const following = filtered.filter(next => next.start >= mention.end).sort((a, b) => a.start - b.start)[0];
+    if (!following) continue;
+    const gap = text.slice(mention.end, following.start);
+    const connected = mention.role === 'conjunction' ? /^\s*$/.test(gap) : /^\s*[,，]\s*$/.test(gap);
+    if (connected && following.role === 'subject') mention.role = 'subject';
   }
   return filtered;
 }
@@ -301,7 +315,7 @@ export function explicitPeriod(text) {
   return String(text).match(/아침|(?<!\d)[1-6]\s*교시|쉬는\s*시간|점심|방과후/)?.[0].replace(/\s/g, '') || '';
 }
 export function inputPeriod(text, settings, now = new Date()) {
-  return explicitPeriod(text) || (/(?<!\d)\d+\s*교시/.test(text) ? '기타' : periodAtTime(settings, now));
+  return explicitPeriod(text) || (/(?<!\d)\d+\s*교시/.test(text) ? '' : periodAtTime(settings, now));
 }
 export const DEFAULT_PERIOD_TIMES = ['09:00–09:40', '09:50–10:30', '10:40–11:20', '11:30–12:10', '13:00–13:40', '13:50–14:30'];
 export function periodAtTime(settings = {}, now = new Date()) {
@@ -324,7 +338,7 @@ export function periodAtTime(settings = {}, now = new Date()) {
       period: `${i + 1}교시`
     } : null;
   }).filter(Boolean).sort((a, b) => a.start - b.start);
-  if (!ranges.length) return '기타';
+  if (!ranges.length) return '';
   if (minute < ranges[0].start) return '아침';
   const current = ranges.find(r => minute >= r.start && minute < r.end);
   if (current) return current.period;
@@ -341,7 +355,7 @@ export function cumulativeScores(db, studentId, to = today()) {
 }
 export const PERIODS = ['아침', ...Array.from({
   length: 6
-}, (_, i) => `${i + 1}교시`), '쉬는시간', '점심', '방과후', '기타'];
+}, (_, i) => `${i + 1}교시`), '쉬는시간', '점심', '방과후'];
 export function reportRecords(db, s, a, b) {
   return db.records.filter(r => r.date >= a && r.date <= b && r.studentIds.includes(s) && (r.kind !== '추가기록' || r.printIncluded === true)).sort((x, y) => x.date.localeCompare(y.date) || x.createdAt.localeCompare(y.createdAt));
 }
@@ -686,16 +700,16 @@ export function incidentTitle(db, ids, date) {
   const selected = new Set(ids);
   return [...activeStudents(db).filter(s => selected.has(s.id)), ...db.students.filter(s => s.deletedAt && selected.has(s.id))].map(s => String(s.no) + s.name).join(' ') + (ids.length ? ' ' : '') + formatDate(date);
 }
-export function studentScoreSummary(db, id, date = today()) {
+export function studentScoreSummary(db, id, date = today(), from = date.slice(0, 7) + '-01', to = date) {
   const all = scores(db, id, '', date),
-    month = scores(db, id, date.slice(0, 7) + '-01', date);
+    month = scores(db, id, from, to);
   return {
     total: all.total,
     change: month.total,
     praise: all.records.filter(r => r.kind === '칭찬').length,
     praiseChange: month.records.filter(r => r.kind === '칭찬').length,
     advice: all.records.filter(r => r.kind === '지도').length,
-    adviceChange: -month.records.filter(r => r.kind === '지도').length,
+    adviceChange: -month.records.filter(r => r.kind === '지도').length || 0,
     areas: all.areas
   };
 }
@@ -759,4 +773,31 @@ export function autoSeatOps(db) {
 export function withAutoSeats(db, ops) {
   const combined = [...ops, ...autoSeatOps(applyOps(db, ops))];
   return [...new Map(combined.map(op => [op.table + ':' + op.id, op])).values()];
+}
+export function recordPeriod(period) {
+  return PERIODS.includes(period) ? period : '';
+}
+export function monthRange(month) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw Error('월을 확인하세요.');
+  const [year, index] = month.split('-').map(Number);
+  return {
+    from: month + '-01',
+    to: new Date(Date.UTC(year, index, 0)).toISOString().slice(0, 10)
+  };
+}
+export function semesterRange(settings, term) {
+  const calendar = settings?.academicCalendar || {};
+  const from = term === 1 ? calendar.term1Start : calendar.term2Start;
+  const to = term === 1 ? calendar.summerEnd : calendar.springBreak && calendar.springEnd ? calendar.springEnd : calendar.winterEnd;
+  return formatDate(from) && formatDate(to) && from <= to ? {
+    from,
+    to
+  } : null;
+}
+export function hoursDefaultRange(settings, date = today()) {
+  const semester = [semesterRange(settings, 1), semesterRange(settings, 2)].find(range => range && range.from <= date && date <= range.to);
+  return semester ? {
+    from: semester.from,
+    to: date
+  } : monthRange(date.slice(0, 7));
 }

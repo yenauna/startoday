@@ -44,7 +44,7 @@ test('교시 옵션은 6교시와 쉬는시간까지 지원', () => {
   assert(C.PERIODS.includes('쉬는시간'));
   assert(!C.PERIODS.includes('7교시'));
   assert.equal(C.parseInput('1번 쉬는 시간 메모', fixture()).period, '쉬는시간');
-  assert.equal(C.parseInput('1번 7교시 메모', fixture()).period, '기타');
+  assert.equal(C.parseInput('1번 7교시 메모', fixture()).period, '');
 });
 test('태그 없는 새 데이터와 예전 태그 포함 백업의 기록 보존', () => {
   const db = fixture();

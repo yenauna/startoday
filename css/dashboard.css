@@ -134,3 +134,5 @@
 .student.has-pending .pending-tasks .task { background:#fff; border:1px solid #fecdd3; color:#be123c; border-radius:12px; padding:4px 10px; }
 .student .task.overdue { color:#e11d48!important; font-weight:600; }
 .student .pending-tasks .task,.routine-indicator .routine-task { border-radius:12px; padding:4px 10px; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+
+.student .task.overdue,.student.has-pending .pending-tasks .task.overdue { background:#fff1f2; border:1px solid #fecdd3; color:#be123c!important; }

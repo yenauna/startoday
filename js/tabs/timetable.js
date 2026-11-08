@@ -249,9 +249,17 @@ export function bulkTimetable() {
     closeModal();
   });
 }
-export function hoursDialog(from = state.calendarDate.slice(0, 7) + '-01', to = new Date(Date.UTC(Number(state.calendarDate.slice(0, 4)), Number(state.calendarDate.slice(5, 7)), 0)).toISOString().slice(0, 10)) {
-  const rows = db().subject_rules.map(s => [s.code, db().timetables.filter(t => t.date >= from && t.date <= to && t.subjectCode === s.code).length]);
-  modal('과목별 수업 시수', `<div class="formgrid">${input('시작', 'from', from, 'date')}${input('종료', 'to', to, 'date')}</div><p class="muted" style="margin:12px 0">저장된 실제 시간표의 과목 슬롯을 합산합니다. 교시 연계 행사는 수업 슬롯 자체를 바꾸지 않으므로, 수업을 대체한 경우 해당 슬롯도 변경해 주세요.</p><table><thead><tr><th>과목</th><th>차시</th></tr></thead><tbody>${rows.map(([s, n]) => `<tr><td>${esc(s)}</td><td>${n}</td></tr>`).join('')}</tbody></table>`, async f => hoursDialog(f.get('from'), f.get('to')), '다시 계산');
+export function hoursDialog(from, to) {
+  if (typeof from !== 'string' || typeof to !== 'string') ({
+    from,
+    to
+  } = C.hoursDefaultRange(settings(), C.today()));
+  C.dates(from, to);
+  const rows = db().subject_rules.map(subject => [subject.code, db().timetables.filter(slot => slot.date >= from && slot.date <= to && slot.subjectCode === subject.code).length]);
+  modal('과목별 수업 시수', `<div class="hours-period row">${input('시작', 'from', from, 'date', 'required')}${input('종료', 'to', to, 'date', 'required')}${[1, 2].map(term => {
+    const range = C.semesterRange(settings(), term);
+    return btn(term + '학기', () => hoursDialog(range.from, range.to), '', range ? '' : 'disabled title="설정에서 학사일정을 먼저 등록하세요"');
+  }).join('')}</div><p class="muted" style="margin:12px 0">저장된 실제 시간표의 과목 슬롯을 합산합니다. 교시 연계 행사는 수업 슬롯 자체를 바꾸지 않으므로, 수업을 대체한 경우 해당 슬롯도 변경해 주세요.</p><table class="hours-table"><thead><tr><th>과목</th><th>차시</th></tr></thead><tbody>${rows.map(([subject, count]) => `<tr><td>${esc(subject)}</td><td>${count}</td></tr>`).join('')}</tbody></table>`, f => hoursDialog(f.get('from'), f.get('to')), '다시 계산');
 }
 export function bindTimetableDrag() {
   document.querySelectorAll('[data-drop]').forEach(el => {
