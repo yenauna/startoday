@@ -30,8 +30,8 @@ body.report-open #app{display:none}
 .report-toolbar { max-width:190mm; margin:20px auto; }
 .report-review { margin:16px 0; }
 .report-review summary { font-weight:700; padding:8px 0; }
-.print-root.report-color .report-page .record.report-praise { background:#EEF2FF; border-color:#C7D2FE; color:#3730A3; }
-.print-root.report-color .report-page .record.report-advice { background:#FEF2F2; border-color:#FECDD3; color:#991B1B; }
+.print-root.report-color .report-page .record.report-praise { background:#e5effb; color:#365c85; border:1px solid #cce0f5; }
+.print-root.report-color .report-page .record.report-advice { background:#f7e6ec; color:#895068; border:1px solid #edd0db; }
 .print-root.report-monochrome .report-page .record { background:white; color:black; border-color:#888; }
 .print-root.report-monochrome .incident-record { border-left-color:#555; }
 @media print {

@@ -100,7 +100,10 @@ export function dayEditor(d, mode = '일정', period = 1, event = null) {
     assignmentEditor(null, d);
     return;
   }
-  const slot = db().timetables.find(t => t.date === d && t.period === (period || 1));
+  if (mode === '시간표') {
+    timetableEditor(d, Number(period) || 1);
+    return;
+  }
   const r = event || {
     id: C.uid(),
     date: d,
@@ -110,7 +113,7 @@ export function dayEditor(d, mode = '일정', period = 1, event = null) {
     isDday: false,
     createdAt: C.now()
   };
-  modal(C.formatDate(d) + ' · 통합 등록', `<div class="row" style="margin-bottom:18px">${['일정', '시간표', '과제'].map(t => btn(t, () => dayEditor(d, t, period), mode === t ? 'primary' : '')).join('')}</div>${mode === '일정' ? `<div class="formgrid">${input('일정 이름', 'title', r.title, 'text', 'required')}${select('시간', 'period', [['', '종일'], [0, '아침'], ...[1, 2, 3, 4, 5, 6].map(p => [p, p + '교시']), [7, '방과후']], r.period ?? '')}<div class="span2">${textarea('설명', 'description', r.description)}</div>${checkbox('D-Day 표시', 'isDday', r.isDday)}</div>${event ? btn('이 일정 삭제', async () => {
+  modal(C.formatDate(d) + ' · 일정 등록', `<div class="row event-entry-tabs" style="margin-bottom:18px">${['일정', '과제'].map(t => btn(t, () => dayEditor(d, t, period), mode === t ? 'primary' : '')).join('')}</div><div class="formgrid">${input('일정 이름', 'title', r.title, 'text', 'required')}${select('시간', 'period', [['', '종일'], [0, '아침'], ...[1, 2, 3, 4, 5, 6].map(p => [p, p + '교시']), [7, '방과후']], r.period ?? '')}<div class="span2">${textarea('설명', 'description', r.description)}</div>${checkbox('D-Day 표시', 'isDday', r.isDday)}</div>${event ? btn('이 일정 삭제', async () => {
     if (confirm('일정을 삭제할까요?')) {
       await commit([{
         table: 'events',
@@ -119,57 +122,52 @@ export function dayEditor(d, mode = '일정', period = 1, event = null) {
       }]);
       closeModal();
     }
-  }, 'danger') : ''}` : `<div class="subject-grid">${db().subject_rules.sort((a, b) => a.sortOrder - b.sortOrder).map(s => btn(esc(s.code), async () => {
-    const p = Number($('#modal-form').elements.period.value),
-      old = db().timetables.find(t => t.date === d && t.period === p);
+  }, 'danger') : ''}`, async f => {
+    const title = f.get('title').trim();
+    if (!title) throw Error('일정 이름을 입력하세요.');
+    await commit([up('events', {
+      ...r,
+      title,
+      period: f.get('period') === '' ? null : Number(f.get('period')),
+      description: f.get('description'),
+      isDday: !!f.get('isDday')
+    })]);
+    closeModal();
+  });
+}
+export function timetableEditor(d, p) {
+  if (!Number.isInteger(p) || p < 1 || p > 6) throw Error('교시를 확인하세요.');
+  const slot = db().timetables.find(t => t.date === d && t.period === p);
+  let typeChanged = false;
+  const save = async (subjectCode, form, fromSubjectButton = false) => {
+    if (!subjectCode) throw Error('과목 버튼을 선택하세요.');
+    const old = db().timetables.find(t => t.date === d && t.period === p),
+      rule = db().subject_rules.find(r => r.code === subjectCode);
     await commit([up('timetables', {
+      ...old,
       id: `${d}-${p}`,
       date: d,
       period: p,
-      subjectCode: s.code,
-      memo: $('#modal-form').elements.memo.value,
-      type: s.defaultType,
-      locationOverride: null,
-      teacherOverride: null,
+      subjectCode,
+      type: fromSubjectButton && !typeChanged && old?.subjectCode !== subjectCode ? rule?.defaultType || '일반' : form.get('type'),
+      memo: form.get('memo'),
+      locationOverride: form.get('locationOverride') || null,
+      teacherOverride: form.get('teacherOverride') || null,
       updatedAt: C.now()
     })]);
-    dayEditor(d, '시간표', p);
-  }, '', `style="background:${esc(s.color)}"`)).join('')}</div><p class="muted" style="margin:8px 0">과목 버튼을 누르면 바로 저장됩니다. 아래에서 세부 내용까지 입력할 수도 있습니다.</p><div class="formgrid">${select('교시', 'period', [[0, '아침'], ...[1, 2, 3, 4, 5, 6].map(p => [p, p + '교시']), [7, '방과후']], period || 1)}${select('과목', 'subjectCode', db().subject_rules.map(s => s.code), slot?.subjectCode || db().subject_rules[0]?.code)}${select('특이사항', 'type', ['일반', '외부', '강사', '다른장소'], slot?.type || '일반')}${input('수업 메모', 'memo', slot?.memo || '')}${input('이날만 장소 변경', 'locationOverride', slot?.locationOverride || '')}${input('이날만 담당 교사 변경', 'teacherOverride', slot?.teacherOverride || '')}</div>${btn('이 교시 비우기', async () => {
-    const p = Number($('#modal-form').elements.period.value);
+    closeModal();
+  };
+  modal(`${C.formatDate(d)} · ${p}교시 시간표`, `<div class="subject-grid">${[...db().subject_rules].sort((a, b) => a.sortOrder - b.sortOrder).map(subject => btn(esc(subject.code), () => save(subject.code, new FormData($('#modal-form')), true), subject.code === slot?.subjectCode ? 'selected' : '', `style="background:${esc(subject.color)}"`)).join('')}</div><p class="muted" style="margin:8px 0">과목 버튼을 누르면 바로 저장됩니다.</p><div class="formgrid">${select('특이사항', 'type', ['일반', '외부', '강사', '다른장소'], slot?.type || '일반')}${input('수업 메모', 'memo', slot?.memo || '')}${input('이날만 장소 변경', 'locationOverride', slot?.locationOverride || '')}${input('이날만 담당 교사 변경', 'teacherOverride', slot?.teacherOverride || '')}</div>${slot ? btn('이 교시 비우기', async () => {
     if (confirm('선택한 교시를 비울까요?')) {
       await commit([{
         table: 'timetables',
-        id: `${d}-${p}`,
+        id: slot.id,
         remove: true
       }]);
       closeModal();
     }
-  }, 'danger')}`}`, async f => {
-    if (mode === '일정') {
-      await commit([up('events', {
-        ...r,
-        title: f.get('title').trim(),
-        period: f.get('period') === '' ? null : Number(f.get('period')),
-        description: f.get('description'),
-        isDday: !!f.get('isDday')
-      })]);
-    } else {
-      const p = Number(f.get('period'));
-      await commit([up('timetables', {
-        id: `${d}-${p}`,
-        date: d,
-        period: p,
-        subjectCode: f.get('subjectCode'),
-        type: f.get('type'),
-        memo: f.get('memo'),
-        locationOverride: f.get('locationOverride') || null,
-        teacherOverride: f.get('teacherOverride') || null,
-        updatedAt: C.now()
-      })]);
-    }
-    closeModal();
-  });
-  if (mode === '시간표') $('#modal-form').elements.period.onchange = e => dayEditor(d, '시간표', Number(e.target.value));
+  }, 'danger') : ''}`, f => save(slot?.subjectCode, f));
+  $('#modal-form').elements.type.onchange = () => typeChanged = true;
 }
 export async function swapSlots(from, to) {
   if (from === to) return;

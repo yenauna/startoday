@@ -4,10 +4,10 @@ import * as C from '../core.js';
 import { db, settings, students } from '../shared/data.js';
 import { state } from '../shared/state.js';
 import { $, badge, esc, hashPin, run, toast } from '../shared/ui.js';
-import { announcementView, isUnfinished } from './dashboard.js';
+import { announcementView } from './dashboard.js';
 import { timeSlots } from './timetable.js';
 export function displayName(s) {
-  if (settings().nameDisplayMode === 'real') return s.name;
+  if (settings().nameDisplayMode === 'real') return `${s.no} · ${s.name}`;
   if (settings().nameDisplayMode === 'alias') return s.alias || `별${s.no}`;
   if (settings().nameDisplayMode === 'masked') {
     const n = s.name;
@@ -16,13 +16,22 @@ export function displayName(s) {
   return String(s.no) + '번';
 }
 export function classroom() {
+  classroomResizeObserver?.disconnect();
   document.querySelector('.print-root')?.remove();
   document.body.classList.remove('report-open');
   if ($('#modal').open) closeModal();
+  if ($('#toast')) $('#toast').style.display = 'none';
   state.selected = [];
   state.locked = true;
   const d = C.today();
-  $('#app').innerHTML = `<div class="lockscreen"><div class="classroom-heading"><div class="classroom-brand"><h1>오늘의 별</h1><small>${esc(settings().className)}</small></div><div class="classroom-datetime"><time>${esc(C.formatDate(d))}</time><div id="class-clock" class="clock"></div></div></div>${announcementView()}<section class="panel"><div class="row">${C.calendarEvents(db()).filter(e => e.date === d || e.isDday).map(e => `<div class="classroom-event">${badge(e.title + (e.isDday ? ' ' + C.dday(e.date, d) : ''))}${e.description ? `<small class="event-description">${esc(e.description)}</small>` : ''}</div>`).join('') || ''}</div><div class="schedule registered-schedule" style="margin-top:14px">${timeSlots(d, false, true)}</div></section><div class="students">${students().map(s => `<div class="student ${isUnfinished(s.id, d) ? 'unfinished' : ''}"><strong>${esc(displayName(s))}</strong>${settings().classroomShowScores ? `<span class="classroom-score">★ ${C.cumulativeScores(db(), s.id, d).total}</span>` : ''}<small>${C.excluded(db(), s.id, d) ? '제외' : classroomPending(s.id, d)}</small></div>`).join('')}</div><button type="button" class="lock-exit" id="lock-exit" aria-label="교사 화면 잠금 해제" title="길게 누르기 또는 두 번 탭하여 해제">🔒</button></div>`;
+  $('#app').innerHTML = `<div class="lockscreen"><div class="classroom-top"><div class="classroom-heading"><div class="classroom-brand"><h1>오늘의 별</h1><small>${esc(settings().className)}</small></div><div class="classroom-datetime"><time>${esc(C.formatDate(d))}</time><div id="class-clock" class="clock"></div></div></div>${announcementView()}<section class="panel classroom-schedule"><div class="row">${C.calendarEvents(db()).filter(e => e.date === d || e.isDday).map(e => `<div class="classroom-event">${badge(e.title + (e.isDday ? ' ' + C.dday(e.date, d) : ''))}${e.description ? `<small class="event-description">${esc(e.description)}</small>` : ''}</div>`).join('')}</div><div class="schedule registered-schedule">${timeSlots(d, false, true)}</div></section></div><div class="students classroom-students">${students().map(student => classroomStudent(student, d)).join('')}</div><button type="button" class="lock-exit" id="lock-exit" aria-label="교사 화면 잠금 해제" title="길게 누르기 또는 두 번 탭하여 해제">🔒</button></div>`;
+  fitClassroom();
+  classroomResizeObserver = new ResizeObserver(() => requestAnimationFrame(fitClassroom));
+  classroomResizeObserver.observe(document.querySelector('.classroom-top'));
+  classroomResizeObserver.observe(document.querySelector('.lockscreen'));
+  document.fonts?.ready.then(() => {
+    if (state.locked) fitClassroom();
+  });
   const tick = () => {
     if (C.today() !== d) {
       classroom();
@@ -61,6 +70,7 @@ export function classroom() {
       document.addEventListener('click', swallow, true);
       setTimeout(() => document.removeEventListener('click', swallow, true), 500);
     }
+    classroomResizeObserver?.disconnect();
     state.locked = false;
     render();
   };
@@ -87,11 +97,49 @@ export function classroom() {
     if (e.ctrlKey && e.key === 'Enter') run(unlock);
   };
 }
-function classroomPending(studentId, date) {
-  const tasks = C.pending(db(), studentId, date).map(({
-      assignment: a
-    }) => a.title),
-    routines = C.pendingRoutines(db(), studentId, date).map(r => r.title);
-  const titles = [...tasks, ...routines];
-  return titles.length ? `<span class="classroom-pending">${titles.map(title => `<span class="badge">${esc(title)}</span>`).join('')}</span>` : '오늘 할 일 완료';
+function classroomStudent(student, date) {
+  const excluded = C.excluded(db(), student.id, date),
+    tasks = excluded ? [] : C.pending(db(), student.id, date),
+    routines = excluded ? [] : C.pendingRoutines(db(), student.id, date);
+  const pending = tasks.length + routines.length > 0;
+  return `<article class="student classroom-student ${pending ? 'unfinished has-pending' : ''} ${excluded ? 'excluded' : ''}" aria-label="${esc(displayName(student))}"><div class="student-head"><strong class="classroom-student-name">${settings().nameDisplayMode === 'real' ? `<span class="classroom-label-number">${esc(student.no)} ·</span> <span class="classroom-label-name">${esc(student.name)}</span>` : esc(displayName(student))}</strong></div>${settings().classroomShowScores ? `<div class="score classroom-score"><span class="score-star" aria-hidden="true">★</span><strong class="score-total">${C.cumulativeScores(db(), student.id, date).total}</strong></div>` : ''}<div class="pending-tasks">${tasks.map(({
+    assignment: a,
+    date: d
+  }) => `<span class="task ${d < date ? 'overdue' : ''}" title="${esc(a.title)}">${esc(a.title)}</span>`).join('')}</div>${routines.length ? `<div class="routine-indicator"><div class="routine-names">${routines.map(r => `<span class="routine-task" title="${esc(r.title)}">${esc(r.title)}</span>`).join('')}</div></div>` : ''}${excluded ? '<small class="classroom-complete">제외</small>' : !pending ? '<small class="classroom-complete">오늘 할 일 완료</small>' : ''}</article>`;
 }
+let classroomResizeObserver = null;
+function fitClassroom() {
+  const grid = document.querySelector('.classroom-students');
+  if (!state.locked || !grid) return;
+  const count = grid.children.length,
+    mobile = window.matchMedia('(max-width:768px)').matches;
+  let columns = mobile ? count <= 20 ? 4 : 5 : 1;
+  if (!mobile) {
+    let best = Infinity;
+    const neededHeight = Math.min(220, Math.max(100, ...[...grid.children].map(card => {
+      const c = getComputedStyle(card);
+      return parseFloat(c.paddingTop) + parseFloat(c.paddingBottom) + [...card.children].reduce((height, child) => {
+        const style = getComputedStyle(child);
+        return height + child.scrollHeight + (parseFloat(style.marginTop) || 0) + (parseFloat(style.marginBottom) || 0);
+      }, 0);
+    })));
+    for (let cols = 1; cols <= Math.max(count, 1); cols++) {
+      const rows = Math.ceil(Math.max(count, 1) / cols),
+        width = (grid.clientWidth - 8 * (cols - 1)) / cols,
+        height = (grid.clientHeight - 8 * (rows - 1)) / rows;
+      if (width < 105 && cols > 1) continue;
+      const penalty = Math.abs(Math.log(Math.max(width, 1) / Math.max(height, 1) / 1.5)) + (cols * rows - count) / Math.max(count, 1) * .3 + Math.max(0, (neededHeight - height) / neededHeight) * 5;
+      if (penalty < best) {
+        best = penalty;
+        columns = cols;
+      }
+    }
+  }
+  const rows = Math.max(1, Math.ceil(count / columns));
+  grid.style.setProperty('--classroom-cols', columns);
+  grid.style.setProperty('--classroom-rows', rows);
+  grid.classList.toggle('classroom-dense', grid.clientHeight / rows < 160);
+}
+window.addEventListener('resize', () => {
+  if (state.locked) requestAnimationFrame(fitClassroom);
+});

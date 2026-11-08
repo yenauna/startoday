@@ -149,11 +149,11 @@ export function recordEditor(seed = {}, existing = false) {
   };
 }
 export function recordCard(r, controls = true, detail = false) {
-  return `<article class="record ${detail ? 'detail-record' : ''} ${r.kind === '칭찬' ? 'praise' : r.kind === '지도' ? 'advice' : r.kind === '관찰' ? 'observation' : ''} ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><div class="row between"><div class="row"><strong>${esc(r.studentIds.map(name).join(', '))}</strong>${badge(C.recordLabel(r))}<small>${esc(C.formatDate(r.date))} ${esc(r.period)}</small>${r.autoRef ? badge('자동') : ''}${r.kind === '추가기록' ? badge(r.printIncluded ? '인쇄 포함' : '비공개') : ''}${r.notified ? badge('가정 통보') : ''}</div>${controls ? `<div class="row record-controls">${r.incidentId ? btn('사건 보기', () => incidentDetail(r.incidentId)) : ''}${r.autoRef ? btn('과제 상태', () => {
+  return `<article class="record ${detail ? 'detail-record' : ''} ${r.kind === '칭찬' ? 'praise' : r.kind === '지도' ? 'advice' : r.kind === '관찰' ? 'observation' : ''} ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><div class="record-head"><div class="row record-meta"><strong>${esc(r.studentIds.map(name).join(', '))}</strong>${['칭찬', '지도'].includes(r.kind) ? '' : badge(C.recordLabel(r))}<small>${esc(C.formatDate(r.date))} ${esc(r.period)}</small>${r.kind === '추가기록' ? badge(r.printIncluded ? '인쇄 포함' : '비공개') : ''}${r.notified ? badge('가정 통보') : ''}</div>${controls ? `<div class="row record-controls">${r.autoRef ? btn('수정', () => {
     const state = db().assignmentStates.find(s => s.id === r.autoRef),
       a = db().assignments.find(a => a.id === state?.assignmentId);
     if (a) taskStateEditor(a, state.date, state.studentId);
-  }) : btn('수정', () => recordEditor(r, true), 'record-edit')}${btn('삭제', async () => {
+  }, 'record-edit') : btn('수정', () => recordEditor(r, true), 'record-edit')}${btn('삭제', async () => {
     if (r.autoRef) {
       if (!confirm('자동 기록을 삭제하면 연결된 과제를 진행중으로 되돌립니다. 계속할까요?')) return;
       const state = db().assignmentStates.find(s => s.id === r.autoRef),
@@ -168,7 +168,7 @@ export function recordCard(r, controls = true, detail = false) {
       id: r.id,
       remove: true
     }]);
-  }, 'danger record-delete')}</div>` : ''}</div><div class="body">${esc(r.text)}</div>${r.action ? `<div class="action">지도 내용 · ${esc(r.action)}</div>` : ''}<div class="chips" style="margin-top:8px">${(r.areas || []).map(badge).join('')}</div></article>`;
+  }, 'record-delete')}${r.incidentId ? btn('사건 보기', () => incidentDetail(r.incidentId)) : ''}</div>` : ''}</div><div class="body">${esc(r.text)}</div>${r.action ? `<div class="action">지도 내용 · ${esc(r.action)}</div>` : ''}<div class="chips" style="margin-top:8px">${(r.areas || []).map(badge).join('')}</div></article>`;
 }
 export function recordsView() {
   const f = state.recordFilters,
