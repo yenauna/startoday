@@ -72,11 +72,11 @@ export function assignmentsView() {
     render();
   })}`;
 }
-export function taskStateEditor(a, d, s) {
+export function taskStateEditor(a, d, s, afterSave = null) {
   const current = db().assignmentStates.find(x => x.id === C.stateId(a.id, d, s));
   modal(`${name(s)} · ${a.title}`, `<p class="muted">${esc(C.formatDate(d))}의 과제 · 완료/늦게완료 +1 · 안함 −1 · 진행중/면제 0</p>${C.excluded(db(), s, d) ? '<div class="notice">출결 제외일입니다. 상태는 보존되며 점수 집계에서는 제외됩니다.</div>' : ''}${select('상태', 'status', C.STATUSES, current?.status || '진행중')}${input('상태 메모 · 선택', 'memo', current?.memo || '')}`, async f => {
     await commit(C.taskStateOps(db(), a, d, s, f.get('status'), f.get('memo').trim()));
-    closeModal();
+    if (afterSave) afterSave();else closeModal();
   });
 }
 export function deleteAssignment(a, cutoffDate = state.date) {
@@ -129,7 +129,7 @@ function cancelTaskToggle(key) {
     taskToggles.delete(key);
   }
 }
-function queueTaskToggle(a, date, studentId) {
+function queueTaskToggle(a, date, studentId, clickedButton = null) {
   const key = C.stateId(a.id, date, studentId);
   if (taskToggles.has(key)) {
     cancelTaskToggle(key);
@@ -139,7 +139,7 @@ function queueTaskToggle(a, date, studentId) {
   const current = db().assignmentStates.find(x => x.id === key);
   const statuses = ['진행중', '완료', '안함'];
   const next = statuses[(statuses.indexOf(current?.status || '진행중') + 1) % statuses.length];
-  const button = [...document.querySelectorAll('[data-task-assignment]')].find(b => b.dataset.taskAssignment === a.id && b.dataset.taskStudent === studentId && b.dataset.taskDate === date);
+  const button = clickedButton || [...document.querySelectorAll('[data-task-assignment]')].find(b => b.dataset.taskAssignment === a.id && b.dataset.taskStudent === studentId && b.dataset.taskDate === date);
   const previous = button?.textContent || current?.status || '진행중';
   const previousClass = button?.className || '';
   if (button) {
@@ -155,6 +155,7 @@ function queueTaskToggle(a, date, studentId) {
           if (scope !== assignmentScope() || !db()?.assignments.some(task => task.id === a.id && !task.deletedAt)) return;
           const latest = db().assignmentStates.find(x => x.id === key);
           await commit(C.taskStateOps(db(), a, date, studentId, next, latest?.memo || ''));
+          refreshAssignmentProgress(a, date);
         });
       } catch (error) {
         if (button?.isConnected) {
@@ -185,7 +186,14 @@ for (const type of ['dblclick', 'contextmenu']) document.addEventListener(type, 
   } = button.dataset;
   cancelTaskToggle(C.stateId(id, date, student));
   const assignment = db().assignments.find(a => a.id === id);
-  if (assignment) taskStateEditor(assignment, date, student);
+  if (assignment) {
+    const section = button.closest?.('.assignment-progress');
+    const position = section ? {
+      grid: section.querySelector('.assignment-progress-grid')?.scrollTop || 0,
+      body: section.closest('.dialog-body')?.scrollTop || 0
+    } : null;
+    taskStateEditor(assignment, date, student, position ? () => assignmentActions(assignment, date, position) : null);
+  }
 });
 async function completeAll(a, date) {
   const scope = assignmentScope();
@@ -240,7 +248,7 @@ function moveAssignmentMonth(amount) {
   assignmentMonth = date.toISOString().slice(0, 7);
   render();
 }
-function assignmentActions(a, date) {
+function assignmentActions(a, date, scrollPosition = null) {
   modal('과제 관리', `<h3>${esc(a.title)}</h3><p class="muted">${esc(C.formatDate(date))} · ${a.repeat.type === 'none' ? '1회' : a.repeat.type === 'daily' ? '매일' : '매주 ' + (a.repeat.weekdays || []).map(day => '일월화수목금토'[day]).join('·')}</p><div class="row">${btn('수정', () => assignmentEditor(a))}${btn('복사', () => assignmentEditor({
     ...a,
     id: C.uid(),
@@ -248,5 +256,37 @@ function assignmentActions(a, date) {
     date,
     deletedAt: null,
     endDate: null
-  }))}${btn('삭제/중단', () => deleteAssignment(a, date), 'danger')}</div>`);
+  }))}${btn('삭제/중단', () => deleteAssignment(a, date), 'danger')}</div>${assignmentProgress(a, date)}`);
+  restoreAssignmentProgressScroll(scrollPosition);
+}
+function assignmentProgress(a, date) {
+  const targets = students().filter(student => C.targeted(a, student.id));
+  const eligible = targets.filter(student => !C.excluded(db(), student.id, date));
+  const completed = eligible.filter(student => ['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, date, student.id))).length;
+  return `<section class="assignment-progress" data-assignment-id="${esc(a.id)}" data-date="${esc(date)}"><div class="toolbar"><h3>학생 진행도 · 완료 ${completed}/${eligible.length}명</h3>${btn(eligible.length && completed === eligible.length ? '↩ 전원 미완료' : '✓ 전원 완료', async () => {
+    await completeAll(a, date);
+    refreshAssignmentProgress(a, date);
+  }, 'complete-all', eligible.length ? '' : 'disabled')}</div><div class="assignment-progress-grid">${targets.map(student => {
+    const status = C.assignmentStatus(db(), a.id, date, student.id),
+      excluded = C.excluded(db(), student.id, date);
+    return `<div class="assignment-progress-item" data-student-id="${esc(student.id)}"><span class="assignment-progress-name">${esc(student.no)}. ${esc(student.name)}${excluded ? ' ' + badge('제외') : ''}</span>${btn(esc(status), event => queueTaskToggle(a, date, student.id, event.target.closest('button')), taskStatusClass(status), `data-task-assignment="${esc(a.id)}" data-task-student="${esc(student.id)}" data-task-date="${esc(date)}" title="클릭: 상태 변경 · 더블클릭/우클릭: 메모 수정"`)}</div>`;
+  }).join('') || '<p class="muted">대상 학생이 없습니다.</p>'}</div></section>`;
+}
+function restoreAssignmentProgressScroll(position) {
+  if (!position) return;
+  const grid = document.querySelector?.('#modal .assignment-progress-grid'),
+    body = document.querySelector?.('#modal .dialog-body');
+  if (grid) grid.scrollTop = position.grid;
+  if (body) body.scrollTop = position.body;
+}
+function refreshAssignmentProgress(a, date) {
+  if (!document.querySelector?.('#modal')?.open) return;
+  const section = document.querySelector?.('#modal .assignment-progress');
+  if (!section || section.dataset.assignmentId !== a.id || section.dataset.date !== date) return;
+  const position = {
+    grid: section.querySelector('.assignment-progress-grid')?.scrollTop || 0,
+    body: section.closest('.dialog-body')?.scrollTop || 0
+  };
+  const latest = db().assignments.find(assignment => assignment.id === a.id && !assignment.deletedAt);
+  if (latest) assignmentActions(latest, date, position);else closeModal();
 }

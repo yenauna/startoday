@@ -100,21 +100,28 @@ function setDashboardOrder(mode) {
 function dashboardStudents(list) {
   if (dashboardOrder() !== 'seats') return `<div class="students">${list.map(studentCard).join('')}</div>`;
   const st = settings(),
-    rows = Math.max(1, Math.min(12, Number(st.seatRows) || 4)),
-    cols = Math.max(1, Math.min(12, Number(st.seatCols) || 5)),
+    seated = list.filter(student => Number.isInteger(student.seat?.row) && Number.isInteger(student.seat?.col) && student.seat.row >= 0 && student.seat.col >= 0 && student.seat.row < 12 && student.seat.col < 12),
     placed = new Set();
+  if (!seated.length) return `${list.length ? '<p class="muted">미배치 학생</p>' : ''}<div class="students">${list.map(studentCard).join('')}</div>`;
+  const minRow = Math.min(...seated.map(student => student.seat.row)),
+    maxRow = Math.max(...seated.map(student => student.seat.row)),
+    minCol = Math.min(...seated.map(student => student.seat.col)),
+    maxCol = Math.max(...seated.map(student => student.seat.col)),
+    effectiveRows = maxRow - minRow + 1,
+    effectiveCols = maxCol - minCol + 1;
   const rowOrder = Array.from({
-    length: rows
-  }, (_, i) => st.frontTop ? i : rows - 1 - i);
+    length: effectiveRows
+  }, (_, index) => st.frontTop ? minRow + index : maxRow - index);
   const cells = rowOrder.flatMap(row => Array.from({
-    length: cols
-  }, (_, col) => {
-    const student = list.find(s => s.seat?.row === row && s.seat?.col === col);
+    length: effectiveCols
+  }, (_, offset) => {
+    const col = minCol + offset;
+    const student = seated.find(s => s.seat?.row === row && s.seat?.col === col);
     if (student) placed.add(student.id);
-    const gap = (st.seatLayout === 'pair' || st.seatLayout === 'group') && col % 2 === 1 && col < cols - 1 ? 22 : 0;
-    return `<div class="dashboard-seat" style="margin-right:${gap}px;${st.seatLayout === 'group' && row % 2 === 1 ? 'margin-bottom:24px;' : ''}">${student ? studentCard(student) : '<div class="empty-seat" aria-label="빈자리"></div>'}</div>`;
+    const gap = (st.seatLayout === 'pair' || st.seatLayout === 'group') && col % 2 === 1 && col < maxCol ? 22 : 0;
+    return `<div class="dashboard-seat" data-seat-row="${row}" data-seat-col="${col}" style="margin-right:${gap}px;${st.seatLayout === 'group' && row % 2 === 1 && row !== rowOrder.at(-1) ? 'margin-bottom:24px;' : ''}">${student ? studentCard(student) : '<div class="empty-seat" aria-label="빈자리"></div>'}</div>`;
   })).join('');
-  return `<div class="dashboard-seating">${st.frontTop ? '<div class="front">교실 앞</div>' : ''}<div class="students dashboard-seat-grid" style="--seat-cols:${cols};gap:${st.seatLayout === 'exam' ? 28 : 10}px">${cells}</div>${!st.frontTop ? '<div class="front">교실 앞</div>' : ''}</div>${list.some(s => !placed.has(s.id)) ? `<p class="muted">미배치 학생</p><div class="students">${list.filter(s => !placed.has(s.id)).map(studentCard).join('')}</div>` : ''}`;
+  return `<div class="dashboard-seating">${st.frontTop ? '<div class="front">교실 앞</div>' : ''}<div class="students dashboard-seat-grid" style="--seat-cols:${effectiveCols};gap:${st.seatLayout === 'exam' ? 28 : 10}px">${cells}</div>${!st.frontTop ? '<div class="front">교실 앞</div>' : ''}</div>${list.some(s => !placed.has(s.id)) ? `<p class="muted">미배치 학생</p><div class="students">${list.filter(s => !placed.has(s.id)).map(studentCard).join('')}</div>` : ''}`;
 }
 export function routineChecklist(student, routines) {
   modal(student.no + '. ' + student.name + ' · 루틴', routines.map(r => btn('☐ ' + esc(r.title), async () => {
