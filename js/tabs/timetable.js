@@ -43,9 +43,9 @@ export function timeSlots(d, calendar = false, registeredOnly = false) {
 }
 export function calendarView() {
   const first = state.calendarDate.slice(0, 7) + '-01',
-    start = state.calendarMode === 'month' ? C.addDays(first, -C.weekday(first)) : C.addDays(state.calendarDate, -((C.weekday(state.calendarDate) + 6) % 7)),
+    start = state.calendarMode === 'month' ? C.addDays(first, -((C.weekday(first) + 6) % 7)) : C.addDays(state.calendarDate, -((C.weekday(state.calendarDate) + 6) % 7)),
     days = state.calendarMode === 'month' ? 42 : 5;
-  const heads = state.calendarMode === 'month' ? ['일', '월', '화', '수', '목', '금', '토'] : ['월', '화', '수', '목', '금'];
+  const heads = state.calendarMode === 'month' ? ['월', '화', '수', '목', '금', '토', '일'] : ['월', '화', '수', '목', '금'];
   return `<div class="toolbar"><div><h2>일정</h2><small>종일 일정 · 교시별 수업과 행사 · 마감 과제</small></div><div class="row">${btn('‹', () => {
     if (state.calendarMode === 'week') state.calendarDate = C.addDays(state.calendarDate, -7);else {
       const dt = new Date(first + 'T12:00Z');
@@ -113,16 +113,7 @@ export function dayEditor(d, mode = '일정', period = 1, event = null) {
     isDday: false,
     createdAt: C.now()
   };
-  modal(C.formatDate(d) + ' · 일정 등록', `<div class="row event-entry-tabs" style="margin-bottom:18px">${['일정', '과제'].map(t => btn(t, () => dayEditor(d, t, period), mode === t ? 'primary' : '')).join('')}</div><div class="formgrid">${input('일정 이름', 'title', r.title, 'text', 'required')}${select('시간', 'period', [['', '종일'], [0, '아침'], ...[1, 2, 3, 4, 5, 6].map(p => [p, p + '교시']), [7, '방과후']], r.period ?? '')}<div class="span2">${textarea('설명', 'description', r.description)}</div>${checkbox('D-Day 표시', 'isDday', r.isDday)}</div>${event ? btn('이 일정 삭제', async () => {
-    if (confirm('일정을 삭제할까요?')) {
-      await commit([{
-        table: 'events',
-        id: r.id,
-        remove: true
-      }]);
-      closeModal();
-    }
-  }, 'danger') : ''}`, async f => {
+  modal(C.formatDate(d) + ' · 일정 등록', `<div class="row event-entry-tabs" style="margin-bottom:18px">${['일정', '과제'].map(t => btn(t, () => dayEditor(d, t, period), mode === t ? 'primary' : '')).join('')}</div><div class="formgrid">${input('일정 이름', 'title', r.title, 'text', 'required')}${select('시간', 'period', [['', '종일'], [0, '아침'], ...[1, 2, 3, 4, 5, 6].map(p => [p, p + '교시']), [7, '방과후']], r.period ?? '')}<div class="span2">${textarea('설명', 'description', r.description)}</div>${checkbox('D-Day 표시', 'isDday', r.isDday)}</div>`, async f => {
     const title = f.get('title').trim();
     if (!title) throw Error('일정 이름을 입력하세요.');
     await commit([up('events', {
@@ -133,7 +124,16 @@ export function dayEditor(d, mode = '일정', period = 1, event = null) {
       isDday: !!f.get('isDday')
     })]);
     closeModal();
-  });
+  }, '저장', event ? btn('삭제', async () => {
+    if (confirm('일정을 삭제할까요?')) {
+      await commit([{
+        table: 'events',
+        id: r.id,
+        remove: true
+      }]);
+      closeModal();
+    }
+  }, 'danger', 'aria-label="이 일정 삭제"') : '');
 }
 export function timetableEditor(d, p) {
   if (!Number.isInteger(p) || p < 1 || p > 6) throw Error('교시를 확인하세요.');

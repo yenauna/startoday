@@ -7,7 +7,7 @@ import { $, badge, esc, hashPin, run, toast } from '../shared/ui.js';
 import { announcementView } from './dashboard.js';
 import { timeSlots } from './timetable.js';
 export function displayName(s) {
-  if (settings().nameDisplayMode === 'real') return `${s.no} · ${s.name}`;
+  if (settings().nameDisplayMode === 'real') return `${s.no}. ${s.name}`;
   if (settings().nameDisplayMode === 'alias') return s.alias || `별${s.no}`;
   if (settings().nameDisplayMode === 'masked') {
     const n = s.name;
@@ -102,7 +102,7 @@ function classroomStudent(student, date) {
     tasks = excluded ? [] : C.pending(db(), student.id, date),
     routines = excluded ? [] : C.pendingRoutines(db(), student.id, date);
   const pending = tasks.length + routines.length > 0;
-  return `<article class="student classroom-student ${pending ? 'unfinished has-pending' : ''} ${excluded ? 'excluded' : ''}" aria-label="${esc(displayName(student))}"><div class="classroom-student-top"><div class="student-head"><strong class="classroom-student-name">${settings().nameDisplayMode === 'real' ? `<span class="classroom-label-number">${esc(student.no)} ·</span> <span class="classroom-label-name">${esc(student.name)}</span>` : esc(displayName(student))}</strong></div>${settings().classroomShowScores ? `<div class="score classroom-score"><span class="score-star" aria-hidden="true">★</span><strong class="score-total">${C.cumulativeScores(db(), student.id, date).total}</strong></div>` : ''}</div><div class="pending-tasks">${tasks.map(({
+  return `<article class="student classroom-student ${pending ? 'unfinished has-pending' : ''} ${excluded ? 'excluded' : ''}" aria-label="${esc(displayName(student))}"><div class="classroom-student-top"><div class="student-head"><strong class="classroom-student-name">${settings().nameDisplayMode === 'real' ? `<span class="classroom-label-number">${esc(student.no)}.</span> <span class="classroom-label-name">${esc(student.name)}</span>` : esc(displayName(student))}</strong></div>${settings().classroomShowScores ? `<div class="score classroom-score"><span class="score-star" aria-hidden="true">★</span><strong class="score-total">${C.cumulativeScores(db(), student.id, date).total}</strong></div>` : ''}</div><div class="pending-tasks">${tasks.map(({
     assignment: a,
     date: d
   }) => `<span class="task ${d < date ? 'overdue' : ''}" title="${esc(a.title)}">${esc(a.title)}</span>`).join('')}</div>${routines.length ? `<div class="routine-indicator"><div class="routine-names">${routines.map(r => `<span class="routine-task" title="${esc(r.title)}">${esc(r.title)}</span>`).join('')}</div></div>` : ''}${excluded ? '<small class="classroom-complete">제외</small>' : !pending ? '<small class="classroom-complete">오늘 할 일 완료</small>' : ''}</article>`;

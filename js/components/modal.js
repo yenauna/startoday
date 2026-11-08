@@ -3,9 +3,9 @@ export function closeModal() {
   $('#modal').close();
   $('#modal').innerHTML = '';
 }
-export function modal(title, body, onSubmit = null, save = '저장') {
+export function modal(title, body, onSubmit = null, save = '저장', footerStart = '') {
   const el = $('#modal');
-  el.innerHTML = `<div class="dialog-head"><h2>${esc(title)}</h2>${btn('닫기', closeModal)}</div><div class="dialog-body">${onSubmit ? '<form id="modal-form">' : ''}${body}${onSubmit ? `<div class="dialog-foot">${btn('취소', closeModal)}<button class="primary" type="submit">${save}</button></div></form>` : ''}</div>`;
+  el.innerHTML = `<div class="dialog-head"><h2>${esc(title)}</h2>${btn('닫기', closeModal)}</div><div class="dialog-body">${onSubmit ? '<form id="modal-form">' : ''}${body}${onSubmit ? `<div class="dialog-foot">${footerStart ? `<div class="dialog-foot-start">${footerStart}</div>` : ''}${btn('취소', closeModal)}<button class="primary" type="submit">${save}</button></div></form>` : ''}</div>`;
   if (!el.open) el.showModal();
   if (onSubmit) {
     $('#modal-form').onsubmit = async e => {

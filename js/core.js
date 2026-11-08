@@ -48,7 +48,8 @@ export function initialDB() {
   db.settings = [{
     id: 'main',
     className: '우리 반',
-    nameDisplayMode: 'number',
+    nameDisplayMode: 'real',
+    classroomShowScores: true,
     seatRows: 4,
     seatCols: 5,
     frontTop: true,

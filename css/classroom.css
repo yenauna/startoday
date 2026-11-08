@@ -37,12 +37,12 @@
 
 /* The roster always receives the remaining viewport height. */
 .lockscreen { display:flex; flex-direction:column; gap:10px; height:100vh; height:100dvh; padding:16px 22px; overflow:hidden; }
-.classroom-top { flex:0 1 auto; min-height:0; max-height:38%; overflow:hidden; }
+.classroom-top { flex:0 0 auto; min-height:0; max-height:none; overflow:visible; }
 .classroom-heading { gap:18px; padding:0 38px 8px 0; }
 .classroom-brand h1 { font-size:24px; }
 .classroom-brand small { font-size:14px; }
 .classroom-datetime { font-size:clamp(25px,3vw,46px); gap:22px; }
-.lockscreen .class-announcement { max-height:12vh; overflow:hidden; padding:8px 14px; margin-bottom:8px; }
+.lockscreen .class-announcement { max-height:none; overflow:visible; padding:8px 14px; margin-bottom:8px; }
 .lockscreen .classroom-schedule { padding:8px 12px; margin-bottom:0; }
 .classroom-schedule .registered-schedule { margin-top:6px; }
 .classroom-schedule .slot { min-height:48px; padding:6px 8px; }
@@ -64,13 +64,12 @@
 .classroom-dense .classroom-student .pending-tasks .task,.classroom-dense .routine-task { padding:2px 8px; min-height:18px; font-size:11px; }
 @media(max-width:768px) {
   .lockscreen { padding:10px; gap:7px; }
-  .classroom-top { max-height:28%; }
   .classroom-heading { flex-wrap:nowrap; gap:8px; padding:0 28px 5px 0; }
   .classroom-brand h1 { font-size:15px; }
   .classroom-brand small { font-size:10px; }
   .classroom-datetime { flex-wrap:wrap; gap:0 8px; justify-content:center; font-size:clamp(14px,3.6vw,22px); }
-  .lockscreen .class-announcement { max-height:7vh; padding:4px 7px; margin-bottom:4px; }
-  .classroom-schedule { max-height:65px; overflow:hidden; }
+  .lockscreen .class-announcement { max-height:none; padding:4px 7px; margin-bottom:4px; }
+  .classroom-schedule { max-height:none; overflow:visible; }
   .classroom-schedule .registered-schedule { display:flex; gap:4px; margin-top:2px; }
   .classroom-schedule .slot { flex:1; min-width:0; min-height:28px; padding:2px 4px; }
   .classroom-schedule .slot-time,.classroom-schedule .slot-description,.classroom-schedule .event-description { display:none; }
@@ -150,7 +149,6 @@
 }
 @media(max-height:480px) {
   .lockscreen { padding:5px 8px; gap:4px; }
-  .classroom-top { max-height:27%; }
   .classroom-heading { gap:7px; padding:0 30px 2px 0; flex-wrap:nowrap; }
   .classroom-brand h1 { font-size:14px; }
   .classroom-brand small { font-size:10px; }
@@ -165,3 +163,12 @@
   .lockscreen .classroom-student-top .score-star,.lockscreen .classroom-student-top .score-total { font-size:12px; line-height:18px; }
 }
 .classroom-schedule:not(:has(.classroom-event)):has(.registered-schedule:empty) { display:none; }
+
+/* Let header content keep its natural height; the roster owns its scroll area. */
+.lockscreen { overflow:auto; pointer-events:auto; }
+@media(max-width:768px),(max-height:480px){
+  .lockscreen .students.classroom-students { min-height:120px; }
+  .classroom-heading { margin-bottom:0; }
+  .lockscreen .classroom-schedule { max-height:none; overflow:visible; margin:0; }
+  .lockscreen .classroom-schedule .event-description { display:block; font-size:10px; }
+}

@@ -66,15 +66,9 @@ export function assignmentsView() {
   return `<div class="toolbar"><div><h2>과제</h2><small>과제 × 날짜 × 학생마다 상태가 독립적으로 저장됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input id="assignment-date" aria-label="과제 날짜" type="date" value="${state.date}"></span>${btn('+ 과제', () => assignmentEditor(), 'primary')}</div></div><section class="panel"><h3>${esc(C.formatDate(state.date))} 과제 상태</h3>${daily.length ? `<div class="table-wrap assignment-matrix"><table><thead><tr><th>학생</th>${daily.map(a => `<th>${esc(a.title)}<div>${btn(allTaskTargetsComplete(a, state.date) ? '↩ 전원 미완료' : '✓ 전원 완료', () => completeAll(a, state.date), 'complete-all')}</div></th>`).join('')}</tr></thead><tbody>${students().map(s => `<tr><th>${esc(name(s.id))}${C.excluded(db(), s.id, state.date) ? badge('제외') : ''}</th>${daily.map(a => {
     const taskState = db().assignmentStates.find(x => x.id === C.stateId(a.id, state.date, s.id));
     return `<td>${C.targeted(a, s.id) ? btn(esc(taskState?.status || '진행중'), () => queueTaskToggle(a, state.date, s.id), taskStatusClass(taskState?.status || '진행중'), `data-task-assignment="${esc(a.id)}" data-task-student="${esc(s.id)}" data-task-date="${state.date}" title="클릭: 상태 변경 · 더블클릭/우클릭: 메모 수정"`) + `<div class="muted">${esc(taskState?.memo || '')}</div>` : '—'}</td>`;
-  }).join('')}</tr>`).join('')}</tbody></table></div>` : empty('이 날짜에 등록된 과제가 없습니다.', '새 과제를 등록하거나 날짜를 바꾸세요.')}</section><section class="panel"><h3>등록한 과제</h3>${assignments.map(a => `<div class="record"><div class="row between"><div><strong>${esc(a.title)}</strong> ${badge(a.repeat.type === 'none' ? '1회' : a.repeat.type === 'daily' ? '매일' : '매주 ' + a.repeat.weekdays.map(n => '일월화수목금토'[n]).join('·'))}<div class="muted">${esc(C.formatDate(a.date))}${a.endDate ? ' ~ ' + esc(C.formatDate(a.endDate)) : ''} · ${a.target === 'all' ? '전체 학생' : esc(a.target.studentIds.map(name).join(', '))} · ${esc(a.statArea || '영역 미지정')}</div></div><div class="row">${btn('수정', () => assignmentEditor(a))}${btn('복사', () => assignmentEditor({
-    ...a,
-    id: C.uid(),
-    createdAt: C.now(),
-    date: state.date,
-    deletedAt: null,
-    endDate: null
-  }))}${btn('삭제/중단', () => deleteAssignment(a), 'danger')}</div></div></div>`).join('') || empty('등록한 과제가 없습니다.')}</section>${bindLater('assignment-date', 'change', e => {
+  }).join('')}</tr>`).join('')}</tbody></table></div>` : empty('이 날짜에 등록된 과제가 없습니다.', '새 과제를 등록하거나 날짜를 바꾸세요.')}</section>${assignmentCalendar(assignments)}${bindLater('assignment-date', 'change', e => {
     state.date = e.target.value || C.today();
+    assignmentMonth = state.date.slice(0, 7);
     render();
   })}`;
 }
@@ -85,11 +79,11 @@ export function taskStateEditor(a, d, s) {
     closeModal();
   });
 }
-export function deleteAssignment(a) {
-  modal('과제 삭제 / 반복 중단', `<p>${esc(a.title)}</p>${select('처리 방식', 'mode', [['future', C.formatDate(state.date) + '부터 앞으로만 중단 · 이전 상태/기록 보존'], ['all', '과제와 모든 상태·자동 기록을 삭제']], 'future')}`, async f => {
+export function deleteAssignment(a, cutoffDate = state.date) {
+  modal('과제 삭제 / 반복 중단', `<p>${esc(a.title)}</p>${select('처리 방식', 'mode', [['future', C.formatDate(cutoffDate) + '부터 앞으로만 중단 · 이전 상태/기록 보존'], ['all', '과제와 모든 상태·자동 기록을 삭제']], 'future')}`, async f => {
     if (!confirm('선택한 방식으로 처리할까요?')) return;
     const all = f.get('mode') === 'all';
-    const cutoff = state.date;
+    const cutoff = cutoffDate;
     let ops = [];
     const states = db().assignmentStates.filter(s => s.assignmentId === a.id && (all || s.date >= cutoff));
     ops.push(all ? {
@@ -213,4 +207,46 @@ function allTaskTargetsComplete(a, date) {
 }
 function taskStatusClass(status) {
   return 'task-status ' + (['완료', '늦게완료', '면제'].includes(status) ? 'task-status-complete' : status === '안함' ? 'task-status-notdone' : 'task-status-pending');
+}
+let assignmentMonth = '',
+  assignmentCalendarScope = '';
+function assignmentCalendar(assignments) {
+  const scope = `${store.mode}:${store.classId}:${db()?.settings?.[0]?.academicYear}`;
+  if (scope !== assignmentCalendarScope || !assignmentMonth) {
+    assignmentCalendarScope = scope;
+    assignmentMonth = state.date.slice(0, 7);
+  }
+  const first = assignmentMonth + '-01',
+    start = C.addDays(first, -((C.weekday(first) + 6) % 7));
+  return `<section class="panel assignment-calendar-panel"><div class="toolbar"><h3>월간 과제 달력 · ${esc(assignmentMonth.replace('-', '.'))}</h3><div class="row">${btn('‹', () => moveAssignmentMonth(-1), '', 'aria-label="이전 과제 월"')}${btn('오늘', () => {
+    state.date = C.today();
+    assignmentMonth = state.date.slice(0, 7);
+    render();
+  })}${btn('›', () => moveAssignmentMonth(1), '', 'aria-label="다음 과제 월"')}</div></div><div class="calendar assignment-calendar">${['월', '화', '수', '목', '금', '토', '일'].map(day => `<div class="weekday">${day}</div>`).join('')}${Array.from({
+    length: 42
+  }, (_, i) => {
+    const date = C.addDays(start, i),
+      list = assignments.filter(a => C.occurs(a, date));
+    return `<div class="day assignment-day ${date.slice(0, 7) !== assignmentMonth ? 'faded' : ''} ${date === state.date ? 'selected-day' : ''}" data-date="${date}">${btn(String(Number(date.slice(-2))), () => {
+      state.date = date;
+      assignmentMonth = date.slice(0, 7);
+      render();
+    }, 'day-head', `aria-label="${esc(C.formatDate(date))} 과제 조회" aria-pressed="${date === state.date}"`)}${list.map(a => btn(esc(a.title), () => assignmentActions(a, date), 'assignment-calendar-task', `data-assignment-id="${esc(a.id)}" data-assignment-date="${date}"`)).join('')}</div>`;
+  }).join('')}</div>${!assignments.length ? '<p class="muted" style="margin-top:12px">등록한 과제가 없습니다.</p>' : ''}</section>`;
+}
+function moveAssignmentMonth(amount) {
+  const date = new Date(assignmentMonth + '-01T12:00Z');
+  date.setUTCMonth(date.getUTCMonth() + amount);
+  assignmentMonth = date.toISOString().slice(0, 7);
+  render();
+}
+function assignmentActions(a, date) {
+  modal('과제 관리', `<h3>${esc(a.title)}</h3><p class="muted">${esc(C.formatDate(date))} · ${a.repeat.type === 'none' ? '1회' : a.repeat.type === 'daily' ? '매일' : '매주 ' + (a.repeat.weekdays || []).map(day => '일월화수목금토'[day]).join('·')}</p><div class="row">${btn('수정', () => assignmentEditor(a))}${btn('복사', () => assignmentEditor({
+    ...a,
+    id: C.uid(),
+    createdAt: C.now(),
+    date,
+    deletedAt: null,
+    endDate: null
+  }))}${btn('삭제/중단', () => deleteAssignment(a, date), 'danger')}</div>`);
 }
