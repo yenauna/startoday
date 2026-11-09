@@ -557,3 +557,31 @@ input, select, textarea, .input, .textarea, #notice-editor, .quick input, .quick
   .sticky-navigation .tabs { gap:4px; padding-inline:8px; }
   .sticky-navigation .tabs button { padding:6px 9px; min-height:34px; font-size:13px; }
 }
+
+/* Calendar-only timetable rows; registered schedules keep their own layout. */
+.day .slot {
+  width:100%; min-height:25px; padding:3px 6px; margin:3px 0; border-radius:6px;
+  display:flex; flex-direction:row; align-items:center; gap:5px;
+  overflow:hidden; text-align:left;
+}
+.day .slot .slot-time {
+  flex:0 0 auto; display:inline-flex; align-items:center;
+  font-size:11px; color:var(--st-text-muted, #64748b); white-space:nowrap;
+}
+.day .slot .slot-content {
+  display:flex; flex-direction:row; align-items:center; gap:4px;
+  min-width:0; flex:1 1 auto; flex-wrap:nowrap;
+}
+.day .slot .slot-content strong {
+  flex:0 0 auto; font-size:12px; font-weight:600;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.day .slot .slot-description {
+  font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  display:inline-block; line-height:normal;
+}
+@media(max-width:640px) {
+  .calendar:not(.week) .day .slot { flex-wrap:wrap; gap:1px 3px; padding:2px 3px; min-height:22px; }
+  .calendar:not(.week) .day .slot .slot-time { font-size:10px; }
+  .calendar:not(.week) .day .slot .slot-content strong { font-size:11px; }
+}
