@@ -106,4 +106,78 @@ revoke all on function public.startoday_snapshot(),public.startoday_commit(uuid,
 grant execute on function public.startoday_snapshot(),public.startoday_commit(uuid,bigint,jsonb),public.startoday_backup(uuid) to authenticated;
 -- Existing tag rows are retained as inaccessible legacy data; no current API uses them.
 do $$ begin if to_regclass('public.startoday_tags') is not null then execute 'revoke all on public.startoday_tags from public,anon,authenticated';end if;end $$;
+-- Student reads are an explicit allow-list, independent of teacher snapshots.
+-- No anonymous SELECT policy is added to any existing class table.
+create table if not exists public.startoday_student_login_attempts (
+ class_id uuid not null references public.startoday_classes(id) on delete cascade,
+ student_id text not null, failures integer not null default 0,
+ window_start timestamptz not null default now(), primary key(class_id,student_id)
+);
+alter table public.startoday_student_login_attempts enable row level security;
+revoke all on public.startoday_student_login_attempts from public,anon,authenticated;
+create or replace function public.startoday_student_login(p_code text,p_password text)
+returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare sid text; cid uuid; student jsonb; config jsonb; candidates integer;
+ day text:=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD');
+ result jsonb; totals jsonb; letters jsonb; tasks jsonb; routines jsonb; timetable jsonb;
+ v_failures integer; started timestamptz;
+begin
+ if p_code is null or length(trim(p_code))=0 or length(p_code)>200 or p_password is null or length(p_password)>200 then return null;end if;
+ -- A bare number/name is accepted only when globally unambiguous. The teacher
+ -- also receives a class UUID:number code, which cannot select another class.
+ select count(*) into candidates from public.startoday_students s
+ left join public.startoday_settings cfg on cfg.class_id=s.class_id and cfg.id='main'
+ where not (s.data ? 'deletedAt' and s.data->>'deletedAt' is not null)
+ and (trim(p_code)=s.data->>'studentCode' or trim(p_code)=s.data->>'name'
+ or trim(p_code)=s.data->>'no' or trim(p_code)=(s.data->>'no')||'번'
+ or trim(p_code)=s.class_id::text||':'||(s.data->>'no')
+ or trim(p_code)=concat(cfg.data->>'className',' ',s.data->>'no','번')
+ or trim(p_code)=concat(cfg.data->>'className',':',s.data->>'no'));
+ if candidates<>1 then return null;end if;
+ select s.id,s.class_id,s.data,cfg.data into sid,cid,student,config from public.startoday_students s
+ left join public.startoday_settings cfg on cfg.class_id=s.class_id and cfg.id='main'
+ where not (s.data ? 'deletedAt' and s.data->>'deletedAt' is not null)
+ and (trim(p_code)=s.data->>'studentCode' or trim(p_code)=s.data->>'name'
+ or trim(p_code)=s.data->>'no' or trim(p_code)=(s.data->>'no')||'번'
+ or trim(p_code)=s.class_id::text||':'||(s.data->>'no')
+ or trim(p_code)=concat(cfg.data->>'className',' ',s.data->>'no','번')
+ or trim(p_code)=concat(cfg.data->>'className',':',s.data->>'no'));
+ insert into public.startoday_student_login_attempts(class_id,student_id) values(cid,sid) on conflict do nothing;
+ select a.failures,a.window_start into v_failures,started from public.startoday_student_login_attempts a where a.class_id=cid and a.student_id=sid for update;
+ if started<now()-interval '15 minutes' then v_failures:=0;started:=now();end if;
+ if v_failures>=10 then return null;end if;
+ if p_password is distinct from coalesce(student->>'password','12345') then
+ update public.startoday_student_login_attempts a set failures=v_failures+1,window_start=started where a.class_id=cid and a.student_id=sid;
+ return null;
+ end if;
+ update public.startoday_student_login_attempts a set failures=0,window_start=now() where a.class_id=cid and a.student_id=sid;
+ -- Only numbers are aggregated from advice; its text is never returned.
+ with scored as (
+ select r.data,case r.data->>'kind' when '칭찬' then 1 when '지도' then -1 else 0 end as delta
+ from public.startoday_records r where r.class_id=cid and r.data->'studentIds' ? sid and r.data->>'date'<=day
+ and not exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=r.data->>'date' and atd.data->>'excluded'='true')
+ ) select jsonb_build_object('total',coalesce((select sum(delta) from scored),0),'areas',coalesce((select jsonb_object_agg(ar.data->>'name',coalesce((select sum(delta) from scored r where coalesce(r.data->'areas',jsonb_build_array(r.data->>'area')) ? (ar.data->>'name')),0)) from public.startoday_areas ar where ar.class_id=cid),'{}'::jsonb)) into totals;
+ select coalesce(jsonb_agg(x.data order by x.date desc,x.created desc),'[]'::jsonb) into letters from (
+ select jsonb_build_object('kind','칭찬','date',r.data->>'date','period',case when r.data->>'period'='기타' then '' else coalesce(r.data->>'period','') end,'text',case when r.data->>'autoRef' is not null then concat(a.data->>'title',case when ast.data->>'status'='늦게완료' then ' 늦게 완료' else ' 완료' end) else r.data->>'text' end,'areas',coalesce(r.data->'areas','[]'::jsonb)) as data,r.data->>'date' as date,r.data->>'createdAt' as created
+ from public.startoday_records r
+ left join public."startoday_assignmentStates" ast on ast.class_id=cid and ast.id=r.data->>'autoRef' and ast.data->>'studentId'=sid
+ left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId'
+ where (r.data->>'autoRef' is null or (a.id is not null and ast.data->>'status' in ('완료','늦게완료'))) and r.class_id=cid and r.data->>'kind'='칭찬' and r.data->'studentIds' ? sid and r.data->>'date'<=day
+ order by r.data->>'date' desc,r.data->>'createdAt' desc limit 50) x;
+ select coalesce(jsonb_agg(jsonb_build_object('title',a.data->>'title','date',day,'status',case when exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=day and atd.data->>'excluded'='true') then '면제' else coalesce(st.data->>'status','진행중') end) order by a.data->>'title'),'[]'::jsonb) into tasks
+ from public.startoday_assignments a left join public."startoday_assignmentStates" st on st.class_id=cid and st.id=a.id||':'||day||':'||sid
+ where a.class_id=cid and a.data->>'deletedAt' is null and a.data->>'date'<=day and (a.data->>'endDate' is null or a.data->>'endDate'>=day)
+ and (a.data->'target'='"all"'::jsonb or a.data->'target'->'studentIds' ? sid)
+ and ((a.data->'repeat'->>'type'='none' and a.data->>'date'=day) or a.data->'repeat'->>'type'='daily' or (a.data->'repeat'->'weekdays') @> jsonb_build_array(extract(dow from day::date)::integer));
+ select coalesce(jsonb_agg(jsonb_build_object('title',r.data->>'title','status',case when r.data->'exceptions'->day->>'exempt'='true' or exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=day and atd.data->>'excluded'='true') then '면제' else coalesce(st.data->>'status','진행중') end) order by coalesce((r.data->>'sortOrder')::numeric,0)),'[]'::jsonb) into routines
+ from public.startoday_routines r left join public."startoday_routineStates" st on st.class_id=cid and st.id=r.id||':'||day||':'||sid
+ where r.class_id=cid and r.data->>'deletedAt' is null and (r.data->'target'='"all"'::jsonb or r.data->'target'->'studentIds' ? sid);
+ select coalesce(jsonb_agg(jsonb_build_object('period',t.data->'period','subject',t.data->>'subjectCode','location',coalesce(nullif(t.data->>'locationOverride',''),rules.data->>'location','')) order by (t.data->>'period')::integer),'[]'::jsonb) into timetable
+ from public.startoday_timetables t left join public.startoday_subject_rules rules on rules.class_id=cid and rules.data->>'code'=t.data->>'subjectCode'
+ where t.class_id=cid and t.data->>'date'=day and (t.data->>'period')::integer between 1 and 6;
+ result:=jsonb_build_object('student',jsonb_build_object('id',sid,'no',student->'no','name',student->>'name'),'className',coalesce(config->>'className','우리반'),'date',day,'score',totals,'praise',letters,'tasks',tasks,'routines',routines,'timetable',timetable);
+ return result;
+end $$;
+revoke all on function public.startoday_student_login(text,text) from public;
+grant execute on function public.startoday_student_login(text,text) to anon,authenticated;
 commit;

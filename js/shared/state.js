@@ -4,6 +4,10 @@ import { Store } from '../store.js';
 // One live state object shared by every tab and component.
 export const state = {
   tab: '대시보드',
+  viewMode: 'teacher',
+  studentUser: null,
+  studentSnapshot: null,
+  impersonatingStudentId: null,
   date: C.today(),
   selected: [],
   dashMode: 'normal',

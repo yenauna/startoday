@@ -585,3 +585,33 @@ input, select, textarea, .input, .textarea, #notice-editor, .quick input, .quick
   .calendar:not(.week) .day .slot .slot-time { font-size:10px; }
   .calendar:not(.week) .day .slot .slot-content strong { font-size:11px; }
 }
+
+/* Independent student dashboard. Teacher component selectors stay unchanged. */
+.student-shell { max-width:1050px; margin:0 auto; padding:20px; }
+.student-header { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+.student-header>div { display:grid; gap:2px; flex:1; min-width:0; }
+.student-header .logo { width:44px; height:44px; object-fit:cover; border:0; }
+.student-header button { flex-shrink:0; }
+.student-dashboard { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+.student-dashboard .student-card { min-width:0; padding:22px; border-radius:var(--st-radius-card); background:var(--st-surface); box-shadow:var(--st-surface-light),var(--st-shadow-2); }
+.student-dashboard .student-growth { background:linear-gradient(135deg,#fff8de,#edf4ff); }
+.student-stars { color:#9a610a; font-size:36px; font-weight:800; margin:12px 0; }
+.student-pills { display:flex; flex-wrap:wrap; gap:6px; }
+.student-pill { display:inline-block; border-radius:12px; padding:4px 10px; background:var(--st-blue-bg); color:var(--st-blue-text); font-size:13px; overflow-wrap:anywhere; }
+.student-task { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--st-line); }
+.student-task>div { min-width:0; overflow-wrap:anywhere; }
+.student-task small { display:block; }
+.student-task>span { flex-shrink:0; font-size:13px; }
+.student-task.is-complete { color:var(--st-blue-text); background:var(--st-blue-bg); border-radius:12px; padding:10px; margin:4px 0; }
+.student-dashboard h3 { margin-top:16px; }
+.student-praise { margin-top:12px; padding:14px; border-radius:14px; background:var(--st-blue-bg); overflow-wrap:anywhere; }
+.student-praise p { margin:8px 0; white-space:pre-wrap; }
+.student-preview-banner { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; padding:12px; margin-bottom:18px; background:var(--st-yellow-bg); color:var(--st-yellow-text); border:1px solid #e8ce83; border-radius:14px; }
+.student-empty { color:var(--st-text-muted); line-height:1.8; }
+.student-account-info { margin-top:22px; padding-top:16px; border-top:1px solid var(--st-line); overflow-wrap:anywhere; }
+@media(max-width:640px) {
+  .student-shell { padding:14px; }
+  .student-dashboard { grid-template-columns:minmax(0,1fr); gap:14px; }
+  .student-dashboard .student-card { padding:18px; }
+  .student-stars { font-size:32px; }
+}
