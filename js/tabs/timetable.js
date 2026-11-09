@@ -6,7 +6,8 @@ import { state } from '../shared/state.js';
 import { $, badge, btn, checkbox, esc, input, opts, run, select, textarea, toast } from '../shared/ui.js';
 import { assignmentEditor } from './assignments.js';
 export function periodInfo(slot) {
-  const rule = db().subject_rules.find(x => x.code === slot?.subjectCode);
+  const catalog = C.subjectCatalog(db());
+  const rule = db().subject_rules.find(x => x.code === slot?.subjectCode) || [...catalog.regular, ...catalog.special].find(x => x.code === slot?.subjectCode);
   let teacher = rule?.teacherName || '';
   if (rule?.teacherHistory?.length) {
     const versions = rule.teacherHistory.filter(h => h.from <= slot.date).sort((a, b) => b.from.localeCompare(a.from));
@@ -19,7 +20,7 @@ export function periodInfo(slot) {
     type: slot?.type || rule?.defaultType || '일반'
   };
 }
-export function timeSlots(d, calendar = false, registeredOnly = false) {
+export function timeSlots(d, calendar = false, registeredOnly = false, audience = 'teacher') {
   return Array.from({
     length: 6
   }, (_, i) => {
@@ -30,7 +31,10 @@ export function timeSlots(d, calendar = false, registeredOnly = false) {
     if (registeredOnly && !slot && !events.length) return '';
     const detail = !calendar || state.calendarFilters.detail;
     const teacher = info.teacher ? info.teacher.replace(/선생님$/, '') + '선생님' : '';
-    const content = `<small class="slot-time"><span>${p}교시</span>${!calendar && settings().periodTimes?.[i] ? `<span class="period-time">${esc(settings().periodTimes[i])}</span>` : ''}</small><div class="slot-content"><strong class="subject-title">${esc(slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '')}</strong><div class="slot-description">${events.map(e => `<span class="slot-note">${esc(e.title)}${e.description ? ' · ' + esc(e.description) : ''}</span>`).join('')}${slot?.memo ? `<span class="slot-note">${esc(slot.memo)}</span>` : ''}${info.type !== '일반' ? badge(info.type) : ''}${detail && settings().timetableDisplay.showLocation && info.location ? `<span class="slot-location">${esc(info.location)}</span>` : ''}${detail && settings().timetableDisplay.showTeacher && teacher ? `<span class="slot-teacher">${esc(teacher)}</span>` : ''}</div></div>`;
+    const memo = slot?.publicMemo ?? slot?.memo ?? '';
+    const privateMemo = !calendar && audience === 'teacher' ? slot?.privateMemo || '' : '';
+    const content = `<div class="slot-heading"><span class="slot-time">${p}교시</span><strong class="subject-title">${esc(slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '')}</strong>${!calendar && settings().periodTimes?.[i] ? `<small class="slot-clock">${esc(settings().periodTimes[i])}</small>` : ''}</div>${events.map(event => `<div class="slot-public-memo">${esc(event.title)}${event.description ? ' · ' + esc(event.description) : ''}</div>`).join('')}${memo ? `<div class="slot-public-memo">${esc(memo)}</div>` : ''}${privateMemo ? `<div class="slot-private-memo">🔒 ${esc(privateMemo)}</div>` : ''}`;
+    if (audience === 'classroom') return `<div class="slot${slot ? ' subject-color subject-stripe' : ''}" style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}">${content}</div>`;
     return btn(content, () => {
       if (state.dragSlot) {
         const from = state.dragSlot;
@@ -138,27 +142,30 @@ export function dayEditor(d, mode = '일정', period = 1, event = null) {
 export function timetableEditor(d, p) {
   if (!Number.isInteger(p) || p < 1 || p > 6) throw Error('교시를 확인하세요.');
   const slot = db().timetables.find(t => t.date === d && t.period === p);
-  let typeChanged = false;
-  const save = async (subjectCode, form, fromSubjectButton = false) => {
+  const catalog = C.subjectCatalog(db());
+  const regular = catalog.regular.filter(subject => subject.enabled !== false),
+    special = catalog.special.filter(subject => subject.enabled !== false);
+  const save = async (subjectCode, form) => {
     if (!subjectCode) throw Error('과목 버튼을 선택하세요.');
-    const old = db().timetables.find(t => t.date === d && t.period === p),
-      rule = db().subject_rules.find(r => r.code === subjectCode);
+    const old = db().timetables.find(t => t.date === d && t.period === p);
+    const publicMemo = form.get('publicMemo') || '';
     await commit([up('timetables', {
       ...old,
-      id: `${d}-${p}`,
+      id: old?.id || `${d}-${p}`,
       date: d,
       period: p,
       subjectCode,
-      type: fromSubjectButton && !typeChanged && old?.subjectCode !== subjectCode ? rule?.defaultType || '일반' : form.get('type'),
-      memo: form.get('memo'),
-      locationOverride: form.get('locationOverride') || null,
-      teacherOverride: form.get('teacherOverride') || null,
+      type: old?.type || '일반',
+      memo: publicMemo,
+      publicMemo,
+      privateMemo: form.get('privateMemo') || '',
       updatedAt: C.now()
     })]);
     closeModal();
   };
-  modal(`${C.formatDate(d)} · ${p}교시 시간표`, `<div class="subject-grid">${[...db().subject_rules].sort((a, b) => a.sortOrder - b.sortOrder).map(subject => btn(esc(subject.code), () => save(subject.code, new FormData($('#modal-form')), true), 'subject-color subject-stripe subject-choice' + (subject.code === slot?.subjectCode ? ' selected' : ''), `style="${C.subjectColorStyle(subject)}" aria-pressed="${subject.code === slot?.subjectCode}"`)).join('')}</div><p class="muted" style="margin:8px 0">과목 버튼을 누르면 바로 저장됩니다.</p><div class="formgrid">${select('특이사항', 'type', ['일반', '외부', '강사', '다른장소'], slot?.type || '일반')}${input('수업 메모', 'memo', slot?.memo || '')}${input('이날만 장소 변경', 'locationOverride', slot?.locationOverride || '')}${input('이날만 담당 교사 변경', 'teacherOverride', slot?.teacherOverride || '')}</div>${slot ? btn('이 교시 비우기', async () => {
-    if (confirm('선택한 교시를 비울까요?')) {
+  const choices = subjects => subjects.map(subject => btn(esc(subject.code), () => save(subject.code, new FormData($('#modal-form'))), 'subject-color subject-stripe subject-choice' + (subject.code === slot?.subjectCode ? ' selected' : ''), `style="${C.subjectColorStyle(subject)}" aria-pressed="${subject.code === slot?.subjectCode}"`)).join('');
+  modal(`${C.formatDate(d)} · ${p}교시 시간표`, `${C.gradeSubjectCodes(settings().grade).length ? `<div class="subject-grid">${choices(regular)}</div>` : '<p class="muted">설정-기본정보에서 학년을 설정하면 과목이 보입니다.</p>'}<details class="project-subjects" ${special.some(subject => subject.code === slot?.subjectCode) ? 'open' : ''}><summary>+ 특별·프로젝트 수업 ▾</summary><div class="subject-grid">${choices(special) || '<p class="muted">설정-과목·전담에서 특별 과목을 추가하세요.</p>'}</div></details><p class="muted">과목 버튼을 누르면 바로 저장됩니다.</p>${textarea('수업 메모 (공개)', 'publicMemo', slot?.publicMemo ?? slot?.memo ?? '')}${textarea('교사 전용 메모 (비공개)', 'privateMemo', slot?.privateMemo || '')}${slot ? btn('이 교시 비우기', async () => {
+    if (confirm('이 교시를 비울까요?')) {
       await commit([{
         table: 'timetables',
         id: slot.id,
@@ -167,7 +174,6 @@ export function timetableEditor(d, p) {
       closeModal();
     }
   }, 'danger') : ''}`, f => save(slot?.subjectCode, f));
-  $('#modal-form').elements.type.onchange = () => typeChanged = true;
 }
 export async function swapSlots(from, to) {
   if (from === to) return;
@@ -205,7 +211,7 @@ export async function swapSlots(from, to) {
 }
 export function bulkTimetable() {
   const template = settings().weeklyTemplate || {};
-  modal('주간 기본안 · 기간 일괄 배포', `<p class="muted">기본안을 저장한 뒤 선택 기간의 월~금 시간표에 배포합니다. 이미 입력된 시간표는 기본적으로 보존합니다.</p><div class="table-wrap"><table><thead><tr><th>교시</th>${['월', '화', '수', '목', '금'].map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${[1, 2, 3, 4, 5, 6].map(p => `<tr><th>${p}</th>${[1, 2, 3, 4, 5].map(w => `<td><select name="slot-${w}-${p}" aria-label="${w}요일 ${p}교시">${opts([['', '없음'], ...db().subject_rules.map(s => s.code)], template[`${w}-${p}`] || '')}</select></td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="formgrid" style="margin-top:14px">${input('배포 시작일', 'from', state.date, 'date', 'required')}${input('배포 종료일', 'to', C.addDays(state.date, 30), 'date', 'required')}${checkbox('기존 시간표도 덮어쓰기', 'overwrite')}${checkbox('기본안만 저장 · 배포하지 않음', 'templateOnly')}</div>`, async f => {
+  modal('주간 기본안 · 기간 일괄 배포', `<p class="muted">기본안을 저장한 뒤 선택 기간의 월~금 시간표에 배포합니다. 이미 입력된 시간표는 기본적으로 보존합니다.</p><div class="table-wrap"><table><thead><tr><th>교시</th>${['월', '화', '수', '목', '금'].map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${[1, 2, 3, 4, 5, 6].map(p => `<tr><th>${p}</th>${[1, 2, 3, 4, 5].map(w => `<td><select name="slot-${w}-${p}" aria-label="${w}요일 ${p}교시">${opts([['', '없음'], ...[...C.subjectCatalog(db()).regular, ...C.subjectCatalog(db()).special].filter(subject => subject.enabled !== false).map(subject => subject.code)], template[`${w}-${p}`] || '')}</select></td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="formgrid" style="margin-top:14px">${input('배포 시작일', 'from', state.date, 'date', 'required')}${input('배포 종료일', 'to', C.addDays(state.date, 30), 'date', 'required')}${checkbox('기존 시간표도 덮어쓰기', 'overwrite')}${checkbox('기본안만 저장 · 배포하지 않음', 'templateOnly')}</div>`, async f => {
     const tmpl = {};
     for (const [k, v] of f) if (k.startsWith('slot-')) tmpl[k.slice(5)] = v;
     const ops = [up('settings', {
@@ -224,7 +230,7 @@ export function bulkTimetable() {
             old = db().timetables.find(t => t.id === id);
           if (old && !f.get('overwrite')) continue;
           if (code) {
-            const rule = db().subject_rules.find(s => s.code === code);
+            const rule = db().subject_rules.find(s => s.code === code) || [...C.subjectCatalog(db()).regular, ...C.subjectCatalog(db()).special].find(s => s.code === code);
             ops.push(up('timetables', {
               id,
               date: d,

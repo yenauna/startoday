@@ -650,3 +650,49 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .subject-grid .subject-choice.selected { outline:2px solid var(--st-blue-text); outline-offset:-2px; box-shadow:inset 0 0 0 1px var(--st-blue-text); }
 @media(max-width:640px) { .calendar .subject-stripe::before { width:3px; } }
 .slot.subject-color .subject-title { max-width:100%; }
+
+/* Compact target/content composer. */
+.quick-wrap.quick-composer-card { padding:8px!important; margin-block:10px; }
+.quick-entry-fields { gap:4px; }
+#quick-students { padding:5px 7px; gap:3px; }
+.quick-composer-card #quick-students .selected-students { padding:0; }
+#quick-students .selected-students:empty,.quick-student-results:empty { display:none; }
+.quick-composer-card .quick textarea { min-height:40px; padding:7px 9px; }
+.quick-composer-card .quick-controls { padding-top:6px; }
+.quick-student-search input { padding:5px 7px; min-height:34px; }
+.quick-student-search button { min-height:34px; padding:4px 10px; }
+/* Shared schedule cards: only memo visibility differs by audience. */
+.subject-color.subject-stripe::before { width:3px; }
+.slot.subject-color,.student-task.subject-color { border-radius:10px; }
+.slot.subject-color,.day .slot.subject-color,.student-task.subject-color { display:flex; flex-direction:column; align-items:stretch; gap:4px; }
+.slot-heading { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; min-width:0; width:100%; }
+.slot-heading .slot-time,.slot-heading .subject-title { font-weight:700; }
+.slot-clock { margin-left:auto; white-space:nowrap; }
+.slot-public-memo,.slot-private-memo { white-space:pre-line; overflow-wrap:anywhere; color:var(--st-text); font-size:13px; line-height:1.45; }
+.slot-private-memo { padding-top:4px; border-top:1px solid var(--st-line); }
+.day .slot-public-memo { font-size:11px; }
+.project-subjects { margin:12px 0; }
+.project-subjects summary { cursor:pointer; padding:8px 0; }
+.student-task .student-routine-title { font-weight:500; }
+.student-calendar-card { grid-column:1 / -1; }
+.student-calendar-controls { margin-bottom:12px; gap:6px; }
+.student-calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; }
+.student-calendar-day { min-width:0; min-height:80px; padding:6px; display:flex; flex-direction:column; gap:4px; border-radius:10px; text-align:left; }
+.student-calendar-day.selected { outline:2px solid var(--st-blue-text); outline-offset:-2px; }
+.student-calendar-day.faded { opacity:.5; }
+.student-calendar-pill { font-size:11px; padding:3px; border-radius:6px; background:var(--st-gray-bg); color:var(--st-text); white-space:normal; overflow-wrap:anywhere; }
+.student-calendar-pill.has-incomplete { background:var(--st-rose-bg); color:var(--st-rose-text); }
+.student-calendar-detail { margin-top:14px; }
+.student-calendar-detail small { white-space:pre-line; }
+@media(max-width:640px) {
+ .slot-heading { gap:2px 4px; }
+ .day .slot-public-memo { font-size:10px; }
+ .student-calendar-day { min-height:64px; padding:4px; }
+ .student-calendar-pill { font-size:10px; padding:2px; }
+ .student-calendar-controls button { font-size:12px; padding:5px 9px; }
+}
+.slot.subject-color,.student-task.subject-color { justify-content:flex-start; }
+.slot-heading .slot-time { font-size:12px; }
+.slot-clock { font-size:11px; }
+.student-task.subject-color { padding:8px 10px; }
+.day .slot.subject-color { padding-left:6px; }

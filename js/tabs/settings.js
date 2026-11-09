@@ -3,7 +3,7 @@ import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, settings, students, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
-import { $, bindLater, btn, checkbox, empty, esc, hashPin, input, localTime, saveFile, select, textarea, toast } from '../shared/ui.js';
+import { $, bindLater, btn, checkbox, empty, esc, hashPin, input, localTime, run, saveFile, select, textarea, toast } from '../shared/ui.js';
 import { studentDetail, studentEditor } from './students.js';
 import { schoolPickerFields, bindSchoolPicker } from '../components/school-picker.js';
 import { koreanPasswordField, bindKoreanPasswordFields } from '../components/korean-password.js';
@@ -17,7 +17,7 @@ export function settingsView() {
   return `<div class="toolbar"><div><h2>설정</h2><small>학급과 기록 방식을 선생님께 맞추세요.</small></div></div><div id="settings-layout" class="settings-layout"><nav class="settings-sidebar" aria-label="설정 카테고리">${settingsCategories.map(category => btn(esc(category), () => {
     settingsCategory = category;
     applySettingsCategory();
-  }, settingsCategory === category ? 'active' : '', `data-settings-tab="${esc(category)}" aria-pressed="${settingsCategory === category}"`)).join('')}</nav><div class="settings-content"><form id="settings-form" novalidate><section class="panel" data-settings-category="기본 정보"><h3>기본 정보</h3><div class="formgrid">${input('학급 이름', 'className', st.className, 'text', 'required')}${input('학년도', 'academicYear', st.academicYear, 'number', 'min="2020" max="2100" required')}${schoolPickerFields(st.schoolName || '', st.schoolCode || '')}${input('학년', 'grade', st.grade || '', 'number', 'min="1" max="6" required')}${input('반', 'classGroup', st.classGroup || '', 'text', 'required maxlength="40"')}${koreanPasswordField('반 공통 초기 비밀번호', 'defaultStudentPassword', st.defaultStudentPassword || '바람123', 'required minlength="5" autocomplete="new-password"')}<small>완성된 한글을 포함해 5자 이상, 한글과 숫자만 사용하세요. 예: 바람123. 학생은 첫 로그인 후 다른 비밀번호로 변경합니다.</small></div></section><section class="panel" data-settings-category="교실 화면" hidden><h3>교실 화면</h3><div class="formgrid">${select('이름 표시 방식', 'nameDisplayMode', [['real', '실명 그대로 노출'], ['number', '번호만 · 기본'], ['masked', '이름 가림 · 김●수'], ['alias', '교사가 정한 별칭']], st.nameDisplayMode)}${checkbox('학생 점수 표시', 'classroomShowScores', !!st.classroomShowScores)}${input('화면 해제 비밀번호 · 변경할 때만 입력', 'classroomPin', '', 'password', 'minlength="4" autocomplete="new-password"')}</div></section><section class="panel" data-settings-category="기본 정보"><h3>보고서</h3><div class="formgrid">${input('보고서 제목', 'reportHeader', st.reportHeader)}${select('기본 출력 방식', 'reportPrintMode', [['color', '컬러'], ['mono', '흑백']], st.reportPrintMode || 'color')}</div></section><section class="panel" data-settings-category="학사일정" hidden><h3>학사일정</h3><div class="formgrid">${Array.from({
+  }, settingsCategory === category ? 'active' : '', `data-settings-tab="${esc(category)}" aria-pressed="${settingsCategory === category}"`)).join('')}</nav><div class="settings-content"><form id="settings-form" novalidate><section class="panel" data-settings-category="기본 정보"><h3>기본 정보</h3><div class="formgrid">${input('학급 이름', 'className', st.className, 'text', 'required')}${input('학년도', 'academicYear', st.academicYear, 'number', 'min="2020" max="2100" required')}${schoolPickerFields(st.schoolName || '', st.schoolCode || '')}${input('학년', 'grade', st.grade || '', 'number', 'min="1" max="6" required')}${input('반', 'classGroup', st.classGroup || '', 'text', 'required maxlength="40"')}</div></section><section class="panel" data-settings-category="교실 화면" hidden><h3>교실 화면</h3><div class="formgrid">${select('이름 표시 방식', 'nameDisplayMode', [['real', '실명 그대로 노출'], ['number', '번호만 · 기본'], ['masked', '이름 가림 · 김●수'], ['alias', '교사가 정한 별칭']], st.nameDisplayMode)}${checkbox('학생 점수 표시', 'classroomShowScores', !!st.classroomShowScores)}${input('화면 해제 비밀번호 · 변경할 때만 입력', 'classroomPin', '', 'password', 'minlength="4" autocomplete="new-password"')}</div></section><section class="panel" data-settings-category="기본 정보"><h3>보고서</h3><div class="formgrid">${input('보고서 제목', 'reportHeader', st.reportHeader)}${select('기본 출력 방식', 'reportPrintMode', [['color', '컬러'], ['mono', '흑백']], st.reportPrintMode || 'color')}</div></section><section class="panel" data-settings-category="학사일정" hidden><h3>학사일정</h3><div class="formgrid">${Array.from({
     length: 6
   }, (_, i) => input(`${i + 1}교시 시간`, 'period-' + i, st.periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i])).join('')}${checkbox('시간표에 선생님 표시', 'showTeacher', st.timetableDisplay.showTeacher)}${checkbox('시간표에 장소 표시', 'showLocation', st.timetableDisplay.showLocation)}${[['term1Start', '1학기 개학일'], ['summerEnd', '여름방학식'], ['term2Start', '2학기 개학일'], ['winterEnd', '겨울방학식']].map(([key, label]) => input(label, key, calendar[key] || '', 'date')).join('')}<div class="span2">${checkbox('봄방학 사용', 'springBreak', !!calendar.springBreak)}</div><fieldset id="spring-dates" class="span2 formgrid" ${calendar.springBreak ? '' : 'disabled'}>${input('겨울방학 후 개학일', 'winterReturn', calendar.winterReturn || '', 'date')}${input('봄방학식 · 종업식/졸업식', 'springEnd', calendar.springEnd || '', 'date')}</fieldset><div class="span2"><label>자율휴업일 · 여러 날짜 선택 후 추가</label><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate('')) || '날짜 선택'}</span><input id="holiday-date" type="date" aria-label="자율휴업일 추가 날짜"></span>${btn('날짜 추가', () => {
     const field = $('#holiday-date'),
@@ -29,13 +29,13 @@ export function settingsView() {
   })}</div><div id="holiday-dates" class="chips">${(calendar.holidays || []).map(holidayChip).join('')}</div></div></div><p class="muted">개학식·방학식·종업식·자율휴업일은 일정 달력에 자동 반영됩니다.</p></section><button class="primary settings-save">설정 저장</button></form><section class="panel" data-settings-category="데이터 백업" hidden><h3>백업과 복원</h3><p class="muted">${store.mode === 'cloud' ? '학생의 텍스트 자료는 외부 서버인 수파베이스에 저장됩니다.' : '체험 모드 자료는 현재 브라우저에만 저장됩니다.'}</p><p>학급 데이터 약 <strong>${(bytes / 1024).toFixed(1)} KB</strong><br><small>텍스트 JSON 기준 추정치입니다. 실제 DB·백업·인증 저장량은 수파베이스 대시보드에서 확인하세요.</small></p><p class="muted">마지막 파일 백업: ${st.lastBackupAt ? esc(localTime(st.lastBackupAt)) : '없음'}</p><div class="row">${btn('전체 JSON 내려받기', downloadBackup, 'primary')}${btn('JSON 가져오기', () => $('#backup-input').click())}${btn('클라우드에 한 벌 더 저장', async () => {
     await store.cloudBackup();
     toast('클라우드 백업을 저장했습니다. 최근 2세대를 보관합니다.');
-  })}${btn('클라우드 백업 복구', cloudRestore)}</div><input id="backup-input" type="file" accept="application/json,.json" hidden><div class="notice">사진·음성은 저장하지 않습니다. 백업 파일에는 학생 기록이 포함되므로 안전한 곳에 보관하세요.</div><h3 style="margin-top:22px">학년도 전환</h3><p class="muted">현재 학생을 새 고유 ID로 복제합니다. 지난 기록은 보존하고 새 학생에게는 연결하지 않습니다.</p>${btn('다음 학년으로 이어 가기', rollover)}</section><section class="panel" data-settings-category="학생 명단" hidden><div class="toolbar"><h3>학생 명단</h3><div class="row">${btn('명단 붙여넣기', rosterPaste, 'primary')}${btn('+ 학생', () => studentEditor())}${btn('나간 학생 보기', removedStudents)}</div></div><div class="table-wrap"><table><thead><tr><th>번호</th><th>이름</th><th>별칭</th><th></th></tr></thead><tbody>${students().map(s => `<tr><td>${s.no}</td><td>${esc(s.name)}</td><td>${esc(s.alias || '')}</td><td><div class="row">${btn('수정', () => studentEditor(s))}${btn('삭제', async () => {
+  })}${btn('클라우드 백업 복구', cloudRestore)}</div><input id="backup-input" type="file" accept="application/json,.json" hidden><div class="notice">사진·음성은 저장하지 않습니다. 백업 파일에는 학생 기록이 포함되므로 안전한 곳에 보관하세요.</div><h3 style="margin-top:22px">학년도 전환</h3><p class="muted">현재 학생을 새 고유 ID로 복제합니다. 지난 기록은 보존하고 새 학생에게는 연결하지 않습니다.</p>${btn('다음 학년으로 이어 가기', rollover)}</section><section class="panel" data-settings-category="학생 명단" hidden><div class="toolbar"><h3>학생 명단</h3><div class="row">${btn('초기화 비밀번호 설정', initialStudentPasswordDialog)}${btn('명단 붙여넣기', rosterPaste, 'primary')}${btn('+ 학생', () => studentEditor())}${btn('나간 학생 보기', removedStudents)}</div></div><div class="table-wrap"><table><thead><tr><th>번호</th><th>이름</th><th>별칭</th><th></th></tr></thead><tbody>${students().map(s => `<tr><td>${s.no}</td><td>${esc(s.name)}</td><td>${esc(s.alias || '')}</td><td><div class="row">${btn('수정', () => studentEditor(s))}${btn('삭제', async () => {
     if (confirm(`${s.name} 학생을 명단에서 뺄까요? 기록과 과제 상태는 보존합니다.`)) await commit([up('students', {
       ...s,
       deletedAt: C.now(),
       seat: null
     })]);
-  }, 'danger')}</div></td></tr>`).join('')}</tbody></table></div></section><section class="panel" data-settings-category="과목·전담" hidden><div class="toolbar"><h3>과목 · 전담 설정</h3>${btn('+ 과목', () => subjectEditor())}</div><div class="table-wrap"><table><thead><tr><th>과목</th><th>구분</th><th>장소</th><th>담당 교사</th><th></th></tr></thead><tbody>${db().subject_rules.map(s => `<tr><td><span class="badge subject-color subject-badge" style="${C.subjectColorStyle(s)}">${esc(s.code)}</span></td><td>${s.isSpecialist ? '전담' : '담임'} · ${esc(s.defaultType)}</td><td>${esc(s.location)}</td><td>${esc(s.teacherName)}</td><td>${btn('수정', () => subjectEditor(s))}</td></tr>`).join('')}</tbody></table></div></section>${bindLater('settings-form', 'submit', async e => {
+  }, 'danger')}</div></td></tr>`).join('')}</tbody></table></div></section><section class="panel" data-settings-category="과목·전담" hidden><h3>과목 · 전담 설정</h3>${C.gradeSubjectCodes(st.grade).length ? `<div class="table-wrap"><table><thead><tr><th>사용</th><th>과목</th><th>구분</th><th>장소</th><th>담당 교사</th><th></th></tr></thead><tbody>${[...C.subjectCatalog(db()).regular, ...C.subjectCatalog(db()).special].map(subject => `<tr><td><input type="checkbox" data-subject-enabled="${esc(subject.code)}" aria-label="${esc(subject.code)} 사용" ${subject.enabled !== false ? 'checked' : ''}></td><td><span class="badge subject-color subject-badge" style="${C.subjectColorStyle(subject)}">${esc(subject.code)}</span></td><td>${subject.isSpecialist ? '전담' : '담임'}</td><td>${esc(subject.location || '')}</td><td>${esc(subject.teacherName || '')}</td><td>${btn('수정', () => subjectEditor(subject))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">설정-기본정보에서 학년을 설정하면 과목이 보입니다.</p>'}${btn('+ 과목 추가', () => subjectEditor())}</section>${bindLater('settings-form', 'submit', async e => {
     e.preventDefault();
     const invalid = e.target.querySelector(':invalid');
     if (invalid) {
@@ -46,8 +46,7 @@ export function settingsView() {
     }
     const f = new FormData(e.target),
       pin = f.get('classroomPin');
-    if (!f.get('schoolName').trim() || !f.get('classGroup').trim() || !f.get('defaultStudentPassword').trim()) throw Error('학교명, 반, 반 공통 초기 비밀번호를 입력하세요.');
-    validateKoreanPassword(f.get('defaultStudentPassword'));
+    if (!f.get('schoolName').trim() || !f.get('classGroup').trim()) throw Error('학교명과 반을 입력하세요.');
     const next = {
       ...st,
       className: f.get('className').trim() || `${f.get('grade')}학년 ${f.get('classGroup').trim()}반`,
@@ -56,7 +55,7 @@ export function settingsView() {
       schoolCode: f.get('schoolCode') || '',
       grade: Number(f.get('grade')),
       classGroup: f.get('classGroup').trim(),
-      defaultStudentPassword: f.get('defaultStudentPassword').trim(),
+      defaultStudentPassword: settings().defaultStudentPassword || '바람123',
       nameDisplayMode: f.get('nameDisplayMode'),
       classroomShowScores: !!f.get('classroomShowScores'),
       reportPrintMode: f.get('reportPrintMode'),
@@ -133,6 +132,7 @@ export function subjectEditor(s = null) {
     id: C.uid(),
     code: '',
     label: '',
+    isProject: true,
     color: C.defaultSubjectColors('').background,
     colorSource: 'default',
     defaultColorValue: C.defaultSubjectColors('').background,
@@ -143,12 +143,18 @@ export function subjectEditor(s = null) {
     sortOrder: db().subject_rules.length,
     teacherHistory: []
   };
-  const colors=C.subjectColors(row);
-  let colorMode=C.usesDefaultSubjectColors(row)?'default':'preserve';
-  const resetColors=()=>{const form=$('#modal-form'),defaults=C.defaultSubjectColors(form.elements.code.value.trim());form.elements.color.value=defaults.background;form.elements.accentColor.value=defaults.accent;colorMode='default';};
+  const colors = C.subjectColors(row);
+  let colorMode = C.usesDefaultSubjectColors(row) ? 'default' : 'preserve';
+  const resetColors = () => {
+    const form = $('#modal-form'),
+      defaults = C.defaultSubjectColors(form.elements.code.value.trim());
+    form.elements.color.value = defaults.background;
+    form.elements.accentColor.value = defaults.accent;
+    colorMode = 'default';
+  };
   modal(s ? '과목 설정' : '과목 추가', `<div class="formgrid">${input('과목명 · 코드', 'code', row.code, 'text', 'required')}${input('한 글자 축약명', 'label', row.label)}${input('과목 배경색', 'color', colors.background, 'color')}${input('과목 포인트색', 'accentColor', colors.accent, 'color')}${btn('기본 색상으로', resetColors)}${select('기본 구분', 'defaultType', ['일반', '외부', '강사', '다른장소'], row.defaultType)}${checkbox('전담 과목', 'isSpecialist', row.isSpecialist)}${input('장소', 'location', row.location)}${input('담당 교사명', 'teacherName', row.teacherName)}${input('담당 교사 변경 적용일', 'teacherFrom', state.date, 'date', 'required')}${input('정렬 순서', 'sortOrder', row.sortOrder, 'number')}</div><p class="muted">과목명 변경 시 기존 시간표도 함께 변경합니다. 담당 교사 변경은 적용일 이후에만 반영됩니다.</p>`, async f => {
     const code = f.get('code').trim();
-    if (db().subject_rules.some(x => x.id !== row.id && x.code === code)) throw Error('같은 과목명이 있습니다.');
+    if ([...db().subject_rules, ...C.subjectCatalog(db()).regular, ...C.subjectCatalog(db()).special].some(x => x.id !== row.id && x.code === code)) throw Error('같은 과목명이 있습니다.');
     const teacher = f.get('teacherName'),
       history = [...(row.teacherHistory || [])];
     if (!history.length) history.push({
@@ -163,7 +169,17 @@ export function subjectEditor(s = null) {
       ...row,
       code,
       label: f.get('label') || code[0],
-      ...(colorMode==='preserve'?{}:colorMode==='default'?{color:C.defaultSubjectColors(code).background,accentColor:null,colorSource:'default',defaultColorValue:C.defaultSubjectColors(code).background}:{color:f.get('color'),accentColor:f.get('accentColor'),colorSource:'custom',defaultColorValue:null}),
+      ...(colorMode === 'preserve' ? {} : colorMode === 'default' ? {
+        color: C.defaultSubjectColors(code).background,
+        accentColor: null,
+        colorSource: 'default',
+        defaultColorValue: C.defaultSubjectColors(code).background
+      } : {
+        color: f.get('color'),
+        accentColor: f.get('accentColor'),
+        colorSource: 'custom',
+        defaultColorValue: null
+      }),
       defaultType: f.get('defaultType'),
       isSpecialist: !!f.get('isSpecialist'),
       location: f.get('location'),
@@ -189,10 +205,13 @@ export function subjectEditor(s = null) {
     await commit(ops);
     closeModal();
   });
-  const colorForm=$('#modal-form');
-  for(const key of ['color','accentColor'])colorForm.elements[key].oninput=()=>{colorMode='custom';};
-  colorForm.elements.code.addEventListener('input',()=>{if(colorMode==='default')resetColors();});
-
+  const colorForm = $('#modal-form');
+  for (const key of ['color', 'accentColor']) colorForm.elements[key].oninput = () => {
+    colorMode = 'custom';
+  };
+  colorForm.elements.code.addEventListener('input', () => {
+    if (colorMode === 'default') resetColors();
+  });
 }
 export function backupObject() {
   return {
@@ -394,8 +413,41 @@ function applySettingsCategory() {
   const form = $('#settings-form');
   if (form) form.hidden = !['기본 정보', '교실 화면', '학사일정'].includes(settingsCategory);
 }
-
 function bindSchoolSettings() {
-  setTimeout(() => { const form=document.querySelector('#settings-form'); bindSchoolPicker(form); bindKoreanPasswordFields(form); }, 0);
+  setTimeout(() => {
+    const form = document.querySelector('#settings-form');
+    bindSchoolPicker(form);
+    bindKoreanPasswordFields(form);
+  }, 0);
   return '';
 }
+export function initialStudentPasswordDialog() {
+  modal('초기화 비밀번호 설정', `${koreanPasswordField('반 공통 초기 비밀번호', 'defaultStudentPassword', settings().defaultStudentPassword || '바람123', 'required minlength="5" autocomplete="new-password"')}<p class="muted">완성된 한글을 포함해 5자 이상, 한글과 숫자만 사용하세요. 학생이 변경한 개인 비밀번호는 유지됩니다.</p>`, async f => {
+    const password = f.get('defaultStudentPassword');
+    validateKoreanPassword(password);
+    await commit([up('settings', {
+      ...settings(),
+      defaultStudentPassword: password
+    })]);
+    closeModal();
+  });
+  bindKoreanPasswordFields($('#modal-form'));
+}
+document.addEventListener('change', event => {
+  const field = event.target.closest?.('[data-subject-enabled]');
+  if (!field) return;
+  const catalog = C.subjectCatalog(db()),
+    subject = [...catalog.regular, ...catalog.special].find(row => row.code === field.dataset.subjectEnabled);
+  if (!subject) return;
+  run(async () => {
+    try {
+      await commit([up('subject_rules', {
+        ...subject,
+        enabled: field.checked
+      })], '');
+    } catch (error) {
+      if (field.isConnected) field.checked = subject.enabled !== false;
+      throw error;
+    }
+  });
+});

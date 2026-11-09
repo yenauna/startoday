@@ -68,3 +68,10 @@ test('기본값 출처가 확실한 과목만 새 정의를 따르고 사용자 
     color: 'red;position:fixed'
   }).includes('position'));
 });
+
+test('학년별 과목 프리셋, 사용 토글과 특별 과목은 원본 자료를 삭제하지 않고 선택 목록에 반영',()=>{
+ const db=C.initialDB();assert.deepEqual(C.gradeSubjectCodes(''),[]);assert.equal(C.gradeSubjectCodes(1).length,7);assert(C.gradeSubjectCodes(2).includes('통합교과'));assert(!C.gradeSubjectCodes(4).includes('실과'));assert(C.gradeSubjectCodes(6).includes('실과'));
+ db.settings[0].grade=1;const before=structuredClone(db.subject_rules);let catalog=C.subjectCatalog(db);assert(catalog.regular.some(s=>s.code==='통합교과'));assert(!catalog.regular.some(s=>s.code==='과학'));assert.deepEqual(db.subject_rules,before);
+ db.subject_rules.push({id:'project',code:'코딩',enabled:true,isProject:true,sortOrder:99});db.subject_rules.find(s=>s.code==='국어').enabled=false;
+ catalog=C.subjectCatalog(db);assert.equal(catalog.regular.find(s=>s.code==='국어').enabled,false);assert.equal(catalog.special[0].code,'코딩');
+});

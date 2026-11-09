@@ -33,7 +33,7 @@ export function studentsView() {
     ...studentRange
   };
   const change = n => `<span class="score-change ${n > 0 ? 'positive' : n < 0 ? 'negative' : 'neutral'}">(${n > 0 ? '+' : ''}${n})</span>`;
-  return `<div class="toolbar"><div><h2>학생</h2><small>누적 점수 · 선택 기간 변화 ${esc(C.formatDate(range.from))} ~ ${esc(C.formatDate(range.to))}</small></div><div class="row">${btn('학생 선택 / 전체 내보내기', () => reportDialog(null, range.from, range.to))}${btn('+ 학생', () => studentEditor(), 'primary')}</div></div><div class="student-period-controls row"><input type="month" id="student-month" aria-label="학생 조회 월" value="${esc(studentMonth)}">${btn('이번 달', () => {
+  return `<div class="toolbar"><div><h2>통계</h2><small>누적 점수 · 선택 기간 변화 ${esc(C.formatDate(range.from))} ~ ${esc(C.formatDate(range.to))}</small></div><div class="row">${btn('학생 선택 / 전체 내보내기', () => reportDialog(null, range.from, range.to))}</div></div><div class="student-period-controls row"><input type="month" id="student-month" aria-label="학생 조회 월" value="${esc(studentMonth)}">${btn('이번 달', () => {
     selectStudentMonth(C.today().slice(0, 7));
     render();
   })}${btn('지난 달', () => {
@@ -69,7 +69,20 @@ export function studentDetail(id, from = state.date.slice(0, 7) + '-01', to = st
   }))}${btn('학생 수정', () => studentEditor(s))}${btn('👁️ 학생 화면으로 보기', () => previewStudent(s.id))}${btn('보고서로 내보내기', () => reportDialog(id, from, to), 'primary')}${btn('이번 주', () => studentDetail(id, C.addDays(state.date, -((C.weekday(state.date) + 6) % 7)), state.date))}${btn('이번 달', () => studentDetail(id, state.date.slice(0, 7) + '-01', state.date))}</div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(from)) || '날짜 선택'}</span><input aria-label="기록 조회 시작" type="date" id="student-from" value="${from}"></span><span>~</span><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(to)) || '날짜 선택'}</span><input aria-label="기록 조회 종료" type="date" id="student-to" value="${to}"></span>${btn('조회', () => studentDetail(id, $('#student-from').value, $('#student-to').value))}</div><div class="panel" style="margin-top:14px"><h3>★ ${score.total} · 기간 요약</h3><div class="chips">${C.areaNames(db(), true).map(a => badge(a + ' ' + score.areas[a])).join('')}</div></div><h3>미완료 과제 ${pending.length}건</h3>${pending.map(({
     assignment: a,
     date: d
-  }) => btn(esc(C.formatDate(d) + ' ' + a.title), () => taskStateEditor(a, d, id))).join('') || '<p class="muted">남은 과제가 없습니다.</p>'}<details style="margin-top:14px"><summary>과제 처리 이력</summary>${db().assignmentStates.filter(x => x.studentId === id && x.date >= from && x.date <= to).map(x => `<p>${esc(C.formatDate(x.date))} · ${esc(db().assignments.find(a => a.id === x.assignmentId)?.title || '(삭제된 과제)')} · ${esc(x.status)} ${esc(x.memo)}</p>`).join('') || '<p>처리 이력 없음</p>'}</details><details><summary>출결 제외 이력</summary><p>${db().attendance.filter(x => x.studentId === id && x.excluded).map(x => esc(C.formatDate(x.date))).sort().join(' · ') || '없음'}</p></details><h3 style="margin-top:20px">기록 ${records.length}건</h3>${records.map(r => recordCard(r, true, true)).join('') || empty('조회 기간에 기록이 없습니다.')}<section class="student-account-info"><h3>계정 정보</h3><p>로그인 정보: <strong>${esc(settings().schoolName || '학교 미설정')} · ${esc(settings().grade ? settings().grade + '학년' : '학년 미설정')} ${esc(settings().classGroup ? settings().classGroup + '반' : '반 미설정')} · ${esc(s.no)}번</strong></p><p>반 공통 초기 비밀번호: ${esc(settings().defaultStudentPassword || '바람123')}</p>${btn('반 공통 초기 비밀번호로 초기화', async () => { validateKoreanPassword(settings().defaultStudentPassword || '바람123'); await commit([up('students', { ...db().students.find(row => row.id === id), password: settings().defaultStudentPassword || '바람123', passwordChanged: false, passwordResetRequired: true })]); studentDetail(id, from, to); })}</section></div>`);
+  }) => btn(esc(C.formatDate(d) + ' ' + a.title), () => taskStateEditor(a, d, id))).join('') || '<p class="muted">남은 과제가 없습니다.</p>'}<details style="margin-top:14px"><summary>과제 처리 이력</summary>${db().assignmentStates.filter(x => x.studentId === id && x.date >= from && x.date <= to).map(x => `<p>${esc(C.formatDate(x.date))} · ${esc(db().assignments.find(a => a.id === x.assignmentId)?.title || '(삭제된 과제)')} · ${esc(x.status)} ${esc(x.memo)}</p>`).join('') || '<p>처리 이력 없음</p>'}</details><details><summary>출결 제외 이력</summary><p>${db().attendance.filter(x => x.studentId === id && x.excluded).map(x => esc(C.formatDate(x.date))).sort().join(' · ') || '없음'}</p></details><h3 style="margin-top:20px">기록 ${records.length}건</h3>${records.map(r => recordCard(r, true, true)).join('') || empty('조회 기간에 기록이 없습니다.')}</div>`);
+}
+export async function resetStudentPassword(id) {
+  const student = db().students.find(row => row.id === id);
+  if (!student) return;
+  const password = settings().defaultStudentPassword || '바람123';
+  validateKoreanPassword(password);
+  if (!confirm(`${student.no}. ${student.name} 학생의 비밀번호를 반 공통 초기 비밀번호로 초기화할까요?`)) return;
+  await commit([up('students', {
+    ...student,
+    password,
+    passwordChanged: false,
+    passwordResetRequired: true
+  })], '비밀번호를 초기화했습니다. 학생은 다음 로그인 시 새 비밀번호를 설정합니다.');
 }
 export function studentEditor(s = null) {
   const row = s || {
@@ -82,9 +95,9 @@ export function studentEditor(s = null) {
     studentCode: '',
     createdAt: C.now()
   };
-  modal(s ? '학생 수정' : '학생 추가', `<div class="formgrid">${input('번호', 'no', row.no, 'number', 'min="1" required')}${input('이름', 'name', row.name, 'text', 'required')}${input('교실 화면 별칭', 'alias', row.alias || '')}</div><p class="muted">개별 설정 전에는 반 공통 초기 비밀번호가 적용됩니다. 학생은 첫 로그인 시 새 비밀번호를 설정합니다.</p>`, async f => {
+  modal(s ? '학생 수정' : '학생 추가', `<div class="formgrid">${input('번호', 'no', row.no, 'number', 'min="1" required')}${input('이름', 'name', row.name, 'text', 'required')}${input('교실 화면 별칭', 'alias', row.alias || '')}</div>${s ? btn('비밀번호 초기화', () => resetStudentPassword(row.id), 'danger') : ''}<p class="muted">개별 설정 전에는 반 공통 초기 비밀번호가 적용됩니다. 학생은 첫 로그인 시 새 비밀번호를 설정합니다.</p>`, async f => {
     const next = {
-      ...row,
+      ...(db().students.find(current => current.id === row.id) || row),
       no: Number(f.get('no')),
       name: f.get('name').trim(),
       alias: f.get('alias'),

@@ -122,6 +122,59 @@ export function subjectColorStyle(subject) {
   const colors = subjectColors(subject);
   return `--subject-bg:${colors.background};--subject-accent:${colors.accent};`;
 }
+export const GRADE_SUBJECT_PRESETS = {
+  lower: ['국어', '수학', '통합교과', '창체', '자율자치', '동아리', '진로'],
+  middle: ['국어', '수학', '사회', '과학', '영어', '음악', '미술', '체육', '도덕', '창체', '자율자치', '동아리', '진로', '학자시'],
+  upper: ['국어', '수학', '사회', '과학', '영어', '음악', '미술', '체육', '실과', '도덕', '창체', '자율자치', '동아리', '진로', '학자시']
+};
+export function gradeSubjectCodes(grade) {
+  return Number.isInteger(Number(grade)) && Number(grade) >= 1 && Number(grade) <= 6 ? [...GRADE_SUBJECT_PRESETS[Number(grade) <= 2 ? 'lower' : Number(grade) <= 4 ? 'middle' : 'upper']] : [];
+}
+export function subjectCatalog(database) {
+  const codes = gradeSubjectCodes(database.settings[0]?.grade),
+    standard = new Set([...DEFAULT_SUBJECT_CODES, '통합교과']);
+  const regular = codes.map((code, index) => database.subject_rules.find(rule => rule.code === code) || {
+    id: 'preset:' + code,
+    code,
+    label: code[0],
+    color: defaultSubjectColors(code).background,
+    colorSource: 'default',
+    defaultColorValue: defaultSubjectColors(code).background,
+    sortOrder: index,
+    defaultType: '일반',
+    location: '',
+    teacherName: '',
+    teacherHistory: []
+  }).filter(rule => !rule.isProject);
+  const special = database.subject_rules.filter(rule => rule.isProject || !standard.has(rule.code)).sort((a, b) => a.sortOrder - b.sortOrder);
+  return {
+    regular,
+    special
+  };
+}
+export function studentCalendarData(database, id) {
+  return {
+    assignments: database.assignments.filter(a => !a.deletedAt && targeted(a, id)).map(a => ({
+      id: a.id,
+      title: a.title,
+      date: a.date,
+      endDate: a.endDate,
+      repeat: a.repeat
+    })),
+    states: database.assignmentStates.filter(s => s.studentId === id).map(s => ({
+      assignmentId: s.assignmentId,
+      date: s.date,
+      status: s.status
+    })),
+    excludedDates: database.attendance.filter(row => row.studentId === id && row.excluded).map(row => row.date),
+    events: calendarEvents(database).map(e => ({
+      date: e.date,
+      title: e.title,
+      description: e.description || '',
+      period: e.period
+    }))
+  };
+}
 export function initialDB() {
   const db = Object.fromEntries(TABLES.map(t => [t, []]));
   db.areas = defaultAreas();

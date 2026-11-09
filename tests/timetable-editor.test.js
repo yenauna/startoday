@@ -9,6 +9,7 @@ function editorFixture() {
   let dialog,
     closed = 0,
     assignmentDate;
+  database.settings[0].grade=5;
   const form = {
     values: {
       type: '일반',
@@ -30,7 +31,7 @@ function editorFixture() {
       data
     }),
     state: {
-      date: '2026-11-07'
+      date: '2026-11-07', calendarFilters:{detail:true}
     },
     db: () => database,
     settings: () => database.settings[0],
@@ -71,6 +72,7 @@ function editorFixture() {
     buttons,
     form,
     open: context.openEditor,
+    slots:context.timeSlots,
     get dialog() {
       return dialog;
     },
@@ -90,7 +92,7 @@ test('교시 전용 모달은 선택 교시를 고정하고 과목 즉시 저장
     date,
     period: 2,
     subjectCode: '국어',
-    memo: '이전',
+    memo: '이전', type:'강사',locationOverride:'과학실',teacherOverride:'김선생',
     createdAt: '2026-11-01T00:00:00Z'
   }];
   f.open(date, '시간표', 2);
@@ -98,19 +100,17 @@ test('교시 전용 모달은 선택 교시를 고정하고 과목 즉시 저장
   assert(!f.dialog.body.includes('name="period"'));
   assert(!f.dialog.body.includes('name="subjectCode"'));
   assert(!f.dialog.body.includes('event-entry-tabs'));
-  f.form.values = {
-    type: '강사',
-    memo: '준비물',
-    locationOverride: '과학실',
-    teacherOverride: '김선생'
-  };
-  f.form.elements.type.onchange();
+  assert(!f.dialog.body.includes('name="type"'));
+  assert(!f.dialog.body.includes('name="locationOverride"'));
+  assert(!f.dialog.body.includes('name="teacherOverride"'));
+  f.form.values={publicMemo:'준비물\n15분에 이동',privateMemo:'교사만 보는 메모'};
   await f.buttons.find(b => b.label === '수학').callback();
   const saved = f.database.timetables[0];
   assert.equal(saved.period, 2);
   assert.equal(saved.subjectCode, '수학');
   assert.equal(saved.type, '강사');
-  assert.equal(saved.memo, '준비물');
+  assert.equal(saved.memo, '준비물\n15분에 이동');
+  assert.equal(saved.publicMemo,'준비물\n15분에 이동');assert.equal(saved.privateMemo,'교사만 보는 메모');
   assert.equal(saved.locationOverride, '과학실');
   assert.equal(saved.teacherOverride, '김선생');
   assert.equal(saved.createdAt, '2026-11-01T00:00:00Z');
@@ -130,4 +130,17 @@ test('일반 일정 등록은 일정/과제만 제공하고 종일 행사 및 �
   assert.equal(f.database.events[0].isDday, true);
   f.open(date, '과제');
   assert.equal(f.assignmentDate, date);
+});
+
+test('수업 공개 메모는 줄바꿈을 유지하며 비공개 메모는 대시보드에만 렌더링',()=>{
+ const f=editorFixture(),date='2026-11-07';f.database.timetables=[{id:'slot',date,period:1,subjectCode:'국어',publicMemo:'[준비물] 태블릿\n15분에 이동',privateMemo:'PRIVATE_TEACHER_NOTE'}];
+ const dashboard=f.slots(date,false,true),classroom=f.slots(date,false,true,'classroom'),calendar=f.slots(date,true);
+ assert(dashboard.includes('PRIVATE_TEACHER_NOTE'));assert(!classroom.includes('PRIVATE_TEACHER_NOTE'));assert(!classroom.includes('<button'));assert(!classroom.includes('data-action'));assert(!calendar.includes('PRIVATE_TEACHER_NOTE'));
+ for(const html of [dashboard,classroom,calendar])assert(html.includes('[준비물] 태블릿\n15분에 이동'));
+});
+
+test('시간표 버튼은 학년 프리셋 중 사용 과목만 표시하고 특별 수업은 접이식으로 제공',()=>{
+ const f=editorFixture();f.database.settings[0].grade=1;f.database.subject_rules.find(s=>s.code==='국어').enabled=false;f.database.subject_rules.push({id:'coding',code:'코딩',isProject:true,sortOrder:99});
+ f.open('2026-11-07','시간표',1);
+ const labels=f.buttons.map(button=>button.label);assert(!labels.includes('국어'));assert(!labels.includes('과학'));assert(labels.includes('통합교과'));assert(labels.includes('코딩'));assert(f.dialog.body.includes('project-subjects'));
 });

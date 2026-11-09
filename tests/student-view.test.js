@@ -276,3 +276,11 @@ test('새 비밀번호는 완성된 한글과 숫자만 5자 이상이며 초기
   assert.throws(() => Auth.validateStudentPassword('이전암호1', '초기암호1', '이전암호1'));
   for (const value of ['바람123', '행복한5반', '새로운별빛', '별빛123']) assert.doesNotThrow(() => Auth.validateStudentPassword(value, '초기암호1', '이전암호1'));
 });
+
+test('학생 달력은 본인 과제 상태와 공개 일정만 표시하고 비공개 수업 메모를 제외',()=>{
+ const f=fixture(),date=C.today();f.source.assignments=[{id:'own',title:'내 과제',target:{studentIds:['one']},date,repeat:{type:'none'}},{id:'other',title:'OTHER_TASK_SECRET',target:{studentIds:['two']},date,repeat:{type:'none'}}];
+ f.source.assignmentStates=[{assignmentId:'own',studentId:'one',date,status:'완료',memo:'PRIVATE_STATUS'}];f.source.events=[{id:'event',date,title:'공개 일정',description:'운동장\n모이기',privateMemo:'PRIVATE_EVENT'}];
+ f.source.timetables=[{date,period:1,subjectCode:'국어',publicMemo:'준비물\n태블릿',privateMemo:'PRIVATE_CLASS'}];
+ const data=f.context.studentSnapshot(f.source,f.source.students[0],date),json=JSON.stringify(data);assert.equal(data.timetable[0].publicMemo,'준비물\n태블릿');assert(!json.includes('PRIVATE_'));assert(!json.includes('OTHER_TASK_SECRET'));
+ const items=f.context.studentCalendarItems(data.calendar,date);assert.equal(items.length,2);assert.equal(items.find(item=>item.kind==='task').status,'완료');assert.equal(f.context.studentCalendarItems(data.calendar,C.addDays(date,1)).length,0);
+});

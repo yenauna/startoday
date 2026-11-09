@@ -125,7 +125,7 @@ revoke all on public.startoday_student_login_attempts from public,anon,authentic
 create or replace function public.startoday_student_payload(cid uuid,sid text)
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
 declare student jsonb; config jsonb; day text:=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD');
- result jsonb; totals jsonb; letters jsonb; tasks jsonb; routines jsonb; timetable jsonb;
+ result jsonb; totals jsonb; letters jsonb; tasks jsonb; routines jsonb; timetable jsonb; calendar jsonb;
 begin
  select data into student from public.startoday_students where class_id=cid and id=sid;
  select data into config from public.startoday_settings where class_id=cid and id='main';
@@ -150,10 +150,19 @@ begin
  select coalesce(jsonb_agg(jsonb_build_object('title',r.data->>'title','status',case when r.data->'exceptions'->day->>'exempt'='true' or exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=day and atd.data->>'excluded'='true') then '면제' else coalesce(st.data->>'status','진행중') end) order by coalesce((r.data->>'sortOrder')::numeric,0)),'[]'::jsonb) into routines
  from public.startoday_routines r left join public."startoday_routineStates" st on st.class_id=cid and st.id=r.id||':'||day||':'||sid
  where r.class_id=cid and r.data->>'deletedAt' is null and (r.data->'target'='"all"'::jsonb or r.data->'target'->'studentIds' ? sid);
- select coalesce(jsonb_agg(jsonb_build_object('period',t.data->'period','subject',t.data->>'subjectCode','color',rules.data->>'color','accentColor',rules.data->>'accentColor','colorSource',rules.data->>'colorSource','defaultColorValue',rules.data->>'defaultColorValue','location',coalesce(nullif(t.data->>'locationOverride',''),rules.data->>'location','')) order by (t.data->>'period')::integer),'[]'::jsonb) into timetable
+ select coalesce(jsonb_agg(jsonb_build_object('period',t.data->'period','subject',t.data->>'subjectCode','publicMemo',coalesce(t.data->>'publicMemo',t.data->>'memo',''),'color',rules.data->>'color','accentColor',rules.data->>'accentColor','colorSource',rules.data->>'colorSource','defaultColorValue',rules.data->>'defaultColorValue','location',coalesce(nullif(t.data->>'locationOverride',''),rules.data->>'location','')) order by (t.data->>'period')::integer),'[]'::jsonb) into timetable
  from public.startoday_timetables t left join public.startoday_subject_rules rules on rules.class_id=cid and rules.data->>'code'=t.data->>'subjectCode'
  where t.class_id=cid and t.data->>'date'=day and (t.data->>'period')::integer between 1 and 6;
- result:=jsonb_build_object('student',jsonb_build_object('id',sid,'no',student->'no','name',student->>'name'),'className',coalesce(config->>'className','우리반'),'date',day,'score',totals,'praise',letters,'tasks',tasks,'routines',routines,'timetable',timetable);
+ select jsonb_build_object(
+ 'assignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title','date',a.data->>'date','endDate',a.data->>'endDate','repeat',a.data->'repeat')) from public.startoday_assignments a where a.class_id=cid and a.data->>'deletedAt' is null and (a.data->'target'='"all"'::jsonb or a.data->'target'->'studentIds' ? sid)),'[]'::jsonb),
+ 'states',coalesce((select jsonb_agg(jsonb_build_object('assignmentId',st.data->>'assignmentId','date',st.data->>'date','status',st.data->>'status')) from public."startoday_assignmentStates" st where st.class_id=cid and st.data->>'studentId'=sid),'[]'::jsonb),
+ 'excludedDates',coalesce((select jsonb_agg(atd.data->>'date') from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'excluded'='true'),'[]'::jsonb),
+ 'events',coalesce((select jsonb_agg(jsonb_build_object('date',e.date,'title',e.title,'description',e.description,'period',e.period)) from (
+   select ev.data->>'date' as date,ev.data->>'title' as title,coalesce(ev.data->>'description','') as description,ev.data->'period' as period from public.startoday_events ev where ev.class_id=cid
+   union all select config->'academicCalendar'->>dates.key,dates.title,'학사일정 · 설정에서 관리','null'::jsonb from (values ('term1Start','개학식'),('summerEnd','여름방학식'),('term2Start','개학식'),('winterEnd','겨울방학식'),('winterReturn','개학식'),('springEnd','종업식')) dates(key,title) where config->'academicCalendar'->>dates.key ~ '^\d{4}-\d{2}-\d{2}$' and (dates.key not in ('winterReturn','springEnd') or config->'academicCalendar'->>'springBreak'='true')
+   union all select distinct holiday.value,'자율휴업일','학사일정 · 재량휴업일','null'::jsonb from jsonb_array_elements_text(case when jsonb_typeof(config->'academicCalendar'->'holidays')='array' then config->'academicCalendar'->'holidays' else '[]'::jsonb end) holiday(value)
+ ) e),'[]'::jsonb)) into calendar;
+ result:=jsonb_build_object('student',jsonb_build_object('id',sid,'no',student->'no','name',student->>'name'),'className',coalesce(config->>'className','우리반'),'date',day,'score',totals,'praise',letters,'tasks',tasks,'routines',routines,'timetable',timetable,'calendar',calendar);
  return result;
 end $$;
 revoke all on function public.startoday_student_payload(uuid,text) from public,anon,authenticated;

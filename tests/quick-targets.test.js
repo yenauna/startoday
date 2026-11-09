@@ -109,3 +109,8 @@ test('동명이인 또는 잘못 입력한 학생은 임의로 선택하지 않�
   assert.throws(() => f.context.addQuickStudentQuery(), /학생 번호/);
   assert.deepEqual(f.state.selected, ['one']);
 });
+
+test('여러 번호/이름을 입력하면 쉼표·공백을 기준으로 후보를 모두 표시',()=>{
+ const f=quickFixture();
+ for(const query of ['1 2 5','1, 2, 5','지우 다온 가온'])assert.deepEqual(Array.from(f.context.quickStudentCandidates(query,f.database)).map(s=>s.id),['one','two','three']);
+});

@@ -1,4 +1,4 @@
-import { render } from '../app.js';
+import { render, navigate } from '../app.js';
 import * as C from '../core.js';
 import { db, name, settings } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
@@ -8,9 +8,8 @@ import { recordButtons, saveDirectRecords } from '../tabs/dashboard.js';
 import { studentLoginDialog } from '../tabs/student-view.js';
 export function header() {
   return `<header class="top">${btn('<img src="assets/logo-icon.jpg" class="logo" data-logo-slot alt="로고" style="object-fit:cover;border-radius:8px"><strong>오늘의 별</strong><small>' + esc(settings().className) + '</small>', () => {
-    state.tab = '대시보드';
     state.dashMode = 'normal';
-    render();
+    navigate('대시보드');
   }, 'brand brand-home', 'aria-label="오늘의 별 홈"')}<div class="row">${btn('교실 화면', classroom)}<div class="header-more">${btn('⋮', () => toggleMore(), 'more-toggle', 'id="header-more-toggle" aria-label="더보기" aria-haspopup="menu" aria-expanded="false" aria-controls="header-more-menu"')}<div id="header-more-menu" class="header-more-menu" role="menu" hidden>${btn('🪑 자리 배치', () => openMoreTab('자리'), '', 'role="menuitem"')}${btn('⚙️ 설정', () => openMoreTab('설정'), '', 'role="menuitem"')}${btn('🚪 로그아웃', async () => {
     toggleMore(false);
     await store.logout();
@@ -28,8 +27,7 @@ function toggleMore(open) {
 }
 function openMoreTab(tab) {
   toggleMore(false);
-  state.tab = tab;
-  render();
+  navigate(tab);
 }
 document.addEventListener('click', e => {
   if (!e.target.closest?.('.header-more')) toggleMore(false);
@@ -48,9 +46,8 @@ export function renderLogin() {
   })}<small>연결 전 체험 자료와 로그인 후 학급 자료는 별도로 관리됩니다.</small></div>`;
 }
 export function renderShell(renderTab) {
-  return `<div class="sticky-navigation">${header()}<nav class="tabs" aria-label="주 메뉴">${['대시보드', '기록', '시간표·일정', '과제', '루틴', '학생'].map(t => btn(t === '시간표·일정' ? '일정' : t, () => {
-    state.tab = t;
-    render();
+  return `<div class="sticky-navigation">${header()}<nav class="tabs" aria-label="주 메뉴">${['대시보드', '기록', '시간표·일정', '과제', '루틴', '통계'].map(t => btn(t === '시간표·일정' ? '일정' : t, () => {
+    navigate(t);
   }, state.tab === t ? 'active' : '', state.tab === t ? 'aria-current="page"' : '')).join('')}</nav></div><div class="shell">${quickInput()}${store.mode === 'demo' ? '<div class="notice">가상 명단으로 체험 중입니다. 이 모드의 자료는 이 브라우저에만 저장됩니다. 실제 학급은 수파베이스 연결 후 구글 로그인으로 사용하세요.</div>' : ''}${settings().lastBackupAt && Date.now() - new Date(settings().lastBackupAt) > 7 * 86400000 ? '<div class="notice">마지막 백업 후 7일이 지났습니다. 설정에서 백업 파일을 내려받으세요.</div>' : !settings().lastBackupAt ? '<div class="muted" style="margin-bottom:10px">아직 백업하지 않았습니다. 설정에서 전체 자료를 내보낼 수 있습니다.</div>' : ''}<main id="main">${renderTab()}</main></div>`;
 }
 let quickScope = '',
@@ -75,7 +72,7 @@ function quickInput() {
   return `<div class="quick-wrap quick-composer-card ${state.selected.length ? 'selection-composer' : ''}" ${state.selected.length ? 'role="region" aria-label="선택 학생 기록"' : ''}>${state.selected.length ? `<div class="selection-composer-head">${btn('✕ 선택 취소', () => {
     state.selected = [];
     render();
-  }, 'selection-dismiss')}</div>` : ''}<form class="quick" id="quick-form"><div class="quick-main"><div class="quick-entry-fields">${quickStudentsField()}<label for="quick-text">내용</label><textarea id="quick-text" rows="1" aria-label="빠른 기록 입력" placeholder="예: 친구의 준비물을 챙겨줌, 다툼이 있었음">${esc(quickText)}</textarea></div><div class="chips quick-areas" role="group" aria-label="빠른 기록 경험치 영역">${C.areaNames(db()).map(a => btn(esc(a), () => {
+  }, 'selection-dismiss')}</div>` : ''}<form class="quick" id="quick-form"><div class="quick-main"><div class="quick-entry-fields">${quickStudentsField()}<textarea id="quick-text" rows="1" aria-label="빠른 기록 입력" placeholder="(내용)">${esc(quickText)}</textarea></div><div class="chips quick-areas" role="group" aria-label="빠른 기록 경험치 영역">${C.areaNames(db()).map(a => btn(esc(a), () => {
     quickAreas = quickAreas.includes(a) ? quickAreas.filter(x => x !== a) : [...quickAreas, a];
     render();
   }, 'area-chip' + (quickAreas.includes(a) ? ' selected' : ''), `aria-pressed="${quickAreas.includes(a)}"`)).join('')}</div></div><div class="quick-controls"><label class="quick-date" title="기록 날짜 선택"><span>📅 ${quickDate === C.today() ? '오늘' : esc(C.formatDate(quickDate))}</span><input type="date" id="quick-date" aria-label="빠른 기록 날짜" value="${esc(quickDate)}" required></label><select id="quick-period" aria-label="교시">${opts([['자동', autoPeriodLabel()], ['', '시간 미지정'], ...C.PERIODS], quickPeriod)}</select><div class="record-actions">${recordButtons(saveQuick)}</div></div></form></div>`;
@@ -89,7 +86,10 @@ export function bindQuickInput() {
     showQuickStudentResults();
   };
   targetField.onkeydown = e => {
-    if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) {
+    if (e.isComposing || e.keyCode === 229 || !['Enter', ',', ' '].includes(e.key)) return;
+    const tokens = targetField.value.trim().split(/[,，\s]+/).filter(Boolean);
+    const valid = tokens.length && tokens.every(token => quickStudentCandidates(token, db(), true).length === 1);
+    if (e.key === 'Enter' || valid) {
       e.preventDefault();
       try {
         addQuickStudentQuery();
@@ -169,16 +169,23 @@ function updateAutoPeriod() {
 }
 setInterval(updateAutoPeriod, 60000);
 export function quickStudentCandidates(query, source = db(), exact = false) {
-  const value = query.trim();
-  if (!value) return [];
-  const number = value.match(/^(\d+)(?:번)?$/);
-  return C.activeStudents(source).filter(student => number ? exact || value.endsWith('번') ? student.no === Number(number[1]) : String(student.no).startsWith(number[1]) : exact ? student.name === value || student.name.length === 3 && student.name.slice(1) === value : student.name.includes(value));
+  const tokens = query.trim().split(/[,，\s]+/).filter(Boolean),
+    students = C.activeStudents(source),
+    found = new Map();
+  for (const value of tokens) {
+    const number = value.match(/^(\d+)(?:번)?$/);
+    for (const student of students) {
+      const match = number ? exact || tokens.length > 1 || value.endsWith('번') ? student.no === Number(number[1]) : String(student.no).startsWith(number[1]) : exact ? student.name === value || student.name.length === 3 && student.name.slice(1) === value : student.name.includes(value);
+      if (match) found.set(student.id, student);
+    }
+  }
+  return [...found.values()];
 }
 function quickStudentsField() {
-  return `<div id="quick-students"><label for="quick-student-query">대상 학생</label><div class="chips selected-students" aria-label="선택 학생">${state.selected.map(id => btn(esc(name(id)) + ' ×', () => {
+  return `<div id="quick-students"><div class="chips selected-students" aria-label="선택 학생">${state.selected.map(id => btn(esc(name(id)) + ' ×', () => {
     state.selected = state.selected.filter(value => value !== id);
     render();
-  }, 'quick-student-chip', `aria-label="${esc(name(id))} 선택 해제"`)).join('')}</div><div class="quick-student-search"><input id="quick-student-query" aria-label="대상 학생 번호 또는 이름" autocomplete="off" placeholder="번호 또는 이름 입력 후 선택" value="${esc(quickStudentQuery)}" aria-controls="quick-student-results">${btn('추가', addQuickStudentQuery)}</div><div id="quick-student-results" class="quick-student-results" aria-label="학생 검색 결과"></div></div>`;
+  }, 'quick-student-chip', `aria-label="${esc(name(id))} 선택 해제"`)).join('')}</div><div class="quick-student-search"><input id="quick-student-query" aria-label="대상 학생 번호 또는 이름" autocomplete="off" placeholder="(학생: 번호 또는 이름 입력, 선택 가능)" value="${esc(quickStudentQuery)}" aria-controls="quick-student-results">${btn('추가', addQuickStudentQuery)}</div><div id="quick-student-results" class="quick-student-results" aria-label="학생 검색 결과"></div></div>`;
 }
 function addQuickStudent(id) {
   if (!C.activeStudents(db()).some(student => student.id === id)) throw Error('학생을 확인하세요.');

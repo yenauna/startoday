@@ -25,6 +25,7 @@ export function studentSnapshot(source, student, date = C.today()) {
     },
     className: source.settings[0]?.className || '우리반',
     date,
+    calendar: C.studentCalendarData(source, student.id),
     score: {
       total: score.total,
       areas: score.areas
@@ -44,6 +45,7 @@ export function studentSnapshot(source, student, date = C.today()) {
         period: t.period,
         subject: t.subjectCode,
         location: t.locationOverride || rule?.location || '',
+        publicMemo: t.publicMemo ?? t.memo ?? '',
         color: rule?.color,
         accentColor: rule?.accentColor,
         colorSource: rule?.colorSource,
@@ -211,6 +213,7 @@ export function previewStudent(id) {
 export function leaveStudentView() {
   closeModal();
   state.actions?.clear();
+  studentCalendarScope = '';
   const preview = !!state.impersonatingStudentId;
   state.studentUser = null;
   state.studentPasswordPending = false;
@@ -232,15 +235,68 @@ export function renderStudentShell() {
   const data = state.impersonatingStudentId ? studentSnapshot(store.db, student) : state.studentSnapshot;
   if (!data) return `<main class="student-shell">${btn('다시 로그인', leaveStudentView)}</main>`;
   const pills = areas => (areas || []).map(a => `<span class="student-pill">${esc(a)}</span>`).join('');
-  const taskList = list => list.map(task => {
+  const taskList = (list, routine = false) => list.map(task => {
     const done = ['완료', '늦게완료', '면제'].includes(task.status);
-    return `<div class="student-task ${done ? 'is-complete' : ''}"><div><strong>${esc(task.title)}</strong>${task.date ? `<small>${esc(C.formatDate(task.date))}</small>` : ''}</div><span>${done ? '✓ ' : ''}${esc(task.status)}</span></div>`;
+    return `<div class="student-task ${done ? 'is-complete' : ''}"><div><strong class="${routine ? 'student-routine-title' : ''}">${esc(task.title)}</strong>${task.date ? `<small>${esc(C.formatDate(task.date))}</small>` : ''}</div><span>${done ? '✓ ' : ''}${esc(task.status)}</span></div>`;
   }).join('') || '<p class="muted">오늘 할 일이 없습니다.</p>';
-  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드 (${esc(student.no)}. ${esc(student.name)})${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<header class="student-header"><img class="logo" src="assets/logo-icon.jpg" alt="오늘의 별"><div><strong>${esc(data.className)}</strong><span>${esc(student.no)}. ${esc(student.name)}</span></div>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header><main class="student-dashboard"><section class="student-card student-growth"><h2>내 별 점수</h2><div class="student-stars">★ ${esc(data.score.total)}개</div><div class="student-pills">${pills(Object.entries(data.score.areas || {}).map(([a, n]) => a + ' ' + n))}</div></section><section class="student-card"><h2>오늘의 과제 &amp; 루틴</h2><h3>과제</h3>${taskList(data.tasks)}<h3>루틴</h3>${taskList(data.routines)}</section><section class="student-card"><h2>오늘의 시간표</h2>${data.timetable.map(t => `<div class="student-task subject-color subject-stripe" style="${C.subjectColorStyle({
+  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드 (${esc(student.no)}. ${esc(student.name)})${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<header class="student-header"><img class="logo" src="assets/logo-icon.jpg" alt="오늘의 별"><div><strong>${esc(data.className)}</strong><span>${esc(student.no)}. ${esc(student.name)}</span></div>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header><main class="student-dashboard"><section class="student-card student-growth"><h2>내 별 점수</h2><div class="student-stars">★ ${esc(data.score.total)}개</div><div class="student-pills">${pills(Object.entries(data.score.areas || {}).map(([a, n]) => a + ' ' + n))}</div></section><section class="student-card"><h2>오늘의 과제 &amp; 루틴</h2><h3>과제</h3>${taskList(data.tasks)}<h3>루틴</h3>${taskList(data.routines, true)}</section><section class="student-card student-calendar-card"><h2>과제·일정 달력</h2>${studentCalendarView(data, student.id)}</section><section class="student-card"><h2>오늘의 시간표</h2>${data.timetable.map(t => `<div class="student-task subject-color subject-stripe" style="${C.subjectColorStyle({
     code: t.subject,
     color: t.color,
     accentColor: t.accentColor,
     colorSource: t.colorSource,
     defaultColorValue: t.defaultColorValue
-  })}"><strong>${esc(t.period)}교시 <span class="subject-title">${esc(t.subject)}</span></strong><small>${esc(t.location)}</small></div>`).join('') || '<p class="muted">오늘 등록된 수업이 없습니다.</p>'}</section><section class="student-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><p>${esc(r.text)}</p><div class="student-pills">${pills(r.areas)}</div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main></div>`;
+  })}"><div class="slot-heading"><span class="slot-time">${esc(t.period)}교시</span><strong class="subject-title">${esc(t.subject)}</strong></div>${t.publicMemo ? `<div class="slot-public-memo">${esc(t.publicMemo)}</div>` : ''}</div>`).join('') || '<p class="muted">오늘 등록된 수업이 없습니다.</p>'}</section><section class="student-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><p>${esc(r.text)}</p><div class="student-pills">${pills(r.areas)}</div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main></div>`;
+}
+let studentCalendarScope = '',
+  studentCalendarDate = '',
+  studentCalendarMode = 'month';
+export function studentCalendarItems(calendar, date) {
+  const tasks = (calendar.assignments || []).filter(assignment => C.occurs(assignment, date)).map(assignment => ({
+    title: assignment.title,
+    status: (calendar.excludedDates || []).includes(date) ? '면제' : calendar.states?.find(row => row.assignmentId === assignment.id && row.date === date)?.status || '진행중',
+    kind: 'task'
+  }));
+  const events = (calendar.events || []).filter(event => event.date === date).map(event => ({
+    title: event.title,
+    description: event.description || '',
+    kind: 'event'
+  }));
+  const order=(a,b)=>a.title.localeCompare(b.title,'ko') || (a.status || a.description || '').localeCompare(b.status || b.description || '','ko');
+  return [...events.sort(order), ...tasks.sort(order)];
+}
+function studentCalendarView(data, id) {
+  if (!data.calendar) return '<p class="muted">달력 정보를 아직 불러오지 못했어요. 선생님께 알려주세요.</p>';
+  const scope = store.mode + ':' + store.classId + ':' + id;
+  if (scope !== studentCalendarScope) {
+    studentCalendarScope = scope;
+    studentCalendarDate = data.date || C.today();
+    studentCalendarMode = 'month';
+  }
+  const first = studentCalendarDate.slice(0, 7) + '-01',
+    start = studentCalendarMode === 'month' ? C.addDays(first, -((C.weekday(first) + 6) % 7)) : C.addDays(studentCalendarDate, -((C.weekday(studentCalendarDate) + 6) % 7));
+  const move = step => {
+    if (studentCalendarMode === 'week') studentCalendarDate = C.addDays(studentCalendarDate, step * 7);else {
+      const date = new Date(first + 'T12:00Z');
+      date.setUTCMonth(date.getUTCMonth() + step);
+      studentCalendarDate = date.toISOString().slice(0, 10);
+    }
+    render();
+  };
+  const detail = studentCalendarItems(data.calendar, studentCalendarDate);
+  return `<div class="row student-calendar-controls">${btn('‹', () => move(-1), '', 'aria-label="이전 학생 달력"')}<strong>${esc(studentCalendarDate.slice(0, 7).replace('-', '.'))}</strong>${btn('›', () => move(1), '', 'aria-label="다음 학생 달력"')}${btn('오늘', () => {
+    studentCalendarDate = C.today();
+    render();
+  })}${['month', 'week'].map(mode => btn(mode === 'month' ? '월간' : '주간', () => {
+    studentCalendarMode = mode;
+    render();
+  }, studentCalendarMode === mode ? 'primary' : '', `aria-pressed="${studentCalendarMode === mode}"`)).join('')}</div><div class="student-calendar-grid">${['월', '화', '수', '목', '금', '토', '일'].map(day => `<div class="weekday">${day}</div>`).join('')}${Array.from({
+    length: studentCalendarMode === 'month' ? 42 : 7
+  }, (_, index) => {
+    const date = C.addDays(start, index),
+      items = studentCalendarItems(data.calendar, date);
+    return btn(`<strong>${Number(date.slice(-2))}</strong>${items.map(item => `<span class="student-calendar-pill ${item.kind === 'task' && !['완료', '늦게완료', '면제'].includes(item.status) ? 'has-incomplete' : ''}">${esc(item.title)}</span>`).join('')}`, () => {
+      studentCalendarDate = date;
+      render();
+    }, 'student-calendar-day' + (date === studentCalendarDate ? ' selected' : '') + (date.slice(0, 7) !== first.slice(0, 7) ? ' faded' : ''), `data-calendar-date="${date}" aria-label="${esc(C.formatDate(date))}" aria-pressed="${date === studentCalendarDate}"`);
+  }).join('')}</div><div class="student-calendar-detail"><h3>${esc(C.formatDate(studentCalendarDate))}</h3>${detail.map(item => `<div class="student-task"><div><strong>${esc(item.title)}</strong>${item.description ? `<small>${esc(item.description)}</small>` : ''}</div>${item.status ? `<span>${esc(item.status)}</span>` : ''}</div>`).join('') || '<p class="muted">등록된 과제와 일정이 없습니다.</p>'}</div>`;
 }

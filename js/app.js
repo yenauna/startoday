@@ -12,8 +12,35 @@ import { settingsView } from './tabs/settings.js';
 import { studentsView } from './tabs/students.js';
 import { bindTimetableDrag, calendarView } from './tabs/timetable.js';
 import { renderStudentShell } from './tabs/student-view.js';
+const teacherTabs = ['대시보드', '기록', '시간표·일정', '과제', '루틴', '통계', '자리', '설정'];
+export function navigate(tab) {
+  state.tab = tab === '학생' ? '통계' : tab;
+  if (!teacherTabs.includes(state.tab)) state.tab = '대시보드';
+  history.pushState(null, '', '#' + encodeURIComponent(state.tab === '시간표·일정' ? '일정' : state.tab));
+  render();
+}
+function readTabHash() {
+  let tab;
+  try {
+    tab = decodeURIComponent(location.hash.slice(1));
+  } catch {
+    return;
+  }
+  if (tab === '학생') tab = '통계';
+  if (tab === '일정') tab = '시간표·일정';
+  if (teacherTabs.includes(tab)) {
+    state.tab = tab;
+    if (tab === '통계') history.replaceState(null, '', '#' + encodeURIComponent('통계'));
+  }
+}
+window.addEventListener('hashchange', () => {
+  readTabHash();
+  render();
+});
+readTabHash();
 export function render() {
   if (state.studentPasswordPending || state.viewMode === 'student' || state.studentUser || state.impersonatingStudentId) {
+    document.title='학생 화면 · 오늘의 별';
     state.actions.clear();
     document.querySelector('.print-root')?.remove();
     document.body.classList.remove('report-open');
@@ -24,9 +51,11 @@ export function render() {
   document.querySelector('.print-root')?.remove();
   document.body.classList.remove('report-open');
   if (!db()) {
+    document.title='오늘의 별';
     renderLogin();
     return;
   }
+  document.title=state.tab==='통계'?'통계 · 오늘의 별':'오늘의 별';
   $('#app').innerHTML = renderShell(renderTab);
   bindQuickInput();
   bindTimetableDrag();
@@ -58,7 +87,7 @@ function renderTab() {
     '시간표·일정': calendarView,
     '과제': assignmentsView,
     '루틴': routinesView,
-    '학생': studentsView,
+    '통계': studentsView,
     '자리': seatsView,
     '설정': settingsView
   }[state.tab]();
