@@ -42,6 +42,86 @@ export const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({
 export const delta = r => r.kind === '칭찬' ? 1 : r.kind === '지도' ? -1 : 0;
 export const stateId = (a, d, s) => `${a}:${d}:${s}`;
 export const activeStudents = db => db.students.filter(s => !s.deletedAt).sort((a, b) => a.no - b.no || a.name.localeCompare(b.name));
+// Saved colors without provenance remain ambiguous, even if equal to an old default.
+export const SUBJECT_PALETTE = Object.freeze({
+  '국어': {
+    background: '#EDF5FB',
+    accent: '#397FAE'
+  },
+  '수학': {
+    background: '#FBF7E8',
+    accent: '#997710'
+  },
+  '사회': {
+    background: '#F7F0EA',
+    accent: '#946B46'
+  },
+  '과학': {
+    background: '#EFF6EC',
+    accent: '#527F4A'
+  },
+  '영어': {
+    background: '#F0F1FC',
+    accent: '#6269B0'
+  },
+  '음악': {
+    background: '#FCEDF3',
+    accent: '#B6537D'
+  },
+  '미술': {
+    background: '#F7EFFB',
+    accent: '#9161AD'
+  },
+  '체육': {
+    background: '#EAF7F3',
+    accent: '#287E73'
+  },
+  '실과': {
+    background: '#FCEFE9',
+    accent: '#BA6044'
+  },
+  '도덕': {
+    background: '#F5F7E8',
+    accent: '#7B8527'
+  },
+  '창체': {
+    background: '#F0F3F7',
+    accent: '#65758C'
+  }
+});
+export const SUBJECT_COLOR_ALIASES = Object.freeze({
+  '자율자치': '창체',
+  '동아리': '창체',
+  '진로': '창체',
+  '학자시': '창체'
+});
+export const DEFAULT_SUBJECT_CODES = ['국어', '수학', '사회', '과학', '체육', '음악', '미술', '실과', '영어', '창체', '도덕', ...Object.keys(SUBJECT_COLOR_ALIASES)];
+export function defaultSubjectColors(code) {
+  const key = Object.hasOwn(SUBJECT_COLOR_ALIASES, code) ? SUBJECT_COLOR_ALIASES[code] : code;
+  return {
+    ...(Object.hasOwn(SUBJECT_PALETTE, key) ? SUBJECT_PALETTE[key] : SUBJECT_PALETTE['창체'])
+  };
+}
+function subjectHex(value) {
+  return typeof value === 'string' && /^#(?:[a-f0-9]{3}|[a-f0-9]{6})$/i.test(value) ? value : null;
+}
+export function usesDefaultSubjectColors(rule) {
+  return !subjectHex(rule?.color) || rule?.colorSource === 'default' && rule.color.toLowerCase() === String(rule.defaultColorValue || '').toLowerCase();
+}
+export function subjectColors(subject) {
+  const rule = typeof subject === 'string' ? {
+      code: subject
+    } : subject || {},
+    defaults = defaultSubjectColors(rule.code);
+  return usesDefaultSubjectColors(rule) ? defaults : {
+    background: subjectHex(rule.color) || defaults.background,
+    accent: subjectHex(rule.accentColor) || defaults.accent
+  };
+}
+export function subjectColorStyle(subject) {
+  const colors = subjectColors(subject);
+  return `--subject-bg:${colors.background};--subject-accent:${colors.accent};`;
+}
 export function initialDB() {
   const db = Object.fromEntries(TABLES.map(t => [t, []]));
   db.areas = defaultAreas();
@@ -64,11 +144,13 @@ export function initialDB() {
     },
     periodTimes: [...DEFAULT_PERIOD_TIMES]
   }];
-  db.subject_rules = ['국어', '수학', '사회', '과학', '체육', '음악', '미술', '실과', '영어', '창체', '도덕'].map((code, i) => ({
+  db.subject_rules = DEFAULT_SUBJECT_CODES.map((code, i) => ({
     id: uid(),
     code,
     label: code[0],
-    color: ['#E0F2FE', '#FEF08A', '#FFEDD5', '#DCFCE7', '#F3E8FF', '#FFE4E6', '#FFE4E6'][i % 7],
+    color: defaultSubjectColors(code).background,
+    colorSource: 'default',
+    defaultColorValue: defaultSubjectColors(code).background,
     isSpecialist: false,
     location: '',
     teacherName: '',

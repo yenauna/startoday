@@ -633,3 +633,20 @@ input, select, textarea, .input, .textarea, #notice-editor, .quick input, .quick
 .quick-student-results { display:flex; flex-wrap:wrap; gap:5px; max-height:140px; overflow-y:auto; }
 .quick-student-result,.quick-student-chip { font-size:13px; padding:5px 9px; min-height:32px; }
 .quick-student-chip { background:var(--st-blue-bg); color:var(--st-blue-text); }
+
+/* Shared subject colors, with no changes to element dimensions. */
+.subject-color.subject-stripe,.subject-color.subject-badge { background:var(--subject-bg); background-image:none; }
+.subject-color.subject-stripe { position:relative; overflow:hidden; color:var(--st-text); }
+.subject-color.subject-stripe::before {
+  content:''; position:absolute; top:0; bottom:0; left:0; width:4px;
+  background:var(--subject-accent); border-top-left-radius:inherit; border-bottom-left-radius:inherit;
+  pointer-events:none;
+}
+.subject-color .subject-title,.subject-color.subject-badge,.subject-color.subject-choice { color:var(--subject-accent); }
+.subject-color .slot-time { color:var(--st-text-muted); }
+.subject-color .slot-description { color:var(--st-text); }
+button.subject-color.subject-stripe:hover { box-shadow:var(--st-shadow-1),inset 0 0 0 1px var(--subject-accent); }
+button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subject-accent); outline-offset:-2px; }
+.subject-grid .subject-choice.selected { outline:2px solid var(--st-blue-text); outline-offset:-2px; box-shadow:inset 0 0 0 1px var(--st-blue-text); }
+@media(max-width:640px) { .calendar .subject-stripe::before { width:3px; } }
+.slot.subject-color .subject-title { max-width:100%; }

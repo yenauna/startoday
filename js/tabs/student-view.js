@@ -38,11 +38,18 @@ export function studentSnapshot(source, student, date = C.today()) {
       title: r.title,
       status: excluded ? '면제' : C.routineStatus(source, r.id, date, student.id)
     })),
-    timetable: source.timetables.filter(t => t.date === date && t.period >= 1 && t.period <= 6).sort((a, b) => a.period - b.period).map(t => ({
-      period: t.period,
-      subject: t.subjectCode,
-      location: t.locationOverride || source.subject_rules.find(r => r.code === t.subjectCode)?.location || ''
-    })),
+    timetable: source.timetables.filter(t => t.date === date && t.period >= 1 && t.period <= 6).sort((a, b) => a.period - b.period).map(t => {
+      const rule = source.subject_rules.find(row => row.code === t.subjectCode);
+      return {
+        period: t.period,
+        subject: t.subjectCode,
+        location: t.locationOverride || rule?.location || '',
+        color: rule?.color,
+        accentColor: rule?.accentColor,
+        colorSource: rule?.colorSource,
+        defaultColorValue: rule?.defaultColorValue
+      };
+    }),
     praise: source.records.filter(r => r.kind === '칭찬' && r.studentIds.includes(student.id) && r.date <= date && (!r.autoRef || automaticPraise(r) !== null)).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 50).map(r => ({
       kind: '칭찬',
       date: r.date,
@@ -229,5 +236,11 @@ export function renderStudentShell() {
     const done = ['완료', '늦게완료', '면제'].includes(task.status);
     return `<div class="student-task ${done ? 'is-complete' : ''}"><div><strong>${esc(task.title)}</strong>${task.date ? `<small>${esc(C.formatDate(task.date))}</small>` : ''}</div><span>${done ? '✓ ' : ''}${esc(task.status)}</span></div>`;
   }).join('') || '<p class="muted">오늘 할 일이 없습니다.</p>';
-  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드 (${esc(student.no)}. ${esc(student.name)})${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<header class="student-header"><img class="logo" src="assets/logo-icon.jpg" alt="오늘의 별"><div><strong>${esc(data.className)}</strong><span>${esc(student.no)}. ${esc(student.name)}</span></div>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header><main class="student-dashboard"><section class="student-card student-growth"><h2>내 별 점수</h2><div class="student-stars">★ ${esc(data.score.total)}개</div><div class="student-pills">${pills(Object.entries(data.score.areas || {}).map(([a, n]) => a + ' ' + n))}</div></section><section class="student-card"><h2>오늘의 과제 &amp; 루틴</h2><h3>과제</h3>${taskList(data.tasks)}<h3>루틴</h3>${taskList(data.routines)}</section><section class="student-card"><h2>오늘의 시간표</h2>${data.timetable.map(t => `<div class="student-task"><strong>${esc(t.period)}교시 ${esc(t.subject)}</strong><small>${esc(t.location)}</small></div>`).join('') || '<p class="muted">오늘 등록된 수업이 없습니다.</p>'}</section><section class="student-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><p>${esc(r.text)}</p><div class="student-pills">${pills(r.areas)}</div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main></div>`;
+  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드 (${esc(student.no)}. ${esc(student.name)})${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<header class="student-header"><img class="logo" src="assets/logo-icon.jpg" alt="오늘의 별"><div><strong>${esc(data.className)}</strong><span>${esc(student.no)}. ${esc(student.name)}</span></div>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header><main class="student-dashboard"><section class="student-card student-growth"><h2>내 별 점수</h2><div class="student-stars">★ ${esc(data.score.total)}개</div><div class="student-pills">${pills(Object.entries(data.score.areas || {}).map(([a, n]) => a + ' ' + n))}</div></section><section class="student-card"><h2>오늘의 과제 &amp; 루틴</h2><h3>과제</h3>${taskList(data.tasks)}<h3>루틴</h3>${taskList(data.routines)}</section><section class="student-card"><h2>오늘의 시간표</h2>${data.timetable.map(t => `<div class="student-task subject-color subject-stripe" style="${C.subjectColorStyle({
+    code: t.subject,
+    color: t.color,
+    accentColor: t.accentColor,
+    colorSource: t.colorSource,
+    defaultColorValue: t.defaultColorValue
+  })}"><strong>${esc(t.period)}교시 <span class="subject-title">${esc(t.subject)}</span></strong><small>${esc(t.location)}</small></div>`).join('') || '<p class="muted">오늘 등록된 수업이 없습니다.</p>'}</section><section class="student-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><p>${esc(r.text)}</p><div class="student-pills">${pills(r.areas)}</div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main></div>`;
 }

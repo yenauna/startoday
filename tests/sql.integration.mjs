@@ -60,7 +60,8 @@ await commit([{table:'settings',id:'main',data:config},{table:'records',id:'stud
 await assert.rejects(commit([{table:'settings',id:'main',data:{...config,defaultStudentPassword:'13579'}}]),/INVALID_INITIAL_STUDENT_PASSWORD/);
 await assert.rejects(commit([{table:'settings',id:'main',data:{...config,defaultStudentPassword:'Start77'}}]),/INVALID_INITIAL_STUDENT_PASSWORD/);
 const studentDb=(await snapshot()).data;
-await commit([...C.taskStateOps(studentDb,studentDb.assignments[0],day,'s1','완료','SECRET_TASK_MEMO'),{table:'routines',id:'student-routine',data:{id:'student-routine',title:'우유 급식',target:'all',exceptions:{[day]:{exempt:true,memo:'SECRET_ROUTINE_MEMO'}},sortOrder:0}},{table:'timetables',id:'student-slot',data:{id:'student-slot',date:day,period:1,subjectCode:'수학',locationOverride:'우리 교실',memo:'SECRET_TIMETABLE_MEMO'}}]);
+const mathRule=studentDb.subject_rules.find(rule=>rule.code==='수학');
+await commit([{table:'subject_rules',id:mathRule.id,data:{...mathRule,color:'#E8F4F0',accentColor:'#20604A',colorSource:'custom',defaultColorValue:null}},...C.taskStateOps(studentDb,studentDb.assignments[0],day,'s1','완료','SECRET_TASK_MEMO'),{table:'routines',id:'student-routine',data:{id:'student-routine',title:'우유 급식',target:'all',exceptions:{[day]:{exempt:true,memo:'SECRET_ROUTINE_MEMO'}},sortOrder:0}},{table:'timetables',id:'student-slot',data:{id:'student-slot',date:day,period:1,subjectCode:'수학',locationOverride:'우리 교실',memo:'SECRET_TIMETABLE_MEMO'}}]);
 async function schoolLogin(password='바람123',school='NEIS001',grade='5',group='오',no=1){return (await pg.query('select public.startoday_student_login($1,$2,$3,$4,$5) as data',[school,grade,group,no,password])).rows[0].data;}
 async function changePassword(oldPassword,newPassword){return (await pg.query('select public.startoday_student_change_password($1,$2,$3,$4,$5,$6) as data',['NEIS001','5','오',1,oldPassword,newPassword])).rows[0].data;}
 await pg.exec('set role anon');
@@ -77,7 +78,7 @@ assert.equal(await changePassword('wrong','새암호7'),null);
 for(const invalid of ['바람123','12345','바람12','ㄱㄴ123','바람abc123','행복!123','ab1','!!!!'])await assert.rejects(changePassword('바람123',invalid),/INVALID_STUDENT_PASSWORD/);
 const teacherRevision=revision;
 let view=await changePassword('바람123','별빛123');
-assert.equal(view.mustChangePassword,false);assert.equal(view.student.name,'가상학생');assert.equal(view.praise.length,2);assert.equal(view.score.total,1);assert.equal(view.tasks[0].status,'완료');assert.equal(view.routines[0].status,'면제');assert.equal(view.timetable[0].location,'우리 교실');
+assert.equal(view.mustChangePassword,false);assert.equal(view.student.name,'가상학생');assert.equal(view.praise.length,2);assert.equal(view.score.total,1);assert.equal(view.tasks[0].status,'완료');assert.equal(view.routines[0].status,'면제');assert.equal(view.timetable[0].location,'우리 교실');assert.equal(view.timetable[0].color,'#E8F4F0');assert.equal(view.timetable[0].accentColor,'#20604A');assert.equal(view.timetable[0].colorSource,'custom');
 for(const hidden of ['SECRET_ADVICE','SECRET_TASK_MEMO','SECRET_ROUTINE_MEMO','SECRET_TIMETABLE_MEMO','PRIVATE_ACTION','OTHER_STUDENT','owner_id','password','바람123','별빛123'])assert(!JSON.stringify(view).includes(hidden));
 assert.equal(await schoolLogin('바람123'),null);assert.equal((await schoolLogin('별빛123')).student.id,'s1');
 await assert.rejects(pg.query('select * from public.startoday_student_login_attempts'),/permission denied/);

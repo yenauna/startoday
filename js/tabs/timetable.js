@@ -30,7 +30,7 @@ export function timeSlots(d, calendar = false, registeredOnly = false) {
     if (registeredOnly && !slot && !events.length) return '';
     const detail = !calendar || state.calendarFilters.detail;
     const teacher = info.teacher ? info.teacher.replace(/선생님$/, '') + '선생님' : '';
-    const content = `<small class="slot-time"><span>${p}교시</span>${!calendar && settings().periodTimes?.[i] ? `<span class="period-time">${esc(settings().periodTimes[i])}</span>` : ''}</small><div class="slot-content"><strong>${esc(slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '')}</strong><div class="slot-description">${events.map(e => `<span class="slot-note">${esc(e.title)}${e.description ? ' · ' + esc(e.description) : ''}</span>`).join('')}${slot?.memo ? `<span class="slot-note">${esc(slot.memo)}</span>` : ''}${info.type !== '일반' ? badge(info.type) : ''}${detail && settings().timetableDisplay.showLocation && info.location ? `<span class="slot-location">${esc(info.location)}</span>` : ''}${detail && settings().timetableDisplay.showTeacher && teacher ? `<span class="slot-teacher">${esc(teacher)}</span>` : ''}</div></div>`;
+    const content = `<small class="slot-time"><span>${p}교시</span>${!calendar && settings().periodTimes?.[i] ? `<span class="period-time">${esc(settings().periodTimes[i])}</span>` : ''}</small><div class="slot-content"><strong class="subject-title">${esc(slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '')}</strong><div class="slot-description">${events.map(e => `<span class="slot-note">${esc(e.title)}${e.description ? ' · ' + esc(e.description) : ''}</span>`).join('')}${slot?.memo ? `<span class="slot-note">${esc(slot.memo)}</span>` : ''}${info.type !== '일반' ? badge(info.type) : ''}${detail && settings().timetableDisplay.showLocation && info.location ? `<span class="slot-location">${esc(info.location)}</span>` : ''}${detail && settings().timetableDisplay.showTeacher && teacher ? `<span class="slot-teacher">${esc(teacher)}</span>` : ''}</div></div>`;
     return btn(content, () => {
       if (state.dragSlot) {
         const from = state.dragSlot;
@@ -38,7 +38,7 @@ export function timeSlots(d, calendar = false, registeredOnly = false) {
         return swapSlots(from, `${d}:${p}`);
       }
       dayEditor(d, '시간표', p);
-    }, 'slot', `style="background:${esc(info.rule?.color || '#FFFFFF')}" draggable="${!!slot}" data-drag="${d}:${p}" data-drop="${d}:${p}"`);
+    }, 'slot' + (slot ? ' subject-color subject-stripe' : ''), `style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}" title="${esc(slot?.subjectCode || '')}" draggable="${!!slot}" data-drag="${d}:${p}" data-drop="${d}:${p}"`);
   }).join('');
 }
 export function calendarView() {
@@ -157,7 +157,7 @@ export function timetableEditor(d, p) {
     })]);
     closeModal();
   };
-  modal(`${C.formatDate(d)} · ${p}교시 시간표`, `<div class="subject-grid">${[...db().subject_rules].sort((a, b) => a.sortOrder - b.sortOrder).map(subject => btn(esc(subject.code), () => save(subject.code, new FormData($('#modal-form')), true), subject.code === slot?.subjectCode ? 'selected' : '', `style="background:${esc(subject.color)}"`)).join('')}</div><p class="muted" style="margin:8px 0">과목 버튼을 누르면 바로 저장됩니다.</p><div class="formgrid">${select('특이사항', 'type', ['일반', '외부', '강사', '다른장소'], slot?.type || '일반')}${input('수업 메모', 'memo', slot?.memo || '')}${input('이날만 장소 변경', 'locationOverride', slot?.locationOverride || '')}${input('이날만 담당 교사 변경', 'teacherOverride', slot?.teacherOverride || '')}</div>${slot ? btn('이 교시 비우기', async () => {
+  modal(`${C.formatDate(d)} · ${p}교시 시간표`, `<div class="subject-grid">${[...db().subject_rules].sort((a, b) => a.sortOrder - b.sortOrder).map(subject => btn(esc(subject.code), () => save(subject.code, new FormData($('#modal-form')), true), 'subject-color subject-stripe subject-choice' + (subject.code === slot?.subjectCode ? ' selected' : ''), `style="${C.subjectColorStyle(subject)}" aria-pressed="${subject.code === slot?.subjectCode}"`)).join('')}</div><p class="muted" style="margin:8px 0">과목 버튼을 누르면 바로 저장됩니다.</p><div class="formgrid">${select('특이사항', 'type', ['일반', '외부', '강사', '다른장소'], slot?.type || '일반')}${input('수업 메모', 'memo', slot?.memo || '')}${input('이날만 장소 변경', 'locationOverride', slot?.locationOverride || '')}${input('이날만 담당 교사 변경', 'teacherOverride', slot?.teacherOverride || '')}</div>${slot ? btn('이 교시 비우기', async () => {
     if (confirm('선택한 교시를 비울까요?')) {
       await commit([{
         table: 'timetables',
