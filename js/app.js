@@ -13,7 +13,7 @@ import { studentsView } from './tabs/students.js';
 import { bindTimetableDrag, calendarView } from './tabs/timetable.js';
 import { renderStudentShell } from './tabs/student-view.js';
 export function render() {
-  if (state.viewMode === 'student' || state.studentUser || state.impersonatingStudentId) {
+  if (state.studentPasswordPending || state.viewMode === 'student' || state.studentUser || state.impersonatingStudentId) {
     state.actions.clear();
     document.querySelector('.print-root')?.remove();
     document.body.classList.remove('report-open');

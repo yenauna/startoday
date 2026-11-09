@@ -615,3 +615,10 @@ input, select, textarea, .input, .textarea, #notice-editor, .quick input, .quick
   .student-dashboard .student-card { padding:18px; }
   .student-stars { font-size:32px; }
 }
+
+.school-picker { min-width:0; display:grid; gap:8px; align-content:start; }
+.school-picker>button { justify-self:start; }
+.school-search-status { color:var(--st-text-muted); font-size:12px; }
+.school-search-results { display:grid; gap:5px; max-height:220px; overflow-y:auto; }
+.school-search-results button { min-height:44px; text-align:left; white-space:normal; overflow-wrap:anywhere; }
+.student-login-fields { display:grid; gap:14px; }

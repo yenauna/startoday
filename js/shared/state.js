@@ -6,6 +6,7 @@ export const state = {
   tab: '대시보드',
   viewMode: 'teacher',
   studentUser: null,
+  studentPasswordPending: false,
   studentSnapshot: null,
   impersonatingStudentId: null,
   date: C.today(),

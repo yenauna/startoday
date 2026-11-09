@@ -52,32 +52,48 @@ assert.equal((await pg.query('select * from public.startoday_backups')).rows.len
 await commit(C.taskStateOps(snap.data,db.assignments[0],'2026-11-05','s1','면제'));
 assert.equal((await snapshot()).data.records.length,0);
 console.log('PASS: SQL 재실행, 초기화, 테이블 직접 쓰기 차단, 원자적 저장/롤백, 최초 시각 불변, 충돌 검출, 교사별 RLS 격리, 2세대 백업, 자동 기록 삭제');
-// Student RPC must work without teacher Auth while returning no class snapshot.
+// School/grade/class/no identity and mandatory password change are enforced in SQL.
 await asUser(owner);
 const day=(await pg.query("select to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD') as day")).rows[0].day;
-await commit([{table:'records',id:'student-praise',data:{id:'student-praise',date:day,kind:'칭찬',studentIds:['s1'],text:'잘했어요',areas:['생활'],action:'PRIVATE_ACTION'}},{table:'records',id:'student-advice',data:{id:'student-advice',date:day,kind:'지도',studentIds:['s1'],text:'SECRET_ADVICE',areas:['생활']}},{table:'students',id:'s2',data:{id:'s2',no:2,name:'다른학생',password:'other-secret'}},{table:'records',id:'other-praise',data:{id:'other-praise',date:day,kind:'칭찬',studentIds:['s2'],text:'OTHER_STUDENT',areas:['생활']}}]);
+const config={...(await snapshot()).data.settings[0],schoolName:'가상초등학교',schoolCode:'NEIS001',grade:5,classGroup:'오',defaultStudentPassword:'13579'};
+await commit([{table:'settings',id:'main',data:config},{table:'records',id:'student-praise',data:{id:'student-praise',date:day,kind:'칭찬',studentIds:['s1'],text:'잘했어요',areas:['생활'],action:'PRIVATE_ACTION'}},{table:'records',id:'student-advice',data:{id:'student-advice',date:day,kind:'지도',studentIds:['s1'],text:'SECRET_ADVICE',areas:['생활']}},{table:'students',id:'s2',data:{id:'s2',no:2,name:'다른학생'}},{table:'records',id:'other-praise',data:{id:'other-praise',date:day,kind:'칭찬',studentIds:['s2'],text:'OTHER_STUDENT',areas:['생활']}}]);
 const studentDb=(await snapshot()).data;
 await commit([...C.taskStateOps(studentDb,studentDb.assignments[0],day,'s1','완료','SECRET_TASK_MEMO'),{table:'routines',id:'student-routine',data:{id:'student-routine',title:'우유 급식',target:'all',exceptions:{[day]:{exempt:true,memo:'SECRET_ROUTINE_MEMO'}},sortOrder:0}},{table:'timetables',id:'student-slot',data:{id:'student-slot',date:day,period:1,subjectCode:'수학',locationOverride:'우리 교실',memo:'SECRET_TIMETABLE_MEMO'}}]);
-async function studentLogin(code,password='12345'){return (await pg.query('select public.startoday_student_login($1,$2) as data',[code,password])).rows[0].data;}
+async function schoolLogin(password='13579',school='NEIS001',grade='5',group='오',no=1){return (await pg.query('select public.startoday_student_login($1,$2,$3,$4,$5) as data',[school,grade,group,no,password])).rows[0].data;}
+async function changePassword(oldPassword,newPassword){return (await pg.query('select public.startoday_student_change_password($1,$2,$3,$4,$5,$6) as data',['NEIS001','5','오',1,oldPassword,newPassword])).rows[0].data;}
 await pg.exec('set role anon');
 await assert.rejects(pg.query('select * from public.startoday_students'),/permission denied/);
 await assert.rejects(pg.query('select public.startoday_snapshot()'),/permission denied/);
-assert.equal(await studentLogin('1','bad'),null);
-let view=await studentLogin(classId+':1');
-assert.equal(view.student.name,'가상학생');assert.equal(view.praise.length,2);assert.equal(view.score.total,1);assert.equal(view.tasks[0].status,'완료');assert.equal(view.routines[0].status,'면제');assert.equal(view.timetable[0].location,'우리 교실');
-for(const hidden of ['SECRET_ADVICE','SECRET_TASK_MEMO','SECRET_ROUTINE_MEMO','SECRET_TIMETABLE_MEMO','PRIVATE_ACTION','OTHER_STUDENT','other-secret','owner_id','password'])assert(!JSON.stringify(view).includes(hidden));
+await assert.rejects(pg.query('select public.startoday_student_payload($1,$2)',[classId,'s1']),/permission denied/);
+await assert.rejects(pg.query("select public.startoday_student_authenticate('NEIS001','5','오',1,'13579')"),/permission denied/);
+assert.equal(await schoolLogin('wrong'),null);assert.equal(await schoolLogin('12345'),null);
+assert.equal(await schoolLogin('13579','NEIS001','4'),null);assert.equal(await schoolLogin('13579','NEIS001','5','다른반'),null);
+assert.deepEqual(await schoolLogin(),{mustChangePassword:true});
+assert.deepEqual(await schoolLogin('13579','가상초등학교'),{mustChangePassword:true});
+await assert.rejects(pg.query("select public.startoday_student_login('1','12345')"),/does not exist/);
+assert.equal(await changePassword('wrong','새암호7'),null);
+for(const invalid of ['13579','24680','ab1','!!!!'])await assert.rejects(changePassword('13579',invalid),/INVALID_STUDENT_PASSWORD/);
+const teacherRevision=revision;
+let view=await changePassword('13579','별빛77');
+assert.equal(view.mustChangePassword,false);assert.equal(view.student.name,'가상학생');assert.equal(view.praise.length,2);assert.equal(view.score.total,1);assert.equal(view.tasks[0].status,'완료');assert.equal(view.routines[0].status,'면제');assert.equal(view.timetable[0].location,'우리 교실');
+for(const hidden of ['SECRET_ADVICE','SECRET_TASK_MEMO','SECRET_ROUTINE_MEMO','SECRET_TIMETABLE_MEMO','PRIVATE_ACTION','OTHER_STUDENT','owner_id','password','13579','별빛77'])assert(!JSON.stringify(view).includes(hidden));
+assert.equal(await schoolLogin('13579'),null);assert.equal((await schoolLogin('별빛77')).student.id,'s1');
 await assert.rejects(pg.query('select * from public.startoday_student_login_attempts'),/permission denied/);
 await pg.exec('set role authenticated');await asUser(owner);
-await commit([{table:'students',id:'s1',data:{...db.students[0],password:'changed'}}]);
-await pg.exec('set role anon');assert.equal(await studentLogin(classId+':1'),null);assert((await studentLogin(classId+':1','changed')).student);
+await assert.rejects(commit([],teacherRevision),/REVISION_CONFLICT/);revision=Number((await snapshot()).revision);
+assert.equal((await snapshot()).data.students.find(s=>s.id==='s1').passwordChanged,true);
+await commit([{table:'settings',id:'main',data:{...config,defaultStudentPassword:'24680'}}]);
+await pg.exec('set role anon');assert.equal((await schoolLogin('별빛77')).student.id,'s1');assert.deepEqual(await schoolLogin('24680','NEIS001','5','오',2),{mustChangePassword:true});
 await pg.exec('set role authenticated');await asUser(owner);
-await commit([{table:'students',id:'s1',data:{...db.students[0],password:'12345'}}]);
-await asUser(other);
-await pg.query('select public.startoday_commit($1,$2,$3::jsonb)',[otherSnap.class_id,0,JSON.stringify([{table:'students',id:'same',data:{id:'same',no:1,name:'가상학생'}}])]);
-await pg.exec('set role anon');assert.equal(await studentLogin('1'),null);assert.equal((await studentLogin(classId+':1')).student.id,'s1');
-for(let i=0;i<10;i++)assert.equal(await studentLogin(classId+':1','wrong'),null);
-assert.equal(await studentLogin(classId+':1'),null);
-console.log('PASS: 익명 학생 인증, 학급 경계/중복 번호 거부, 비밀번호 변경·초기화, 실패 제한, 칭찬만 반환, 민감 필드 및 타 학생 기록 미반환');
+await commit([{table:'students',id:'s1',data:{...db.students[0],password:'24680',passwordChanged:false,passwordResetRequired:true}}]);
+await pg.exec('set role anon');assert.equal(await schoolLogin('별빛77'),null);assert.deepEqual(await schoolLogin('24680'),{mustChangePassword:true});
+for(let i=0;i<10;i++)assert.equal(await schoolLogin('wrong'),null);assert.equal(await schoolLogin('24680'),null);
+await pg.exec('set role authenticated');await asUser(owner);
+await commit([{table:'students',id:'s1',data:{...db.students[0],password:'24680',passwordChanged:false,passwordResetRequired:true}}]);
+await pg.exec('set role anon');assert.deepEqual(await schoolLogin('24680'),{mustChangePassword:true});
+await changePassword('24680','새암호99');
+await pg.exec('set role authenticated');await asUser(other);
+await pg.query('select public.startoday_commit($1,$2,$3::jsonb)',[otherSnap.class_id,0,JSON.stringify([{table:'settings',id:'main',data:{...config,schoolName:'가상초등학교',schoolCode:'NEIS002'}},{table:'students',id:'same',data:{id:'same',no:1,name:'가상학생'}}])]);
+await pg.exec('set role anon');assert.equal((await schoolLogin('새암호99')).student.id,'s1');assert.deepEqual(await schoolLogin('13579','NEIS002'),{mustChangePassword:true});assert.equal(await schoolLogin('새암호99','가상초등학교'),null);
+console.log('PASS: 학교·학년·반·번호 식별, 초기 비밀번호 데이터 차단, 문자 포함 새 비밀번호, 변경/초기화/잠금 해제, revision 충돌, 익명 권한 및 민감 필드 비노출');
 await pg.close();
-
-

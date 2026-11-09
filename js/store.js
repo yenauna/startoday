@@ -90,7 +90,7 @@ export class Store {
         length: 20
       }, (_, i) => ({
         id: uid(),
-        no: i < 10 ? i + 1 : i + 41,
+        no: i + 1,
         name: ['가온', '나래', '다온', '라온', '마루', '바다', '새봄', '아람', '여름', '지우'][i % 10] + (i < 10 ? '' : '별'),
         group: String(i % 5 + 1),
         seat: {
@@ -101,6 +101,8 @@ export class Store {
         createdAt: now()
       }));
     }
+    const config = this.db.settings[0];
+    if (config) Object.assign(config, { schoolName: config.schoolName || '체험초등학교', grade: config.grade || 5, classGroup: config.classGroup || '1', defaultStudentPassword: config.defaultStudentPassword || '12345' });
     return normalizeDB(this.db);
   }
   async load() {
@@ -134,7 +136,7 @@ export class Store {
     this.busy = true;
     try {
       const next = applyOps(this.db, ops);
-      if (this.mode === 'demo') {
+      if (this.mode === 'demo' || this.mode === 'local') {
         localStorage.setItem('startoday-demo-v1', JSON.stringify(next));
         this.db = next;
         return;

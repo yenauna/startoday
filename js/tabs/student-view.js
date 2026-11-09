@@ -2,7 +2,9 @@ import { render } from '../app.js';
 import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { state, store } from '../shared/state.js';
-import { btn, esc, input } from '../shared/ui.js';
+import { btn, esc, input, toast } from '../shared/ui.js';
+import { schoolPickerFields, bindSchoolPicker, recentStudentSchool, rememberStudentSchool } from '../components/school-picker.js';
+import { studentPasswordInfo, studentIdentityMatches, validateStudentPassword } from '../shared/student-auth.js';
 
 // Only this allow-listed projection crosses into the student shell. Never pass
 // teacher records, task memos, credentials or the class snapshot to its markup.
@@ -49,38 +51,143 @@ export function studentSnapshot(source, student, date = C.today()) {
     }))
   };
 }
-export function studentLoginDialog() {
-  modal('학생 로그인', `${input('학생 코드 또는 학급명+번호', 'studentCode', '', 'text', 'required autocomplete="username" placeholder="예: 1번 또는 학생 코드"')}${input('비밀번호', 'password', '', 'password', 'required autocomplete="current-password"')}<p class="muted">초기 비밀번호는 12345입니다.</p><small>체험 명단은 번호로, 실제 학급은 선생님께 받은 학생 코드로 로그인하세요.</small>`, async f => {
-    const code = f.get('studentCode').trim(),
-      password = f.get('password');
-    let snapshot;
-    if (store.client && store.mode !== 'demo') {
-      const {
-        data,
-        error
-      } = await store.client.rpc('startoday_student_login', {
-        p_code: code,
-        p_password: password
-      });
-      if (error) {
-        if (error.code === 'PGRST202' || error.code === '42883') throw Error('학생 로그인을 준비 중입니다. 선생님이 최신 schema.sql을 적용해야 합니다.');
-        throw Error('학생 로그인에 연결하지 못했습니다. 잠시 후 다시 시도하세요.');
-      }
-      snapshot = data;
-    } else {
-      if (!store.db) store.demo();
-      const matches = C.activeStudents(store.db).filter(s => code === s.studentCode || code === s.name || code === String(s.no) || code === s.no + '번' || code === `${store.db.settings[0]?.className} ${s.no}번`);
-      if (matches.length === 1 && String(matches[0].password ?? '12345') === password) snapshot = studentSnapshot(store.db, matches[0]);
+function studentRpcError(error) {
+  if (error?.code === 'PGRST202' || error?.code === '42883') throw Error('학생 로그인을 준비 중입니다. 선생님이 최신 schema.sql을 적용해야 합니다.');
+  if (error) throw Error(error.message?.includes('INVALID_STUDENT_PASSWORD') ? '새 비밀번호는 초기 비밀번호와 다르게, 문자를 포함해 4자 이상 입력하세요.' : '학생 로그인에 연결하지 못했습니다. 잠시 후 다시 시도하세요.');
+}
+function studentRpcIdentity(identity) {
+  return {
+    p_school: identity.school,
+    p_grade: String(identity.grade),
+    p_class: identity.classGroup,
+    p_no: identity.no
+  };
+}
+function localStudentMatch(identity) {
+  const config = store.db.settings[0];
+  const matches = C.activeStudents(store.db).filter(student => studentIdentityMatches(student, config, identity));
+  return matches.length === 1 ? matches[0] : null;
+}
+export async function authenticateStudent(identity, password) {
+  if (store.client && !['demo', 'local'].includes(store.mode)) {
+    const {
+      data,
+      error
+    } = await store.client.rpc('startoday_student_login', {
+      ...studentRpcIdentity(identity),
+      p_password: password
+    });
+    studentRpcError(error);
+    return data;
+  }
+  if (!store.db) store.demo();
+  const student = localStudentMatch(identity);
+  if (!student) return null;
+  const info = studentPasswordInfo(student, store.db.settings[0]);
+  if (info.password !== password) return null;
+  return info.mustChangePassword ? {
+    mustChangePassword: true
+  } : {
+    ...studentSnapshot(store.db, student),
+    mustChangePassword: false
+  };
+}
+export async function changeStudentPassword(identity, previous, password) {
+  if (store.client && !['demo', 'local'].includes(store.mode)) {
+    const {
+      data,
+      error
+    } = await store.client.rpc('startoday_student_change_password', {
+      ...studentRpcIdentity(identity),
+      p_old_password: previous,
+      p_new_password: password
+    });
+    studentRpcError(error);
+    return data;
+  }
+  const student = localStudentMatch(identity);
+  if (!student) return null;
+  const info = studentPasswordInfo(student, store.db.settings[0]);
+  if (info.password !== previous) return null;
+  validateStudentPassword(password, info.initial, previous);
+  await store.commit([{
+    table: 'students',
+    id: student.id,
+    data: {
+      ...student,
+      password,
+      passwordChanged: true,
+      passwordResetRequired: false,
+      passwordChangedAt: C.now()
     }
-    if (!snapshot?.student) throw Error('학생 번호(코드) 또는 비밀번호가 올바르지 않습니다.');
-    state.studentUser = snapshot.student;
-    state.studentSnapshot = snapshot;
-    state.impersonatingStudentId = null;
-    state.viewMode = 'student';
-    state.selected = [];
-    closeModal();
-    render();
+  }]);
+  return {
+    ...studentSnapshot(store.db, store.db.students.find(s => s.id === student.id)),
+    mustChangePassword: false
+  };
+}
+function enterStudent(snapshot) {
+  if (!snapshot?.student || snapshot.mustChangePassword) throw Error('학생 로그인 정보 또는 비밀번호가 올바르지 않습니다.');
+  state.studentPasswordPending = false;
+  state.studentUser = snapshot.student;
+  state.studentSnapshot = snapshot;
+  state.impersonatingStudentId = null;
+  state.viewMode = 'student';
+  state.selected = [];
+  closeModal();
+  render();
+}
+function requireStudentPassword(identity, previous) {
+  state.studentPasswordPending = true;
+  state.studentUser = null;
+  state.studentSnapshot = null;
+  render();
+  modal('새 비밀번호 설정', `<p>처음 로그인했거나 비밀번호가 초기화되었습니다. 새 비밀번호를 설정해야 내 화면에 들어갈 수 있어요.</p>${input('새 비밀번호', 'newPassword', '', 'password', 'required minlength="4" maxlength="200" autocomplete="new-password"')}${input('새 비밀번호 확인', 'confirmPassword', '', 'password', 'required autocomplete="new-password"')}<p class="muted">영문·한글 등 문자를 한 자 이상 포함해 4자 이상 입력하세요. 숫자만 사용하거나 초기 비밀번호를 다시 사용할 수 없습니다.</p>`, async f => {
+    const password = f.get('newPassword');
+    validateStudentPassword(password, previous);
+    if (password !== f.get('confirmPassword')) throw Error('새 비밀번호 확인이 일치하지 않습니다.');
+    const snapshot = await changeStudentPassword(identity, previous, password);
+    enterStudent(snapshot);
+    toast('비밀번호를 변경했습니다.');
+  }, '변경하고 시작하기');
+}
+export function studentLoginDialog() {
+  const demo = !store.client || ['demo', 'local'].includes(store.mode);
+  let config = store.db?.settings?.[0] || {};
+  if (demo && !store.db) {
+    try {
+      config = JSON.parse(localStorage.getItem('startoday-demo-v1'))?.settings?.[0] || {};
+    } catch {}
+  }
+  const recent = recentStudentSchool();
+  modal('학생 로그인', `<div class="student-login-fields">${btn('가상 명단(1~20번) 번호로 즉시 로그인 준비', () => {
+    store.demo();
+    const form = document.querySelector('#modal-form'),
+      config = store.db.settings[0];
+    form.elements.schoolName.value = config.schoolName;
+    form.elements.schoolCode.value = config.schoolCode || '';
+    form.elements.grade.value = config.grade;
+    form.elements.classGroup.value = config.classGroup;
+    form.elements.password.value = config.defaultStudentPassword || '12345';
+  })}${schoolPickerFields(recent.name || (demo ? config.schoolName || '체험초등학교' : ''), recent.code || (demo ? config.schoolCode || '' : ''))}<div class="formgrid">${input('학년', 'grade', demo ? config.grade || 5 : '', 'number', 'required min="1" max="6"')}${input('반', 'classGroup', demo ? config.classGroup || '1' : '', 'text', 'required maxlength="40"')}${input('번호', 'no', '', 'number', 'required min="1" step="1"')}${input('비밀번호', 'password', '', 'password', 'required maxlength="200" autocomplete="current-password"')}</div><p class="muted">반 공통 초기 비밀번호는 선생님께 확인하세요. 체험 명단의 초기 비밀번호는 12345입니다.</p></div>`, async f => {
+    const identity = {
+      school: (f.get('schoolCode') || f.get('schoolName')).trim(),
+      grade: String(Number(f.get('grade'))),
+      classGroup: f.get('classGroup').trim(),
+      no: Number(f.get('no'))
+    };
+    if (!identity.school || !identity.classGroup || !Number.isInteger(identity.no) || identity.no < 1 || !/^[1-6]$/.test(identity.grade)) throw Error('학교, 학년, 반, 번호를 확인하세요.');
+    const password = f.get('password'),
+      snapshot = await authenticateStudent(identity, password);
+    if (!snapshot) throw Error('학생 로그인 정보 또는 비밀번호가 올바르지 않습니다.');
+    rememberStudentSchool(f.get('schoolName').trim(), f.get('schoolCode') || '');
+    if (snapshot.mustChangePassword) {
+      requireStudentPassword(identity, password);
+      return;
+    }
+    enterStudent(snapshot);
   }, '로그인');
+  bindSchoolPicker(document.querySelector('#modal-form'));
 }
 export function previewStudent(id) {
   if (!store.db?.students.some(s => s.id === id && !s.deletedAt)) return;
@@ -91,8 +198,11 @@ export function previewStudent(id) {
   render();
 }
 export function leaveStudentView() {
+  closeModal();
+  state.actions?.clear();
   const preview = !!state.impersonatingStudentId;
   state.studentUser = null;
+  state.studentPasswordPending = false;
   state.studentSnapshot = null;
   state.impersonatingStudentId = null;
   state.viewMode = 'teacher';
@@ -105,6 +215,7 @@ export function leaveStudentView() {
   render();
 }
 export function renderStudentShell() {
+  if (state.studentPasswordPending) return `<main class="student-shell"><section class="student-card"><h2>새 비밀번호를 설정해 주세요</h2><p>비밀번호 변경을 완료해야 학생 화면을 볼 수 있습니다.</p>${btn('로그인으로 돌아가기', leaveStudentView)}</section></main>`;
   const student = state.impersonatingStudentId ? store.db?.students.find(s => s.id === state.impersonatingStudentId && !s.deletedAt) : state.studentUser;
   if (!student) return `<main class="student-shell"><p>학생 정보를 확인할 수 없습니다.</p>${btn('돌아가기', leaveStudentView)}</main>`;
   const data = state.impersonatingStudentId ? studentSnapshot(store.db, student) : state.studentSnapshot;

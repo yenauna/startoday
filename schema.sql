@@ -115,42 +115,14 @@ create table if not exists public.startoday_student_login_attempts (
 );
 alter table public.startoday_student_login_attempts enable row level security;
 revoke all on public.startoday_student_login_attempts from public,anon,authenticated;
-create or replace function public.startoday_student_login(p_code text,p_password text)
+-- Payload helper is private: initial-password users never receive a snapshot.
+create or replace function public.startoday_student_payload(cid uuid,sid text)
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
-declare sid text; cid uuid; student jsonb; config jsonb; candidates integer;
- day text:=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD');
+declare student jsonb; config jsonb; day text:=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD');
  result jsonb; totals jsonb; letters jsonb; tasks jsonb; routines jsonb; timetable jsonb;
- v_failures integer; started timestamptz;
 begin
- if p_code is null or length(trim(p_code))=0 or length(p_code)>200 or p_password is null or length(p_password)>200 then return null;end if;
- -- A bare number/name is accepted only when globally unambiguous. The teacher
- -- also receives a class UUID:number code, which cannot select another class.
- select count(*) into candidates from public.startoday_students s
- left join public.startoday_settings cfg on cfg.class_id=s.class_id and cfg.id='main'
- where not (s.data ? 'deletedAt' and s.data->>'deletedAt' is not null)
- and (trim(p_code)=s.data->>'studentCode' or trim(p_code)=s.data->>'name'
- or trim(p_code)=s.data->>'no' or trim(p_code)=(s.data->>'no')||'번'
- or trim(p_code)=s.class_id::text||':'||(s.data->>'no')
- or trim(p_code)=concat(cfg.data->>'className',' ',s.data->>'no','번')
- or trim(p_code)=concat(cfg.data->>'className',':',s.data->>'no'));
- if candidates<>1 then return null;end if;
- select s.id,s.class_id,s.data,cfg.data into sid,cid,student,config from public.startoday_students s
- left join public.startoday_settings cfg on cfg.class_id=s.class_id and cfg.id='main'
- where not (s.data ? 'deletedAt' and s.data->>'deletedAt' is not null)
- and (trim(p_code)=s.data->>'studentCode' or trim(p_code)=s.data->>'name'
- or trim(p_code)=s.data->>'no' or trim(p_code)=(s.data->>'no')||'번'
- or trim(p_code)=s.class_id::text||':'||(s.data->>'no')
- or trim(p_code)=concat(cfg.data->>'className',' ',s.data->>'no','번')
- or trim(p_code)=concat(cfg.data->>'className',':',s.data->>'no'));
- insert into public.startoday_student_login_attempts(class_id,student_id) values(cid,sid) on conflict do nothing;
- select a.failures,a.window_start into v_failures,started from public.startoday_student_login_attempts a where a.class_id=cid and a.student_id=sid for update;
- if started<now()-interval '15 minutes' then v_failures:=0;started:=now();end if;
- if v_failures>=10 then return null;end if;
- if p_password is distinct from coalesce(student->>'password','12345') then
- update public.startoday_student_login_attempts a set failures=v_failures+1,window_start=started where a.class_id=cid and a.student_id=sid;
- return null;
- end if;
- update public.startoday_student_login_attempts a set failures=0,window_start=now() where a.class_id=cid and a.student_id=sid;
+ select data into student from public.startoday_students where class_id=cid and id=sid;
+ select data into config from public.startoday_settings where class_id=cid and id='main';
  -- Only numbers are aggregated from advice; its text is never returned.
  with scored as (
  select r.data,case r.data->>'kind' when '칭찬' then 1 when '지도' then -1 else 0 end as delta
@@ -178,6 +150,81 @@ begin
  result:=jsonb_build_object('student',jsonb_build_object('id',sid,'no',student->'no','name',student->>'name'),'className',coalesce(config->>'className','우리반'),'date',day,'score',totals,'praise',letters,'tasks',tasks,'routines',routines,'timetable',timetable);
  return result;
 end $$;
-revoke all on function public.startoday_student_login(text,text) from public;
-grant execute on function public.startoday_student_login(text,text) to anon,authenticated;
+revoke all on function public.startoday_student_payload(uuid,text) from public,anon,authenticated;
+-- Remove the code-based public API so it cannot bypass mandatory password changes.
+drop function if exists public.startoday_student_login(text,text);
+create or replace function public.startoday_student_authenticate(p_school text,p_grade text,p_class text,p_no integer,p_password text)
+returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare matches jsonb; cid uuid; sid text; student jsonb; config jsonb; initial text; expected text;
+ v_failures integer; started timestamptz; must_change boolean;
+begin
+ if p_school is null or length(trim(p_school))=0 or length(p_school)>200 or p_grade not in ('1','2','3','4','5','6') or p_grade is null or p_class is null or length(trim(p_class))=0 or length(p_class)>40 or p_no is null or p_no<1 or p_password is null or length(p_password)>200 then return null;end if;
+ select jsonb_agg(jsonb_build_object('cid',s.class_id,'sid',s.id)) into matches
+ from public.startoday_students s join public.startoday_settings cfg on cfg.class_id=s.class_id and cfg.id='main'
+ where s.data->>'deletedAt' is null and s.data->>'no'=p_no::text
+ and (trim(p_school)=cfg.data->>'schoolName' or trim(p_school)=nullif(cfg.data->>'schoolCode',''))
+ and cfg.data->>'grade'=p_grade and trim(cfg.data->>'classGroup')=trim(p_class);
+ if matches is null or jsonb_array_length(matches)<>1 then return null;end if;
+ cid:=(matches->0->>'cid')::uuid;sid:=matches->0->>'sid';
+ -- Same lock ordering as teacher commits; re-read credentials after locking.
+ perform 1 from public.startoday_classes where id=cid for update;
+ select s.data,cfg.data into student,config from public.startoday_students s join public.startoday_settings cfg on cfg.class_id=s.class_id and cfg.id='main'
+ where s.class_id=cid and s.id=sid and s.data->>'deletedAt' is null and s.data->>'no'=p_no::text
+ and (trim(p_school)=cfg.data->>'schoolName' or trim(p_school)=nullif(cfg.data->>'schoolCode',''))
+ and cfg.data->>'grade'=p_grade and trim(cfg.data->>'classGroup')=trim(p_class);
+ if student is null then return null;end if;
+ initial:=coalesce(nullif(config->>'defaultStudentPassword',''),'12345');
+ expected:=case when student->>'passwordResetRequired'='true' or student->>'passwordChanged'='false'
+ or (coalesce(student->>'passwordChanged','false')<>'true' and (student->>'password' is null or student->>'password'='12345'))
+ then initial else coalesce(student->>'password',initial) end;
+ insert into public.startoday_student_login_attempts(class_id,student_id) values(cid,sid) on conflict do nothing;
+ select a.failures,a.window_start into v_failures,started from public.startoday_student_login_attempts a where a.class_id=cid and a.student_id=sid for update;
+ if started<now()-interval '15 minutes' then v_failures:=0;started:=now();end if;
+ if v_failures>=10 then return null;end if;
+ if p_password is distinct from expected then
+ update public.startoday_student_login_attempts a set failures=v_failures+1,window_start=started where a.class_id=cid and a.student_id=sid;
+ return null;
+ end if;
+ update public.startoday_student_login_attempts a set failures=0,window_start=now() where a.class_id=cid and a.student_id=sid;
+ must_change:=coalesce(student->>'passwordChanged','false')<>'true' or student->>'passwordResetRequired'='true' or expected=initial;
+ return jsonb_build_object('cid',cid,'sid',sid,'student',student,'config',config,'mustChangePassword',coalesce(must_change,false));
+end $$;
+revoke all on function public.startoday_student_authenticate(text,text,text,integer,text) from public,anon,authenticated;
+create or replace function public.startoday_student_login(p_school text,p_grade text,p_class text,p_no integer,p_password text)
+returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare verified jsonb;
+begin
+ verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_password);
+ if verified is null then return null;end if;
+ if verified->>'mustChangePassword'='true' then return jsonb_build_object('mustChangePassword',true);end if;
+ return public.startoday_student_payload((verified->>'cid')::uuid,verified->>'sid')||jsonb_build_object('mustChangePassword',false);
+end $$;
+revoke all on function public.startoday_student_login(text,text,text,integer,text) from public;
+grant execute on function public.startoday_student_login(text,text,text,integer,text) to anon,authenticated;
+create or replace function public.startoday_student_change_password(p_school text,p_grade text,p_class text,p_no integer,p_old_password text,p_new_password text)
+returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare verified jsonb; cid uuid; sid text; initial text; rev bigint; owner uuid;
+begin
+ verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_old_password);
+ if verified is null then return null;end if;
+ initial:=coalesce(nullif(verified->'config'->>'defaultStudentPassword',''),'12345');
+ if p_new_password is null or char_length(p_new_password)<4 or char_length(p_new_password)>200 or p_new_password !~ '[[:alpha:]]' or p_new_password=initial or p_new_password=p_old_password then raise exception 'INVALID_STUDENT_PASSWORD';end if;
+ cid:=(verified->>'cid')::uuid;sid:=verified->>'sid';
+ update public.startoday_students set data=data||jsonb_build_object('password',p_new_password,'passwordChanged',true,'passwordResetRequired',false,'passwordChangedAt',to_char(now() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),updated_at=now() where class_id=cid and id=sid;
+ update public.startoday_classes set revision=revision+1 where id=cid returning revision,owner_id into rev,owner;
+ insert into public.startoday_audit(owner_id,class_id,revision,table_name,row_id,operation) values(owner,cid,rev,'students',sid,'student_password_change');
+ delete from public.startoday_student_login_attempts where class_id=cid and student_id=sid;
+ return public.startoday_student_payload(cid,sid)||jsonb_build_object('mustChangePassword',false);
+end $$;
+revoke all on function public.startoday_student_change_password(text,text,text,integer,text,text) from public;
+grant execute on function public.startoday_student_change_password(text,text,text,integer,text,text) to anon,authenticated;
+-- Teacher reset also clears a failed-login lock, including reset to the same value.
+create or replace function public.startoday_student_reset_attempts() returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+begin
+ if new.data->>'passwordResetRequired'='true' then delete from public.startoday_student_login_attempts where class_id=new.class_id and student_id=new.id;end if;
+ return new;
+end $$;
+revoke all on function public.startoday_student_reset_attempts() from public,anon,authenticated;
+drop trigger if exists student_password_reset_attempts on public.startoday_students;
+create trigger student_password_reset_attempts after update on public.startoday_students for each row execute function public.startoday_student_reset_attempts();
 commit;
