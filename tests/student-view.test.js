@@ -16,7 +16,7 @@ function fixture() {
     id: 'one',
     no: 1,
     name: '가온',
-    password: 'secret',
+    password: '푸른바람7',
     passwordChanged: true
   }, {
     id: 'two',
@@ -38,6 +38,8 @@ function fixture() {
     document: {
       querySelector: () => null
     },
+    koreanPasswordField: () => '',
+    bindKoreanPasswordFields: () => {},
     schoolPickerFields: () => '',
     bindSchoolPicker: () => {},
     recentStudentSchool: () => ({}),
@@ -158,7 +160,7 @@ test('학교·학년·반·번호 로그인은 잘못된 비밀번호를 거부�
   f.context.studentLoginDialog();
   const fields = new Map([['schoolName', '체험초등학교'], ['schoolCode', ''], ['grade', '5'], ['classGroup', '1'], ['no', '1'], ['password', 'wrong']]);
   await assert.rejects(f.dialog.submit(fields));
-  fields.set('password', 'secret');
+  fields.set('password', '푸른바람7');
   await f.dialog.submit(fields);
   assert.equal(f.state.viewMode, 'student');
   assert.equal(f.state.studentUser.id, 'one');
@@ -208,7 +210,7 @@ test('초기 비밀번호 로그인은 대시보드 데이터 없이 변경 모�
   assert.equal(f.state.studentSnapshot, null);
   assert(!f.context.renderStudentShell().includes('내 별 점수'));
   await assert.rejects(f.dialog.submit(new Map([['newPassword', '24680'], ['confirmPassword', '24680']])));
-  await f.dialog.submit(new Map([['newPassword', '별빛77'], ['confirmPassword', '별빛77']]));
+  await f.dialog.submit(new Map([['newPassword', '별빛123'], ['confirmPassword', '별빛123']]));
   assert.equal(f.state.studentPasswordPending, false);
   assert.equal(f.state.viewMode, 'student');
   assert.equal(f.store.db.students[0].passwordChanged, true);
@@ -266,8 +268,11 @@ test('개인 비밀번호는 반 공통 초기값 변경 시 유지되고 초기
     password: '12345'
   }, config).mustChangePassword, true);
 });
-test('새 비밀번호는 4자 이상 문자 필수이며 초기값과 이전값 재사용 금지', () => {
-  for (const value of ['12345', '24680', '!!!7', 'ab1', '새별1', 'Oldpass7']) assert.throws(() => Auth.validateStudentPassword(value, '12345', 'Oldpass7'));
-  assert.throws(() => Auth.validateStudentPassword('Start7', 'Start7', 'Oldpass7'));
-  for (const value of ['별빛77', 'Star77', '새로운별']) assert.doesNotThrow(() => Auth.validateStudentPassword(value, '12345', 'Oldpass7'));
+test('새 비밀번호는 완성된 한글과 숫자만 5자 이상이며 초기값과 이전값 재사용 금지', () => {
+  for (const value of ['12345', '바람12', '행복5', 'ㄱㄴㄷ123', '바람abc123', 'Star77', '바람!123', '바람 123']) {
+    assert.throws(() => Auth.validateStudentPassword(value, '초기암호1', '이전암호1'), value);
+  }
+  assert.throws(() => Auth.validateStudentPassword('초기암호1', '초기암호1', '이전암호1'));
+  assert.throws(() => Auth.validateStudentPassword('이전암호1', '초기암호1', '이전암호1'));
+  for (const value of ['바람123', '행복한5반', '새로운별빛', '별빛123']) assert.doesNotThrow(() => Auth.validateStudentPassword(value, '초기암호1', '이전암호1'));
 });

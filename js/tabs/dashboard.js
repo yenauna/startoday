@@ -50,7 +50,7 @@ export function studentCard(s) {
     state.selected = state.selected.includes(s.id) ? state.selected.filter(x => x !== s.id) : [...state.selected, s.id];
     render();
   });
-  return `<article role="button" tabindex="0" aria-pressed="${state.selected.includes(s.id)}" data-action="${id}" class="student ${isUnfinished(s.id, state.date) ? 'unfinished' : ''} ${missing.length ? 'has-pending' : ''} ${state.selected.includes(s.id) ? 'selected' : ''} ${ex ? 'excluded' : ''}"><div class="student-head"><strong>${esc(s.no)}. ${esc(s.name)}</strong>${btn('⋯', () => studentDetail(s.id), '', 'aria-label="' + esc(s.name) + ' 상세 보기"')}${ex ? badge('제외') : ''}</div><div class="score" aria-label="누적 별 점수 ${score.total}"><span class="score-star" aria-hidden="true">★</span><strong class="score-total">${score.total}</strong> <small>${C.areaNames(db(), true).filter(a => score.areas[a]).map(a => `<span class="area-score">${esc(a === '학습태도' ? '태도' : a)} ${score.areas[a]}</span>`).join(' ') || ''}</small></div><div class="pending-tasks">${missing.slice(0, 2).map(({
+  return `<article role="button" tabindex="0" data-student-id="${esc(s.id)}" aria-pressed="${state.selected.includes(s.id)}" data-action="${id}" class="student ${isUnfinished(s.id, state.date) ? 'unfinished' : ''} ${missing.length ? 'has-pending' : ''} ${state.selected.includes(s.id) ? 'selected' : ''} ${ex ? 'excluded' : ''}"><div class="student-head"><strong>${esc(s.no)}. ${esc(s.name)}</strong>${btn('⋯', () => studentDetail(s.id), '', 'aria-label="' + esc(s.name) + ' 상세 보기"')}${ex ? badge('제외') : ''}</div><div class="score" aria-label="누적 별 점수 ${score.total}"><span class="score-star" aria-hidden="true">★</span><strong class="score-total">${score.total}</strong> <small>${C.areaNames(db(), true).filter(a => score.areas[a]).map(a => `<span class="area-score">${esc(a === '학습태도' ? '태도' : a)} ${score.areas[a]}</span>`).join(' ') || ''}</small></div><div class="pending-tasks">${missing.slice(0, 2).map(({
     assignment: a,
     date: d
   }) => btn(esc(a.title), () => taskStateEditor(a, d, s.id), 'task ' + (d < state.date ? 'overdue' : ''))).join('')}${missing.length > 2 ? btn('+ ' + (missing.length - 2) + '개', () => studentDetail(s.id), 'task pending-more') : ''}</div>${routines.length ? `<div class="routine-indicator"><div class="routine-names">${routines.map(r => btn(esc(r.title), () => completeRoutineWithUndo(r, state.date, s), 'routine-task')).join('')}</div></div>` : ''}</article>`;
@@ -70,7 +70,7 @@ export async function saveDirectRecords(kind, text, ids, areas = [], seed = {}) 
   await commit([...new Set(ids)].map(id => up('records', newRecord({
     ...seed,
     studentIds: [id],
-    text: C.replaceStudentNumbers(text.trim(), db()),
+    text: text.trim(),
     action: C.replaceStudentNumbers(seed.action || '', db()),
     kind,
     areas: validAreas,

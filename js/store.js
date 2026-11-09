@@ -102,7 +102,7 @@ export class Store {
       }));
     }
     const config = this.db.settings[0];
-    if (config) Object.assign(config, { schoolName: config.schoolName || '체험초등학교', grade: config.grade || 5, classGroup: config.classGroup || '1', defaultStudentPassword: config.defaultStudentPassword || '12345' });
+    if (config) Object.assign(config, { schoolName: config.schoolName || '체험초등학교', grade: config.grade || 5, classGroup: config.classGroup || '1', defaultStudentPassword: config.defaultStudentPassword || '바람123' });
     return normalizeDB(this.db);
   }
   async load() {

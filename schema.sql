@@ -67,6 +67,12 @@ begin
  else
  v:=op->'data';
  if jsonb_typeof(v)<>'object' or v->>'id' is distinct from op->>'id' then raise exception 'INVALID_DATA'; end if;
+ if t='settings' and v ? 'defaultStudentPassword' then
+ select data into old from public.startoday_settings where class_id=c.id and id=op->>'id';
+ if v->>'defaultStudentPassword' is distinct from old->>'defaultStudentPassword' then
+ if coalesce(char_length(v->>'defaultStudentPassword'),0)<5 or char_length(v->>'defaultStudentPassword')>200 or v->>'defaultStudentPassword' !~ '[가-힣]' or v->>'defaultStudentPassword' ~ '[^가-힣0-9]' then raise exception 'INVALID_INITIAL_STUDENT_PASSWORD';end if;
+ end if;
+ end if;
  if t='areas' and (jsonb_typeof(v->'name') is distinct from 'string' or coalesce(btrim(v->>'name'),'')='' or jsonb_typeof(v->'sortOrder') is distinct from 'number' or (v->>'sortOrder')::numeric<0 or (v->>'sortOrder')::numeric<>trunc((v->>'sortOrder')::numeric)) then raise exception 'INVALID_AREA'; end if;
  if t='records' then
  execute 'select data from public.startoday_records where class_id=$1 and id=$2' into old using c.id,op->>'id';
@@ -158,7 +164,7 @@ returns jsonb language plpgsql security definer set search_path=public,pg_temp a
 declare matches jsonb; cid uuid; sid text; student jsonb; config jsonb; initial text; expected text;
  v_failures integer; started timestamptz; must_change boolean;
 begin
- if p_school is null or length(trim(p_school))=0 or length(p_school)>200 or p_grade not in ('1','2','3','4','5','6') or p_grade is null or p_class is null or length(trim(p_class))=0 or length(p_class)>40 or p_no is null or p_no<1 or p_password is null or length(p_password)>200 then return null;end if;
+ if p_school is null or length(trim(p_school))=0 or length(p_school)>200 or p_grade not in ('1','2','3','4','5','6') or p_grade is null or p_class is null or length(trim(p_class))=0 or length(p_class)>40 or p_no is null or p_no<1 or p_password is null or length(p_password)>200 or p_password ~ '[^가-힣0-9]' then return null;end if;
  select jsonb_agg(jsonb_build_object('cid',s.class_id,'sid',s.id)) into matches
  from public.startoday_students s join public.startoday_settings cfg on cfg.class_id=s.class_id and cfg.id='main'
  where s.data->>'deletedAt' is null and s.data->>'no'=p_no::text
@@ -173,7 +179,7 @@ begin
  and (trim(p_school)=cfg.data->>'schoolName' or trim(p_school)=nullif(cfg.data->>'schoolCode',''))
  and cfg.data->>'grade'=p_grade and trim(cfg.data->>'classGroup')=trim(p_class);
  if student is null then return null;end if;
- initial:=coalesce(nullif(config->>'defaultStudentPassword',''),'12345');
+ initial:=coalesce(nullif(config->>'defaultStudentPassword',''),'바람123');
  expected:=case when student->>'passwordResetRequired'='true' or student->>'passwordChanged'='false'
  or (coalesce(student->>'passwordChanged','false')<>'true' and (student->>'password' is null or student->>'password'='12345'))
  then initial else coalesce(student->>'password',initial) end;
@@ -186,7 +192,7 @@ begin
  return null;
  end if;
  update public.startoday_student_login_attempts a set failures=0,window_start=now() where a.class_id=cid and a.student_id=sid;
- must_change:=coalesce(student->>'passwordChanged','false')<>'true' or student->>'passwordResetRequired'='true' or expected=initial;
+ must_change:=coalesce(student->>'passwordChanged','false')<>'true' or student->>'passwordResetRequired'='true' or expected=initial or char_length(expected)<5 or expected !~ '[가-힣]' or expected ~ '[^가-힣0-9]';
  return jsonb_build_object('cid',cid,'sid',sid,'student',student,'config',config,'mustChangePassword',coalesce(must_change,false));
 end $$;
 revoke all on function public.startoday_student_authenticate(text,text,text,integer,text) from public,anon,authenticated;
@@ -207,8 +213,8 @@ declare verified jsonb; cid uuid; sid text; initial text; rev bigint; owner uuid
 begin
  verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_old_password);
  if verified is null then return null;end if;
- initial:=coalesce(nullif(verified->'config'->>'defaultStudentPassword',''),'12345');
- if p_new_password is null or char_length(p_new_password)<4 or char_length(p_new_password)>200 or p_new_password !~ '[[:alpha:]]' or p_new_password=initial or p_new_password=p_old_password then raise exception 'INVALID_STUDENT_PASSWORD';end if;
+ initial:=coalesce(nullif(verified->'config'->>'defaultStudentPassword',''),'바람123');
+ if p_new_password is null or char_length(p_new_password)<5 or char_length(p_new_password)>200 or p_new_password !~ '[가-힣]' or p_new_password ~ '[^가-힣0-9]' or p_new_password=initial or p_new_password=p_old_password then raise exception 'INVALID_STUDENT_PASSWORD';end if;
  cid:=(verified->>'cid')::uuid;sid:=verified->>'sid';
  update public.startoday_students set data=data||jsonb_build_object('password',p_new_password,'passwordChanged',true,'passwordResetRequired',false,'passwordChangedAt',to_char(now() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),updated_at=now() where class_id=cid and id=sid;
  update public.startoday_classes set revision=revision+1 where id=cid returning revision,owner_id into rev,owner;
