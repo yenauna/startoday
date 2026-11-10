@@ -731,3 +731,37 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-today-events { display:flex; flex-wrap:wrap; gap:6px; }
 .student-day-event { margin-bottom:8px; }
 .student-day-event small { display:block; white-space:pre-line; margin-top:3px; color:var(--st-text-muted); }
+
+/* Compact student work cards, with a neutral completed state. */
+.student-tasks-card .student-task,.student-calendar-detail .student-task.is-pending,.student-calendar-detail .student-task.is-complete { border:1px solid var(--st-line); border-radius:12px; padding:9px 10px; margin:5px 0; }
+.student-tasks-card .student-task.is-pending,.student-calendar-detail .student-task.is-pending { background:var(--badge-advice-bg,#FEF2F2); border-color:#fecdd3; }
+.student-tasks-card .student-task.is-complete,.student-calendar-detail .student-task.is-complete { background:#fff; color:var(--st-text); }
+.student-routine-toggle { width:100%; text-align:left; box-shadow:none; font:inherit; }
+.student-section-heading { border-bottom:1px solid var(--st-line); padding-bottom:7px; margin:16px 0 8px; font-size:15px; }
+.dashboard-today-events .event,.dashboard-today-events .badge { background:transparent; border:0; box-shadow:none; color:var(--st-text); padding:3px 6px; }
+.memo-field { display:block; margin-top:10px; }
+.memo-field>span { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:4px; }
+.memo-clear { padding:3px 8px; min-height:27px; font-size:12px; white-space:nowrap; }
+.record-content-line { display:block; margin-top:5px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.record-content-line .badge { display:inline-block; vertical-align:baseline; margin-right:5px; padding:2px 7px; font-size:12px; }
+.record-content-line .body { display:inline; margin:0; }
+.record-head { display:flex; flex-wrap:nowrap; align-items:flex-start; gap:8px; }
+.record-head .record-meta { flex:1 1 auto; min-width:0; gap:4px; }
+.record .record-controls { flex:0 0 auto; align-items:flex-start; }
+#quick-students { padding:0; border:0; background:transparent; border-radius:0; box-shadow:none; width:100%; }
+.quick-entry-fields>#quick-text { width:100%; box-sizing:border-box; }
+.quick-student-search { align-items:center; gap:4px; }
+.quick-student-search button { flex:0 0 auto; white-space:nowrap; }
+.quick-cancel[hidden] { display:none; }
+@media(min-width:360px) and (max-width:480px) {
+ .toolbar { gap:4px; }
+ .toolbar .row { gap:4px; }
+ .toolbar button,.dialog-foot button,.quick-student-search button { padding:5px 8px; font-size:12px; min-height:32px; }
+ .quick-composer-card .quick-controls { flex-wrap:nowrap; gap:4px; }
+ .quick-composer-card .quick-controls select { width:77px; flex:0 0 77px; padding:5px; font-size:12px; min-height:32px; }
+ .quick-composer-card .quick-controls .quick-date { padding:5px; font-size:12px; min-height:32px; }
+ .quick-composer-card .quick-controls .record-actions { flex:1 1 auto; gap:4px; flex-wrap:nowrap; }
+ .quick-composer-card .quick-controls .record-action { padding:5px 4px; font-size:12px; min-height:32px; }
+ .dialog-foot { gap:4px; padding:10px 12px; }
+ .record .record-controls button { padding:3px 6px; font-size:12px; }
+}

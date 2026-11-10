@@ -3,7 +3,7 @@ import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, kindLabel, name, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
-import { $, badge, bindLater, btn, checkbox, empty, esc, input, localTime, multiple, select, textarea, toast, run } from '../shared/ui.js';
+import { $, badge, bindLater, btn, checkbox, empty, esc, input, localTime, multiple, select, textarea, toast, run, registerUndo } from '../shared/ui.js';
 import { taskStateEditor } from './assignments.js';
 import { studentDetail } from './students.js';
 const recordDeletions = new Map();
@@ -153,7 +153,7 @@ export function recordCard(r, controls = true, detail = false) {
     const state = db().assignmentStates.find(s => s.id === r.autoRef),
       a = db().assignments.find(a => a.id === state?.assignmentId);
     if (a) taskStateEditor(a, state.date, state.studentId);
-  }, 'record-edit', recordDeletions.has(r.id) ? 'disabled' : '') : btn('수정', () => recordEditor(r, true), 'record-edit', recordDeletions.has(r.id) ? 'disabled' : '')}${btn('삭제', event => requestRecordDeletion(r, event), 'record-delete', recordDeletions.has(r.id) ? 'disabled' : '')}${r.incidentId ? btn('사건 보기', () => incidentDetail(r.incidentId)) : ''}</div>` : ''}</div><div class="body">${esc(r.text)}</div>${r.action ? `<div class="action">지도 내용 · ${esc(r.action)}</div>` : ''}<div class="chips" style="margin-top:8px">${(r.areas || []).map(badge).join('')}</div></article>`;
+  }, 'record-edit', recordDeletions.has(r.id) ? 'disabled' : '') : btn('수정', () => recordEditor(r, true), 'record-edit', recordDeletions.has(r.id) ? 'disabled' : '')}${btn('삭제', event => requestRecordDeletion(r, event), 'record-delete', recordDeletions.has(r.id) ? 'disabled' : '')}${r.incidentId ? btn('사건 보기', () => incidentDetail(r.incidentId)) : ''}</div>` : ''}</div><div class="record-content-line">${(r.areas || []).map(badge).join('')}<span class="body">${esc(r.text)}</span></div>${r.action ? `<div class="action">지도 내용 · ${esc(r.action)}</div>` : ''}</article>`;
 }
 export function recordsView() {
   const f = state.recordFilters,
@@ -245,7 +245,7 @@ function studentChips(list, selected) {
   return `<div class="student-choice-chips" role="group" aria-label="기록 대상 학생">${list.map(s => `<label class="student-choice-chip"><input type="checkbox" name="students" value="${esc(s.id)}" ${selected.includes(s.id) ? 'checked' : ''}><span>${esc((s.deletedAt ? '(나간 학생) ' : '') + s.no + '. ' + s.name)}</span></label>`).join('')}</div>`;
 }
 function recordDeletionScope() {
-  return `${store.mode}:${store.classId}:${db()?.settings?.[0]?.academicYear}`;
+  return `${store.mode}:${store.classId}:${db()?.settings?.[0]?.academicYear}:${state.viewMode}`;
 }
 function recordElements(id) {
   return [...document.querySelectorAll('article.record[data-record-id]')].filter(el => el.dataset.recordId === id);
@@ -260,6 +260,7 @@ function removeRecordDeletion(job) {
   clearInterval(job.timer);
   clearTimeout(job.retry);
   if (recordDeletions.get(job.id) === job) recordDeletions.delete(job.id);
+  job.unregister?.();
   job.root?.remove();
   highlightRecord(job.id, false);
   const container = document.querySelector('.record-delete-toasts');
@@ -339,6 +340,7 @@ async function requestRecordDeletion(record, event) {
       run(() => finishRecordDeletion(job));
     } else button.textContent = `↩ 실행취소 (${remaining}초)`;
   };
+  job.unregister = registerUndo(button, () => job.phase === 'pending' && performance.now() < job.deadline && scope === recordDeletionScope());
   tick();
   job.timer = setInterval(tick, 100);
 }

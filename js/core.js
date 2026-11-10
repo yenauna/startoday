@@ -1065,3 +1065,22 @@ export function checkerStateOps(database, checkerId, assignmentId, targetId, com
   // A peer may only change completion, never overwrite a teacher's private memo.
   return taskStateOps(database, assignment, date, targetId, completed ? '완료' : '진행중', old?.memo || '');
 }
+export function studentRoutineOps(database, studentId, routineId, completed, date = today()) {
+  const routine = database.routines.find(r => r.id === routineId && !r.deletedAt && targeted(r, studentId));
+  if (typeof completed !== 'boolean' || !activeStudents(database).some(s => s.id === studentId) || !routine || excluded(database, studentId, date) || routineStatus(database, routineId, date, studentId) === '면제') throw Error('오늘 체크할 수 있는 루틴이 아닙니다.');
+  const id = stateId(routineId, date, studentId),
+    old = database.routineStates.find(s => s.id === id);
+  return [{
+    table: 'routineStates',
+    id,
+    data: {
+      ...old,
+      id,
+      routineId,
+      date,
+      studentId,
+      status: completed ? '완료' : '진행중',
+      updatedAt: now()
+    }
+  }];
+}

@@ -2,7 +2,7 @@ import { render } from '../app.js';
 import * as C from '../core.js';
 import { commit, db, settings, students, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
-import { $, badge, bindLater, btn, empty, esc, toast, input, select, textarea, multiple, run } from '../shared/ui.js';
+import { $, badge, bindLater, btn, empty, esc, toast, input, select, textarea, multiple, run, registerUndo } from '../shared/ui.js';
 import { modal, closeModal } from '../components/modal.js';
 import { taskStateEditor } from './assignments.js';
 import { newRecord } from './records.js';
@@ -31,7 +31,7 @@ export function dashboard() {
   })}${btn('출결', () => {
     state.dashMode = 'attendance';
     render();
-  })}</div></div>${announcementEditor()}<section class="panel"><div class="row between"><div class="row"><strong>오늘 일정</strong>${C.calendarEvents(db()).filter(e => e.date === state.date && (e.period == null || e.period === 0 || e.period === 7)).map(e => btn(esc(e.title) + (e.description ? `<small class="event-description">${esc(e.description)}</small>` : ''), () => dayEditor(state.date, '일정', null, e), 'event')).join('') || ''}${C.calendarEvents(db()).filter(e => e.isDday).sort((a, b) => a.date.localeCompare(b.date)).map(e => badge(e.title + ' ' + C.dday(e.date, state.date))).join('')}</div>${btn('+ 일정', () => dayEditor(state.date))}</div><div class="schedule registered-schedule" style="margin-top:12px">${timeSlots(state.date, false, true)}</div>${weekSummary() ? `<div class="ticker">${esc(weekSummary())}</div>` : ''}</section><div class="summary"><div class="metric"><small>오늘 함께하는 학생</small><strong>${list.filter(s => !C.excluded(db(), s.id, state.date)).length}<small> / ${list.length}명</small></strong></div><div class="metric"><small>할 일을 모두 마친 학생</small><strong>${completed}<small>명</small></strong></div><div class="metric"><small>오늘 남긴 기록</small><strong>${db().records.filter(r => r.date === state.date).length}<small>건</small></strong></div></div><div class="toolbar"><strong>우리 반 학생 <span class="muted">${list.length}명</span></strong><div class="row">${btn('🔀 ' + (dashboardOrder() === 'number' ? '번호순' : '자리대로'), () => setDashboardOrder(dashboardOrder() === 'number' ? 'seats' : 'number'))}</div></div><section class="${state.compact ? 'compact' : ''}">${dashboardStudents(list)}</section>${!list.length ? empty('아직 등록된 학생이 없습니다.', '설정에서 명단을 붙여 넣거나 학생을 추가하세요.') : ''}${bindLater('dash-date', 'change', e => {
+  })}</div></div>${announcementEditor()}<section class="panel"><div class="row between"><div class="row dashboard-today-events"><strong>오늘 일정</strong>${C.calendarEvents(db()).filter(e => e.date === state.date && (e.period == null || e.period === 0 || e.period === 7 || e.period === 8)).map(e => btn(esc(e.title) + (e.description ? `<small class="event-description">${esc(e.description)}</small>` : ''), () => dayEditor(state.date, '일정', null, e), 'event')).join('') || ''}${C.calendarEvents(db()).filter(e => e.isDday).sort((a, b) => a.date.localeCompare(b.date)).map(e => badge(e.title + ' ' + C.dday(e.date, state.date))).join('')}</div>${btn('+ 일정', () => dayEditor(state.date))}</div><div class="schedule registered-schedule" style="margin-top:12px">${timeSlots(state.date, false, true)}</div>${weekSummary() ? `<div class="ticker">${esc(weekSummary())}</div>` : ''}</section><div class="summary"><div class="metric"><small>오늘 함께하는 학생</small><strong>${list.filter(s => !C.excluded(db(), s.id, state.date)).length}<small> / ${list.length}명</small></strong></div><div class="metric"><small>할 일을 모두 마친 학생</small><strong>${completed}<small>명</small></strong></div><div class="metric"><small>오늘 남긴 기록</small><strong>${db().records.filter(r => r.date === state.date).length}<small>건</small></strong></div></div><div class="toolbar"><strong>우리 반 학생 <span class="muted">${list.length}명</span></strong><div class="row">${btn('🔀 ' + (dashboardOrder() === 'number' ? '번호순' : '자리대로'), () => setDashboardOrder(dashboardOrder() === 'number' ? 'seats' : 'number'))}</div></div><section class="${state.compact ? 'compact' : ''}">${dashboardStudents(list)}</section>${!list.length ? empty('아직 등록된 학생이 없습니다.', '설정에서 명단을 붙여 넣거나 학생을 추가하세요.') : ''}${bindLater('dash-date', 'change', e => {
     state.date = e.target.value || C.today();
     render();
   })}`;
@@ -477,12 +477,13 @@ let routineUndo = null;
 function closeRoutineUndo() {
   if (routineUndo) {
     clearInterval(routineUndo.timer);
+    routineUndo.unregister?.();
     routineUndo.root.remove();
     routineUndo = null;
   }
 }
 function routineUndoScope() {
-  return `${store.mode}:${store.classId}:${db()?.settings?.[0]?.academicYear}`;
+  return `${store.mode}:${store.classId}:${db()?.settings?.[0]?.academicYear}:${state.viewMode}`;
 }
 async function completeRoutineWithUndo(r, date, student) {
   const scope = routineUndoScope();
@@ -527,6 +528,7 @@ async function completeRoutineWithUndo(r, date, student) {
       button.disabled = false;
     }
   });
+  undo.unregister = registerUndo(button, () => performance.now() < undo.expires && scope === routineUndoScope());
   tick();
   undo.timer = setInterval(tick, 100);
 }

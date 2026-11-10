@@ -25,6 +25,7 @@ function editorFixture() {
   };
   const context = {
     C,
+    store:{mode:'demo',classId:'demo'},
     up: (table, data) => ({
       table,
       id: data.id,

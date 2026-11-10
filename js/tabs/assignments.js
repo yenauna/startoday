@@ -34,7 +34,7 @@ export function assignmentEditor(a = null, d = state.date) {
     statArea: C.areaRows(db()).find(area => area.id === 'area-2')?.name || null,
     createdAt: C.now()
   };
-  modal(a ? '과제 수정' : '새 과제', `<div class="formgrid">${input('과제 제목', 'title', r.title, 'text', 'required')}${input('시작일 / 마감일', 'date', r.date, 'date', 'required')}${select('반복', 'repeat', [['none', '없음'], ['daily', '매일'], ['weekly', '매주 요일 지정']], r.repeat.type)}${select('경험치 영역', 'statArea', [['', '미지정'], ...C.areaNames(db(), true).filter(a => C.areaNames(db()).includes(a) || a === r.statArea)], r.statArea || '')}<div class="span2" id="repeat-days"><label>반복 요일</label>${multiple([[1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토'], [0, '일']].map(([x, y]) => [String(x), y]), 'weekdays', (r.repeat.weekdays || []).map(String))}</div>${targetForm(r.target)}${checkbox('칭찬 별점 부여하지 않음 (단순 체크리스트)', 'noStar', r.noStar)}${textarea('메모(안내사항)', 'memo', r.memo || '')}${select('대신 체크해 주는 사람 (학생)', 'checkerStudentId', [['', '미지정 · 선생님 직접 확인'], ...students().map(student => [student.id, name(student.id)])], r.checkerStudentId || '')}</div>`, async f => {
+  modal(a ? '과제 수정' : '새 과제', `<div class="formgrid">${input('과제 제목', 'title', r.title, 'text', 'required')}${input('시작일 / 마감일', 'date', r.date, 'date', 'required')}${select('반복', 'repeat', [['none', '없음'], ['daily', '매일'], ['weekly', '매주 요일 지정']], r.repeat.type)}${select('경험치 영역', 'statArea', [['', '미지정'], ...C.areaNames(db(), true).filter(a => C.areaNames(db()).includes(a) || a === r.statArea)], r.statArea || '')}<div class="span2" id="repeat-days"><label>반복 요일</label>${multiple([[1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토'], [0, '일']].map(([x, y]) => [String(x), y]), 'weekdays', (r.repeat.weekdays || []).map(String))}</div>${targetForm(r.target)}${select('제출 방식', 'submissionMode', [['check', '단순 체크'], ['text', '글 제출'], ['photo', '사진 첨부']], r.submissionMode || 'check')}${checkbox('학급 친구들에게 제출물 공유', 'shareSubmissions', r.shareSubmissions)}${checkbox('칭찬 별점 부여하지 않음 (단순 체크리스트)', 'noStar', r.noStar)}${textarea('메모(안내사항)', 'memo', r.memo || '')}${select('확인 (대신 체크해 주는 학생)', 'checkerStudentId', [['', '미지정 · 선생님 직접 확인'], ...students().map(student => [student.id, name(student.id)])], r.checkerStudentId || '')}</div>`, async f => {
     const repeat = {
       type: f.get('repeat')
     };
@@ -50,6 +50,8 @@ export function assignmentEditor(a = null, d = state.date) {
       target: getTarget(f),
       statArea: f.get('statArea') || null,
       noStar: !!f.get('noStar'),
+      submissionMode: ['check', 'text', 'photo'].includes(f.get('submissionMode')) ? f.get('submissionMode') : 'check',
+      shareSubmissions: !!f.get('shareSubmissions'),
       memo: f.get('memo') || '',
       checkerStudentId: f.get('checkerStudentId') || null
     };

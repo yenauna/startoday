@@ -72,7 +72,7 @@ function quickInput() {
   return `<div class="quick-wrap quick-composer-card ${state.selected.length ? 'selection-composer' : ''}" ${state.selected.length ? 'role="region" aria-label="선택 학생 기록"' : ''}>${state.selected.length ? `<div class="selection-composer-head">${btn('✕ 선택 취소', () => {
     state.selected = [];
     render();
-  }, 'selection-dismiss')}</div>` : ''}<form class="quick" id="quick-form"><div class="quick-main"><div class="quick-entry-fields">${quickStudentsField()}<textarea id="quick-text" rows="1" aria-label="빠른 기록 입력" placeholder="(내용)">${esc(quickText)}</textarea></div><div class="chips quick-areas" role="group" aria-label="빠른 기록 경험치 영역">${C.areaNames(db()).map(a => btn(esc(a), () => {
+  }, 'selection-dismiss')}</div>` : ''}<form class="quick" id="quick-form"><div class="quick-main"><div class="quick-entry-fields">${quickStudentsField()}<textarea id="quick-text" rows="1" aria-label="빠른 기록 입력" placeholder="내용">${esc(quickText)}</textarea></div><div class="chips quick-areas" role="group" aria-label="빠른 기록 경험치 영역">${C.areaNames(db()).map(a => btn(esc(a), () => {
     quickAreas = quickAreas.includes(a) ? quickAreas.filter(x => x !== a) : [...quickAreas, a];
     render();
   }, 'area-chip' + (quickAreas.includes(a) ? ' selected' : ''), `aria-pressed="${quickAreas.includes(a)}"`)).join('')}</div></div><div class="quick-controls"><label class="quick-date" title="기록 날짜 선택"><span>📅 ${quickDate === C.today() ? '오늘' : esc(C.formatDate(quickDate))}</span><input type="date" id="quick-date" aria-label="빠른 기록 날짜" value="${esc(quickDate)}" required></label><select id="quick-period" aria-label="교시">${opts([['자동', autoPeriodLabel()], ['', '시간 미지정'], ...C.PERIODS], quickPeriod)}</select><div class="record-actions">${recordButtons(saveQuick)}</div></div></form></div>`;
@@ -109,6 +109,7 @@ export function bindQuickInput() {
   };
   field.oninput = () => {
     quickText = field.value;
+    $('#quick-cancel').hidden = !state.selected.length && !quickText;
     updateAutoPeriod();
     resize();
   };
@@ -185,7 +186,7 @@ function quickStudentsField() {
   return `<div id="quick-students"><div class="chips selected-students" aria-label="선택 학생">${state.selected.map(id => btn(esc(name(id)) + ' ×', () => {
     state.selected = state.selected.filter(value => value !== id);
     render();
-  }, 'quick-student-chip', `aria-label="${esc(name(id))} 선택 해제"`)).join('')}</div><div class="quick-student-search"><input id="quick-student-query" aria-label="대상 학생 번호 또는 이름" autocomplete="off" placeholder="(학생: 번호 또는 이름 입력, 선택 가능)" value="${esc(quickStudentQuery)}" aria-controls="quick-student-results">${btn('추가', addQuickStudentQuery)}</div><div id="quick-student-results" class="quick-student-results" aria-label="학생 검색 결과"></div></div>`;
+  }, 'quick-student-chip', `aria-label="${esc(name(id))} 선택 해제"`)).join('')}</div><div class="quick-student-search"><input id="quick-student-query" aria-label="대상 학생 번호 또는 이름" autocomplete="off" placeholder="번호나 이름 입력, 선택 가능, 여러 명 가능" value="${esc(quickStudentQuery)}" aria-controls="quick-student-results">${btn('학생추가', addQuickStudentQuery)}${btn('입력취소', resetQuickDraft, 'quick-cancel', `id="quick-cancel" ${!state.selected.length && !quickText ? 'hidden' : ''}`)}</div><div id="quick-student-results" class="quick-student-results" aria-label="학생 검색 결과"></div></div>`;
 }
 function addQuickStudent(id) {
   if (!C.activeStudents(db()).some(student => student.id === id)) throw Error('학생을 확인하세요.');
@@ -212,4 +213,11 @@ function showQuickStudentResults() {
   const results = $('#quick-student-results');
   if (!results) return;
   results.innerHTML = quickStudentCandidates(quickStudentQuery).slice(0, 12).map(student => btn(esc(student.no + '. ' + student.name) + (state.selected.includes(student.id) ? ' · 선택됨' : ''), () => addQuickStudent(student.id), 'quick-student-result')).join('');
+}
+function resetQuickDraft() {
+  state.selected = [];
+  quickText = '';
+  quickStudentQuery = '';
+  quickAreas = [];
+  render();
 }

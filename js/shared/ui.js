@@ -70,3 +70,60 @@ export function saveFile(name, data, type = 'application/json') {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
+const undoButtons = new Map();
+export function registerUndo(button, available = () => true) {
+  undoButtons.set(button, available);
+  return () => undoButtons.delete(button);
+}
+export function triggerToastUndo(event) {
+  if (event.defaultPrevented || event.isComposing || event.altKey || event.shiftKey || !(event.ctrlKey || event.metaKey) || String(event.key).toLowerCase() !== 'z') return false;
+  if (state.locked || state.viewMode === 'student' || event.target?.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]')) return false;
+  for (const [button, available] of [...undoButtons].reverse()) {
+    if (!button.isConnected) {
+      undoButtons.delete(button);
+      continue;
+    }
+    if (!button.disabled && available() && button.getClientRects().length) {
+      event.preventDefault();
+      button.click();
+      return true;
+    }
+  }
+  return false;
+}
+export function undoToast(message, undo, available = () => true) {
+  const root = document.createElement('div'),
+    label = document.createElement('span'),
+    button = document.createElement('button');
+  root.className = 'routine-undo memo-undo';
+  root.setAttribute('role', 'status');
+  label.textContent = message;
+  button.type = 'button';
+  root.append(label, button);
+  document.body.append(root);
+  const deadline = performance.now() + 5000;
+  let timer, unregister;
+  const close = () => {
+    clearInterval(timer);
+    unregister?.();
+    root.remove();
+  };
+  button.onclick = () => run(async () => {
+    if (performance.now() >= deadline || !available()) return close();
+    button.disabled = true;
+    try {
+      await undo();
+      close();
+    } finally {
+      button.disabled = false;
+    }
+  });
+  unregister = registerUndo(button, () => performance.now() < deadline && available());
+  const tick = () => {
+    if (performance.now() >= deadline || !available() || state.locked || state.viewMode === 'student') return close();
+    button.textContent = `↩ 실행취소 (${Math.ceil((deadline - performance.now()) / 1000)}초)`;
+  };
+  tick();
+  timer = setInterval(tick, 100);
+  return close;
+}

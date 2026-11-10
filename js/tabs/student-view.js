@@ -41,6 +41,7 @@ export function studentSnapshot(source, student, date = C.today()) {
       status: excluded ? '면제' : C.assignmentStatus(source, a.id, date, student.id)
     })),
     routines: source.routines.filter(r => !r.deletedAt && C.targeted(r, student.id)).map(r => ({
+      id: r.id,
       title: r.title,
       status: excluded ? '면제' : C.routineStatus(source, r.id, date, student.id)
     })),
@@ -250,7 +251,7 @@ export function renderStudentShell() {
   const pills = areas => (areas || []).map(a => `<span class="student-pill">${esc(a)}</span>`).join('');
   const taskList = (list, routine = false) => list.map(task => {
     const done = ['완료', '늦게완료', '면제'].includes(task.status);
-    return `<div class="student-task ${done ? 'is-complete' : ''}"><div><strong class="${routine ? 'student-routine-title' : ''}">${esc(task.title)}</strong>${task.date ? `<small>${esc(C.formatDate(task.date))}</small>` : ''}${!routine && task.memo ? `<p class="assignment-public-memo">${esc(task.memo)}</p>` : ''}${!routine ? `<small class="assignment-checker">🔍 확인자: ${task.checkerName ? esc(task.checkerName) + ' 학생' : '선생님 직접 확인'}</small>` : ''}</div><span>${done ? '✓ ' : ''}${esc(task.status)}</span></div>`;
+    return `${routine ? `<button type="button" class="student-task student-routine-toggle ${done ? 'is-complete' : 'is-pending'}" data-routine-id="${esc(task.id || '')}" ${task.status === '면제' || !task.id ? 'disabled' : ''} aria-pressed="${done}">` : `<div class="student-task ${done ? 'is-complete' : 'is-pending'}">`}<div><strong class="${routine ? 'student-routine-title' : ''}">${esc(task.title)}</strong>${task.date ? `<small>${esc(C.formatDate(task.date))}</small>` : ''}${!routine && task.memo ? `<p class="assignment-public-memo">${esc(task.memo)}</p>` : ''}${!routine ? `<small class="assignment-checker">🔍 확인: ${task.checkerName ? esc(task.checkerName) + ' 학생' : '선생님 직접 확인'}</small>` : ''}</div><span>${done ? '✓ ' : ''}${esc(task.status)}</span>${routine ? '</button>' : '</div>'}`;
   }).join('') || '<p class="muted">오늘 할 일이 없습니다.</p>';
   return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드 (${esc(student.no)}. ${esc(student.name)})${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<header class="student-header"><img class="logo" src="assets/logo-icon.jpg" alt="오늘의 별"><div><strong>${esc(data.className)}</strong><span>${esc(student.no)}. ${esc(student.name)}</span></div>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header><main class="student-dashboard"><section class="student-card student-growth"><h2>내 별 점수</h2><div class="student-stars">★ ${esc(data.score.total)}개</div><div class="student-pills">${pills(Object.entries(data.score.areas || {}).map(([a, n]) => a + ' ' + n))}</div></section><section class="student-card student-timetable-card"><h2>오늘의 일정</h2><div class="student-today-events">${studentTodayEvents(data)}</div>${data.timetable.map(t => `<div class="student-task subject-color subject-stripe" style="${C.subjectColorStyle({
     code: t.subject,
@@ -258,7 +259,7 @@ export function renderStudentShell() {
     accentColor: t.accentColor,
     colorSource: t.colorSource,
     defaultColorValue: t.defaultColorValue
-  })}"><div class="slot-period-row"><span class="slot-time">${esc(t.period)}교시</span><small class="slot-clock">${esc(t.periodTime || C.DEFAULT_PERIOD_TIMES[t.period - 1] || '')}</small></div><div class="slot-subject-row"><strong class="subject-title">${esc(t.subject)}</strong>${t.publicMemo ? `<span class="slot-public-memo">${esc(t.publicMemo)}</span>` : ''}</div></div>`).join('') || '<p class="muted">오늘 등록된 수업이 없습니다.</p>'}</section><section class="student-card student-tasks-card"><h2>오늘의 과제 &amp; 루틴</h2><h3>과제</h3>${taskList(data.tasks)}<h3>루틴</h3>${taskList(data.routines, true)}${(data.checkingAssignments || []).map(a => btn('🔍 내가 확인할 친구 과제: ' + esc(a.title), () => openCheckerChecklist(a.id), 'peer-checker-card')).join('')}</section><section class="student-card student-calendar-card"><h2>과제·일정 달력</h2>${studentCalendarView(data, student.id)}</section><section class="student-card student-praise-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><p>${esc(r.text)}</p><div class="student-pills">${pills(r.areas)}</div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main></div>`;
+  })}"><div class="slot-period-row"><span class="slot-time">${esc(t.period)}교시</span><small class="slot-clock">${esc(t.periodTime || C.DEFAULT_PERIOD_TIMES[t.period - 1] || '')}</small></div><div class="slot-subject-row"><strong class="subject-title">${esc(t.subject)}</strong>${t.publicMemo ? `<span class="slot-public-memo">${esc(t.publicMemo)}</span>` : ''}</div></div>`).join('') || '<p class="muted">오늘 등록된 수업이 없습니다.</p>'}</section><section class="student-card student-tasks-card"><h2>오늘의 과제 &amp; 루틴</h2><h3 class="student-section-heading">📘 오늘의 과제</h3>${taskList(data.tasks)}<h3 class="student-section-heading">🔄 매일 루틴</h3>${taskList(data.routines, true)}${(data.checkingAssignments || []).map(a => btn('🔍 내가 확인할 친구 과제: ' + esc(a.title), () => openCheckerChecklist(a.id), 'peer-checker-card')).join('')}</section><section class="student-card student-calendar-card"><h2>과제·일정 달력</h2>${studentCalendarView(data, student.id)}</section><section class="student-card student-praise-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><p>${esc(r.text)}</p><div class="student-pills">${pills(r.areas)}</div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main></div>`;
 }
 let studentCalendarScope = '',
   studentCalendarDate = '',
@@ -314,14 +315,14 @@ function studentCalendarView(data, id) {
     const date = C.addDays(start, index),
       items = studentCalendarItems(data.calendar, date);
     return btn(`<strong>${Number(date.slice(-2))}</strong>${items.map(item => `<span class="student-calendar-pill ${item.kind === 'task' && !['완료', '늦게완료', '면제'].includes(item.status) ? 'has-incomplete' : ''}">${esc(item.title)}</span>`).join('')}`, () => {
+      studentCalendarExpanded = !(studentCalendarExpanded && studentCalendarDate === date);
       studentCalendarDate = date;
-      studentCalendarExpanded = true;
       render();
     }, 'student-calendar-day' + (date === studentCalendarDate ? ' selected' : '') + (date.slice(0, 7) !== first.slice(0, 7) ? ' faded' : ''), `data-calendar-date="${date}" aria-label="${esc(C.formatDate(date))}" aria-pressed="${date === studentCalendarDate}"`);
-  }).join('')}</div><div class="student-calendar-detail">${studentCalendarExpanded ? `<h3>${esc(C.formatDate(studentCalendarDate))}</h3>${detail.map(item => `<div class="student-task"><div><strong>${esc(item.title)}</strong>${item.description ? `<small>${esc(item.description)}</small>` : ''}${item.kind === 'task' && item.memo ? `<p class="assignment-public-memo">${esc(item.memo)}</p>` : ''}${item.kind === 'task' ? `<small class="assignment-checker">🔍 확인자: ${item.checkerName ? esc(item.checkerName) + ' 학생' : '선생님 직접 확인'}</small>` : ''}</div>${item.status ? `<span>${esc(item.status)}</span>` : ''}</div>`).join('') || '<p class="muted">등록된 과제와 일정이 없습니다.</p>'}` : '<p class="muted">날짜를 선택하면 해당 일자의 과제와 일정을 볼 수 있어요</p>'}</div>`;
+  }).join('')}</div><div class="student-calendar-detail">${studentCalendarExpanded ? `<h3>${esc(C.formatDate(studentCalendarDate))}</h3>${detail.map(item => `<div class="student-task ${item.status ? ['완료', '늦게완료', '면제'].includes(item.status) ? 'is-complete' : 'is-pending' : ''}"><div><strong>${esc(item.title)}</strong>${item.description ? `<small>${esc(item.description)}</small>` : ''}${item.kind === 'task' && item.memo ? `<p class="assignment-public-memo">${esc(item.memo)}</p>` : ''}${item.kind === 'task' ? `<small class="assignment-checker">🔍 확인: ${item.checkerName ? esc(item.checkerName) + ' 학생' : '선생님 직접 확인'}</small>` : ''}</div>${item.status ? `<span>${esc(item.status)}</span>` : ''}</div>`).join('') || '<p class="muted">등록된 과제와 일정이 없습니다.</p>'}` : '<p class="muted">날짜를 선택하면 해당 일자의 과제와 일정을 볼 수 있어요</p>'}</div>`;
 }
 function studentTodayEvents(data) {
-  return (data.calendar?.events || []).filter(e => e.date === data.date && (e.period == null || e.period === 0 || e.period === 7) || e.isDday).map(e => `<div class="student-day-event"><span class="badge">${esc(e.title)}${e.isDday ? ' ' + esc(C.dday(e.date, data.date)) : ''}</span>${e.description ? `<small>${esc(e.description)}</small>` : ''}</div>`).join('');
+  return (data.calendar?.events || []).filter(e => e.date === data.date && (e.period == null || e.period === 0 || e.period === 7 || e.period === 8) || e.isDday).map(e => `<div class="student-day-event"><span class="badge">${esc(e.title)}${e.isDday ? ' ' + esc(C.dday(e.date, data.date)) : ''}</span>${e.description ? `<small>${esc(e.description)}</small>` : ''}</div>`).join('');
 }
 async function checkerRequest(assignmentId, targetId = null, completed = false) {
   const checkerId = state.impersonatingStudentId || state.studentUser?.id,
@@ -394,3 +395,60 @@ function showCheckerChecklist(assignmentId, list, scrollTop) {
     }
   }));
 }
+let studentRoutineSaving = false;
+export async function toggleStudentRoutine(routineId) {
+  if (studentRoutineSaving) return;
+  const id = state.impersonatingStudentId || state.studentUser?.id,
+    credentials = checkerCredentials;
+  if (!id) throw Error('학생 로그인을 확인하세요.');
+  const snapshot = state.impersonatingStudentId ? studentSnapshot(store.db, store.db.students.find(s => s.id === id)) : state.studentSnapshot;
+  const routine = snapshot?.routines.find(r => r.id === routineId);
+  if (!routine || routine.status === '면제') throw Error('체크할 루틴을 확인하세요.');
+  studentRoutineSaving = true;
+  try {
+    const completed = routine.status !== '완료';
+    if (state.impersonatingStudentId || ['demo', 'local'].includes(store.mode)) {
+      if (['demo', 'local'].includes(store.mode)) {
+        const raw = localStorage.getItem('startoday-demo-v1');
+        if (raw) store.db = C.normalizeDB(JSON.parse(raw));
+      }
+      if (!state.impersonatingStudentId) {
+        const student = credentials && localStudentMatch(credentials.identity),
+          info = student && studentPasswordInfo(student, store.db.settings[0]);
+        if (student?.id !== id || !info || info.mustChangePassword || info.password !== credentials.password) throw Error('다시 로그인해 주세요.');
+      }
+      await store.commit(C.studentRoutineOps(store.db, id, routineId, completed));
+      if (!state.impersonatingStudentId) state.studentSnapshot = studentSnapshot(store.db, store.db.students.find(s => s.id === id));
+    } else {
+      if (!credentials || !store.client) throw Error('다시 로그인해 주세요.');
+      const {
+        data,
+        error
+      } = await store.client.rpc('startoday_student_routine_set', {
+        ...studentRpcIdentity(credentials.identity),
+        p_password: credentials.password,
+        p_routine: routineId,
+        p_completed: completed
+      });
+      if (credentials !== checkerCredentials || id !== state.studentUser?.id) throw Error('학생 화면이 변경되었습니다.');
+      studentRpcError(error);
+      if (!data) throw Error('오늘 체크할 수 있는 루틴이 아니거나 로그인이 만료되었습니다.');
+      state.studentSnapshot = data.snapshot;
+      store.signalChange('cloud', data.classId, data.revision);
+    }
+    if (state.viewMode === 'student') render();
+  } finally {
+    studentRoutineSaving = false;
+  }
+}
+document.addEventListener?.('click', event => {
+  const routine = event.target.closest?.('[data-routine-id]');
+  if (routine && !routine.disabled) {
+    run(() => toggleStudentRoutine(routine.dataset.routineId));
+  }
+  if (state.viewMode === 'student' && studentCalendarExpanded && !event.target.closest?.('.student-calendar-card')) {
+    studentCalendarExpanded = false;
+    const detail = document.querySelector('.student-calendar-detail');
+    if (detail) detail.innerHTML = '<p class="muted">날짜를 선택하면 해당 일자의 과제와 일정을 볼 수 있어요</p>';
+  }
+});

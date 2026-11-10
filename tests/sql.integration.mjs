@@ -126,4 +126,15 @@ await pg.exec('set role anon');await peerSet('s2',true,'simple');await peerSet('
 await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);assert(!snap.data.records.some(r=>r.autoRef===C.stateId('simple',day,'s2')));assert(!snap.data.records.some(r=>r.autoRef===C.stateId('a1',day,'s2')));assert.equal(snap.data.assignmentStates.find(s=>s.assignmentId==='simple').status,'완료');
 await commit([{table:'assignments',id:'a1',data:{...peerAssignment,checkerStudentId:'s2'}}]);await pg.exec('set role anon');assert.equal(await peerList(),null);assert.equal(await peerSet('s1',true),null);
 console.log('PASS: 확인자 인증/초기화 차단, 오늘·대상·출결·학급 권한, 비공개 메모 보존, 원자적 체크/취소 및 revision, 중복 별점 방지, 단순 체크리스트 별점 미생성');
+
+// Student routine writes are self-only and never create score records.
+await pg.exec('set role authenticated');await asUser(owner);revision=Number((await snapshot()).revision);
+const rr={id:'self-routine',title:'우유 급식',target:{studentIds:['s1']},sortOrder:1};const rk=C.stateId(rr.id,day,'s1');await commit([{table:'routines',id:rr.id,data:rr},{table:'routineStates',id:rk,data:{id:rk,routineId:rr.id,studentId:'s1',date:day,status:'진행중',memo:'PRIVATE_ROUTINE'}}]);const recordCount=(await snapshot()).data.records.length;
+await pg.exec('set role anon');
+async function routineSet(id='self-routine',completed=true,password='새암호123',no=1){return (await pg.query('select public.startoday_student_routine_set($1,$2,$3,$4,$5,$6,$7) as data',['NEIS001','5','오',no,password,id,completed])).rows[0].data;}
+assert.equal(await routineSet('self-routine',true,'틀린암호123'),null);assert.equal(await routineSet('self-routine',true,'행복한5반',2),null);assert.equal(await routineSet('student-routine'),null);assert.equal(await routineSet('missing'),null);
+let routineResponse=await routineSet();assert.equal(routineResponse.snapshot.routines.find(r=>r.id===rr.id).status,'완료');assert(!JSON.stringify(routineResponse).includes('PRIVATE_ROUTINE'));routineResponse=await routineSet(rr.id,false);assert.equal(routineResponse.snapshot.routines.find(r=>r.id===rr.id).status,'진행중');
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);assert.equal(snap.data.records.length,recordCount);assert.equal(snap.data.routineStates.find(r=>r.id===rk).memo,'PRIVATE_ROUTINE');await commit([{table:'attendance',id:'self-exclude',data:{id:'self-exclude',studentId:'s1',date:day,excluded:true}}]);await pg.exec('set role anon');assert.equal(await routineSet(),null);
+await pg.exec('set role authenticated');await asUser(owner);revision=Number((await snapshot()).revision);await commit([{table:'attendance',id:'self-exclude',remove:true},{table:'routines',id:rr.id,data:{...rr,deletedAt:C.now()}}]);await pg.exec('set role anon');assert.equal(await routineSet(),null);
+console.log('PASS: 학생 루틴 본인 인증·대상·출결·예외·삭제 권한, 완료/진행중 토글, 메모 보존 및 별점 무변경');
 await pg.close();

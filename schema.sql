@@ -154,7 +154,7 @@ begin
  where a.class_id=cid and a.data->>'deletedAt' is null and a.data->>'date'<=day and (a.data->>'endDate' is null or a.data->>'endDate'>=day)
  and (a.data->'target'='"all"'::jsonb or a.data->'target'->'studentIds' ? sid)
  and ((a.data->'repeat'->>'type'='none' and a.data->>'date'=day) or a.data->'repeat'->>'type'='daily' or (a.data->'repeat'->'weekdays') @> jsonb_build_array(extract(dow from day::date)::integer));
- select coalesce(jsonb_agg(jsonb_build_object('title',r.data->>'title','status',case when r.data->'exceptions'->day->>'exempt'='true' or exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=day and atd.data->>'excluded'='true') then '면제' else coalesce(st.data->>'status','진행중') end) order by coalesce((r.data->>'sortOrder')::numeric,0)),'[]'::jsonb) into routines
+ select coalesce(jsonb_agg(jsonb_build_object('id',r.id,'title',r.data->>'title','status',case when r.data->'exceptions'->day->>'exempt'='true' or exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=day and atd.data->>'excluded'='true') then '면제' else coalesce(st.data->>'status','진행중') end) order by coalesce((r.data->>'sortOrder')::numeric,0)),'[]'::jsonb) into routines
  from public.startoday_routines r left join public."startoday_routineStates" st on st.class_id=cid and st.id=r.id||':'||day||':'||sid
  where r.class_id=cid and r.data->>'deletedAt' is null and (r.data->'target'='"all"'::jsonb or r.data->'target'->'studentIds' ? sid);
  select coalesce(jsonb_agg(jsonb_build_object('period',t.data->'period','periodTime',config->'periodTimes'->>((t.data->>'period')::integer-1),'subject',t.data->>'subjectCode','publicMemo',coalesce(t.data->>'publicMemo',t.data->>'memo',''),'color',rules.data->>'color','accentColor',rules.data->>'accentColor','colorSource',rules.data->>'colorSource','defaultColorValue',rules.data->>'defaultColorValue','location',coalesce(nullif(t.data->>'locationOverride',''),rules.data->>'location','')) order by (t.data->>'period')::integer),'[]'::jsonb) into timetable
@@ -305,4 +305,29 @@ begin
 end $$;
 revoke all on function public.startoday_student_checker_set(text,text,text,integer,text,text,text,boolean) from public;
 grant execute on function public.startoday_student_checker_set(text,text,text,integer,text,text,text,boolean) to anon,authenticated;
+
+-- A student can toggle only their own assigned, non-exempt routine for today.
+create or replace function public.startoday_student_routine_set(p_school text,p_grade text,p_class text,p_no integer,p_password text,p_routine text,p_completed boolean)
+returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare verified jsonb; cid uuid; sid text; routine jsonb; old_state jsonb; day text:=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD'); state_key text; v jsonb; stamp text; owner uuid; rev bigint;
+begin
+ verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_password);
+ if verified is null or verified->>'mustChangePassword'='true' or p_completed is null then return null;end if;
+ cid:=(verified->>'cid')::uuid;sid:=verified->>'sid';
+ select data into routine from public.startoday_routines where class_id=cid and id=p_routine and data->>'deletedAt' is null;
+ if routine is null or not coalesce(routine->'target'='"all"'::jsonb or routine->'target'->'studentIds' ? sid,false) or routine->'exceptions'->day->>'exempt'='true' then return null;end if;
+ if exists(select 1 from public.startoday_attendance where class_id=cid and data->>'studentId'=sid and data->>'date'=day and data->>'excluded'='true') then return null;end if;
+ state_key:=p_routine||':'||day||':'||sid;
+ select data into old_state from public."startoday_routineStates" where class_id=cid and id=state_key;
+ if old_state->>'status'='면제' then return null;end if;
+ stamp:=to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
+ v:=coalesce(old_state,'{}'::jsonb)||jsonb_build_object('id',state_key,'routineId',p_routine,'date',day,'studentId',sid,'status',case when p_completed then '완료' else '진행중' end,'updatedAt',stamp);
+ select owner_id into owner from public.startoday_classes where id=cid;
+ insert into public."startoday_routineStates"(class_id,owner_id,id,data) values(cid,owner,state_key,v) on conflict(class_id,id) do update set data=excluded.data,updated_at=now();
+ update public.startoday_classes set revision=revision+1 where id=cid returning revision into rev;
+ insert into public.startoday_audit(owner_id,class_id,revision,table_name,row_id,operation) values(owner,cid,rev,'routineStates',state_key,'student_routine_check');
+ return jsonb_build_object('classId',cid,'revision',rev,'snapshot',public.startoday_student_payload(cid,sid));
+end $$;
+revoke all on function public.startoday_student_routine_set(text,text,text,integer,text,text,boolean) from public;
+grant execute on function public.startoday_student_routine_set(text,text,text,integer,text,text,boolean) to anon,authenticated;
 commit;
