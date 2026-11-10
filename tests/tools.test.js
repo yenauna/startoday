@@ -123,3 +123,86 @@ test('QR은 URL/한글/긴 텍스트의 버전에 맞는 정방형과 파인더/
   assert(large.every(row => row.every(v => typeof v === 'boolean')));
   assert.throws(() => toolQrMatrix('한'.repeat(1000)), /너무 깁니다/);
 });
+test('첫 도구는 캔버스를 채우고 이후 도구는 넉넉한 복원 크기로 생성', async () => {
+  const {
+    defaultToolRect
+  } = await import('../js/shared/tools-core.js');
+  assert.deepEqual(defaultToolRect(0, 1200, 700), {
+    left: 0,
+    top: 0,
+    width: 1200,
+    height: 700
+  });
+  const next = defaultToolRect(1, 1200, 700);
+  assert(next.width > 440);
+  assert(next.height > 390);
+  assert(next.left + next.width <= 1200);
+  assert(next.top + next.height <= 700);
+});
+test('핀 격자는 좌우 40px 여백과 9개 교차 행을 유지', async () => {
+  const {
+    makeToolPegs
+  } = await import('../js/shared/tools-core.js');
+  const pegs = makeToolPegs();
+  assert.equal(new Set(pegs.map(p => p.row)).size, 9);
+  for (let row = 0; row < 9; row++) {
+    const xs = pegs.filter(p => p.row === row).map(p => p.x);
+    assert.equal(Math.min(...xs), 40);
+    assert.equal(Math.max(...xs), 600);
+    assert(xs.length >= 12);
+  }
+  assert.notDeepEqual(pegs.filter(p => p.row === 0).map(p => p.x), pegs.filter(p => p.row === 1).map(p => p.x));
+});
+test('다양한 난수 레이스의 모든 구슬은 여러 행과 충돌하고 고유한 순위로 완주', async () => {
+  const {
+    makeToolPegs,
+    createToolRaceBalls,
+    stepToolRace
+  } = await import('../js/shared/tools-core.js');
+  const pegs = makeToolPegs();
+  for (let seed = 1; seed <= 30; seed++) {
+    let state = seed;
+    const random = () => (state = Math.imul(state, 1664525) + 1013904223 >>> 0) / 4294967296;
+    const balls = createToolRaceBalls(Array.from({
+      length: 25
+    }, (_, i) => ({
+      id: String(i),
+      label: String(i)
+    })), pegs, random);
+    assert.equal(balls[0].y - balls[1].y, 28);
+    const dt = [1 / 240, 1 / 120, 1 / 100][seed % 3];
+    let duration = 0;
+    for (; duration < 40 && !balls.every(b => b.rank); duration += dt) stepToolRace(balls, pegs, dt, 640, 440, {
+      left: 40,
+      right: 600,
+      random
+    });
+    assert(balls.every(b => b.rank), `seed ${seed}: 완주`);
+    assert(balls.every(b => b.collisions >= 2), `seed ${seed}: 충돌`);
+    assert(balls.every(b => b.contactRows.toString(2).replaceAll('0', '').length >= 2), `seed ${seed}: 다른 행 충돌`);
+    assert.deepEqual(balls.map(b => b.rank).sort((a, b) => a - b), Array.from({
+      length: 25
+    }, (_, i) => i + 1));
+    assert(duration > 3);
+  }
+});
+test('동일 스텝에서 결승선을 건너도 배열 순서 대신 도달 비율로 순위를 부여', () => {
+  const balls = [{
+    x: 30,
+    y: 98,
+    vx: 0,
+    vy: 15,
+    r: 10,
+    rank: 0
+  }, {
+    x: 70,
+    y: 99,
+    vx: 0,
+    vy: 15,
+    r: 10,
+    rank: 0
+  }];
+  stepToolRace(balls, [], .1, 100, 100);
+  assert.equal(balls[1].rank, 1);
+  assert.equal(balls[0].rank, 2);
+});

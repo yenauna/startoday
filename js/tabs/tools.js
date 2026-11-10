@@ -1,5 +1,5 @@
 import { state, store } from '../shared/state.js';
-import { toolCandidates, parseToolList, shuffledTools, remainingTools, toolClockValue, formatToolTime, clampToolWindow, stepToolRace } from '../shared/tools-core.js';
+import { toolCandidates, parseToolList, shuffledTools, remainingTools, toolClockValue, formatToolTime, clampToolWindow, defaultToolRect, makeToolPegs, createToolRaceBalls, stepToolRace } from '../shared/tools-core.js';
 import { toolQrMatrix } from '../shared/tools-qr.js';
 // This board never calls Store.commit. Only explicitly saved phrases/custom lists
 // are written to its own local key. Roster names are read fresh from memory.
@@ -114,7 +114,7 @@ function mountToolBoard(host, overlay) {
     toolBoardObserver = new ResizeObserver(() => {
       if (!toolRoot?.isConnected || !toolCanvas.clientWidth) return;
       for (const w of toolWindows.values()) {
-        w.rect = clampToolWindow(w.rect, toolCanvas.clientWidth, Math.max(600, toolCanvas.clientHeight));
+        if (!w.maximized) w.rect = clampToolWindow(w.rect, toolCanvas.clientWidth, toolCanvas.clientHeight);
         applyToolRect(w);
       }
     });
@@ -123,8 +123,7 @@ function mountToolBoard(host, overlay) {
   toolRoot.classList.toggle('tools-overlay', overlay);
   host.append(toolRoot);
   for (const w of toolWindows.values()) {
-    const rect = clampToolWindow(w.rect, toolCanvas.clientWidth, toolCanvas.clientHeight);
-    w.rect = rect;
+    if (!w.maximized) w.rect = clampToolWindow(w.rect, toolCanvas.clientWidth, toolCanvas.clientHeight);
     applyToolRect(w);
   }
   if (!toolFrame) toolFrame = requestAnimationFrame(tickToolBoard);
@@ -138,7 +137,6 @@ function hideToolBoard() {
     }
     w.cancelAnimation?.();
   }
-  if (document.fullscreenElement?.closest?.('.tools-widget')) document.exitFullscreen?.().catch(() => {});
   toolRoot?.remove();
   toolOverlay = false;
   cancelAnimationFrame(toolFrame);
@@ -155,7 +153,15 @@ function destroyToolBoard() {
   toolScope = '';
 }
 function applyToolRect(w) {
-  if (w.maximized) return;
+  if (w.maximized) {
+    Object.assign(w.el.style, {
+      left: '0px',
+      top: '0px',
+      width: '100%',
+      height: '100%'
+    });
+    return;
+  }
   Object.assign(w.el.style, {
     left: w.rect.left + 'px',
     top: w.rect.top + 'px',
@@ -166,17 +172,11 @@ function applyToolRect(w) {
 function createToolWindow(type) {
   if (!toolTeacher() || !toolCanvas) return;
   const index = toolWindows.size,
-    width = Math.min(440, toolCanvas.clientWidth - 12),
     id = 'tool-' + ++toolSerial,
     w = {
       id,
       type,
-      rect: {
-        left: Math.min(index * 26, Math.max(0, toolCanvas.clientWidth - width)),
-        top: Math.min(index * 24, 120),
-        width,
-        height: type === 'random' ? 560 : 390
-      },
+      rect: defaultToolRect(index, toolCanvas.clientWidth, toolCanvas.clientHeight),
       maximized: false
     };
   w.el = toolElement('article', 'tools-widget');
@@ -185,8 +185,10 @@ function createToolWindow(type) {
   w.el.setAttribute('aria-label', TOOL_TYPES[type]);
   const head = toolElement('div', 'tools-window-head');
   head.append(toolElement('strong', '', TOOL_TYPES[type]));
-  const maximize = toolButton('⛶', () => toggleToolFullscreen(w), 'tools-maximize');
-  maximize.setAttribute('aria-label', '전체화면/복원');
+  const maximize = toolButton('⛶', () => toggleToolMaximize(w), 'tools-maximize');
+  maximize.setAttribute('aria-label', '캔버스 꽉 채우기/복원');
+  maximize.title = '캔버스 꽉 채우기/복원';
+  maximize.setAttribute('aria-pressed', 'false');
   const close = toolButton('✕', () => closeToolWindow(w), 'tools-window-close');
   close.setAttribute('aria-label', '도구 닫기');
   head.append(maximize, close);
@@ -254,32 +256,21 @@ function bindToolDrag(w, handle, resizing) {
     handle.addEventListener('pointercancel', end);
   };
 }
-async function toggleToolFullscreen(w) {
+function toggleToolMaximize(w) {
   w.maximized = !w.maximized;
   w.el.classList.toggle('tools-maximized', w.maximized);
+  w.el.querySelector('.tools-maximize').setAttribute('aria-pressed', String(w.maximized));
+  w.el.style.zIndex = String(++toolZ);
   if (w.maximized) {
-    try {
-      await w.el.requestFullscreen?.();
-    } catch {
-      toolNotice(w, '화면 확대 모드로 표시합니다.');
-    }
-  } else {
-    if (document.fullscreenElement === w.el) await document.exitFullscreen?.();
-    applyToolRect(w);
-  }
+    toolCanvas.scrollTop = 0;
+    toolCanvas.scrollLeft = 0;
+  } else w.rect = clampToolWindow(w.rect, toolCanvas.clientWidth, toolCanvas.clientHeight);
+  applyToolRect(w);
 }
-document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement) for (const w of toolWindows.values()) if (w.maximized) {
-    w.maximized = false;
-    w.el.classList.remove('tools-maximized');
-    applyToolRect(w);
-  }
-});
 function closeToolWindow(w) {
   w.cancelAnimation?.();
   if (toolSpeechOwner === w) stopToolSpeech();
   w.observer?.disconnect();
-  if (document.fullscreenElement === w.el) document.exitFullscreen?.().catch(() => {});
   w.el.remove();
   toolWindows.delete(w.id);
   if (!toolWindows.size) toolCanvas.append(toolElement('p', 'tools-empty', '위에서 도구를 골라 함께 배치해 보세요.'));
@@ -564,7 +555,7 @@ function buildToolQr(w) {
         if (dark) c.fillRect((x + 4) * scale, (y + 4) * scale, scale, scale);
       }));
       canvas.hidden = false;
-      toolNotice(w, '기기 카메라로 스캔하세요. 전체화면 버튼으로 크게 볼 수 있어요.');
+      toolNotice(w, '기기 카메라로 스캔하세요. ⛶ 버튼으로 캔버스에 꽉 채워 볼 수 있어요.');
     } catch (error) {
       canvas.hidden = true;
       toolNotice(w, error.message);
@@ -842,15 +833,6 @@ function runToolWheel(w, items) {
   };
   frame = requestAnimationFrame(tick);
 }
-function makeToolPegs() {
-  const pegs = [];
-  for (let row = 0; row < 7; row++) for (let col = 0; col < row + 2; col++) pegs.push({
-    x: 320 + (col - (row + 1) / 2) * 67,
-    y: 110 + row * 42,
-    r: 6
-  });
-  return pegs;
-}
 function paintToolRace(canvas, balls, pegs) {
   const c = canvas.getContext('2d');
   c.clearRect(0, 0, 640, 480);
@@ -882,15 +864,7 @@ function paintToolRace(canvas, balls, pegs) {
 function runToolRace(w, items) {
   w.randomBusy = true;
   const pegs = makeToolPegs(),
-    balls = shuffledTools(items).map((item, i) => ({
-      ...item,
-      x: 25 + Math.random() * 590,
-      y: 15 - i * 5,
-      vx: (Math.random() - .5) * 120,
-      vy: Math.random() * 40,
-      r: 12,
-      rank: 0
-    })),
+    balls = createToolRaceBalls(items, pegs),
     start = performance.now();
   let last = start,
     frame;
@@ -901,12 +875,11 @@ function runToolRace(w, items) {
   const tick = now => {
     const dt = Math.min(.04, (now - last) / 1000);
     last = now;
-    for (let i = 0; i < 4; i++) stepToolRace(balls, pegs, dt / 4, 640, 440);
+    for (let i = 0; i < 4; i++) stepToolRace(balls, pegs, dt / 4, 640, 440, {
+      left: 40,
+      right: 600
+    });
     paintToolRace(w.randomCanvas, balls, pegs);
-    if (now - start > 12000 && pegs.length) {
-      pegs.length = 0;
-      toolNotice(w, '마지막 구슬이 도착하도록 장애물을 걷었습니다.');
-    }
     if (balls.every(b => b.rank)) {
       const ranked = balls.slice().sort((a, b) => a.rank - b.rank);
       w.randomBusy = false;

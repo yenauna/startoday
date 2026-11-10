@@ -789,7 +789,8 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .tools-overlay { position:fixed; inset:0; z-index:140; border-radius:0; display:flex; flex-direction:column; height:100dvh; padding:12px; overflow:hidden; }
 .tools-overlay .tools-canvas { flex:1; height:auto; min-height:0; }
 .tools-board:not(.tools-overlay) .tools-overlay-close { display:none; }
-.tools-widget.tools-maximized,.tools-widget:fullscreen { position:fixed; inset:0!important; width:100%!important; height:100dvh!important; border-radius:0; z-index:2000!important; }
+.tools-widget.tools-maximized { position:absolute; left:0!important; top:0!important; width:100%!important; height:100%!important; border-radius:0; }
+.tools-canvas:has(>.tools-maximized) { overflow:hidden; }
 .tools-maximized .tools-resize { display:none; }
 .tool-clock-display { position:relative; display:flex; justify-content:center; align-items:center; flex:1 0 180px; min-height:150px; }
 .tool-clock-number { color:#0f172a; font-weight:800; font-size:clamp(40px,6vw,76px); font-variant-numeric:tabular-nums; line-height:1.1; }
@@ -812,14 +813,30 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .tool-random-canvas { width:100%; max-height:440px; object-fit:contain; }
 .tool-qr-canvas { width:100%; max-height:500px; object-fit:contain; image-rendering:pixelated; background:#fff; }
 .tools-maximized[data-tool-type=qr] textarea { display:none; }
-.tools-maximized[data-tool-type=qr] .tool-qr-canvas { height:calc(100dvh - 100px); max-height:none; width:100%; }
+.tools-maximized[data-tool-type=qr] .tool-qr-canvas { height:100%; max-height:none; width:100%; }
 .tools-maximized[data-tool-type=qr] .tools-window-body { align-items:center; }
 .lockscreen button.class-tools { pointer-events:auto; position:fixed; right:14px; top:53px; z-index:110; background:#fcfcfe; color:#283247; padding:6px 12px; border-radius:14px; }
 @media(max-width:480px) { .sticky-navigation .tabs { gap:2px; padding-inline:6px; }.sticky-navigation .tabs button{font-size:12px;padding:6px;}.tools-board{padding:7px;}.tools-toolbar{gap:4px;}.tools-toolbar button{font-size:12px;padding:5px 8px;}.tools-canvas{min-height:60vh;}.tools-overlay .tools-canvas{min-height:0;}.tools-heading small{font-size:11px;} }
-.tools-maximized .tool-random-canvas { max-height:calc(100dvh - 230px); }
+.tools-maximized .tool-random-canvas { max-height:none; }
 #class-tools.class-tools { pointer-events:auto; }
 .tools-widget[data-tool-type=qr] .tools-window-body { overflow:hidden; }
 .tools-widget[data-tool-type=qr] .tool-qr-canvas { flex:1 1 0; min-height:0; height:100%; max-height:none; }
 .tool-wheel-popup { position:absolute; inset:44px 0 0; z-index:10; display:grid; place-items:center; padding:16px; background:rgba(15,23,42,.42); }
 .tool-wheel-card { display:flex; flex-direction:column; align-items:center; gap:18px; max-width:100%; padding:24px; border-radius:18px; background:#fff8df; color:#564015; text-align:center; box-shadow:var(--st-shadow-3); }
 .tool-wheel-card strong { font-size:26px; overflow-wrap:anywhere; }
+
+/* Align the badge text and first body line by their actual flex baselines. */
+.record-content-line { display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; white-space:normal; }
+.record-content-line .badge { flex:0 0 auto; margin:0; padding:1px 7px; line-height:1.4; vertical-align:baseline; }
+.record-content-line .body { flex:1 1 140px; min-width:0; white-space:pre-wrap; line-height:1.4; }
+.subject-grid button.subject-choice { min-height:38px; padding:6px 8px; font-size:16px; font-weight:800; }
+.tools-widget[data-tool-type=timer] .tool-clock-display,.tools-widget[data-tool-type=stopwatch] .tool-clock-display { flex:1 1 0; min-height:120px; }
+.tools-widget .tool-clock-number { font-size:clamp(40px,8vw,150px); }
+.tools-widget[data-tool-type=random] .tool-random-stage { flex:1 1 0; min-height:150px; display:flex; }
+.tools-widget .tool-random-canvas { flex:1 1 0; min-height:0; height:100%; max-height:none; width:100%; object-fit:contain; }
+.tools-widget .tool-box-grid { flex:1; align-content:start; }
+.tools-widget[data-tool-type=random] .tool-random-result { flex:0 1 auto; max-height:30%; overflow:auto; }
+.tools-widget[data-tool-type=board] .tool-writing-preview { flex:1 1 0; min-height:100px; }
+.tools-widget.tools-maximized { min-width:0; min-height:0; }
+.tool-clock-display { container-type:size; }
+.tools-widget .tool-clock-number { font-size:clamp(28px,min(18cqw,28cqh),180px); }
