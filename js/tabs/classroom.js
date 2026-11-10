@@ -5,6 +5,7 @@ import { db, settings, students } from '../shared/data.js';
 import { state } from '../shared/state.js';
 import { $, badge, esc, hashPin, run, toast } from '../shared/ui.js';
 import { announcementView } from './dashboard.js';
+import { openToolsOverlay, syncToolsVisibility } from './tools.js';
 import { timeSlots } from './timetable.js';
 export function displayName(s) {
   if (settings().nameDisplayMode === 'real') return `${s.no}. ${s.name}`;
@@ -28,8 +29,10 @@ export function classroom() {
   state.selected = [];
   state.actions?.clear();
   state.locked = true;
+  syncToolsVisibility();
   const d = C.today();
-  $('#app').innerHTML = `<div class="lockscreen"><div class="classroom-top"><div class="classroom-heading"><div class="classroom-brand"><h1>오늘의 별</h1><small>${esc(settings().className)}</small></div><div class="classroom-datetime"><time>${esc(C.formatDate(d))}</time><div id="class-clock" class="clock"></div></div></div>${announcementView()}<section class="panel classroom-schedule"><div class="row">${C.calendarEvents(db()).filter(e => e.date === d && (e.period == null || [0, 7, 8].includes(e.period)) || e.isDday && e.date !== d).map(e => `<div class="classroom-event">${badge(e.title + (e.isDday ? ' ' + C.dday(e.date, d) : ''))}${e.description ? `<small class="event-description">${esc(e.description)}</small>` : ''}</div>`).join('')}</div><div class="schedule registered-schedule">${timeSlots(d, false, true, 'classroom')}</div></section></div><div class="students classroom-students">${students().map(student => classroomStudent(student, d)).join('')}</div><button type="button" class="lock-exit" id="lock-exit" aria-label="교사 화면 잠금 해제" title="길게 누르기 또는 두 번 탭하여 해제">🔒<span class="lock-hint" style="font-size:12px; margin-left:4px; font-weight:500;">길게 눌러 해제</span></button></div>`;
+  $('#app').innerHTML = `<div class="lockscreen"><div class="classroom-top"><div class="classroom-heading"><div class="classroom-brand"><h1>오늘의 별</h1><small>${esc(settings().className)}</small></div><div class="classroom-datetime"><time>${esc(C.formatDate(d))}</time><div id="class-clock" class="clock"></div></div></div>${announcementView()}<section class="panel classroom-schedule"><div class="row">${C.calendarEvents(db()).filter(e => e.date === d && (e.period == null || [0, 7, 8].includes(e.period)) || e.isDday && e.date !== d).map(e => `<div class="classroom-event">${badge(e.title + (e.isDday ? ' ' + C.dday(e.date, d) : ''))}${e.description ? `<small class="event-description">${esc(e.description)}</small>` : ''}</div>`).join('')}</div><div class="schedule registered-schedule">${timeSlots(d, false, true, 'classroom')}</div></section></div><div class="students classroom-students">${students().map(student => classroomStudent(student, d)).join('')}</div><button type="button" id="class-tools" class="class-tools">🧰 수업도구</button><button type="button" class="lock-exit" id="lock-exit" aria-label="교사 화면 잠금 해제" title="길게 누르기 또는 두 번 탭하여 해제">🔒<span class="lock-hint" style="font-size:12px; margin-left:4px; font-weight:500;">길게 눌러 해제</span></button></div>`;
+  $('#class-tools').onclick = openToolsOverlay;
   fitClassroom();
   classroomResizeObserver = new ResizeObserver(() => requestAnimationFrame(fitClassroom));
   classroomResizeObserver.observe(document.querySelector('.classroom-top'));

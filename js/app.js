@@ -12,8 +12,9 @@ import { settingsView } from './tabs/settings.js';
 import { studentsView } from './tabs/students.js';
 import { bindTimetableDrag, calendarView } from './tabs/timetable.js';
 import { classroom } from './tabs/classroom.js';
+import { toolsView, syncToolsVisibility } from './tabs/tools.js';
 import { renderStudentShell, studentSnapshot } from './tabs/student-view.js';
-const teacherTabs = ['대시보드', '기록', '시간표·일정', '과제', '루틴', '통계', '자리', '설정'];
+const teacherTabs = ['대시보드', '기록', '시간표·일정', '과제', '루틴', '통계', '수업도구', '자리', '설정'];
 export function navigate(tab) {
   state.tab = tab === '학생' ? '통계' : tab;
   if (!teacherTabs.includes(state.tab)) state.tab = '대시보드';
@@ -40,6 +41,7 @@ window.addEventListener('hashchange', () => {
 });
 readTabHash();
 export function render() {
+  syncToolsVisibility();
   if (state.studentPasswordPending || state.viewMode === 'student' || state.studentUser || state.impersonatingStudentId) {
     document.title = '학생 화면 · 오늘의 별';
     state.actions.clear();
@@ -110,6 +112,7 @@ function renderTab() {
     '과제': assignmentsView,
     '루틴': routinesView,
     '통계': studentsView,
+    '수업도구': toolsView,
     '자리': seatsView,
     '설정': settingsView
   }[state.tab]();
