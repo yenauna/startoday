@@ -85,8 +85,8 @@ export const SUBJECT_PALETTE = Object.freeze({
     accent: '#7B8527'
   },
   '창체': {
-    background: '#F0F3F7',
-    accent: '#65758C'
+    background: '#EDE9FA',
+    accent: '#7256A5'
   }
 });
 export const SUBJECT_COLOR_ALIASES = Object.freeze({
@@ -97,7 +97,7 @@ export const SUBJECT_COLOR_ALIASES = Object.freeze({
 });
 export const DEFAULT_SUBJECT_CODES = ['국어', '수학', '사회', '과학', '체육', '음악', '미술', '실과', '영어', '창체', '도덕', ...Object.keys(SUBJECT_COLOR_ALIASES)];
 export function defaultSubjectColors(code) {
-  const key = Object.hasOwn(SUBJECT_COLOR_ALIASES, code) ? SUBJECT_COLOR_ALIASES[code] : code;
+  const key = ['자율', '자치'].includes(code) ? '창체' : Object.hasOwn(SUBJECT_COLOR_ALIASES, code) ? SUBJECT_COLOR_ALIASES[code] : code;
   return {
     ...(Object.hasOwn(SUBJECT_PALETTE, key) ? SUBJECT_PALETTE[key] : SUBJECT_PALETTE['창체'])
   };
@@ -209,6 +209,7 @@ export function studentCalendarData(database, id) {
       title: e.title,
       description: e.description || '',
       period: e.period,
+      timeOfDay: e.timeOfDay,
       isDday: !!e.isDday
     }))
   };
@@ -221,6 +222,7 @@ export function initialDB() {
     className: '우리 반',
     nameDisplayMode: 'real',
     classroomShowScores: true,
+    lunchAfterPeriod: 4,
     seatRows: 4,
     seatCols: 5,
     frontTop: true,
@@ -306,7 +308,7 @@ export function taskStateOps(db, a, d, s, status, memo = '') {
       updatedAt: stamp
     }
   }];
-  if (!a.noStar && ['완료', '늦게완료', '안함'].includes(status)) ops.push({
+  if (!a.noStar && ['완료', '늦게완료', '안함', '면제'].includes(status)) ops.push({
     table: 'records',
     id: old?.id || `auto:${id}`,
     data: {
@@ -316,8 +318,8 @@ export function taskStateOps(db, a, d, s, status, memo = '') {
       studentIds: [s],
       areas: a.statArea ? [a.statArea] : [],
       area: a.statArea || null,
-      kind: status === '안함' ? '지도' : '칭찬',
-      text: `${a.title} ${status === '늦게완료' ? '늦게 완료' : status}${memo ? ' · ' + memo : ''}`,
+      kind: status === '안함' ? '지도' : status === '완료' ? '칭찬' : '관찰',
+      text: `${a.title} ${status === '늦게완료' ? '늦게 완료' : status}${memo ? ' (' + memo + ')' : ''}`,
       action: '',
       autoRef: id,
       printIncluded: true,
@@ -723,7 +725,7 @@ export function pendingRoutines(db, studentId, date) {
   return excluded(db, studentId, date) ? [] : db.routines.filter(r => !r.deletedAt && targeted(r, studentId) && routineStatus(db, r.id, date, studentId) === '진행중').sort((a, b) => a.sortOrder - b.sortOrder);
 }
 export function normalizeAnnouncement(note = {}) {
-  const sizes = ['normal', 'large', 'huge', '18', '24', '32', '40', '48', '64'],
+  const sizes = ['normal', 'large', 'huge', '16', '18', '20', '24', '32', '40', '48', '64'],
     colors = ['default', 'red', 'blue', 'yellow', 'green', 'purple', 'orange', 'gray'];
   const source = Array.isArray(note?.runs) ? note.runs : [{
     text: note?.text || '',
@@ -736,7 +738,7 @@ export function normalizeAnnouncement(note = {}) {
     const run = {
       text: item.text,
       size: sizes.includes(item.size) ? item.size : 'normal',
-      color: colors.includes(item.color) ? item.color : 'default'
+      color: colors.includes(item.color) || TEXT_COLOR_CARDS.some(c => c.color === item.color) ? item.color : 'default'
     };
     const prev = runs.at(-1);
     if (prev && prev.size === run.size && prev.color === run.color) prev.text += run.text;else runs.push(run);
@@ -1109,7 +1111,7 @@ export function dayTimeline(database, date) {
       type: 'lesson',
       period: p
     });
-    if (p === 4) out.push(slot(7));
+    if (p === lunchPosition(database.settings[0])) out.push(slot(7));
   }
   out.push(slot(8));
   return out;
@@ -1119,3 +1121,38 @@ export function upcomingWeekEvents(database, date) {
     end = addDays(monday, 4);
   return calendarEvents(database).filter(event => event.date > date && event.date <= end);
 }
+export function lunchPosition(config = {}) {
+  return [3, 4, 5].includes(Number(config.lunchAfterPeriod)) ? Number(config.lunchAfterPeriod) : 4;
+}
+export function markRemainingUndoneOps(database, assignment, date) {
+  return activeStudents(database).filter(s => targeted(assignment, s.id) && !excluded(database, s.id, date) && assignmentStatus(database, assignment.id, date, s.id) === '진행중').flatMap(s => taskStateOps(database, assignment, date, s.id, '안함', database.assignmentStates.find(st => st.id === stateId(assignment.id, date, s.id))?.memo || ''));
+}
+export function assignmentPolicyOps(database) {
+  const ops = [];
+  for (const state of database.assignmentStates) {
+    const assignment = database.assignments.find(a => a.id === state.assignmentId);
+    if (!assignment || !targeted(assignment, state.studentId) || !database.students.some(s => s.id === state.studentId) || !STATUSES.includes(state.status)) continue;
+    const old = database.records.find(r => r.autoRef === state.id),
+      change = taskStateOps(database, assignment, state.date, state.studentId, state.status, state.memo || '').find(op => op.table === 'records');
+    if (!change) continue;
+    if (change.remove) {
+      ops.push(change);
+      continue;
+    }
+    if (!old) ops.push(change);else if (old.kind !== change.data.kind || old.text !== change.data.text) ops.push({
+      table: 'records',
+      id: old.id,
+      data: {
+        ...old,
+        kind: change.data.kind,
+        text: change.data.text,
+        updatedAt: now()
+      }
+    });
+  }
+  return ops;
+}
+export const TEXT_COLOR_CARDS = [['검정', '#172033'], ['회색', '#64748B'], ['흰색', '#FFFFFF'], ['빨강', '#B91C1C'], ['주황', '#C2410C'], ['황금', '#A16207'], ['노랑', '#FFE066'], ['연노랑', '#FFF176'], ['초록', '#15803D'], ['민트', '#0F766E'], ['청록', '#0E7490'], ['파랑', '#1D4ED8'], ['하늘', '#A7E5FF'], ['남색', '#3730A3'], ['보라', '#7E22CE'], ['라벤더', '#C4B5FD'], ['분홍', '#FFB3D1'], ['장미', '#BE185D'], ['갈색', '#854D0E'], ['연두', '#BEF264']].map(([name, color]) => ({
+  name,
+  color
+}));

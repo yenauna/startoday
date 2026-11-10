@@ -1,3 +1,4 @@
+import { createFormatCards } from '../components/format-cards.js';
 import { render } from '../app.js';
 import * as C from '../core.js';
 import { commit, db, settings, students, up } from '../shared/data.js';
@@ -18,10 +19,10 @@ export function dashboard() {
   if (state.dashMode !== 'normal') return checkView();
   const list = students();
   const completed = list.filter(s => !isUnfinished(s.id, state.date) && !C.excluded(db(), s.id, state.date)).length;
-  return `<div class="toolbar"><div><h2>${esc(settings().className)}의 하루</h2><small>${esc(C.formatDate(state.date))} · 작은 기록이 모여 성장이 됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input aria-label="대시보드 날짜" type="date" value="${state.date}" id="dash-date"></span>${btn('오늘', () => {
+  return `<div class="toolbar"><div><h2>${esc(settings().className)}의 하루</h2><small>작은 기록이 모여 성장이 됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input aria-label="대시보드 날짜" type="date" value="${state.date}" id="dash-date"></span>${btn('오늘', () => {
     state.date = C.today();
     render();
-  })}${btn(state.compact ? '자세히' : '컴팩트', () => {
+  })}</div></div>${announcementEditor()}<section class="panel"><div class="row between"><div class="row dashboard-today-events"><strong>오늘 일정</strong>${C.calendarEvents(db()).filter(e => e.date === state.date && C.eventTimePeriod(e) == null).map(e => btn(esc(e.title) + (e.description ? `<small class="event-description">${esc(e.description)}</small>` : ''), () => dayEditor(state.date, '일정', null, e), 'event')).join('') || ''}${C.calendarEvents(db()).filter(e => e.isDday).sort((a, b) => a.date.localeCompare(b.date)).map(e => badge(e.title + ' ' + C.dday(e.date, state.date))).join('')}</div>${btn('+ 일정', () => dayEditor(state.date))}</div><div class="schedule registered-schedule" style="margin-top:12px">${timeSlots(state.date, false, true)}</div>${weekSummary() ? `<div class="ticker">${esc(weekSummary())}</div>` : ''}</section><div class="summary"><div class="metric"><small>오늘 함께하는 학생</small><strong>${list.filter(s => !C.excluded(db(), s.id, state.date)).length}<small> / ${list.length}명</small></strong></div><div class="metric"><small>할 일을 모두 마친 학생</small><strong>${completed}<small>명</small></strong></div><div class="metric"><small>오늘 남긴 기록</small><strong>${db().records.filter(r => r.date === state.date).length}<small>건</small></strong></div></div><div class="toolbar"><strong>우리 반 학생 <span class="muted">${list.length}명</span></strong><div class="row dashboard-student-controls">${btn(state.compact ? '자세히' : '간단히', () => {
     state.compact = !state.compact;
     render();
   })}${btn('체크', () => {
@@ -31,7 +32,7 @@ export function dashboard() {
   })}${btn('출결', () => {
     state.dashMode = 'attendance';
     render();
-  })}</div></div>${announcementEditor()}<section class="panel"><div class="row between"><div class="row dashboard-today-events"><strong>오늘 일정</strong>${C.calendarEvents(db()).filter(e => e.date === state.date && C.eventTimePeriod(e) == null).map(e => btn(esc(e.title) + (e.description ? `<small class="event-description">${esc(e.description)}</small>` : ''), () => dayEditor(state.date, '일정', null, e), 'event')).join('') || ''}${C.calendarEvents(db()).filter(e => e.isDday && C.eventTimePeriod(e) == null).sort((a, b) => a.date.localeCompare(b.date)).map(e => badge(e.title + ' ' + C.dday(e.date, state.date))).join('')}</div>${btn('+ 일정', () => dayEditor(state.date))}</div><div class="schedule registered-schedule" style="margin-top:12px">${timeSlots(state.date, false, true)}</div>${weekSummary() ? `<div class="ticker">${esc(weekSummary())}</div>` : ''}</section><div class="summary"><div class="metric"><small>오늘 함께하는 학생</small><strong>${list.filter(s => !C.excluded(db(), s.id, state.date)).length}<small> / ${list.length}명</small></strong></div><div class="metric"><small>할 일을 모두 마친 학생</small><strong>${completed}<small>명</small></strong></div><div class="metric"><small>오늘 남긴 기록</small><strong>${db().records.filter(r => r.date === state.date).length}<small>건</small></strong></div></div><div class="toolbar"><strong>우리 반 학생 <span class="muted">${list.length}명</span></strong><div class="row">${btn('🔀 ' + (dashboardOrder() === 'number' ? '번호순' : '자리대로'), () => setDashboardOrder(dashboardOrder() === 'number' ? 'seats' : 'number'))}</div></div><section class="${state.compact ? 'compact' : ''}">${dashboardStudents(list)}</section>${!list.length ? empty('아직 등록된 학생이 없습니다.', '설정에서 명단을 붙여 넣거나 학생을 추가하세요.') : ''}${bindLater('dash-date', 'change', e => {
+  })}${btn('🔀 ' + (dashboardOrder() === 'number' ? '번호순' : '자리대로'), () => setDashboardOrder(dashboardOrder() === 'number' ? 'seats' : 'number'))}</div></div><section class="${state.compact ? 'compact' : ''}">${dashboardStudents(list)}</section>${!list.length ? empty('아직 등록된 학생이 없습니다.', '설정에서 명단을 붙여 넣거나 학생을 추가하세요.') : ''}${bindLater('dash-date', 'change', e => {
     state.date = e.target.value || C.today();
     render();
   })}`;
@@ -135,6 +136,8 @@ const noticeSizes = {
     normal: 24,
     large: 36,
     huge: 52,
+    '16': 64 / 3,
+    '20': 80 / 3,
     '18': 24,
     '24': 32,
     '32': 128 / 3,
@@ -150,6 +153,7 @@ const noticeSizes = {
     green: '#15803D',
     purple: '#7E22CE',
     orange: '#C2410C',
+    ...Object.fromEntries(C.TEXT_COLOR_CARDS.map(c => [c.color, c.color])),
     gray: '#64748B'
   };
 function noticeKey() {
@@ -187,10 +191,23 @@ function noticeDraft() {
 export function announcementEditor() {
   const draft = noticeDraft();
   if (draft.dirty) queueNotice(draft);
-  return `<section class="panel notice-panel"><div id="notice-toolbar" class="row compact-notice-toolbar" role="toolbar" aria-label="알림 서식">${select('', 'notice-size', [['normal', '글씨크기'], ['large', '크게'], ['huge', '아주 크게'], ...['18', '24', '32', '40', '48', '64'].map(n => [n, n + 'pt'])], draft.note.runs[0]?.size || 'normal').replace('<select ', '<select aria-label="글씨크기" ')}${select('', 'notice-color', [['default', '글씨색상'], ['red', '빨강'], ['blue', '파랑'], ['yellow', '노랑'], ['green', '초록'], ['purple', '보라'], ['orange', '주황'], ['gray', '회색']], draft.note.runs[0]?.color || 'default').replace('<select ', '<select aria-label="글씨색상" ')}<small id="notice-status" role="status">${draft.error ? '저장 실패 · 입력하면 다시 시도합니다.' : draft.dirty ? '자동 저장 대기 중' : '자동 저장됨'}</small></div><div id="notice-editor" contenteditable="true" role="textbox" aria-label="알림 내용" aria-multiline="true" spellcheck="false">${noticeMarkup(draft.note)}</div></section>`;
+  setTimeout(() => {
+    const holder = $('#notice-format-cards');
+    if (!holder) return;
+    holder.replaceChildren(createFormatCards({
+      beforeOpen: () => rememberNoticeSelection(draft),
+      onSize: size => applyNoticeCard(draft, {
+        size
+      }),
+      onColor: color => applyNoticeCard(draft, {
+        color
+      })
+    }));
+  }, 0);
+  return `<section class="panel notice-panel"><div id="notice-toolbar" class="row compact-notice-toolbar" role="toolbar" aria-label="알림 서식"><span id="notice-format-cards"></span><small id="notice-status" role="status">${draft.error ? '저장 실패 · 입력하면 다시 시도합니다.' : draft.dirty ? '자동 저장 대기 중' : '자동 저장됨'}</small></div><div id="notice-editor" contenteditable="true" role="textbox" aria-label="알림 내용" aria-multiline="true" spellcheck="false">${noticeMarkup(draft.note)}</div></section>`;
 }
 // Delegate editor events once, so repeated renders cannot duplicate input handlers.
-for (const type of ['input', 'mouseup', 'keyup', 'pointerdown', 'change', 'paste', 'drop']) {
+for (const type of ['input', 'mouseup', 'keyup', 'pointerdown', 'paste', 'drop']) {
   document.addEventListener(type, e => {
     const editor = e.target.closest?.('#notice-editor'),
       toolbar = e.target.closest?.('#notice-toolbar');
@@ -198,20 +215,6 @@ for (const type of ['input', 'mouseup', 'keyup', 'pointerdown', 'change', 'paste
     const draft = noticeDraft();
     if (type === 'input' && editor) noticeChanged(draft);
     if (['mouseup', 'keyup'].includes(type) && editor || type === 'pointerdown' && toolbar) rememberNoticeSelection(draft);
-    if (type === 'change' && toolbar && ['notice-size', 'notice-color'].includes(e.target.name)) {
-      const field = $('#notice-editor');
-      draft.note = readNotice(field);
-      const range = draft.selection || {
-        start: 0,
-        end: draft.note.text.length
-      };
-      draft.note = C.formatAnnouncement(draft.note, range.start, range.end, {
-        [e.target.name === 'notice-size' ? 'size' : 'color']: e.target.value
-      });
-      field.innerHTML = noticeMarkup(draft.note);
-      restoreNoticeSelection(range);
-      noticeChanged(draft);
-    }
     if (type === 'paste' && editor) {
       e.preventDefault();
       insertNoticeText(e.clipboardData.getData('text/plain'), draft);
@@ -531,4 +534,17 @@ async function completeRoutineWithUndo(r, date, student) {
   undo.unregister = registerUndo(button, () => performance.now() < undo.expires && scope === routineUndoScope());
   tick();
   undo.timer = setInterval(tick, 100);
+}
+function applyNoticeCard(draft, style) {
+  const field = $('#notice-editor');
+  if (!field) return;
+  draft.note = readNotice(field);
+  const range = draft.selection || {
+    start: 0,
+    end: draft.note.text.length
+  };
+  draft.note = C.formatAnnouncement(draft.note, range.start, range.end, style);
+  field.innerHTML = noticeMarkup(draft.note);
+  restoreNoticeSelection(range);
+  noticeChanged(draft);
 }

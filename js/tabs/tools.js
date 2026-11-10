@@ -1,3 +1,4 @@
+import { createFormatCards } from '../components/format-cards.js';
 import { formatToolRange } from '../shared/tool-rich.js';
 import { requestPwaInstall } from '../shared/pwa.js';
 import { state, store } from '../shared/state.js';
@@ -506,16 +507,15 @@ function buildToolWriting(w) {
     remembered = formatToolRange(editor, remembered, styles);
     if (!remembered) toolNotice(w, '서식을 바꿀 글자를 먼저 선택하세요.');
   };
-  for (const [label, size] of [['작게', '22px'], ['보통', '32px'], ['크게', '48px'], ['칠판특대', '72px']]) controls.append(toolButton(label, () => format({
-    fontSize: size
-  })));
-  for (const [label, color] of [['형광노랑', '#FFF176'], ['분홍', '#FFB3D1'], ['하늘', '#A7E5FF'], ['흰색', '#FFFFFF'], ['검정', '#172033']]) {
-    const b = toolButton(label, () => format({
+  controls.append(createFormatCards({
+    beforeOpen: remember,
+    onSize: size => format({
+      fontSize: size + 'pt'
+    }),
+    onColor: color => format({
       color
-    }), 'tool-marker-color');
-    b.style.setProperty('--marker-color', color);
-    controls.append(b);
-  }
+    })
+  }));
   controls.append(toolButton('형광펜', () => format({
     backgroundColor: '#FFE066',
     color: '#172033'

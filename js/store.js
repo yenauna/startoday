@@ -1,4 +1,4 @@
-import { TABLES, normalizeDB, initialDB, applyOps, uid, now } from './core.js';
+import { TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps } from './core.js';
 export class Store {
   constructor() {
     this.db = null;
@@ -216,7 +216,9 @@ export class Store {
       defaultStudentPassword: config.defaultStudentPassword || '바람123'
     });
     normalizeDB(this.db);
-    if (created) {
+    const policy = assignmentPolicyOps(this.db);
+    if (policy.length) this.db = applyOps(this.db, policy);
+    if (created || policy.length) {
       try {
         localStorage.setItem('startoday-demo-v1', JSON.stringify(this.db));
         this.publishSync();
@@ -248,6 +250,8 @@ export class Store {
         data: row
       })));
     }
+    const policy = assignmentPolicyOps(this.db);
+    if (policy.length && !this.busy) await this.commit(policy);
     return this.db;
   }
   async commit(ops) {

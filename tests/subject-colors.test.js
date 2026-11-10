@@ -13,7 +13,7 @@ test('15개 기본 과목은 지정한 11개 배경/포인트 조합을 정확�
     체육: ['#EAF7F3', '#287E73'],
     실과: ['#FCEFE9', '#BA6044'],
     도덕: ['#F5F7E8', '#7B8527'],
-    창체: ['#F0F3F7', '#65758C']
+    창체: ['#EDE9FA', '#7256A5']
   };
   for (const [code, [background, accent]] of Object.entries(expected)) assert.deepEqual(C.subjectColors(code), {
     background,

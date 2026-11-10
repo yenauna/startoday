@@ -47,8 +47,7 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
       dayEditor(d, '시간표', p);
     }, 'slot' + (slot ? ' subject-color subject-stripe' : ''), `style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}" title="${esc(slot?.subjectCode || '')}" draggable="${!!slot}" data-drag="${d}:${p}" data-drop="${d}:${p}"`);
   });
-  if (calendar) return lessonSlots.join('');
-  return C.dayTimeline(db(), d).map(part => part.type === 'lesson' ? lessonSlots[part.period - 1] : part.events.length ? `<div class="timeline-slot timeline-${part.period}" data-timeline-period="${part.period}"><strong>${{
+  return C.dayTimeline(db(), d).map(part => part.type === 'lesson' ? lessonSlots[part.period - 1] : part.events.length && (!calendar || state.calendarFilters.events) ? `<div class="timeline-slot timeline-${part.period}" data-timeline-period="${part.period}"><strong>${{
     0: '아침',
     7: '점심',
     8: '방과후'
@@ -86,7 +85,7 @@ export function calendarView() {
     length: days
   }, (_, i) => {
     const d = C.addDays(start, i),
-      events = C.calendarEvents(db()).filter(e => e.date === d && (e.period == null || e.period === 0 || e.period === 7 || e.period === 8)),
+      events = C.calendarEvents(db()).filter(e => e.date === d && C.eventTimePeriod(e) == null),
       tasks = db().assignments.filter(a => C.occurs(a, d));
     return `<div class="day ${d.slice(0, 7) !== state.calendarDate.slice(0, 7) ? 'faded' : ''} ${d === C.today() ? 'today' : ''}">${btn(`<span>${Number(d.slice(-2))}${state.calendarMode === 'week' ? '일' : ''}</span><small>＋</small>`, () => dayEditor(d), 'day-head')}${state.calendarFilters.events ? events.map(e => btn(esc(e.title) + (e.description ? `<small class="event-description">${esc(e.description)}</small>` : '') + (e.isDday ? ' ' + badge(C.dday(e.date)) : ''), () => dayEditor(d, '일정', null, e), 'event')).join('') : ''}${state.calendarFilters.time ? timeSlots(d, true) : ''}${state.calendarFilters.tasks ? tasks.map(a => {
       const targets = students().filter(s => C.targeted(a, s.id) && !C.excluded(db(), s.id, d)),

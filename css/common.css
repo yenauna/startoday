@@ -883,3 +883,32 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .timeline-slot .timeline-event { display:inline-flex; flex-wrap:wrap; align-items:baseline; gap:5px; }
 .timeline-slot .timeline-event small { display:inline; }
 @media(max-width:640px){#app .registered-schedule:has(>.timeline-slot)>.slot{flex-basis:calc(50% - 6px);}}
+
+/* Practice 11: compact assignment matrix and two-line progress cards. */
+.assignment-matrix th,.assignment-matrix td { padding:4px 6px; line-height:1.25; }
+.assignment-matrix .task-status,.assignment-matrix .complete-all { min-height:26px; padding:3px 7px; font-size:12px; }
+.assignment-progress-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; max-height:45vh; overflow-y:auto; }
+.assignment-progress-grid .assignment-progress-item { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:5px; min-width:0; min-height:64px; padding:9px 10px; border-radius:12px; text-align:left; }
+.assignment-progress-name { font-weight:700; }
+.assignment-progress-status { font-size:12px; }
+.assignment-progress .toolbar { flex-wrap:wrap; gap:8px; }
+.checker-card-picker:not([hidden]) { display:grid; grid-template-columns:repeat(auto-fill,minmax(95px,1fr)); gap:6px; padding:10px; margin-top:6px; max-height:32vh; overflow:auto; border:1px solid var(--st-line,#dce2ec); border-radius:12px; background:var(--st-surface); }
+.checker-card-picker button[aria-pressed="true"] { outline:2px solid #365c85; background:var(--st-blue-bg); }
+.assignment-calendar-add { padding:1px 6px; min-height:22px; float:right; }
+.student-task.is-overdue { background:#ffe0e5!important; border-color:#f5a8b7!important; color:#9f1239; }
+.student-praise .student-pills { display:flex; flex-wrap:wrap; gap:6px; }
+.timeline-event-slot { display:flex; flex-wrap:wrap; gap:6px; padding:5px 8px; margin:4px 0; background:#f0f3f7; border-radius:10px; }
+.timeline-event-slot>small { font-size:11px; color:var(--st-text-muted); }
+.format-card-tools { display:inline-flex; gap:4px; align-items:center; }
+.format-card-tools>button { padding:4px 8px; min-height:30px; }
+.format-card-picker { position:fixed; inset:auto; margin:0; width:212px; padding:10px; border:1px solid #d6deeb; border-radius:14px; background:#fcfcfe; box-shadow:var(--st-shadow-3); z-index:1000; }
+.format-card-picker:popover-open,.format-card-picker:not([popover]):not([hidden]) { display:grid; gap:6px; }
+.color-card-picker:popover-open,.color-card-picker:not([popover]):not([hidden]) { grid-template-columns:repeat(4,1fr); }
+.size-card-picker:popover-open,.size-card-picker:not([popover]):not([hidden]) { grid-template-columns:repeat(3,1fr); }
+.format-card-picker button { display:grid; place-items:center; padding:4px; min-width:0; min-height:32px; border:1px solid #dce2ec; border-radius:8px; box-shadow:none; }
+.format-color-card span { display:block; width:23px; height:23px; border-radius:50%; background:var(--chip-color); border:1px solid rgba(15,23,42,.18); }
+.format-card-picker button:hover,.format-card-picker button:focus-visible { outline:2px solid #365c85; outline-offset:1px; }
+.subject-mood-palette .subject-mood-chips { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:7px; }
+.subject-mood-chip { display:flex; align-items:center; min-height:42px; border-left:4px solid var(--pair-accent)!important; border-radius:10px; }
+.subject-mood-chip[aria-pressed="true"] { outline:2px solid #365c85; outline-offset:2px; }
+@media(max-width:480px){.assignment-progress-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.assignment-progress-grid .assignment-progress-item{padding:7px 6px;font-size:12px}.assignment-progress .toolbar button{font-size:12px;padding:4px 7px}}

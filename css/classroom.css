@@ -192,3 +192,6 @@
 /* The locked screen disables other buttons; dismissing this notice is allowed. */
 .lockscreen button.fullscreen-countdown-overlay { pointer-events:auto; }
 .fullscreen-countdown-overlay .countdown-remaining { font-size:clamp(40px,9vw,144px); }
+/* Keep non-lesson time labels subordinate to subject titles. */
+.lockscreen .timeline-slot>strong { font-size:12px; font-weight:600; }
+@media(max-width:768px){.lockscreen .timeline-slot>strong{font-size:11px}}

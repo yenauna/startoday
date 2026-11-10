@@ -1,6 +1,6 @@
 import { SUBJECT_MOODS, smartSubjectAccents, paletteContrast } from '../shared/subject-palette.js';
 export function subjectPaletteFields() {
-  return '<div class="span2 subject-mood-palette"><strong>교실 감성 추천 색상</strong><div class="subject-mood-chips"></div><small>배경색을 고르면 어울리는 포인트색 3가지를 추천합니다.</small><div class="subject-accent-pairs" aria-label="추천 포인트색"></div></div>';
+  return '<div class="span2 subject-mood-palette"><strong>교실 감성 추천 색상</strong><div class="subject-mood-chips"></div><small>카드를 누르면 배경과 포인트색이 함께 적용됩니다. 직접 고른 배경에는 포인트색 3가지를 추천합니다.</small><div class="subject-accent-pairs" aria-label="추천 포인트색"></div></div>';
 }
 export function bindSubjectPalette(form, onChange) {
   const holder = form.querySelector('.subject-mood-chips'),
@@ -28,10 +28,15 @@ export function bindSubjectPalette(form, onChange) {
     b.type = 'button';
     b.className = 'subject-mood-chip';
     b.style.background = mood.background;
-    b.style.color = smartSubjectAccents(mood.background)[0];
+    const accent = smartSubjectAccents(mood.background)[0];
+    b.style.color = accent;
+    b.style.setProperty('--pair-accent', accent);
+    b.setAttribute('aria-pressed', String(form.elements.color.value.toLowerCase() === mood.background.toLowerCase() && form.elements.accentColor.value.toLowerCase() === accent.toLowerCase()));
     b.textContent = mood.name;
     b.onclick = () => {
       form.elements.color.value = mood.background;
+      form.elements.accentColor.value = accent;
+      holder.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button === b)));
       onChange();
       update();
     };

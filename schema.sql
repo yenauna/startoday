@@ -138,8 +138,11 @@ begin
  select data into config from public.startoday_settings where class_id=cid and id='main';
  -- Only numbers are aggregated from advice; its text is never returned.
  with scored as (
- select r.data,case r.data->>'kind' when '칭찬' then 1 when '지도' then -1 else 0 end as delta
- from public.startoday_records r where r.class_id=cid and r.data->'studentIds' ? sid and r.data->>'date'<=day
+ select r.data,case when r.data->>'autoRef' is not null then case when a.data->>'noStar'='true' then 0 when ast.data->>'status'='완료' then 1 when ast.data->>'status'='안함' then -1 else 0 end else case r.data->>'kind' when '칭찬' then 1 when '지도' then -1 else 0 end end as delta
+ from public.startoday_records r
+ left join public."startoday_assignmentStates" ast on ast.class_id=cid and ast.id=r.data->>'autoRef' and ast.data->>'studentId'=sid
+ left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId'
+ where r.class_id=cid and r.data->'studentIds' ? sid and r.data->>'date'<=day
  and not exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=r.data->>'date' and atd.data->>'excluded'='true')
  ) select jsonb_build_object('total',coalesce((select sum(delta) from scored),0),'areas',coalesce((select jsonb_object_agg(ar.data->>'name',coalesce((select sum(delta) from scored r where coalesce(r.data->'areas',jsonb_build_array(r.data->>'area')) ? (ar.data->>'name')),0)) from public.startoday_areas ar where ar.class_id=cid),'{}'::jsonb)) into totals;
  select coalesce(jsonb_agg(x.data order by x.date desc,x.created desc),'[]'::jsonb) into letters from (
@@ -147,13 +150,15 @@ begin
  from public.startoday_records r
  left join public."startoday_assignmentStates" ast on ast.class_id=cid and ast.id=r.data->>'autoRef' and ast.data->>'studentId'=sid
  left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId'
- where (r.data->>'autoRef' is null or (a.id is not null and ast.data->>'status' in ('완료','늦게완료'))) and r.class_id=cid and r.data->>'kind'='칭찬' and r.data->'studentIds' ? sid and r.data->>'date'<=day
+ where (r.data->>'autoRef' is null or (a.id is not null and ast.data->>'status'='완료')) and r.class_id=cid and r.data->>'kind'='칭찬' and r.data->'studentIds' ? sid and r.data->>'date'<=day
  order by r.data->>'date' desc,r.data->>'createdAt' desc limit 50) x;
- select coalesce(jsonb_agg(jsonb_build_object('title',a.data->>'title','memo',coalesce(a.data->>'memo',''),'checkerName',coalesce((select concat(s.data->>'no','. ',s.data->>'name') from public.startoday_students s where s.class_id=cid and s.id=a.data->>'checkerStudentId' and s.data->>'deletedAt' is null),''),'date',day,'status',case when exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=day and atd.data->>'excluded'='true') then '면제' else coalesce(st.data->>'status','진행중') end) order by a.data->>'title'),'[]'::jsonb) into tasks
- from public.startoday_assignments a left join public."startoday_assignmentStates" st on st.class_id=cid and st.id=a.id||':'||day||':'||sid
- where a.class_id=cid and a.data->>'deletedAt' is null and a.data->>'date'<=day and (a.data->>'endDate' is null or a.data->>'endDate'>=day)
+ select coalesce(jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title','memo',coalesce(a.data->>'memo',''),'checkerName',coalesce((select concat(s.data->>'no','. ',s.data->>'name') from public.startoday_students s where s.class_id=cid and s.id=a.data->>'checkerStudentId' and s.data->>'deletedAt' is null),''),'date',due.date,'overdue',due.date<day,'status',case when exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=due.date and atd.data->>'excluded'='true') then '면제' else coalesce(st.data->>'status','진행중') end) order by due.date,a.data->>'title'),'[]'::jsonb) into tasks
+ from public.startoday_assignments a
+ cross join lateral (select to_char(value,'YYYY-MM-DD') as date from generate_series((a.data->>'date')::date,day::date,interval '1 day') value) due
+ left join public."startoday_assignmentStates" st on st.class_id=cid and st.id=a.id||':'||due.date||':'||sid
+ where a.class_id=cid and public.startoday_assignment_occurs(a.data,due.date)
  and (a.data->'target'='"all"'::jsonb or a.data->'target'->'studentIds' ? sid)
- and ((a.data->'repeat'->>'type'='none' and a.data->>'date'=day) or a.data->'repeat'->>'type'='daily' or (a.data->'repeat'->'weekdays') @> jsonb_build_array(extract(dow from day::date)::integer));
+ and (due.date=day or (coalesce(st.data->>'status','진행중')='진행중' and not exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=due.date and atd.data->>'excluded'='true')));
  select coalesce(jsonb_agg(jsonb_build_object('id',r.id,'title',r.data->>'title','status',case when r.data->'exceptions'->day->>'exempt'='true' or exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=day and atd.data->>'excluded'='true') then '면제' else coalesce(st.data->>'status','진행중') end) order by coalesce((r.data->>'sortOrder')::numeric,0)),'[]'::jsonb) into routines
  from public.startoday_routines r left join public."startoday_routineStates" st on st.class_id=cid and st.id=r.id||':'||day||':'||sid
  where r.class_id=cid and r.data->>'deletedAt' is null and (r.data->'target'='"all"'::jsonb or r.data->'target'->'studentIds' ? sid);
@@ -164,12 +169,12 @@ begin
  'assignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title','date',a.data->>'date','endDate',a.data->>'endDate','repeat',a.data->'repeat','memo',coalesce(a.data->>'memo',''),'checkerName',coalesce((select concat(s.data->>'no','. ',s.data->>'name') from public.startoday_students s where s.class_id=cid and s.id=a.data->>'checkerStudentId' and s.data->>'deletedAt' is null),''))) from public.startoday_assignments a where a.class_id=cid and a.data->>'deletedAt' is null and (a.data->'target'='"all"'::jsonb or a.data->'target'->'studentIds' ? sid)),'[]'::jsonb),
  'states',coalesce((select jsonb_agg(jsonb_build_object('assignmentId',st.data->>'assignmentId','date',st.data->>'date','status',st.data->>'status')) from public."startoday_assignmentStates" st where st.class_id=cid and st.data->>'studentId'=sid),'[]'::jsonb),
  'excludedDates',coalesce((select jsonb_agg(atd.data->>'date') from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'excluded'='true'),'[]'::jsonb),
- 'events',coalesce((select jsonb_agg(jsonb_build_object('date',e.date,'title',e.title,'description',e.description,'period',e.period,'isDday',e.is_dday)) from (
-   select ev.data->>'date' as date,ev.data->>'title' as title,coalesce(ev.data->>'description','') as description,ev.data->'period' as period, coalesce(ev.data->>'isDday','false')='true' as is_dday from public.startoday_events ev where ev.class_id=cid
-   union all select config->'academicCalendar'->>dates.key,dates.title,'학사일정 · 설정에서 관리','null'::jsonb,false from (values ('term1Start','개학식'),('summerEnd','여름방학식'),('term2Start','개학식'),('winterEnd','겨울방학식'),('winterReturn','개학식'),('springEnd','종업식')) dates(key,title) where config->'academicCalendar'->>dates.key ~ '^\d{4}-\d{2}-\d{2}$' and (dates.key not in ('winterReturn','springEnd') or config->'academicCalendar'->>'springBreak'='true')
-   union all select distinct holiday.value,'자율휴업일','학사일정 · 재량휴업일','null'::jsonb,false from jsonb_array_elements_text(case when jsonb_typeof(config->'academicCalendar'->'holidays')='array' then config->'academicCalendar'->'holidays' else '[]'::jsonb end) holiday(value)
+ 'events',coalesce((select jsonb_agg(jsonb_build_object('date',e.date,'title',e.title,'description',e.description,'period',e.period,'timeOfDay',e.time_of_day,'isDday',e.is_dday)) from (
+   select ev.data->>'date' as date,ev.data->>'title' as title,coalesce(ev.data->>'description','') as description,ev.data->'period' as period,ev.data->>'timeOfDay' as time_of_day, coalesce(ev.data->>'isDday','false')='true' as is_dday from public.startoday_events ev where ev.class_id=cid
+   union all select config->'academicCalendar'->>dates.key,dates.title,'학사일정 · 설정에서 관리','null'::jsonb,null::text,false from (values ('term1Start','개학식'),('summerEnd','여름방학식'),('term2Start','개학식'),('winterEnd','겨울방학식'),('winterReturn','개학식'),('springEnd','종업식')) dates(key,title) where config->'academicCalendar'->>dates.key ~ '^\d{4}-\d{2}-\d{2}$' and (dates.key not in ('winterReturn','springEnd') or config->'academicCalendar'->>'springBreak'='true')
+   union all select distinct holiday.value,'자율휴업일','학사일정 · 재량휴업일','null'::jsonb,null::text,false from jsonb_array_elements_text(case when jsonb_typeof(config->'academicCalendar'->'holidays')='array' then config->'academicCalendar'->'holidays' else '[]'::jsonb end) holiday(value)
  ) e),'[]'::jsonb)) into calendar;
- result:=jsonb_build_object('student',jsonb_build_object('id',sid,'no',student->'no','name',student->>'name'),'className',coalesce(config->>'className','우리반'),'date',day,'score',totals,'praise',letters,'tasks',tasks,'routines',routines,'timetable',timetable,'calendar',calendar,'checkingAssignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title')) from public.startoday_assignments a where a.class_id=cid and a.data->>'checkerStudentId'=sid and public.startoday_assignment_occurs(a.data,day)),'[]'::jsonb));
+ result:=jsonb_build_object('student',jsonb_build_object('id',sid,'no',student->'no','name',student->>'name'),'className',coalesce(config->>'className','우리반'),'date',day,'lunchAfterPeriod',case when config->>'lunchAfterPeriod' in ('3','4','5') then (config->>'lunchAfterPeriod')::integer else 4 end,'score',totals,'praise',letters,'tasks',tasks,'routines',routines,'timetable',timetable,'calendar',calendar,'checkingAssignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title')) from public.startoday_assignments a where a.class_id=cid and a.data->>'checkerStudentId'=sid and public.startoday_assignment_occurs(a.data,day)),'[]'::jsonb));
  return result;
 end $$;
 revoke all on function public.startoday_student_payload(uuid,text) from public,anon,authenticated;

@@ -170,6 +170,8 @@ test('과제 화면은 TDZ 없이 상태·메모를 표시하고 1클릭 순환 
       taskDate: date
     }
   };
+  taskButton.querySelector = () => null;
+  Object.defineProperty(taskButton,'innerHTML',{get(){return this.textContent;},set(value){this.textContent=value;}});
   let timerId = 0;
   let modalBody = '';
   const context = {

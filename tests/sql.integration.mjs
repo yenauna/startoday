@@ -50,7 +50,7 @@ await asUser(owner);
 for(let i=0;i<3;i++)await pg.query('select public.startoday_backup($1)',[classId]);
 assert.equal((await pg.query('select * from public.startoday_backups')).rows.length,2);
 await commit(C.taskStateOps(snap.data,db.assignments[0],'2026-11-05','s1','면제'));
-assert.equal((await snapshot()).data.records.length,0);
+assert.equal((await snapshot()).data.records.length,1);assert.equal((await snapshot()).data.records[0].kind,'관찰');
 console.log('PASS: SQL 재실행, 초기화, 테이블 직접 쓰기 차단, 원자적 저장/롤백, 최초 시각 불변, 충돌 검출, 교사별 RLS 격리, 2세대 백업, 자동 기록 삭제');
 // School/grade/class/no identity and mandatory password change are enforced in SQL.
 await asUser(owner);
@@ -80,7 +80,7 @@ assert.equal(await changePassword('wrong','새암호7'),null);
 for(const invalid of ['바람123','12345','바람12','ㄱㄴ123','바람abc123','행복!123','ab1','!!!!'])await assert.rejects(changePassword('바람123',invalid),/INVALID_STUDENT_PASSWORD/);
 const teacherRevision=revision;
 let view=await changePassword('바람123','별빛123');
-assert.equal(view.mustChangePassword,false);assert.equal(view.student.name,'가상학생');assert.equal(view.praise.length,2);assert.equal(view.score.total,1);assert.equal(view.tasks[0].status,'완료');assert.equal(view.routines[0].status,'면제');assert.equal(view.timetable[0].location,'우리 교실');assert.equal(view.timetable[0].publicMemo,'[준비물] 태블릿\n15분에 이동');assert(view.calendar.assignments.some(a=>a.id==='a1'));assert(view.calendar.states.some(s=>s.status==='완료'));assert(view.calendar.states.every(state=>!Object.hasOwn(state,'memo')));assert.equal(view.tasks[0].memo,'공개 준비물\n교과서');assert.equal(view.tasks[0].checkerName,'2. 다른학생');assert.equal(view.calendar.assignments.find(a=>a.id==='a1').checkerName,'2. 다른학생');assert.equal(view.timetable[0].periodTime,config.periodTimes[0]);assert(view.calendar.assignments.some(a=>a.id==='future-own'));assert(!JSON.stringify(view).includes('OTHER_TASK_SECRET'));assert(!JSON.stringify(view).includes('PRIVATE_ASSIGNMENT'));assert(!JSON.stringify(view).includes('PRIVATE_EVENT'));assert(view.calendar.events.some(e=>e.title==='운동회'));assert(view.calendar.events.some(e=>e.title==='개학식'));assert(view.calendar.events.some(e=>e.title==='자율휴업일'));assert.equal(view.timetable[0].color,'#E8F4F0');assert.equal(view.timetable[0].accentColor,'#20604A');assert.equal(view.timetable[0].colorSource,'custom');
+assert.equal(view.mustChangePassword,false);assert.equal(view.student.name,'가상학생');assert.equal(view.praise.length,2);assert.equal(view.score.total,1);assert.equal(view.tasks.find(t=>t.date===day&&t.title==='연산').status,'완료');assert.equal(view.routines[0].status,'면제');assert.equal(view.timetable[0].location,'우리 교실');assert.equal(view.timetable[0].publicMemo,'[준비물] 태블릿\n15분에 이동');assert(view.calendar.assignments.some(a=>a.id==='a1'));assert(view.calendar.states.some(s=>s.status==='완료'));assert(view.calendar.states.every(state=>!Object.hasOwn(state,'memo')));assert.equal(view.tasks.find(t=>t.date===day&&t.title==='연산').memo,'공개 준비물\n교과서');assert.equal(view.tasks.find(t=>t.date===day&&t.title==='연산').checkerName,'2. 다른학생');assert.equal(view.calendar.assignments.find(a=>a.id==='a1').checkerName,'2. 다른학생');assert.equal(view.timetable[0].periodTime,config.periodTimes[0]);assert(view.calendar.assignments.some(a=>a.id==='future-own'));assert(!JSON.stringify(view).includes('OTHER_TASK_SECRET'));assert(!JSON.stringify(view).includes('PRIVATE_ASSIGNMENT'));assert(!JSON.stringify(view).includes('PRIVATE_EVENT'));assert(view.calendar.events.some(e=>e.title==='운동회'));assert(view.calendar.events.some(e=>e.title==='개학식'));assert(view.calendar.events.some(e=>e.title==='자율휴업일'));assert.equal(view.timetable[0].color,'#E8F4F0');assert.equal(view.timetable[0].accentColor,'#20604A');assert.equal(view.timetable[0].colorSource,'custom');
 for(const hidden of ['SECRET_ADVICE','SECRET_TASK_MEMO','SECRET_ROUTINE_MEMO','SECRET_TIMETABLE_MEMO','PRIVATE_ACTION','OTHER_STUDENT','owner_id','password','바람123','별빛123'])assert(!JSON.stringify(view).includes(hidden));
 assert.equal(await schoolLogin('바람123'),null);assert.equal((await schoolLogin('별빛123')).student.id,'s1');
 await assert.rejects(pg.query('select * from public.startoday_student_login_attempts'),/permission denied/);
@@ -137,4 +137,22 @@ let routineResponse=await routineSet();assert.equal(routineResponse.snapshot.rou
 await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);assert.equal(snap.data.records.length,recordCount);assert.equal(snap.data.routineStates.find(r=>r.id===rk).memo,'PRIVATE_ROUTINE');await commit([{table:'attendance',id:'self-exclude',data:{id:'self-exclude',studentId:'s1',date:day,excluded:true}}]);await pg.exec('set role anon');assert.equal(await routineSet(),null);
 await pg.exec('set role authenticated');await asUser(owner);revision=Number((await snapshot()).revision);await commit([{table:'attendance',id:'self-exclude',remove:true},{table:'routines',id:rr.id,data:{...rr,deletedAt:C.now()}}]);await pg.exec('set role anon');assert.equal(await routineSet(),null);
 console.log('PASS: 학생 루틴 본인 인증·대상·출결·예외·삭제 권한, 완료/진행중 토글, 메모 보존 및 별점 무변경');
+// Practice 11: safe historical task projection and corrected reward policy.
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
+const yesterday=C.addDays(day,-1),pastTask={id:'past-task',title:'지난 과제',date:yesterday,repeat:{type:'none'},target:'all',statArea:'생활'};
+await commit([{table:'assignments',id:pastTask.id,data:pastTask},{table:'settings',id:'main',data:{...snap.data.settings[0],lunchAfterPeriod:3}},{table:'events',id:'lunch-test',data:{id:'lunch-test',date:day,title:'점심 활동',period:7,timeOfDay:'lunch'}}]);
+await pg.exec('set role anon');let patchView=await schoolLogin('새암호123');assert(patchView.tasks.some(t=>t.id===pastTask.id&&t.overdue&&t.date===yesterday));assert.equal(patchView.lunchAfterPeriod,3);assert.equal(patchView.calendar.events.find(e=>e.title==='점심 활동').timeOfDay,'lunch');
+for(const [status,delta] of [['완료',1],['늦게완료',0],['안함',-1],['면제',0]]){
+ await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
+ await commit(C.taskStateOps(snap.data,pastTask,yesterday,'s1',status,'PRIVATE_STATUS_MEMO'));
+ await pg.exec('set role anon');const projection=await schoolLogin('새암호123');
+ assert(!projection.tasks.some(t=>t.id===pastTask.id));assert(!JSON.stringify(projection).includes('PRIVATE_STATUS_MEMO'));
+ const teacher=await (async()=>{await pg.exec('set role authenticated');await asUser(owner);return (await snapshot()).data;})();
+ assert.equal(projection.score.total,C.scores(teacher,'s1','',day).total);assert.equal(C.delta(teacher.records.find(r=>r.autoRef===C.stateId(pastTask.id,yesterday,'s1'))),delta);
+}
+// Even an old, unmigrated late-completion praise must not grant points or leak its memo.
+snap=await snapshot();revision=Number(snap.revision);const lateState={id:C.stateId(pastTask.id,yesterday,'s1'),assignmentId:pastTask.id,date:yesterday,studentId:'s1',status:'늦게완료'};
+await commit([{table:'assignmentStates',id:lateState.id,data:lateState},{table:'records',id:'auto:'+lateState.id,data:{id:'auto:'+lateState.id,date:yesterday,studentIds:['s1'],kind:'칭찬',text:'LEGACY_PRIVATE',areas:['생활'],autoRef:lateState.id}}]);
+await pg.exec('set role anon');patchView=await schoolLogin('새암호123');assert(!JSON.stringify(patchView).includes('LEGACY_PRIVATE'));assert(!patchView.praise.some(r=>r.text.includes('늦게')));
+console.log('PASS: 지난 진행중 과제/점심 위치/시간 의미, 완료 +1·늦게완료/면제 0·안함 -1, 레거시 늦게완료 칭찬 차단 및 상태 메모 비노출');
 await pg.close();
