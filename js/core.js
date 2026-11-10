@@ -152,6 +152,39 @@ export function subjectCatalog(database) {
     special
   };
 }
+export function assignmentPublicInfo(database, assignment) {
+  const checker = database.students.find(student => student.id === assignment.checkerStudentId && !student.deletedAt);
+  return {
+    memo: assignment.memo || '',
+    checkerName: checker ? `${checker.no}. ${checker.name}` : ''
+  };
+}
+export function classStatisticsSummary(database, date = today()) {
+  const from = date.slice(0, 7) + '-01',
+    counts = new Map(areaNames(database, true).map(area => [area, 0]));
+  let total = 0,
+    praise = 0,
+    advice = 0;
+  for (const student of activeStudents(database)) {
+    const score = scores(database, student.id, from, date);
+    total += score.total;
+    for (const record of score.records) {
+      if (record.kind === '칭찬') {
+        praise++;
+        for (const area of new Set(record.areas || (record.area ? [record.area] : []))) counts.set(area, (counts.get(area) || 0) + 1);
+      } else if (record.kind === '지도') advice++;
+    }
+  }
+  const top = [...counts].filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1])[0];
+  return {
+    total,
+    praise,
+    advice,
+    praisePercent: praise + advice ? Math.round(100 * praise / (praise + advice)) : 0,
+    topArea: top?.[0] || '',
+    topCount: top?.[1] || 0
+  };
+}
 export function studentCalendarData(database, id) {
   return {
     assignments: database.assignments.filter(a => !a.deletedAt && targeted(a, id)).map(a => ({
@@ -159,7 +192,8 @@ export function studentCalendarData(database, id) {
       title: a.title,
       date: a.date,
       endDate: a.endDate,
-      repeat: a.repeat
+      repeat: a.repeat,
+      ...assignmentPublicInfo(database, a)
     })),
     states: database.assignmentStates.filter(s => s.studentId === id).map(s => ({
       assignmentId: s.assignmentId,
@@ -312,7 +346,7 @@ export function applyOps(db, ops) {
 }
 export function parseRoster(text, start = 1) {
   return text.split(/\r?\n/).filter(x => x.trim()).map(line => {
-    const parts = line.trim().split(/[\t,]+|\s+/);
+    const parts = line.trim().replace(/^(\d+)\.\s*(?=[^\d.\s])/u, '$1 ').split(/[\t,，]+|\s+/).filter(Boolean);
     const numeric = /^\d+\.?$/.test(parts[0]);
     return {
       no: numeric ? Number(parts.shift().replace('.', '')) : start++,

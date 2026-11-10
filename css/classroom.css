@@ -179,3 +179,5 @@
 .lockscreen .classroom-schedule .registered-schedule { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:6px; }
 .lockscreen .classroom-schedule .slot-heading .slot-time { display:inline-flex; }
 .lockscreen .classroom-schedule .slot { padding-left:8px; }
+.lockscreen .classroom-schedule .slot { min-height:0; height:auto; }
+.lockscreen .classroom-schedule .slot-period-row .slot-time { display:inline-flex; }

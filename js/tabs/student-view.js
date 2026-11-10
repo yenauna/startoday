@@ -33,6 +33,7 @@ export function studentSnapshot(source, student, date = C.today()) {
     tasks: source.assignments.filter(a => C.targeted(a, student.id) && C.occurs(a, date)).map(a => ({
       title: a.title,
       date,
+      ...C.assignmentPublicInfo(source, a),
       status: excluded ? '면제' : C.assignmentStatus(source, a.id, date, student.id)
     })),
     routines: source.routines.filter(r => !r.deletedAt && C.targeted(r, student.id)).map(r => ({
@@ -43,6 +44,7 @@ export function studentSnapshot(source, student, date = C.today()) {
       const rule = source.subject_rules.find(row => row.code === t.subjectCode);
       return {
         period: t.period,
+        periodTime: source.settings[0]?.periodTimes?.[t.period - 1] || C.DEFAULT_PERIOD_TIMES[t.period - 1],
         subject: t.subjectCode,
         location: t.locationOverride || rule?.location || '',
         publicMemo: t.publicMemo ?? t.memo ?? '',
@@ -237,15 +239,15 @@ export function renderStudentShell() {
   const pills = areas => (areas || []).map(a => `<span class="student-pill">${esc(a)}</span>`).join('');
   const taskList = (list, routine = false) => list.map(task => {
     const done = ['완료', '늦게완료', '면제'].includes(task.status);
-    return `<div class="student-task ${done ? 'is-complete' : ''}"><div><strong class="${routine ? 'student-routine-title' : ''}">${esc(task.title)}</strong>${task.date ? `<small>${esc(C.formatDate(task.date))}</small>` : ''}</div><span>${done ? '✓ ' : ''}${esc(task.status)}</span></div>`;
+    return `<div class="student-task ${done ? 'is-complete' : ''}"><div><strong class="${routine ? 'student-routine-title' : ''}">${esc(task.title)}</strong>${task.date ? `<small>${esc(C.formatDate(task.date))}</small>` : ''}${!routine && task.memo ? `<p class="assignment-public-memo">${esc(task.memo)}</p>` : ''}${!routine ? `<small class="assignment-checker">🔍 확인자: ${task.checkerName ? esc(task.checkerName) + ' 학생' : '선생님 직접 확인'}</small>` : ''}</div><span>${done ? '✓ ' : ''}${esc(task.status)}</span></div>`;
   }).join('') || '<p class="muted">오늘 할 일이 없습니다.</p>';
-  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드 (${esc(student.no)}. ${esc(student.name)})${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<header class="student-header"><img class="logo" src="assets/logo-icon.jpg" alt="오늘의 별"><div><strong>${esc(data.className)}</strong><span>${esc(student.no)}. ${esc(student.name)}</span></div>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header><main class="student-dashboard"><section class="student-card student-growth"><h2>내 별 점수</h2><div class="student-stars">★ ${esc(data.score.total)}개</div><div class="student-pills">${pills(Object.entries(data.score.areas || {}).map(([a, n]) => a + ' ' + n))}</div></section><section class="student-card"><h2>오늘의 과제 &amp; 루틴</h2><h3>과제</h3>${taskList(data.tasks)}<h3>루틴</h3>${taskList(data.routines, true)}</section><section class="student-card student-calendar-card"><h2>과제·일정 달력</h2>${studentCalendarView(data, student.id)}</section><section class="student-card"><h2>오늘의 시간표</h2>${data.timetable.map(t => `<div class="student-task subject-color subject-stripe" style="${C.subjectColorStyle({
+  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드 (${esc(student.no)}. ${esc(student.name)})${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<header class="student-header"><img class="logo" src="assets/logo-icon.jpg" alt="오늘의 별"><div><strong>${esc(data.className)}</strong><span>${esc(student.no)}. ${esc(student.name)}</span></div>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header><main class="student-dashboard"><section class="student-card student-growth"><h2>내 별 점수</h2><div class="student-stars">★ ${esc(data.score.total)}개</div><div class="student-pills">${pills(Object.entries(data.score.areas || {}).map(([a, n]) => a + ' ' + n))}</div></section><section class="student-card student-timetable-card"><h2>오늘의 시간표</h2>${data.timetable.map(t => `<div class="student-task subject-color subject-stripe" style="${C.subjectColorStyle({
     code: t.subject,
     color: t.color,
     accentColor: t.accentColor,
     colorSource: t.colorSource,
     defaultColorValue: t.defaultColorValue
-  })}"><div class="slot-heading"><span class="slot-time">${esc(t.period)}교시</span><strong class="subject-title">${esc(t.subject)}</strong></div>${t.publicMemo ? `<div class="slot-public-memo">${esc(t.publicMemo)}</div>` : ''}</div>`).join('') || '<p class="muted">오늘 등록된 수업이 없습니다.</p>'}</section><section class="student-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><p>${esc(r.text)}</p><div class="student-pills">${pills(r.areas)}</div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main></div>`;
+  })}"><div class="slot-period-row"><span class="slot-time">${esc(t.period)}교시</span><small class="slot-clock">${esc(t.periodTime || C.DEFAULT_PERIOD_TIMES[t.period - 1] || '')}</small></div><div class="slot-subject-row"><strong class="subject-title">${esc(t.subject)}</strong>${t.publicMemo ? `<span class="slot-public-memo">${esc(t.publicMemo)}</span>` : ''}</div></div>`).join('') || '<p class="muted">오늘 등록된 수업이 없습니다.</p>'}</section><section class="student-card student-tasks-card"><h2>오늘의 과제 &amp; 루틴</h2><h3>과제</h3>${taskList(data.tasks)}<h3>루틴</h3>${taskList(data.routines, true)}</section><section class="student-card student-calendar-card"><h2>과제·일정 달력</h2>${studentCalendarView(data, student.id)}</section><section class="student-card student-praise-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><p>${esc(r.text)}</p><div class="student-pills">${pills(r.areas)}</div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main></div>`;
 }
 let studentCalendarScope = '',
   studentCalendarDate = '',
@@ -253,6 +255,8 @@ let studentCalendarScope = '',
 export function studentCalendarItems(calendar, date) {
   const tasks = (calendar.assignments || []).filter(assignment => C.occurs(assignment, date)).map(assignment => ({
     title: assignment.title,
+    memo: assignment.memo || '',
+    checkerName: assignment.checkerName || '',
     status: (calendar.excludedDates || []).includes(date) ? '면제' : calendar.states?.find(row => row.assignmentId === assignment.id && row.date === date)?.status || '진행중',
     kind: 'task'
   }));
@@ -261,7 +265,7 @@ export function studentCalendarItems(calendar, date) {
     description: event.description || '',
     kind: 'event'
   }));
-  const order=(a,b)=>a.title.localeCompare(b.title,'ko') || (a.status || a.description || '').localeCompare(b.status || b.description || '','ko');
+  const order = (a, b) => a.title.localeCompare(b.title, 'ko') || (a.status || a.description || '').localeCompare(b.status || b.description || '', 'ko');
   return [...events.sort(order), ...tasks.sort(order)];
 }
 function studentCalendarView(data, id) {
@@ -298,5 +302,5 @@ function studentCalendarView(data, id) {
       studentCalendarDate = date;
       render();
     }, 'student-calendar-day' + (date === studentCalendarDate ? ' selected' : '') + (date.slice(0, 7) !== first.slice(0, 7) ? ' faded' : ''), `data-calendar-date="${date}" aria-label="${esc(C.formatDate(date))}" aria-pressed="${date === studentCalendarDate}"`);
-  }).join('')}</div><div class="student-calendar-detail"><h3>${esc(C.formatDate(studentCalendarDate))}</h3>${detail.map(item => `<div class="student-task"><div><strong>${esc(item.title)}</strong>${item.description ? `<small>${esc(item.description)}</small>` : ''}</div>${item.status ? `<span>${esc(item.status)}</span>` : ''}</div>`).join('') || '<p class="muted">등록된 과제와 일정이 없습니다.</p>'}</div>`;
+  }).join('')}</div><div class="student-calendar-detail"><h3>${esc(C.formatDate(studentCalendarDate))}</h3>${detail.map(item => `<div class="student-task"><div><strong>${esc(item.title)}</strong>${item.description ? `<small>${esc(item.description)}</small>` : ''}${item.kind === 'task' && item.memo ? `<p class="assignment-public-memo">${esc(item.memo)}</p>` : ''}${item.kind === 'task' ? `<small class="assignment-checker">🔍 확인자: ${item.checkerName ? esc(item.checkerName) + ' 학생' : '선생님 직접 확인'}</small>` : ''}</div>${item.status ? `<span>${esc(item.status)}</span>` : ''}</div>`).join('') || '<p class="muted">등록된 과제와 일정이 없습니다.</p>'}</div>`;
 }

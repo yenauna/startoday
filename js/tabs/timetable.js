@@ -33,7 +33,10 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
     const teacher = info.teacher ? info.teacher.replace(/선생님$/, '') + '선생님' : '';
     const memo = slot?.publicMemo ?? slot?.memo ?? '';
     const privateMemo = !calendar && audience === 'teacher' ? slot?.privateMemo || '' : '';
-    const content = `<div class="slot-heading"><span class="slot-time">${p}교시</span><strong class="subject-title">${esc(slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '')}</strong>${!calendar && settings().periodTimes?.[i] ? `<small class="slot-clock">${esc(settings().periodTimes[i])}</small>` : ''}</div>${events.map(event => `<div class="slot-public-memo">${esc(event.title)}${event.description ? ' · ' + esc(event.description) : ''}</div>`).join('')}${memo ? `<div class="slot-public-memo">${esc(memo)}</div>` : ''}${privateMemo ? `<div class="slot-private-memo">🔒 ${esc(privateMemo)}</div>` : ''}`;
+    const subject = slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '';
+    const publicNotes = [...events.map(event => event.title + (event.description ? ' · ' + event.description : '')), memo].filter(Boolean).join('\n');
+    const time = settings().periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i];
+    const content = `<div class="slot-period-row"><span class="slot-time">${p}교시</span><small class="slot-clock">${esc(time || '')}</small></div>${subject || publicNotes ? `<div class="slot-subject-row">${subject ? `<strong class="subject-title">${esc(subject)}</strong>` : ''}${publicNotes ? `<span class="slot-public-memo">${esc(publicNotes)}</span>` : ''}</div>` : ''}${privateMemo ? `<div class="slot-private-memo">🔒 ${esc(privateMemo)}</div>` : ''}`;
     if (audience === 'classroom') return `<div class="slot${slot ? ' subject-color subject-stripe' : ''}" style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}">${content}</div>`;
     return btn(content, () => {
       if (state.dragSlot) {

@@ -15,8 +15,10 @@ export function displayName(s) {
   }
   return String(s.no) + '번';
 }
+let classroomInteractionCleanup;
 export function classroom() {
-  document.title='교실 화면 · 오늘의 별';
+  classroomInteractionCleanup?.();
+  document.title = '교실 화면 · 오늘의 별';
   classroomResizeObserver?.disconnect();
   document.querySelector('.print-root')?.remove();
   document.body.classList.remove('report-open');
@@ -52,6 +54,7 @@ export function classroom() {
   let touchInteraction = false,
     hold,
     lastTouch = 0;
+  classroomInteractionCleanup = () => clearTimeout(hold);
   const exit = $('#lock-exit');
   const unlock = async () => {
     if (settings().classroomPinHash) {

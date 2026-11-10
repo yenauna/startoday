@@ -8,6 +8,109 @@ export class Store {
     this.revision = 0;
     this.mode = 'none';
     this.busy = false;
+    this.initSync();
+  }
+  // Only invalidations cross windows. Never broadcast teacher operations or snapshots.
+  initSync() {
+    this.syncSource = uid();
+    this.syncSeen = new Set();
+    this.syncDirty = false;
+    if (typeof window === 'undefined') return;
+    try {
+      if (typeof BroadcastChannel === 'function') {
+        this.syncChannel = new BroadcastChannel('startoday_sync');
+        this.syncChannel.onmessage = event => this.receiveSync(event.data);
+      }
+    } catch {}
+    window.addEventListener('storage', event => {
+      if (event.key === 'startoday-sync') {
+        try {
+          this.receiveSync(JSON.parse(event.newValue));
+        } catch {}
+      }
+      if (event.key === 'startoday-demo-v1' && ['demo', 'local'].includes(this.mode) && this.db) this.queueSync();
+    });
+  }
+  publishSync() {
+    if (!this.db || !['cloud', 'demo', 'local'].includes(this.mode)) return;
+    const message = {
+      kind: 'changed',
+      id: uid(),
+      source: this.syncSource,
+      mode: this.mode,
+      classId: this.classId,
+      revision: Number(this.revision)
+    };
+    try {
+      this.syncChannel?.postMessage(message);
+    } catch {}
+    try {
+      localStorage.setItem('startoday-sync', JSON.stringify(message));
+    } catch {}
+  }
+  receiveSync(message) {
+    if (!message || message.kind !== 'changed' || message.source === this.syncSource || typeof message.id !== 'string' || message.id.length > 128 || this.syncSeen.has(message.id)) return;
+    const local = ['demo', 'local'].includes(this.mode);
+    if (!this.db || !(local && ['demo', 'local'].includes(message.mode) || this.mode === 'cloud' && message.mode === 'cloud' && this.user?.id && this.classId === message.classId && Number.isFinite(message.revision) && message.revision > Number(this.revision))) return;
+    this.syncSeen.add(message.id);
+    if (this.syncSeen.size > 100) this.syncSeen.delete(this.syncSeen.values().next().value);
+    this.queueSync();
+  }
+  queueSync() {
+    this.syncDirty = true;
+    if (!this.syncTimer && !this.syncLoading) this.syncTimer = setTimeout(() => {
+      this.syncTimer = null;
+      this.flushSync();
+    }, 0);
+  }
+  async flushSync() {
+    if (!this.syncDirty || this.syncLoading) return;
+    if (!this.db || !['cloud', 'demo', 'local'].includes(this.mode)) {
+      this.syncDirty = false;
+      return;
+    }
+    // Do not silently advance a modal editor's revision while it holds old form data.
+    if (this.busy || typeof document !== 'undefined' && document.querySelector?.('dialog[open]')) {
+      this.syncTimer = setTimeout(() => {
+        this.syncTimer = null;
+        this.flushSync();
+      }, 100);
+      return;
+    }
+    this.syncDirty = false;
+    const scope = `${this.mode}:${this.classId}:${this.user?.id || ''}`;
+    if (['demo', 'local'].includes(this.mode)) {
+      try {
+        const raw = localStorage.getItem('startoday-demo-v1');
+        if (!raw) return;
+        const next = normalizeDB(JSON.parse(raw));
+        if (JSON.stringify(next) === JSON.stringify(this.db)) return;
+        this.db = next;
+        window.dispatchEvent(new Event('startoday-sync'));
+      } catch {}
+      return;
+    }
+    if (this.mode !== 'cloud' || !this.user?.id || !this.client) return;
+    this.syncLoading = (async () => {
+      try {
+        const {
+          data,
+          error
+        } = await this.client.rpc('startoday_snapshot');
+        if (error) throw error;
+        if (scope !== `${this.mode}:${this.classId}:${this.user?.id || ''}` || data.class_id !== this.classId || Number(data.revision) < Number(this.revision)) return;
+        this.db = normalizeDB(data.data);
+        this.revision = data.revision;
+        window.dispatchEvent(new Event('startoday-sync'));
+      } catch (error) {
+        window.dispatchEvent(new CustomEvent('startoday-error', {
+          detail: '다른 창의 변경을 불러오지 못했습니다. ' + error.message
+        }));
+      }
+    })();
+    await this.syncLoading;
+    this.syncLoading = null;
+    if (this.syncDirty) this.queueSync();
   }
   async connect() {
     const c = window.STARTODAY_CONFIG || {};
@@ -84,6 +187,7 @@ export class Store {
     try {
       this.db = JSON.parse(localStorage.getItem('startoday-demo-v1'));
     } catch {}
+    const created = !this.db;
     if (!this.db) {
       this.db = initialDB();
       this.db.students = Array.from({
@@ -102,8 +206,20 @@ export class Store {
       }));
     }
     const config = this.db.settings[0];
-    if (config) Object.assign(config, { schoolName: config.schoolName || '체험초등학교', grade: config.grade || 5, classGroup: config.classGroup || '1', defaultStudentPassword: config.defaultStudentPassword || '바람123' });
-    return normalizeDB(this.db);
+    if (config) Object.assign(config, {
+      schoolName: config.schoolName || '체험초등학교',
+      grade: config.grade || 5,
+      classGroup: config.classGroup || '1',
+      defaultStudentPassword: config.defaultStudentPassword || '바람123'
+    });
+    normalizeDB(this.db);
+    if (created) {
+      try {
+        localStorage.setItem('startoday-demo-v1', JSON.stringify(this.db));
+        this.publishSync();
+      } catch {}
+    }
+    return this.db;
   }
   async load() {
     const {
@@ -132,6 +248,7 @@ export class Store {
     return this.db;
   }
   async commit(ops) {
+    if (this.syncLoading) await this.syncLoading;
     if (this.busy) throw Error('저장 중입니다. 잠시 후 다시 시도하세요.');
     this.busy = true;
     try {
@@ -139,6 +256,7 @@ export class Store {
       if (this.mode === 'demo' || this.mode === 'local') {
         localStorage.setItem('startoday-demo-v1', JSON.stringify(next));
         this.db = next;
+        this.publishSync();
         return;
       }
       if (this.mode !== 'cloud') throw Error('로그인이 필요합니다.');
@@ -162,6 +280,7 @@ export class Store {
       }
       this.revision = data;
       this.db = next;
+      this.publishSync();
     } catch (e) {
       throw Error(e.message || '저장에 실패했습니다.');
     } finally {

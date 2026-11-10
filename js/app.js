@@ -11,7 +11,8 @@ import { seatsView } from './tabs/seats.js';
 import { settingsView } from './tabs/settings.js';
 import { studentsView } from './tabs/students.js';
 import { bindTimetableDrag, calendarView } from './tabs/timetable.js';
-import { renderStudentShell } from './tabs/student-view.js';
+import { classroom } from './tabs/classroom.js';
+import { renderStudentShell, studentSnapshot } from './tabs/student-view.js';
 const teacherTabs = ['대시보드', '기록', '시간표·일정', '과제', '루틴', '통계', '자리', '설정'];
 export function navigate(tab) {
   state.tab = tab === '학생' ? '통계' : tab;
@@ -40,7 +41,7 @@ window.addEventListener('hashchange', () => {
 readTabHash();
 export function render() {
   if (state.studentPasswordPending || state.viewMode === 'student' || state.studentUser || state.impersonatingStudentId) {
-    document.title='학생 화면 · 오늘의 별';
+    document.title = '학생 화면 · 오늘의 별';
     state.actions.clear();
     document.querySelector('.print-root')?.remove();
     document.body.classList.remove('report-open');
@@ -51,15 +52,36 @@ export function render() {
   document.querySelector('.print-root')?.remove();
   document.body.classList.remove('report-open');
   if (!db()) {
-    document.title='오늘의 별';
+    document.title = '오늘의 별';
     renderLogin();
     return;
   }
-  document.title=state.tab==='통계'?'통계 · 오늘의 별':'오늘의 별';
+  document.title = state.tab === '통계' ? '통계 · 오늘의 별' : '오늘의 별';
   $('#app').innerHTML = renderShell(renderTab);
   bindQuickInput();
   bindTimetableDrag();
 }
+window.addEventListener('startoday-sync', () => {
+  if (state.locked) {
+    const top = document.querySelector('.lockscreen')?.scrollTop || 0,
+      roster = document.querySelector('.classroom-students')?.scrollTop || 0;
+    classroom();
+    requestAnimationFrame(() => {
+      const screen = document.querySelector('.lockscreen'),
+        grid = document.querySelector('.classroom-students');
+      if (screen) screen.scrollTop = top;
+      if (grid) grid.scrollTop = roster;
+    });
+    return;
+  }
+  if (state.studentUser && !state.impersonatingStudentId && ['demo', 'local'].includes(store.mode)) {
+    const student = db()?.students.find(s => s.id === state.studentUser.id && !s.deletedAt);
+    if (!student) return;
+    state.studentSnapshot = studentSnapshot(db(), student);
+    state.studentUser = state.studentSnapshot.student;
+  }
+  render();
+});
 window.addEventListener('startoday-auth', () => {
   state.selected = [];
   render();

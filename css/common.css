@@ -696,3 +696,27 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .slot-clock { font-size:11px; }
 .student-task.subject-color { padding:8px 10px; }
 .day .slot.subject-color { padding-left:6px; }
+
+/* Two-row schedules: period/time, then subject and optional inline public note. */
+.slot-period-row { display:flex; align-items:baseline; gap:6px; white-space:nowrap; min-width:0; }
+.slot-period-row .slot-time { font-size:12px; font-weight:600; flex:0 0 auto; }
+.slot-period-row .slot-clock { margin-left:0; font-size:11px; }
+.slot-subject-row { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; min-width:0; }
+.slot-subject-row .subject-title { font-size:17px; font-weight:700; min-width:0; overflow-wrap:anywhere; }
+.slot-subject-row .slot-public-memo { flex:1 1 100px; min-width:0; margin:0; }
+.registered-schedule .slot,.student-task.subject-color { min-height:0; height:auto; }
+.student-dashboard .student-growth,.student-dashboard .student-praise-card { grid-column:1 / -1; }
+.assignment-public-memo { white-space:pre-line; overflow-wrap:anywhere; font-size:13px; margin:6px 0; }
+.assignment-checker { color:var(--st-text-muted); font-size:12px; }
+.statistics-summary { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.statistics-sort { margin-bottom:12px; }
+.statistics-area-badges { display:flex; flex-wrap:wrap; gap:4px; }
+.statistics-area-badges .statistics-area-badge { font-size:12px; padding:3px 7px; }
+.day .slot-subject-row .subject-title { font-size:12px; }
+.day .slot-period-row { flex-wrap:wrap; white-space:normal; gap:1px 4px; }
+.day .slot-subject-row .slot-public-memo { flex-basis:100%; }
+@media(max-width:640px) {
+ .slot-subject-row .subject-title { font-size:15px; }
+ .statistics-summary .badge { font-size:12px; }
+ .statistics-sort button { font-size:12px; }
+}

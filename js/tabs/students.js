@@ -8,6 +8,7 @@ import { taskStateEditor } from './assignments.js';
 import { recordCard, recordEditor } from './records.js';
 import { validateKoreanPassword } from '../shared/student-auth.js';
 import { previewStudent } from './student-view.js';
+let studentSort = 'number';
 let studentRangeScope = '',
   studentRange = null,
   studentMonth = '';
@@ -27,13 +28,28 @@ export function studentsView() {
     scope = `${store.mode}:${store.classId}:${settings().academicYear}`;
   if (scope !== studentRangeScope || !studentRange) {
     studentRangeScope = scope;
+    studentSort = 'number';
     selectStudentMonth(today.slice(0, 7));
   }
   const range = {
     ...studentRange
   };
+  const summary = C.classStatisticsSummary(db(), today);
+  const rows = students().map(student => {
+    const score = C.studentScoreSummary(db(), student.id, today, range.from, range.to),
+      pending = C.pending(db(), student.id, today).length + C.pendingRoutines(db(), student.id, today).length;
+    return {
+      student,
+      score,
+      attention: score.advice + pending
+    };
+  });
+  rows.sort((a, b) => (studentSort === 'stars' ? b.score.total - a.score.total : studentSort === 'attention' ? b.attention - a.attention : 0) || a.student.no - b.student.no);
   const change = n => `<span class="score-change ${n > 0 ? 'positive' : n < 0 ? 'negative' : 'neutral'}">(${n > 0 ? '+' : ''}${n})</span>`;
-  return `<div class="toolbar"><div><h2>통계</h2><small>누적 점수 · 선택 기간 변화 ${esc(C.formatDate(range.from))} ~ ${esc(C.formatDate(range.to))}</small></div><div class="row">${btn('학생 선택 / 전체 내보내기', () => reportDialog(null, range.from, range.to))}</div></div><div class="student-period-controls row"><input type="month" id="student-month" aria-label="학생 조회 월" value="${esc(studentMonth)}">${btn('이번 달', () => {
+  return `<div class="toolbar"><div><h2>통계</h2><small>누적 점수 · 선택 기간 변화 ${esc(C.formatDate(range.from))} ~ ${esc(C.formatDate(range.to))}</small></div><div class="row">${btn('학생 선택 / 전체 내보내기', () => reportDialog(null, range.from, range.to))}</div></div><div class="statistics-summary" aria-label="이번 달 학급 요약"><span class="badge tone-yellow">이번 달 별점 ${summary.total}</span><span class="badge tone-praise">칭찬 ${summary.praise} : 조언 ${summary.advice} · 칭찬 ${summary.praisePercent}%</span><span class="badge tone-mint">칭찬 영역 TOP 1 · ${summary.topArea ? esc(summary.topArea) + ' ' + summary.topCount + '건' : '아직 없음'}</span></div><div class="statistics-sort row">${[['number', '번호순'], ['stars', '별점 많은 순'], ['attention', '관심 필요(조언·미완료 많은 순)']].map(([key, label]) => btn(label, () => {
+    studentSort = key;
+    render();
+  }, studentSort === key ? 'primary' : '', `aria-pressed="${studentSort === key}" title="${key === 'attention' ? '누적 조언 + 현재 미완료 과제·루틴 수' : label}"`)).join('')}</div><div class="student-period-controls row"><input type="month" id="student-month" aria-label="학생 조회 월" value="${esc(studentMonth)}">${btn('이번 달', () => {
     selectStudentMonth(C.today().slice(0, 7));
     render();
   })}${btn('지난 달', () => {
@@ -41,9 +57,11 @@ export function studentsView() {
     d.setUTCMonth(d.getUTCMonth() - 1, 1);
     selectStudentMonth(d.toISOString().slice(0, 7));
     render();
-  })}${[1, 2].map(term => btn(term + '학기', () => selectStudentSemester(term), '', C.semesterRange(settings(), term) ? '' : 'disabled title="설정에서 학사일정을 먼저 등록하세요"')).join('')}</div><div class="table-wrap"><table class="student-score-table"><thead><tr><th>학생</th><th>전체</th><th>칭찬</th><th>조언</th><th>경험치별</th></tr></thead><tbody>${students().map(student => {
-    const score = C.studentScoreSummary(db(), student.id, today, range.from, range.to);
-    return `<tr><td>${btn(esc(name(student.id)), () => studentDetail(student.id, range.from, range.to))}</td><td>${score.total}${change(score.change)}</td><td>${score.praise}${change(score.praiseChange)}</td><td>${score.advice}${change(score.adviceChange)}</td><td>${C.areaNames(db(), true).map(area => `<span class="student-area-total">${esc(area)} ${score.areas[area] || 0}</span>`).join(', ')}</td></tr>`;
+  })}${[1, 2].map(term => btn(term + '학기', () => selectStudentSemester(term), '', C.semesterRange(settings(), term) ? '' : 'disabled title="설정에서 학사일정을 먼저 등록하세요"')).join('')}</div><div class="table-wrap"><table class="student-score-table"><thead><tr><th>학생</th><th>전체</th><th>칭찬</th><th>조언</th><th>경험치별</th></tr></thead><tbody>${rows.map(({
+    student,
+    score
+  }) => {
+    return `<tr><td>${btn(esc(name(student.id)), () => studentDetail(student.id, range.from, range.to))}</td><td>${score.total}${change(score.change)}</td><td>${score.praise}${change(score.praiseChange)}</td><td>${score.advice}${change(score.adviceChange)}</td><td><div class="statistics-area-badges">${C.areaNames(db(), true).filter(area => score.areas[area]).map(area => `<span class="badge statistics-area-badge ${score.areas[area] < 0 ? 'tone-advice' : 'tone-praise'}">${esc(area)} ${score.areas[area]}</span>`).join('')}</div></td></tr>`;
   }).join('')}</tbody></table></div>${!students().length ? empty('등록된 학생이 없습니다.', '학생을 추가하거나 설정에서 명단을 붙여 넣으세요.') : ''}${bindStudentMonth()}`;
 }
 function bindStudentMonth() {
