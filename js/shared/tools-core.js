@@ -159,3 +159,7 @@ export function createToolRaceBalls(items, pegs, random = Math.random) {
     };
   });
 }
+export function restoreToolRect(saved, index, width, height) {
+  const valid = saved && ['left', 'top', 'width', 'height'].every(key => Number.isFinite(saved[key])) && saved.width > 0 && saved.height > 0;
+  return clampToolWindow(valid ? saved : defaultToolRect(index, width, height), width, height);
+}

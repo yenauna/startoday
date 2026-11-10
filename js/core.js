@@ -1084,3 +1084,38 @@ export function studentRoutineOps(database, studentId, routineId, completed, dat
     }
   }];
 }
+// New events use explicit semantic time slots. Legacy 7/8 keep their original
+// after-school/lunch meanings until that individual event is edited.
+export function eventTimePeriod(event) {
+  const names = {
+    all: null,
+    morning: 0,
+    lunch: 7,
+    after: 8
+  };
+  if (Object.hasOwn(names, event.timeOfDay)) return names[event.timeOfDay];
+  return event.period === 7 ? 8 : event.period === 8 ? 7 : event.period ?? null;
+}
+export function dayTimeline(database, date) {
+  const events = calendarEvents(database).filter(e => e.date === date),
+    slot = p => ({
+      type: 'event',
+      period: p,
+      events: events.filter(e => eventTimePeriod(e) === p)
+    }),
+    out = [slot(0)];
+  for (let p = 1; p <= 6; p++) {
+    out.push({
+      type: 'lesson',
+      period: p
+    });
+    if (p === 4) out.push(slot(7));
+  }
+  out.push(slot(8));
+  return out;
+}
+export function upcomingWeekEvents(database, date) {
+  const monday = addDays(date, -((weekday(date) + 6) % 7)),
+    end = addDays(monday, 4);
+  return calendarEvents(database).filter(event => event.date > date && event.date <= end);
+}

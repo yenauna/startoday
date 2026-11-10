@@ -1,3 +1,4 @@
+import { subjectPaletteFields, bindSubjectPalette } from '../components/subject-colors.js';
 import { render } from '../app.js';
 import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
@@ -144,6 +145,7 @@ export function subjectEditor(s = null) {
     teacherHistory: []
   };
   const colors = C.subjectColors(row);
+  let updateColorPairs;
   let colorMode = C.usesDefaultSubjectColors(row) ? 'default' : 'preserve';
   const resetColors = () => {
     const form = $('#modal-form'),
@@ -151,8 +153,9 @@ export function subjectEditor(s = null) {
     form.elements.color.value = defaults.background;
     form.elements.accentColor.value = defaults.accent;
     colorMode = 'default';
+    updateColorPairs?.();
   };
-  modal(s ? '과목 설정' : '과목 추가', `<div class="formgrid">${input('과목명 · 코드', 'code', row.code, 'text', 'required')}${input('한 글자 축약명', 'label', row.label)}${input('과목 배경색', 'color', colors.background, 'color')}${input('과목 포인트색', 'accentColor', colors.accent, 'color')}${btn('기본 색상으로', resetColors)}${select('기본 구분', 'defaultType', ['일반', '외부', '강사', '다른장소'], row.defaultType)}${checkbox('전담 과목', 'isSpecialist', row.isSpecialist)}${input('장소', 'location', row.location)}${input('담당 교사명', 'teacherName', row.teacherName)}${input('담당 교사 변경 적용일', 'teacherFrom', state.date, 'date', 'required')}${input('정렬 순서', 'sortOrder', row.sortOrder, 'number')}</div><p class="muted">과목명 변경 시 기존 시간표도 함께 변경합니다. 담당 교사 변경은 적용일 이후에만 반영됩니다.</p>`, async f => {
+  modal(s ? '과목 설정' : '과목 추가', `<div class="formgrid">${input('과목명 · 코드', 'code', row.code, 'text', 'required')}${input('한 글자 축약명', 'label', row.label)}${input('과목 배경색', 'color', colors.background, 'color')}${input('과목 포인트색', 'accentColor', colors.accent, 'color')}${btn('기본 색상으로', resetColors)}${subjectPaletteFields()}${select('기본 구분', 'defaultType', ['일반', '외부', '강사', '다른장소'], row.defaultType)}${checkbox('전담 과목', 'isSpecialist', row.isSpecialist)}${input('장소', 'location', row.location)}${input('담당 교사명', 'teacherName', row.teacherName)}${input('담당 교사 변경 적용일', 'teacherFrom', state.date, 'date', 'required')}${input('정렬 순서', 'sortOrder', row.sortOrder, 'number')}</div><p class="muted">과목명 변경 시 기존 시간표도 함께 변경합니다. 담당 교사 변경은 적용일 이후에만 반영됩니다.</p>`, async f => {
     const code = f.get('code').trim();
     if ([...db().subject_rules, ...C.subjectCatalog(db()).regular, ...C.subjectCatalog(db()).special].some(x => x.id !== row.id && x.code === code)) throw Error('같은 과목명이 있습니다.');
     const teacher = f.get('teacherName'),
@@ -206,6 +209,7 @@ export function subjectEditor(s = null) {
     closeModal();
   });
   const colorForm = $('#modal-form');
+  updateColorPairs = bindSubjectPalette(colorForm, () => colorMode = 'custom');
   for (const key of ['color', 'accentColor']) colorForm.elements[key].oninput = () => {
     colorMode = 'custom';
   };

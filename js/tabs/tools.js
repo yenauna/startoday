@@ -1,5 +1,7 @@
+import { formatToolRange } from '../shared/tool-rich.js';
+import { requestPwaInstall } from '../shared/pwa.js';
 import { state, store } from '../shared/state.js';
-import { toolCandidates, parseToolList, shuffledTools, remainingTools, toolClockValue, formatToolTime, clampToolWindow, defaultToolRect, makeToolPegs, createToolRaceBalls, stepToolRace } from '../shared/tools-core.js';
+import { toolCandidates, parseToolList, shuffledTools, remainingTools, toolClockValue, formatToolTime, clampToolWindow, defaultToolRect, restoreToolRect, makeToolPegs, createToolRaceBalls, stepToolRace } from '../shared/tools-core.js';
 import { toolQrMatrix } from '../shared/tools-qr.js';
 // This board never calls Store.commit. Only explicitly saved phrases/custom lists
 // are written to its own local key. Roster names are read fresh from memory.
@@ -25,6 +27,51 @@ let toolBoardObserver = null;
 let toolSpeechOwner = null,
   toolSpeechGeneration = 0,
   toolSpeechDelay = 0;
+function readToolLayouts() {
+  try {
+    const value = JSON.parse(localStorage.getItem('startoday-tool-layouts-v1'));
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+function saveToolLayout(w) {
+  try {
+    const layouts = readToolLayouts();
+    layouts[w.type] = {
+      ...w.rect
+    };
+    localStorage.setItem('startoday-tool-layouts-v1', JSON.stringify(layouts));
+  } catch {
+    toolNotice(w, '창 배치를 저장하지 못했습니다. 브라우저 저장 공간을 확인하세요.');
+  }
+}
+function setToolDrawer(collapsed) {
+  toolRoot.classList.toggle('tools-drawer-collapsed', collapsed);
+  const b = toolRoot.querySelector('.tools-drawer-toggle');
+  b.textContent = collapsed ? '도구 메뉴 펼치기 ▾' : '도구 메뉴 접기 ▴';
+  b.setAttribute('aria-expanded', String(!collapsed));
+}
+async function toggleToolBoardScreen() {
+  if (document.fullscreenElement === toolRoot) {
+    await document.exitFullscreen();
+    return;
+  }
+  if (toolRoot.classList.contains('tools-board-screen')) {
+    toolRoot.classList.remove('tools-board-screen');
+    return;
+  }
+  toolRoot.classList.add('tools-board-screen');
+  try {
+    if (!toolRoot.requestFullscreen) throw Error('unsupported');
+    await toolRoot.requestFullscreen();
+  } catch {
+    toolRoot.querySelector('.tools-board-status').textContent = '이 브라우저는 전체화면을 제한합니다. 앱 설치 또는 브라우저 전체화면을 이용하세요.';
+  }
+}
+document.addEventListener('fullscreenchange', () => {
+  if (toolRoot && document.fullscreenElement !== toolRoot) toolRoot.classList.remove('tools-board-screen');
+});
 function toolTeacher() {
   return !!store.db && state.viewMode !== 'student' && !state.studentUser && !state.studentPasswordPending;
 }
@@ -105,12 +152,20 @@ function mountToolBoard(host, overlay) {
     const heading = toolElement('div', 'tools-heading'),
       title = toolElement('div');
     title.append(toolElement('h2', '', '수업도구'), toolElement('small', '', '창 제목을 끌어 이동하고 모서리로 크기를 바꾸세요. 보드를 닫으면 시간 측정과 음성 안내가 멈춥니다.'));
-    heading.append(title, toolButton('닫기', hideToolBoard, 'tools-overlay-close'));
+    const actions = toolElement('div', 'tool-controls');
+    actions.append(toolButton('전체화면', toggleToolBoardScreen, 'tools-board-fullscreen'), toolButton('앱 설치', async () => {
+      if (!(await requestPwaInstall())) toolRoot.querySelector('.tools-board-status').textContent = '브라우저 메뉴의 앱 설치 / 홈 화면에 추가를 이용하세요.';
+    }), toolButton('닫기', hideToolBoard, 'tools-overlay-close'));
+    heading.append(title, actions);
+    const drawer = toolButton('도구 메뉴 접기 ▴', () => setToolDrawer(!toolRoot.classList.contains('tools-drawer-collapsed')), 'tools-drawer-toggle');
+    drawer.setAttribute('aria-expanded', 'true');
+    const boardStatus = toolElement('small', 'tools-board-status');
+    boardStatus.setAttribute('role', 'status');
     const toolbar = toolElement('div', 'tools-toolbar');
     for (const [type, label] of Object.entries(TOOL_TYPES)) toolbar.append(toolButton(label, () => createToolWindow(type), 'tools-add'));
     toolCanvas = toolElement('div', 'tools-canvas');
     toolCanvas.append(toolElement('p', 'tools-empty', '위에서 도구를 골라 함께 배치해 보세요.'));
-    toolRoot.append(heading, toolbar, toolCanvas);
+    toolRoot.append(heading, toolbar, drawer, boardStatus, toolCanvas);
     toolBoardObserver = new ResizeObserver(() => {
       if (!toolRoot?.isConnected || !toolCanvas.clientWidth) return;
       for (const w of toolWindows.values()) {
@@ -129,8 +184,11 @@ function mountToolBoard(host, overlay) {
   if (!toolFrame) toolFrame = requestAnimationFrame(tickToolBoard);
 }
 function hideToolBoard() {
+  if (document.fullscreenElement === toolRoot) document.exitFullscreen?.().catch(() => {});
+  toolRoot?.classList.remove('tools-board-screen');
   stopToolSpeech();
   for (const w of toolWindows.values()) {
+    saveToolLayout(w);
     if (w.clock?.started != null) {
       w.clock.elapsed = toolClockValue(w.clock, performance.now());
       w.clock.started = null;
@@ -144,7 +202,10 @@ function hideToolBoard() {
 }
 function destroyToolBoard() {
   hideToolBoard();
-  for (const w of toolWindows.values()) w.observer?.disconnect();
+  for (const w of toolWindows.values()) {
+    w.cleanup?.();
+    w.observer?.disconnect();
+  }
   toolWindows.clear();
   toolBoardObserver?.disconnect();
   toolBoardObserver = null;
@@ -176,7 +237,7 @@ function createToolWindow(type) {
     w = {
       id,
       type,
-      rect: defaultToolRect(index, toolCanvas.clientWidth, toolCanvas.clientHeight),
+      rect: restoreToolRect(readToolLayouts()[type], index, toolCanvas.clientWidth, toolCanvas.clientHeight),
       maximized: false
     };
   w.el = toolElement('article', 'tools-widget');
@@ -214,6 +275,7 @@ function createToolWindow(type) {
     w.rect.width = Math.max(260, w.rect.width + (e.key === 'ArrowRight' ? 20 : e.key === 'ArrowLeft' ? -20 : 0));
     w.rect.height = Math.max(220, w.rect.height + (e.key === 'ArrowDown' ? 20 : e.key === 'ArrowUp' ? -20 : 0));
     applyToolRect(w);
+    saveToolLayout(w);
   };
   if (type === 'timer' || type === 'stopwatch') buildToolClock(w);
   if (type === 'board') buildToolWriting(w);
@@ -247,6 +309,7 @@ function bindToolDrag(w, handle, resizing) {
       applyToolRect(w);
     };
     const end = () => {
+      saveToolLayout(w);
       handle.removeEventListener('pointermove', move);
       handle.removeEventListener('pointerup', end);
       handle.removeEventListener('pointercancel', end);
@@ -268,6 +331,8 @@ function toggleToolMaximize(w) {
   applyToolRect(w);
 }
 function closeToolWindow(w) {
+  saveToolLayout(w);
+  w.cleanup?.();
   w.cancelAnimation?.();
   if (toolSpeechOwner === w) stopToolSpeech();
   w.observer?.disconnect();
@@ -422,20 +487,76 @@ function updateToolClock(w, now) {
   }
 }
 function buildToolWriting(w) {
-  const controls = toolElement('div', 'tool-controls'),
-    input = document.createElement('textarea'),
-    preview = toolElement('div', 'tool-writing-preview theme-chalk');
-  input.placeholder = '활동 안내, 모둠 미션, 준비물을 입력하세요.';
-  input.setAttribute('aria-label', '판서 내용');
-  preview.textContent = '여기에 안내를 적어 주세요.';
-  for (const [label, size] of [['아주 크게(칠판용)', '72px'], ['크게', '48px'], ['보통', '28px']]) controls.append(toolButton(label, () => preview.style.fontSize = size));
+  const controls = toolElement('div', 'tool-controls tool-rich-controls'),
+    editor = toolElement('div', 'tool-writing-preview tool-rich-editor theme-chalk');
+  editor.contentEditable = 'true';
+  editor.setAttribute('role', 'textbox');
+  editor.setAttribute('aria-label', '판서 내용');
+  editor.setAttribute('aria-multiline', 'true');
+  editor.dataset.placeholder = '여기를 클릭해 안내를 바로 입력하세요.';
+  editor.spellcheck = false;
+  let remembered = null;
+  const remember = () => {
+    const selection = getSelection();
+    if (selection.rangeCount && editor.contains(selection.anchorNode) && editor.contains(selection.focusNode)) remembered = selection.getRangeAt(0).cloneRange();
+  };
+  document.addEventListener('selectionchange', remember);
+  w.cleanup = () => document.removeEventListener('selectionchange', remember);
+  const format = styles => {
+    remembered = formatToolRange(editor, remembered, styles);
+    if (!remembered) toolNotice(w, '서식을 바꿀 글자를 먼저 선택하세요.');
+  };
+  for (const [label, size] of [['작게', '22px'], ['보통', '32px'], ['크게', '48px'], ['칠판특대', '72px']]) controls.append(toolButton(label, () => format({
+    fontSize: size
+  })));
+  for (const [label, color] of [['형광노랑', '#FFF176'], ['분홍', '#FFB3D1'], ['하늘', '#A7E5FF'], ['흰색', '#FFFFFF'], ['검정', '#172033']]) {
+    const b = toolButton(label, () => format({
+      color
+    }), 'tool-marker-color');
+    b.style.setProperty('--marker-color', color);
+    controls.append(b);
+  }
+  controls.append(toolButton('형광펜', () => format({
+    backgroundColor: '#FFE066',
+    color: '#172033'
+  })), toolButton('B', () => {
+    const node = remembered?.startContainer,
+      element = node?.nodeType === 1 ? node : node?.parentElement;
+    format({
+      fontWeight: element && Number(getComputedStyle(element).fontWeight) >= 700 ? '400' : '800'
+    });
+  }, 'tool-rich-bold'));
+  controls.onpointerdown = event => {
+    if (event.target.closest('button')) event.preventDefault();
+  };
   const theme = document.createElement('select');
   theme.setAttribute('aria-label', '칠판 테마');
-  theme.innerHTML = '<option value="chalk">초록 칠판(분필 글씨)</option><option value="white">화이트보드</option><option value="dark">다크모드</option>';
-  theme.onchange = () => preview.className = 'tool-writing-preview theme-' + theme.value;
+  theme.innerHTML = '<option value="chalk">초록 칠판</option><option value="white">화이트보드</option><option value="dark">다크모드</option>';
+  theme.onchange = () => editor.className = 'tool-writing-preview tool-rich-editor theme-' + theme.value;
   controls.append(theme);
-  input.oninput = () => preview.textContent = input.value;
-  w.body.append(controls, input, preview);
+  const plain = event => {
+    event.preventDefault();
+    const text = (event.clipboardData || event.dataTransfer)?.getData('text/plain');
+    if (text) {
+      editor.focus();
+      const selection = getSelection(),
+        range = selection.rangeCount && editor.contains(selection.anchorNode) ? selection.getRangeAt(0) : document.createRange();
+      if (!editor.contains(range.startContainer)) {
+        range.selectNodeContents(editor);
+        range.collapse(false);
+      }
+      range.deleteContents();
+      const node = document.createTextNode(text);
+      range.insertNode(node);
+      range.setStartAfter(node);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      remember();
+    }
+  };
+  editor.onpaste = editor.ondrop = plain;
+  w.body.append(controls, editor);
 }
 function stopToolSpeech() {
   toolSpeechGeneration++;
@@ -461,8 +582,10 @@ function speakToolText(w, text) {
     if (generation !== toolSpeechGeneration || toolSpeechOwner !== w || !w.el.isConnected) return;
     const utterance = new SpeechSynthesisUtterance(w.speechText.value.trim() || text);
     utterance.lang = 'ko-KR';
-    utterance.rate = 1;
-    const voice = window.speechSynthesis.getVoices().find(v => /^ko(?:-|_)/.test(v.lang));
+    utterance.rate = Number(w.voiceRate?.value || 1);
+    utterance.pitch = Number(w.voicePitch?.value || 1);
+    const voices = window.speechSynthesis.getVoices().filter(v => /^ko(?:-|_)/i.test(v.lang));
+    const voice = voices.find(v => (v.voiceURI || v.name) === w.voiceSelect?.value) || voices[0];
     if (voice) utterance.voice = voice;
     utterance.onend = () => {
       if (generation !== toolSpeechGeneration) return;
@@ -483,6 +606,42 @@ function speakToolText(w, text) {
   speak();
 }
 function buildToolSpeech(w) {
+  const voiceControls = toolElement('div', 'tool-controls tool-voice-controls');
+  w.voiceSelect = document.createElement('select');
+  w.voiceSelect.setAttribute('aria-label', '목소리 선택');
+  const refreshVoices = () => {
+    const previous = w.voiceSelect.value;
+    w.voiceSelect.replaceChildren();
+    const automatic = toolElement('option', '', '기기 기본 한국어 음성');
+    automatic.value = '';
+    w.voiceSelect.append(automatic);
+    for (const voice of window.speechSynthesis?.getVoices() || []) if (/^ko(?:-|_)/i.test(voice.lang)) {
+      const option = toolElement('option', '', voice.name || voice.voiceURI || '한국어');
+      option.value = voice.voiceURI || voice.name;
+      w.voiceSelect.append(option);
+    }
+    w.voiceSelect.value = previous;
+  };
+  refreshVoices();
+  window.speechSynthesis?.addEventListener?.('voiceschanged', refreshVoices);
+  w.cleanup = () => window.speechSynthesis?.removeEventListener?.('voiceschanged', refreshVoices);
+  w.voiceRate = document.createElement('select');
+  w.voiceRate.setAttribute('aria-label', '낭독 속도');
+  for (const speed of [.8, 1, 1.2]) {
+    const option = toolElement('option', '', speed.toFixed(1) + 'x');
+    option.value = String(speed);
+    w.voiceRate.append(option);
+  }
+  w.voiceRate.value = '1';
+  w.voicePitch = document.createElement('input');
+  w.voicePitch.type = 'range';
+  w.voicePitch.min = '0.5';
+  w.voicePitch.max = '1.5';
+  w.voicePitch.step = '0.1';
+  w.voicePitch.value = '1';
+  w.voicePitch.setAttribute('aria-label', '음조');
+  voiceControls.append(w.voiceSelect, w.voiceRate, toolElement('span', '', '음조'), w.voicePitch);
+  w.body.append(voiceControls);
   w.speechText = document.createElement('textarea');
   w.speechText.placeholder = '읽어 줄 문장을 입력하세요.';
   w.speechText.setAttribute('aria-label', '음성 안내 문장');
@@ -806,8 +965,15 @@ function paintToolWheel(canvas, items, rotation) {
   c.moveTo(302, 4);
   c.lineTo(338, 4);
   c.lineTo(320, 38);
-  c.fillStyle = '#172033';
+  c.fillStyle = '#D99B21';
   c.fill();
+  c.beginPath();
+  c.arc(center, center, 30, 0, Math.PI * 2);
+  c.fillStyle = '#F5CB6C';
+  c.fill();
+  c.strokeStyle = '#fff5cf';
+  c.lineWidth = 4;
+  c.stroke();
 }
 function runToolWheel(w, items) {
   w.randomBusy = true;
@@ -851,12 +1017,14 @@ function paintToolRace(canvas, balls, pegs) {
   c.fillText('🏁 결승 바구니', 245, 469);
   for (const [i, b] of balls.entries()) {
     c.beginPath();
-    c.fillStyle = `hsl(${i * 137.5 % 360} 60% 65%)`;
+    c.fillStyle = `hsl(${i * 137.5 % 360} 65% 76%)`;
     c.arc(b.x, b.y, b.r, 0, Math.PI * 2);
     c.fill();
     c.fillStyle = '#0f172a';
     c.font = 'bold 12px sans-serif';
     c.textAlign = 'center';
+    c.fillText(b.label.match(/^\d+/)?.[0] || String(i + 1), b.x, b.y + 4);
+    c.font = '12px sans-serif';
     c.fillText(b.label.slice(0, 10), b.x, b.y - b.r - 4);
   }
   c.textAlign = 'left';

@@ -1,0 +1,20 @@
+{
+  "id": "./",
+  "name": "오늘의 별 StarToday",
+  "short_name": "오늘의 별",
+  "description": "학급 기록과 교실 수업도구",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f7fa",
+  "theme_color": "#0F172A",
+  "icons": [
+    {
+      "src": "assets/app-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

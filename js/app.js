@@ -1,3 +1,4 @@
+import { setupPwa } from './shared/pwa.js';
 import { bindQuickInput, renderLogin, renderShell } from './components/header.js';
 import { db } from './shared/data.js';
 import { installGlobalEvents } from './shared/events.js';
@@ -103,6 +104,7 @@ export async function boot() {
   }
 }
 installGlobalEvents();
+setupPwa();
 boot();
 function renderTab() {
   return {

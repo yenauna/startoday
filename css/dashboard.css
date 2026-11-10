@@ -136,3 +136,17 @@
 .student .pending-tasks .task,.routine-indicator .routine-task { border-radius:12px; padding:4px 10px; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
 
 .student .task.overdue,.student.has-pending .pending-tasks .task.overdue { background:#fff1f2; border:1px solid #fecdd3; color:#be123c!important; }
+
+.compact .students:not(.dashboard-seat-grid) { grid-template-columns:repeat(auto-fill,minmax(105px,1fr)); gap:5px; }
+.compact .student { display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:5px; padding:7px 9px; border-radius:14px; min-height:42px; background:#fcfcfe; }
+.compact .student .pending-tasks,.compact .student .routine-indicator,.compact .student .score small,.compact .student .student-head button,.compact .student .student-head .badge { display:none!important; }
+.compact .student .student-head { margin:0; min-width:0; }
+.compact .student .student-head strong { font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.compact .student .score { margin:0; flex:0 0 auto; gap:2px; }
+.compact .student .score-total,.compact .student .score-star { font-size:14px; }
+.dashboard-today-events { gap:4px; line-height:1.3; }
+.dashboard-today-events .event,.dashboard-today-events .badge { width:auto; display:inline-flex; align-items:baseline; gap:5px; margin:0; padding:2px 5px; min-height:24px; font-size:12px; }
+.dashboard-today-events .event-description { display:inline; font-size:11px; margin:0; }
+@media(max-width:480px){.compact .students:not(.dashboard-seat-grid){grid-template-columns:repeat(3,minmax(0,1fr));}.compact .student{padding:6px;gap:3px;}.compact .student .student-head strong{font-size:12px;}}
+.compact .students.dashboard-seat-grid { min-width:0; grid-template-columns:repeat(var(--seat-cols),minmax(0,1fr)); gap:4px; }
+.compact .dashboard-seat>.student { min-height:42px; }

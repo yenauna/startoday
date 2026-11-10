@@ -15,6 +15,7 @@ test('통계·수업도구 탭 라우팅을 지원하고 이전 학생 주소는
     };
   const context = {
     state,
+    setupPwa:()=>{},
     syncToolsVisibility:()=>{},
     location,
     history: {

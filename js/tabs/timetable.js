@@ -21,7 +21,7 @@ export function periodInfo(slot) {
   };
 }
 export function timeSlots(d, calendar = false, registeredOnly = false, audience = 'teacher') {
-  return Array.from({
+  const lessonSlots = Array.from({
     length: 6
   }, (_, i) => {
     const p = i + 1,
@@ -46,7 +46,13 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
       }
       dayEditor(d, '시간표', p);
     }, 'slot' + (slot ? ' subject-color subject-stripe' : ''), `style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}" title="${esc(slot?.subjectCode || '')}" draggable="${!!slot}" data-drag="${d}:${p}" data-drop="${d}:${p}"`);
-  }).join('');
+  });
+  if (calendar) return lessonSlots.join('');
+  return C.dayTimeline(db(), d).map(part => part.type === 'lesson' ? lessonSlots[part.period - 1] : part.events.length ? `<div class="timeline-slot timeline-${part.period}" data-timeline-period="${part.period}"><strong>${{
+    0: '아침',
+    7: '점심',
+    8: '방과후'
+  }[part.period]}</strong>${part.events.map(event => audience === 'classroom' ? `<div class="timeline-event">${esc(event.title)}${event.description ? `<small>${esc(event.description)}</small>` : ''}</div>` : btn(esc(event.title) + (event.description ? `<small>${esc(event.description)}</small>` : ''), () => dayEditor(d, '일정', null, event), 'timeline-event')).join('')}</div>` : '').join('');
 }
 export function calendarView() {
   const first = state.calendarDate.slice(0, 7) + '-01',
@@ -120,13 +126,14 @@ export function dayEditor(d, mode = '일정', period = 1, event = null) {
     isDday: false,
     createdAt: C.now()
   };
-  modal(C.formatDate(d) + ' · 일정 등록', `<div class="row event-entry-tabs" style="margin-bottom:18px">${['일정', '과제'].map(t => btn(t, () => dayEditor(d, t, period), mode === t ? 'primary' : '')).join('')}</div><div class="formgrid">${input('일정 이름', 'title', r.title, 'text', 'required')}${select('시간', 'period', [['', '종일'], [0, '아침'], ...[1, 2, 3, 4, 5, 6].map(p => [p, p + '교시']), [8, '점심'], [7, '방과후']], r.period ?? '')}<div class="span2">${textarea('설명', 'description', r.description)}</div>${checkbox('D-Day 표시', 'isDday', r.isDday)}</div>`, async f => {
+  modal(C.formatDate(d) + ' · 일정 등록', `<div class="row event-entry-tabs" style="margin-bottom:18px">${['일정', '과제'].map(t => btn(t, () => dayEditor(d, t, period), mode === t ? 'primary' : '')).join('')}</div><div class="formgrid">${input('일정 이름', 'title', r.title, 'text', 'required')}${select('시간', 'period', [['', '종일'], [0, '아침'], ...[1, 2, 3, 4, 5, 6].map(p => [p, p + '교시']), [7, '점심'], [8, '방과후']], C.eventTimePeriod(r) ?? '')}<div class="span2">${textarea('설명', 'description', r.description)}</div>${checkbox('D-Day 표시', 'isDday', r.isDday)}</div>`, async f => {
     const title = f.get('title').trim();
     if (!title) throw Error('일정 이름을 입력하세요.');
     await commit([up('events', {
       ...r,
       title,
       period: f.get('period') === '' ? null : Number(f.get('period')),
+      timeOfDay: f.get('period') === '' ? 'all' : f.get('period') === '0' ? 'morning' : f.get('period') === '7' ? 'lunch' : f.get('period') === '8' ? 'after' : 'lesson',
       description: f.get('description'),
       isDday: !!f.get('isDday')
     })]);
