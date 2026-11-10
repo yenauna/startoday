@@ -284,3 +284,11 @@ test('학생 달력은 본인 과제 상태와 공개 일정만 표시하고 비
  const data=f.context.studentSnapshot(f.source,f.source.students[0],date),json=JSON.stringify(data);assert.equal(data.timetable[0].publicMemo,'준비물\n태블릿');assert(!json.includes('PRIVATE_'));assert(!json.includes('OTHER_TASK_SECRET'));
  const items=f.context.studentCalendarItems(data.calendar,date);assert.equal(items.length,2);assert.equal(items.find(item=>item.kind==='task').status,'완료');assert.equal(f.context.studentCalendarItems(data.calendar,C.addDays(date,1)).length,0);
 });
+
+test('학생 일정은 종일 행사와 D-day를 포함하고 확인자 전용 카드는 지정 학생만 노출',()=>{
+ const f=fixture(),date=C.today();f.source.assignments=[{id:'check',title:'검사할 과제',date,repeat:{type:'none'},target:'all',checkerStudentId:'one'}];f.source.events=[{id:'today',date,title:'오늘 행사',period:null},{id:'dday',date:C.addDays(date,7),title:'소풍',isDday:true}];
+ f.context.previewStudent('one');let html=f.context.renderStudentShell();assert(html.includes('오늘의 일정'));assert(html.includes('오늘 행사'));assert(html.includes('소풍 D-7'));assert(html.includes('내가 확인할 친구 과제: 검사할 과제'));f.context.previewStudent('two');html=f.context.renderStudentShell();assert(!html.includes('내가 확인할 친구 과제'));
+});
+test('학생 달력 상세는 처음엔 접히고 날짜를 직접 선택했을 때만 표시',()=>{
+ const f=fixture(),date=C.today();f.source.assignments=[{id:'a',title:'오늘 과제',date,repeat:{type:'none'},target:'all'}];f.context.previewStudent('one');let html=f.context.renderStudentShell();assert(html.includes('날짜를 선택하면 해당 일자의 과제와 일정을 볼 수 있어요'));assert(!html.includes('<div class="student-calendar-detail"><h3>'));f.buttons.find(b=>b.label.startsWith(`<strong>${Number(date.slice(-2))}</strong>`) && b.label.includes('오늘 과제')).callback();html=f.context.renderStudentShell();assert(html.includes('<div class="student-calendar-detail"><h3>'));
+});

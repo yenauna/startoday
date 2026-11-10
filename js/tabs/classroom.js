@@ -16,6 +16,7 @@ export function displayName(s) {
   return String(s.no) + '번';
 }
 let classroomInteractionCleanup;
+const dismissedCountdowns = new Set();
 export function classroom() {
   classroomInteractionCleanup?.();
   document.title = '교실 화면 · 오늘의 별';
@@ -45,8 +46,10 @@ export function classroom() {
       hour12: true,
       hour: 'numeric',
       minute: '2-digit',
+      second: '2-digit',
       timeZone: 'Asia/Seoul'
     });
+    updateClassroomCountdown();
   };
   tick();
   clearInterval(state.clockTimer);
@@ -101,6 +104,36 @@ export function classroom() {
   exit.onkeydown = e => {
     if (e.ctrlKey && e.key === 'Enter') run(unlock);
   };
+}
+function updateClassroomCountdown() {
+  const next = C.classroomCountdown(db(), settings());
+  let overlay = document.querySelector('.fullscreen-countdown-overlay');
+  if (!next || dismissedCountdowns.has(next.key)) {
+    overlay?.remove();
+    return;
+  }
+  if (!overlay) {
+    overlay = document.createElement('button');
+    overlay.type = 'button';
+    overlay.className = 'fullscreen-countdown-overlay';
+    overlay.setAttribute('aria-label', '수업 시작 알림 닫기');
+    overlay.onclick = event => {
+      event.stopPropagation();
+      dismissedCountdowns.add(overlay.dataset.key);
+      overlay.remove();
+    };
+    document.querySelector('.lockscreen')?.append(overlay);
+  }
+  overlay.dataset.key = next.key;
+  const clock = new Date().toLocaleTimeString('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    hour12: true,
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit'
+  }).replace(/(\d+):(\d+):(\d+)/, '$1시 $2분 $3초');
+  const remaining = next.remaining >= 60 ? `${Math.floor(next.remaining / 60)}분 ${next.remaining % 60}초 남음` : `${next.remaining}초 남음`;
+  overlay.innerHTML = `<time class="countdown-clock">${esc(clock)}</time><strong class="countdown-remaining">${remaining}</strong><div class="countdown-lesson">[${next.period}교시] ${esc(next.subject)}${next.location ? ' (' + esc(next.location) + ')' : ''}</div>${next.memo ? `<p class="countdown-memo">${esc(next.memo)}</p>` : ''}<small>화면을 누르면 알림이 닫힙니다.</small>`;
 }
 function classroomStudent(student, date) {
   const excluded = C.excluded(db(), student.id, date),

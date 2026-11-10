@@ -720,3 +720,14 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
  .statistics-summary .badge { font-size:12px; }
  .statistics-sort button { font-size:12px; }
 }
+
+/* Large readable subject titles on teacher, TV and student schedules. */
+.registered-schedule .slot-subject-row .subject-title,
+.student-timetable-card .subject-title { font-size:20px; font-weight:800; color:var(--subject-title-color,var(--subject-accent)); }
+.peer-checker-card { display:block; width:100%; margin-top:10px; text-align:left; background:var(--st-blue-bg); color:var(--st-blue-text); }
+.peer-checklist { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:8px; }
+.peer-check-row { display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:10px; padding:10px; background:var(--st-gray-bg); border-radius:12px; }
+.peer-check-row input { width:22px; height:22px; flex:0 0 auto; }
+.student-today-events { display:flex; flex-wrap:wrap; gap:6px; }
+.student-day-event { margin-bottom:8px; }
+.student-day-event small { display:block; white-space:pre-line; margin-top:3px; color:var(--st-text-muted); }

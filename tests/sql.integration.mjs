@@ -101,4 +101,29 @@ await pg.exec('set role authenticated');await asUser(other);
 await pg.query('select public.startoday_commit($1,$2,$3::jsonb)',[otherSnap.class_id,0,JSON.stringify([{table:'settings',id:'main',data:{...config,schoolName:'가상초등학교',schoolCode:'NEIS002'}},{table:'students',id:'same',data:{id:'same',no:1,name:'가상학생'}}])]);
 await pg.exec('set role anon');assert.equal((await schoolLogin('새암호123')).student.id,'s1');assert.deepEqual(await schoolLogin('바람123','NEIS002'),{mustChangePassword:true});assert.equal(await schoolLogin('새암호123','가상초등학교'),null);
 console.log('PASS: 학교·학년·반·번호 식별, 초기 비밀번호 데이터 차단, 문자 포함 새 비밀번호, 변경/초기화/잠금 해제, revision 충돌, 익명 권한 및 민감 필드 비노출');
+
+// Peer checker RPCs authenticate each request and never grant general student writes.
+await pg.exec('set role authenticated');await asUser(owner);revision=Number((await snapshot()).revision);
+let peerDb=(await snapshot()).data;
+const peerAssignment={...peerDb.assignments.find(a=>a.id==='a1'),checkerStudentId:'s1'};
+await commit([{table:'assignments',id:'a1',data:peerAssignment},{table:'students',id:'s3',data:{id:'s3',no:3,name:'제외학생'}},{table:'attendance',id:'peer-excluded',data:{id:'peer-excluded',studentId:'s3',date:day,excluded:true}}]);
+await pg.exec('set role anon');
+async function peerList(no=1,password='새암호123',aid='a1'){return (await pg.query('select public.startoday_student_checker_list($1,$2,$3,$4,$5,$6) as data',['NEIS001','5','오',no,password,aid])).rows[0].data;}
+async function peerSet(student,completed,aid='a1'){return (await pg.query('select public.startoday_student_checker_set($1,$2,$3,$4,$5,$6,$7,$8) as data',['NEIS001','5','오',1,'새암호123',aid,student,completed])).rows[0].data;}
+await assert.rejects(pg.query('select public.startoday_checker_payload($1,$2,$3)',[classId,'s1','a1']),/permission denied/);
+assert.equal(await peerList(1,'틀린암호123'),null);assert.equal(await peerList(2,'행복한5반'),null);assert.equal(await peerList(1,'새암호123','future-own'),null);
+let checklist=await peerList();assert.equal(checklist.students.length,3);assert.equal(checklist.students.find(s=>s.id==='s3').excluded,true);assert.equal(checklist.assignment.title,'연산');assert.equal(checklist.classId,classId);
+for(const hidden of ['password','SECRET','memo','지도','PRIVATE'])assert(!JSON.stringify(checklist).includes(hidden));
+assert.equal((await schoolLogin('새암호123')).checkingAssignments[0].id,'a1');
+assert.equal(await peerSet('same',true),null);assert.equal(await peerSet('s3',true),null);assert.equal(await peerSet('s2',true,'future-other'),null);
+let peerResult=await peerSet('s1',true);assert(peerResult.students.find(s=>s.id==='s1').completed);assert(!JSON.stringify(peerResult).includes('SECRET_TASK_MEMO'));
+await peerSet('s2',true);await peerSet('s2',true);
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
+assert.equal(snap.data.assignmentStates.find(s=>s.id===C.stateId('a1',day,'s1')).memo,'SECRET_TASK_MEMO');assert.equal(snap.data.records.filter(r=>r.autoRef===C.stateId('a1',day,'s2')).length,1);
+await assert.rejects(commit([],revision-1),/REVISION_CONFLICT/);
+const simple={id:'simple',title:'단순 확인',date:day,repeat:{type:'none'},target:'all',checkerStudentId:'s1',noStar:true};await commit([{table:'assignments',id:'simple',data:simple}]);
+await pg.exec('set role anon');await peerSet('s2',true,'simple');await peerSet('s2',false,'simple');await peerSet('s2',true,'simple');await peerSet('s2',false);
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);assert(!snap.data.records.some(r=>r.autoRef===C.stateId('simple',day,'s2')));assert(!snap.data.records.some(r=>r.autoRef===C.stateId('a1',day,'s2')));assert.equal(snap.data.assignmentStates.find(s=>s.assignmentId==='simple').status,'완료');
+await commit([{table:'assignments',id:'a1',data:{...peerAssignment,checkerStudentId:'s2'}}]);await pg.exec('set role anon');assert.equal(await peerList(),null);assert.equal(await peerSet('s1',true),null);
+console.log('PASS: 확인자 인증/초기화 차단, 오늘·대상·출결·학급 권한, 비공개 메모 보존, 원자적 체크/취소 및 revision, 중복 별점 방지, 단순 체크리스트 별점 미생성');
 await pg.close();

@@ -112,6 +112,13 @@ revoke all on function public.startoday_snapshot(),public.startoday_commit(uuid,
 grant execute on function public.startoday_snapshot(),public.startoday_commit(uuid,bigint,jsonb),public.startoday_backup(uuid) to authenticated;
 -- Existing tag rows are retained as inaccessible legacy data; no current API uses them.
 do $$ begin if to_regclass('public.startoday_tags') is not null then execute 'revoke all on public.startoday_tags from public,anon,authenticated';end if;end $$;
+-- Occurrence test reused by the narrowly scoped peer-checker RPCs.
+create or replace function public.startoday_assignment_occurs(a jsonb, day text)
+returns boolean language sql immutable set search_path=public,pg_temp as $$
+ select coalesce(a->>'deletedAt' is null and a->>'date'<=day and (a->>'endDate' is null or a->>'endDate'>=day) and
+ ((a->'repeat'->>'type'='none' and a->>'date'=day) or a->'repeat'->>'type'='daily' or (a->'repeat'->>'type'='weekly' and a->'repeat'->'weekdays' @> jsonb_build_array(extract(dow from day::date)::integer))),false);
+$$;
+revoke all on function public.startoday_assignment_occurs(jsonb,text) from public,anon,authenticated;
 -- Student reads are an explicit allow-list, independent of teacher snapshots.
 -- No anonymous SELECT policy is added to any existing class table.
 create table if not exists public.startoday_student_login_attempts (
@@ -157,12 +164,12 @@ begin
  'assignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title','date',a.data->>'date','endDate',a.data->>'endDate','repeat',a.data->'repeat','memo',coalesce(a.data->>'memo',''),'checkerName',coalesce((select concat(s.data->>'no','. ',s.data->>'name') from public.startoday_students s where s.class_id=cid and s.id=a.data->>'checkerStudentId' and s.data->>'deletedAt' is null),''))) from public.startoday_assignments a where a.class_id=cid and a.data->>'deletedAt' is null and (a.data->'target'='"all"'::jsonb or a.data->'target'->'studentIds' ? sid)),'[]'::jsonb),
  'states',coalesce((select jsonb_agg(jsonb_build_object('assignmentId',st.data->>'assignmentId','date',st.data->>'date','status',st.data->>'status')) from public."startoday_assignmentStates" st where st.class_id=cid and st.data->>'studentId'=sid),'[]'::jsonb),
  'excludedDates',coalesce((select jsonb_agg(atd.data->>'date') from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'excluded'='true'),'[]'::jsonb),
- 'events',coalesce((select jsonb_agg(jsonb_build_object('date',e.date,'title',e.title,'description',e.description,'period',e.period)) from (
-   select ev.data->>'date' as date,ev.data->>'title' as title,coalesce(ev.data->>'description','') as description,ev.data->'period' as period from public.startoday_events ev where ev.class_id=cid
-   union all select config->'academicCalendar'->>dates.key,dates.title,'학사일정 · 설정에서 관리','null'::jsonb from (values ('term1Start','개학식'),('summerEnd','여름방학식'),('term2Start','개학식'),('winterEnd','겨울방학식'),('winterReturn','개학식'),('springEnd','종업식')) dates(key,title) where config->'academicCalendar'->>dates.key ~ '^\d{4}-\d{2}-\d{2}$' and (dates.key not in ('winterReturn','springEnd') or config->'academicCalendar'->>'springBreak'='true')
-   union all select distinct holiday.value,'자율휴업일','학사일정 · 재량휴업일','null'::jsonb from jsonb_array_elements_text(case when jsonb_typeof(config->'academicCalendar'->'holidays')='array' then config->'academicCalendar'->'holidays' else '[]'::jsonb end) holiday(value)
+ 'events',coalesce((select jsonb_agg(jsonb_build_object('date',e.date,'title',e.title,'description',e.description,'period',e.period,'isDday',e.is_dday)) from (
+   select ev.data->>'date' as date,ev.data->>'title' as title,coalesce(ev.data->>'description','') as description,ev.data->'period' as period, coalesce(ev.data->>'isDday','false')='true' as is_dday from public.startoday_events ev where ev.class_id=cid
+   union all select config->'academicCalendar'->>dates.key,dates.title,'학사일정 · 설정에서 관리','null'::jsonb,false from (values ('term1Start','개학식'),('summerEnd','여름방학식'),('term2Start','개학식'),('winterEnd','겨울방학식'),('winterReturn','개학식'),('springEnd','종업식')) dates(key,title) where config->'academicCalendar'->>dates.key ~ '^\d{4}-\d{2}-\d{2}$' and (dates.key not in ('winterReturn','springEnd') or config->'academicCalendar'->>'springBreak'='true')
+   union all select distinct holiday.value,'자율휴업일','학사일정 · 재량휴업일','null'::jsonb,false from jsonb_array_elements_text(case when jsonb_typeof(config->'academicCalendar'->'holidays')='array' then config->'academicCalendar'->'holidays' else '[]'::jsonb end) holiday(value)
  ) e),'[]'::jsonb)) into calendar;
- result:=jsonb_build_object('student',jsonb_build_object('id',sid,'no',student->'no','name',student->>'name'),'className',coalesce(config->>'className','우리반'),'date',day,'score',totals,'praise',letters,'tasks',tasks,'routines',routines,'timetable',timetable,'calendar',calendar);
+ result:=jsonb_build_object('student',jsonb_build_object('id',sid,'no',student->'no','name',student->>'name'),'className',coalesce(config->>'className','우리반'),'date',day,'score',totals,'praise',letters,'tasks',tasks,'routines',routines,'timetable',timetable,'calendar',calendar,'checkingAssignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title')) from public.startoday_assignments a where a.class_id=cid and a.data->>'checkerStudentId'=sid and public.startoday_assignment_occurs(a.data,day)),'[]'::jsonb));
  return result;
 end $$;
 revoke all on function public.startoday_student_payload(uuid,text) from public,anon,authenticated;
@@ -242,4 +249,60 @@ end $$;
 revoke all on function public.startoday_student_reset_attempts() from public,anon,authenticated;
 drop trigger if exists student_password_reset_attempts on public.startoday_students;
 create trigger student_password_reset_attempts after update on public.startoday_students for each row execute function public.startoday_student_reset_attempts();
+-- Only an authenticated, non-reset student assigned as checker can use these.
+-- No teacher record, password, private state memo or unrelated student profile is returned.
+create or replace function public.startoday_checker_payload(cid uuid,sid text,aid text)
+returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare a jsonb; day text:=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD'); roster jsonb;
+begin
+ select data into a from public.startoday_assignments where class_id=cid and id=aid;
+ if a is null or a->>'checkerStudentId' is distinct from sid or not public.startoday_assignment_occurs(a,day) then return null;end if;
+ select coalesce(jsonb_agg(jsonb_build_object('id',s.id,'no',s.data->'no','name',s.data->>'name',
+ 'excluded',exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=s.id and atd.data->>'date'=day and atd.data->>'excluded'='true'),
+ 'completed',coalesce(st.data->>'status' in ('완료','늦게완료','면제'),false)) order by (s.data->>'no')::integer),'[]'::jsonb) into roster
+ from public.startoday_students s left join public."startoday_assignmentStates" st on st.class_id=cid and st.id=aid||':'||day||':'||s.id
+ where s.class_id=cid and s.data->>'deletedAt' is null and (a->'target'='"all"'::jsonb or a->'target'->'studentIds' ? s.id);
+ return jsonb_build_object('classId',cid,'revision',(select revision from public.startoday_classes where id=cid),'assignment',jsonb_build_object('id',aid,'title',a->>'title'),'students',roster);
+end $$;
+revoke all on function public.startoday_checker_payload(uuid,text,text) from public,anon,authenticated;
+create or replace function public.startoday_student_checker_list(p_school text,p_grade text,p_class text,p_no integer,p_password text,p_assignment text)
+returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare verified jsonb;
+begin
+ verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_password);
+ if verified is null or verified->>'mustChangePassword'='true' then return null;end if;
+ return public.startoday_checker_payload((verified->>'cid')::uuid,verified->>'sid',p_assignment);
+end $$;
+revoke all on function public.startoday_student_checker_list(text,text,text,integer,text,text) from public;
+grant execute on function public.startoday_student_checker_list(text,text,text,integer,text,text) to anon,authenticated;
+create or replace function public.startoday_student_checker_set(p_school text,p_grade text,p_class text,p_no integer,p_password text,p_assignment text,p_student text,p_completed boolean)
+returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare verified jsonb; cid uuid; sid text; checklist jsonb; a jsonb; old_state jsonb; old_record jsonb; state_key text; rid text; day text:=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD'); owner uuid; rev bigint; stamp text; v jsonb;
+begin
+ -- Authentication locks the class before checking assignment/target permissions or writing.
+ verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_password);
+ if verified is null or verified->>'mustChangePassword'='true' or p_completed is null then return null;end if;
+ cid:=(verified->>'cid')::uuid;sid:=verified->>'sid';
+ checklist:=public.startoday_checker_payload(cid,sid,p_assignment);
+ if checklist is null or not exists(select 1 from jsonb_array_elements(checklist->'students') s where s->>'id'=p_student and s->>'excluded'='false') then return null;end if;
+ select data into a from public.startoday_assignments where class_id=cid and id=p_assignment;
+ select owner_id into owner from public.startoday_classes where id=cid;
+ state_key:=p_assignment||':'||day||':'||p_student;
+ select data into old_state from public."startoday_assignmentStates" where class_id=cid and id=state_key;
+ select data into old_record from public.startoday_records where class_id=cid and data->>'autoRef'=state_key;
+ stamp:=to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
+ v:=coalesce(old_state,'{}'::jsonb)||jsonb_build_object('id',state_key,'assignmentId',p_assignment,'date',day,'studentId',p_student,'status',case when p_completed then '완료' else '진행중' end,'updatedAt',stamp);
+ insert into public."startoday_assignmentStates"(class_id,owner_id,id,data) values(cid,owner,state_key,v) on conflict(class_id,id) do update set data=excluded.data,updated_at=now();
+ if p_completed and coalesce(a->>'noStar','false')<>'true' then
+ rid:=coalesce(old_record->>'id','auto:'||state_key);
+ v:=jsonb_build_object('id',rid,'date',day,'period','','studentIds',jsonb_build_array(p_student),'areas',case when nullif(a->>'statArea','') is null then '[]'::jsonb else jsonb_build_array(a->>'statArea') end,'area',a->'statArea','kind','칭찬','text',concat(a->>'title',' 완료'),'action','','autoRef',state_key,'printIncluded',true,'extraType',null,'incidentId',null,'createdAt',coalesce(old_record->>'createdAt',stamp),'updatedAt',stamp);
+ insert into public.startoday_records(class_id,owner_id,id,data) values(cid,owner,rid,v) on conflict(class_id,id) do update set data=excluded.data,updated_at=now();
+ else delete from public.startoday_records where class_id=cid and data->>'autoRef'=state_key;
+ end if;
+ update public.startoday_classes set revision=revision+1 where id=cid returning revision into rev;
+ insert into public.startoday_audit(owner_id,class_id,revision,table_name,row_id,operation) values(owner,cid,rev,'assignmentStates',state_key,'peer_check');
+ return public.startoday_checker_payload(cid,sid,p_assignment)||jsonb_build_object('snapshot',public.startoday_student_payload(cid,sid));
+end $$;
+revoke all on function public.startoday_student_checker_set(text,text,text,integer,text,text,text,boolean) from public;
+grant execute on function public.startoday_student_checker_set(text,text,text,integer,text,text,text,boolean) to anon,authenticated;
 commit;

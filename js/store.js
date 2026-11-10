@@ -33,13 +33,16 @@ export class Store {
   }
   publishSync() {
     if (!this.db || !['cloud', 'demo', 'local'].includes(this.mode)) return;
+    this.signalChange(this.mode, this.classId, this.revision);
+  }
+  signalChange(mode, classId, revision) {
     const message = {
       kind: 'changed',
       id: uid(),
       source: this.syncSource,
-      mode: this.mode,
-      classId: this.classId,
-      revision: Number(this.revision)
+      mode,
+      classId,
+      revision: Number(revision)
     };
     try {
       this.syncChannel?.postMessage(message);

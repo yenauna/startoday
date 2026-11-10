@@ -120,7 +120,10 @@ export function subjectColors(subject) {
 }
 export function subjectColorStyle(subject) {
   const colors = subjectColors(subject);
-  return `--subject-bg:${colors.background};--subject-accent:${colors.accent};`;
+  const hex = colors.accent.slice(1),
+    full = hex.length === 3 ? [...hex].map(x => x + x).join('') : hex;
+  const deep = '#' + full.match(/../g).map(x => Math.round(parseInt(x, 16) * .78).toString(16).padStart(2, '0')).join('');
+  return `--subject-bg:${colors.background};--subject-accent:${colors.accent};--subject-title-color:${deep};`;
 }
 export const GRADE_SUBJECT_PRESETS = {
   lower: ['국어', '수학', '통합교과', '창체', '자율자치', '동아리', '진로'],
@@ -205,7 +208,8 @@ export function studentCalendarData(database, id) {
       date: e.date,
       title: e.title,
       description: e.description || '',
-      period: e.period
+      period: e.period,
+      isDday: !!e.isDday
     }))
   };
 }
@@ -302,7 +306,7 @@ export function taskStateOps(db, a, d, s, status, memo = '') {
       updatedAt: stamp
     }
   }];
-  if (['완료', '늦게완료', '안함'].includes(status)) ops.push({
+  if (!a.noStar && ['완료', '늦게완료', '안함'].includes(status)) ops.push({
     table: 'records',
     id: old?.id || `auto:${id}`,
     data: {
@@ -979,4 +983,85 @@ export function hoursDefaultRange(settings, date = today()) {
     from: semester.from,
     to: date
   } : monthRange(date.slice(0, 7));
+}
+
+// Seoul wall-clock schedule windows; never count down through an ongoing lesson.
+export function classroomCountdown(database, config, instant = new Date()) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(instant).map(p => [p.type, p.value]));
+  const date = `${parts.year}-${parts.month}-${parts.day}`,
+    seconds = +parts.hour * 3600 + +parts.minute * 60 + +parts.second;
+  const times = Array.from({
+    length: 6
+  }, (_, i) => {
+    const match = String(config.periodTimes?.[i] || DEFAULT_PERIOD_TIMES[i]).match(/(\d{1,2}):(\d{2})\s*[~～–—-]\s*(\d{1,2}):(\d{2})/);
+    if (!match || +match[1] > 23 || +match[3] > 23 || +match[2] > 59 || +match[4] > 59) return null;
+    return {
+      start: +match[1] * 3600 + +match[2] * 60,
+      end: +match[3] * 3600 + +match[4] * 60
+    };
+  });
+  for (let i = 0; i < 6; i++) {
+    const time = times[i],
+      previous = i ? times[i - 1] : null;
+    if (!time || seconds >= time.start || previous && seconds < previous.end) continue;
+    const slot = database.timetables.find(t => t.date === date && t.period === i + 1);
+    if (!slot) continue;
+    const rule = database.subject_rules.find(r => r.code === slot.subjectCode) || {};
+    const location = slot.locationOverride || rule.location || '';
+    const moving = [slot.type, rule.type, rule.defaultType].some(t => t && t !== '일반') || !!(slot.teacherOverride || rule.teacherName) || !!location && !/^(우리 ?)?교실$/.test(location);
+    const remaining = time.start - seconds;
+    if (remaining > (moving ? 300 : 60)) continue;
+    return {
+      key: `${date}:${i + 1}:${time.start}`,
+      period: i + 1,
+      subject: slot.subjectCode,
+      location,
+      memo: slot.publicMemo ?? slot.memo ?? '',
+      remaining
+    };
+  }
+  return null;
+}
+export function checkerAssignments(database, checkerId, date = today()) {
+  return database.assignments.filter(a => a.checkerStudentId === checkerId && occurs(a, date)).map(a => ({
+    id: a.id,
+    title: a.title
+  }));
+}
+export function checkerChecklist(database, checkerId, assignmentId, date = today()) {
+  if (!activeStudents(database).some(s => s.id === checkerId)) throw Error('확인자 학생을 확인하세요.');
+  const assignment = database.assignments.find(a => a.id === assignmentId && a.checkerStudentId === checkerId && occurs(a, date));
+  if (!assignment) throw Error('오늘 확인할 수 있는 과제가 아닙니다.');
+  return {
+    assignment: {
+      id: assignment.id,
+      title: assignment.title
+    },
+    students: activeStudents(database).filter(s => targeted(assignment, s.id)).map(s => ({
+      id: s.id,
+      no: s.no,
+      name: s.name,
+      excluded: excluded(database, s.id, date),
+      completed: ['완료', '늦게완료', '면제'].includes(assignmentStatus(database, assignment.id, date, s.id))
+    }))
+  };
+}
+export function checkerStateOps(database, checkerId, assignmentId, targetId, completed, date = today()) {
+  const checklist = checkerChecklist(database, checkerId, assignmentId, date),
+    target = checklist.students.find(s => s.id === targetId);
+  if (!target || target.excluded || typeof completed !== 'boolean') throw Error('체크할 학생을 확인하세요.');
+  const assignment = database.assignments.find(a => a.id === assignmentId),
+    id = stateId(assignmentId, date, targetId),
+    old = database.assignmentStates.find(s => s.id === id);
+  // A peer may only change completion, never overwrite a teacher's private memo.
+  return taskStateOps(database, assignment, date, targetId, completed ? '완료' : '진행중', old?.memo || '');
 }

@@ -3,7 +3,7 @@ import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, name, students, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
-import { $, badge, bindLater, btn, empty, esc, input, multiple, run, select, textarea } from '../shared/ui.js';
+import { $, badge, bindLater, btn, empty, esc, input, multiple, run, select, textarea, checkbox } from '../shared/ui.js';
 export function targetForm(target = 'all') {
   return `<div class="span2">${select('대상', 'target', [['all', '전체 학생'], ['some', '선택 학생']], target === 'all' ? 'all' : 'some')}<div id="target-students" style="margin-top:9px">${multiple(students().map(s => [s.id, name(s.id)]), 'students', target?.studentIds || [])}</div></div>`;
 }
@@ -34,7 +34,7 @@ export function assignmentEditor(a = null, d = state.date) {
     statArea: C.areaRows(db()).find(area => area.id === 'area-2')?.name || null,
     createdAt: C.now()
   };
-  modal(a ? '과제 수정' : '새 과제', `<div class="formgrid">${input('과제 제목', 'title', r.title, 'text', 'required')}${input('시작일 / 마감일', 'date', r.date, 'date', 'required')}${select('반복', 'repeat', [['none', '없음'], ['daily', '매일'], ['weekly', '매주 요일 지정']], r.repeat.type)}${select('경험치 영역', 'statArea', [['', '미지정'], ...C.areaNames(db(), true).filter(a => C.areaNames(db()).includes(a) || a === r.statArea)], r.statArea || '')}<div class="span2" id="repeat-days"><label>반복 요일</label>${multiple([[1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토'], [0, '일']].map(([x, y]) => [String(x), y]), 'weekdays', (r.repeat.weekdays || []).map(String))}</div>${targetForm(r.target)}${textarea('메모(안내사항)', 'memo', r.memo || '')}${select('대신 체크해 주는 사람 (학생)', 'checkerStudentId', [['', '미지정 · 선생님 직접 확인'], ...students().map(student => [student.id, name(student.id)])], r.checkerStudentId || '')}</div>`, async f => {
+  modal(a ? '과제 수정' : '새 과제', `<div class="formgrid">${input('과제 제목', 'title', r.title, 'text', 'required')}${input('시작일 / 마감일', 'date', r.date, 'date', 'required')}${select('반복', 'repeat', [['none', '없음'], ['daily', '매일'], ['weekly', '매주 요일 지정']], r.repeat.type)}${select('경험치 영역', 'statArea', [['', '미지정'], ...C.areaNames(db(), true).filter(a => C.areaNames(db()).includes(a) || a === r.statArea)], r.statArea || '')}<div class="span2" id="repeat-days"><label>반복 요일</label>${multiple([[1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토'], [0, '일']].map(([x, y]) => [String(x), y]), 'weekdays', (r.repeat.weekdays || []).map(String))}</div>${targetForm(r.target)}${checkbox('칭찬 별점 부여하지 않음 (단순 체크리스트)', 'noStar', r.noStar)}${textarea('메모(안내사항)', 'memo', r.memo || '')}${select('대신 체크해 주는 사람 (학생)', 'checkerStudentId', [['', '미지정 · 선생님 직접 확인'], ...students().map(student => [student.id, name(student.id)])], r.checkerStudentId || '')}</div>`, async f => {
     const repeat = {
       type: f.get('repeat')
     };
@@ -49,12 +49,19 @@ export function assignmentEditor(a = null, d = state.date) {
       repeat,
       target: getTarget(f),
       statArea: f.get('statArea') || null,
+      noStar: !!f.get('noStar'),
       memo: f.get('memo') || '',
       checkerStudentId: f.get('checkerStudentId') || null
     };
     if (!next.title) throw Error('제목을 입력하세요.');
     if (next.checkerStudentId && !students().some(student => student.id === next.checkerStudentId)) throw Error('확인자 학생을 다시 선택하세요.');
-    await commit([up('assignments', next)]);
+    const states = db().assignmentStates.filter(s => s.assignmentId === next.id);
+    const rewardOps = !!a?.noStar === next.noStar ? [] : next.noStar ? db().records.filter(r => r.autoRef && states.some(s => s.id === r.autoRef)).map(r => ({
+      table: 'records',
+      id: r.id,
+      remove: true
+    })) : states.filter(s => C.targeted(next, s.studentId)).flatMap(s => C.taskStateOps(db(), next, s.date, s.studentId, s.status, s.memo || ''));
+    await commit([up('assignments', next), ...rewardOps]);
     closeModal();
   });
   setupTarget();
@@ -253,7 +260,7 @@ function moveAssignmentMonth(amount) {
 }
 function assignmentActions(a, date, scrollPosition = null) {
   const info = C.assignmentPublicInfo(db(), a);
-  modal('과제 관리', `<h3>${esc(a.title)}</h3>${info.memo ? `<p class="assignment-public-memo">${esc(info.memo)}</p>` : ''}<p class="assignment-checker">🔍 확인자: ${info.checkerName ? esc(info.checkerName) + ' 학생' : '선생님 직접 확인'}</p><p class="muted">${esc(C.formatDate(date))} · ${a.repeat.type === 'none' ? '1회' : a.repeat.type === 'daily' ? '매일' : '매주 ' + (a.repeat.weekdays || []).map(day => '일월화수목금토'[day]).join('·')}</p><div class="row">${btn('수정', () => assignmentEditor(a))}${btn('복사', () => assignmentEditor({
+  modal('과제 관리', `<h3>${esc(a.title)}</h3>${a.noStar ? badge('단순 체크리스트 · 별점 없음') : ''}${info.memo ? `<p class="assignment-public-memo">${esc(info.memo)}</p>` : ''}<p class="assignment-checker">🔍 확인자: ${info.checkerName ? esc(info.checkerName) + ' 학생' : '선생님 직접 확인'}</p><p class="muted">${esc(C.formatDate(date))} · ${a.repeat.type === 'none' ? '1회' : a.repeat.type === 'daily' ? '매일' : '매주 ' + (a.repeat.weekdays || []).map(day => '일월화수목금토'[day]).join('·')}</p><div class="row">${btn('수정', () => assignmentEditor(a))}${btn('복사', () => assignmentEditor({
     ...a,
     id: C.uid(),
     createdAt: C.now(),

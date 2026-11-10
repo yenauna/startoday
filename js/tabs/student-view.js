@@ -2,13 +2,16 @@ import { render } from '../app.js';
 import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { state, store } from '../shared/state.js';
-import { btn, esc, input, toast } from '../shared/ui.js';
+import { btn, esc, input, toast, run } from '../shared/ui.js';
 import { koreanPasswordField, bindKoreanPasswordFields } from '../components/korean-password.js';
 import { schoolPickerFields, bindSchoolPicker, recentStudentSchool, rememberStudentSchool } from '../components/school-picker.js';
 import { studentPasswordInfo, studentIdentityMatches, validateStudentPassword } from '../shared/student-auth.js';
 
+// Credentials stay in this module's memory only, cleared on logout; never in DOM/storage/channels.
+let checkerCredentials = null;
+
 // Only this allow-listed projection crosses into the student shell. Never pass
-// teacher records, task memos, credentials or the class snapshot to its markup.
+// teacher records, private state memos, credentials or the class snapshot to its markup.
 export function studentSnapshot(source, student, date = C.today()) {
   const score = C.scores(source, student.id, '', date);
   const excluded = C.excluded(source, student.id, date);
@@ -25,6 +28,7 @@ export function studentSnapshot(source, student, date = C.today()) {
     },
     className: source.settings[0]?.className || '우리반',
     date,
+    checkingAssignments: C.checkerAssignments(source, student.id, date),
     calendar: C.studentCalendarData(source, student.id),
     score: {
       total: score.total,
@@ -139,8 +143,14 @@ export async function changeStudentPassword(identity, previous, password) {
     mustChangePassword: false
   };
 }
-function enterStudent(snapshot) {
+function enterStudent(snapshot, identity, password) {
   if (!snapshot?.student || snapshot.mustChangePassword) throw Error('학생 로그인 정보 또는 비밀번호가 올바르지 않습니다.');
+  checkerCredentials = {
+    identity: {
+      ...identity
+    },
+    password
+  };
   state.studentPasswordPending = false;
   state.studentUser = snapshot.student;
   state.studentSnapshot = snapshot;
@@ -160,7 +170,7 @@ function requireStudentPassword(identity, previous) {
     validateStudentPassword(password, previous);
     if (password !== f.get('confirmPassword')) throw Error('새 비밀번호 확인이 일치하지 않습니다.');
     const snapshot = await changeStudentPassword(identity, previous, password);
-    enterStudent(snapshot);
+    enterStudent(snapshot, identity, password);
     toast('비밀번호를 변경했습니다.');
   }, '변경하고 시작하기');
   bindKoreanPasswordFields(document.querySelector('#modal-form'));
@@ -199,7 +209,7 @@ export function studentLoginDialog() {
       requireStudentPassword(identity, password);
       return;
     }
-    enterStudent(snapshot);
+    enterStudent(snapshot, identity, password);
   }, '로그인');
   bindSchoolPicker(document.querySelector('#modal-form'));
   bindKoreanPasswordFields(document.querySelector('#modal-form'));
@@ -213,6 +223,7 @@ export function previewStudent(id) {
   render();
 }
 export function leaveStudentView() {
+  checkerCredentials = null;
   closeModal();
   state.actions?.clear();
   studentCalendarScope = '';
@@ -241,17 +252,18 @@ export function renderStudentShell() {
     const done = ['완료', '늦게완료', '면제'].includes(task.status);
     return `<div class="student-task ${done ? 'is-complete' : ''}"><div><strong class="${routine ? 'student-routine-title' : ''}">${esc(task.title)}</strong>${task.date ? `<small>${esc(C.formatDate(task.date))}</small>` : ''}${!routine && task.memo ? `<p class="assignment-public-memo">${esc(task.memo)}</p>` : ''}${!routine ? `<small class="assignment-checker">🔍 확인자: ${task.checkerName ? esc(task.checkerName) + ' 학생' : '선생님 직접 확인'}</small>` : ''}</div><span>${done ? '✓ ' : ''}${esc(task.status)}</span></div>`;
   }).join('') || '<p class="muted">오늘 할 일이 없습니다.</p>';
-  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드 (${esc(student.no)}. ${esc(student.name)})${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<header class="student-header"><img class="logo" src="assets/logo-icon.jpg" alt="오늘의 별"><div><strong>${esc(data.className)}</strong><span>${esc(student.no)}. ${esc(student.name)}</span></div>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header><main class="student-dashboard"><section class="student-card student-growth"><h2>내 별 점수</h2><div class="student-stars">★ ${esc(data.score.total)}개</div><div class="student-pills">${pills(Object.entries(data.score.areas || {}).map(([a, n]) => a + ' ' + n))}</div></section><section class="student-card student-timetable-card"><h2>오늘의 시간표</h2>${data.timetable.map(t => `<div class="student-task subject-color subject-stripe" style="${C.subjectColorStyle({
+  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드 (${esc(student.no)}. ${esc(student.name)})${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<header class="student-header"><img class="logo" src="assets/logo-icon.jpg" alt="오늘의 별"><div><strong>${esc(data.className)}</strong><span>${esc(student.no)}. ${esc(student.name)}</span></div>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header><main class="student-dashboard"><section class="student-card student-growth"><h2>내 별 점수</h2><div class="student-stars">★ ${esc(data.score.total)}개</div><div class="student-pills">${pills(Object.entries(data.score.areas || {}).map(([a, n]) => a + ' ' + n))}</div></section><section class="student-card student-timetable-card"><h2>오늘의 일정</h2><div class="student-today-events">${studentTodayEvents(data)}</div>${data.timetable.map(t => `<div class="student-task subject-color subject-stripe" style="${C.subjectColorStyle({
     code: t.subject,
     color: t.color,
     accentColor: t.accentColor,
     colorSource: t.colorSource,
     defaultColorValue: t.defaultColorValue
-  })}"><div class="slot-period-row"><span class="slot-time">${esc(t.period)}교시</span><small class="slot-clock">${esc(t.periodTime || C.DEFAULT_PERIOD_TIMES[t.period - 1] || '')}</small></div><div class="slot-subject-row"><strong class="subject-title">${esc(t.subject)}</strong>${t.publicMemo ? `<span class="slot-public-memo">${esc(t.publicMemo)}</span>` : ''}</div></div>`).join('') || '<p class="muted">오늘 등록된 수업이 없습니다.</p>'}</section><section class="student-card student-tasks-card"><h2>오늘의 과제 &amp; 루틴</h2><h3>과제</h3>${taskList(data.tasks)}<h3>루틴</h3>${taskList(data.routines, true)}</section><section class="student-card student-calendar-card"><h2>과제·일정 달력</h2>${studentCalendarView(data, student.id)}</section><section class="student-card student-praise-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><p>${esc(r.text)}</p><div class="student-pills">${pills(r.areas)}</div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main></div>`;
+  })}"><div class="slot-period-row"><span class="slot-time">${esc(t.period)}교시</span><small class="slot-clock">${esc(t.periodTime || C.DEFAULT_PERIOD_TIMES[t.period - 1] || '')}</small></div><div class="slot-subject-row"><strong class="subject-title">${esc(t.subject)}</strong>${t.publicMemo ? `<span class="slot-public-memo">${esc(t.publicMemo)}</span>` : ''}</div></div>`).join('') || '<p class="muted">오늘 등록된 수업이 없습니다.</p>'}</section><section class="student-card student-tasks-card"><h2>오늘의 과제 &amp; 루틴</h2><h3>과제</h3>${taskList(data.tasks)}<h3>루틴</h3>${taskList(data.routines, true)}${(data.checkingAssignments || []).map(a => btn('🔍 내가 확인할 친구 과제: ' + esc(a.title), () => openCheckerChecklist(a.id), 'peer-checker-card')).join('')}</section><section class="student-card student-calendar-card"><h2>과제·일정 달력</h2>${studentCalendarView(data, student.id)}</section><section class="student-card student-praise-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><p>${esc(r.text)}</p><div class="student-pills">${pills(r.areas)}</div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main></div>`;
 }
 let studentCalendarScope = '',
   studentCalendarDate = '',
-  studentCalendarMode = 'month';
+  studentCalendarMode = 'month',
+  studentCalendarExpanded = false;
 export function studentCalendarItems(calendar, date) {
   const tasks = (calendar.assignments || []).filter(assignment => C.occurs(assignment, date)).map(assignment => ({
     title: assignment.title,
@@ -275,6 +287,7 @@ function studentCalendarView(data, id) {
     studentCalendarScope = scope;
     studentCalendarDate = data.date || C.today();
     studentCalendarMode = 'month';
+    studentCalendarExpanded = false;
   }
   const first = studentCalendarDate.slice(0, 7) + '-01',
     start = studentCalendarMode === 'month' ? C.addDays(first, -((C.weekday(first) + 6) % 7)) : C.addDays(studentCalendarDate, -((C.weekday(studentCalendarDate) + 6) % 7));
@@ -284,11 +297,13 @@ function studentCalendarView(data, id) {
       date.setUTCMonth(date.getUTCMonth() + step);
       studentCalendarDate = date.toISOString().slice(0, 10);
     }
+    studentCalendarExpanded = false;
     render();
   };
   const detail = studentCalendarItems(data.calendar, studentCalendarDate);
   return `<div class="row student-calendar-controls">${btn('‹', () => move(-1), '', 'aria-label="이전 학생 달력"')}<strong>${esc(studentCalendarDate.slice(0, 7).replace('-', '.'))}</strong>${btn('›', () => move(1), '', 'aria-label="다음 학생 달력"')}${btn('오늘', () => {
     studentCalendarDate = C.today();
+    studentCalendarExpanded = false;
     render();
   })}${['month', 'week'].map(mode => btn(mode === 'month' ? '월간' : '주간', () => {
     studentCalendarMode = mode;
@@ -300,7 +315,82 @@ function studentCalendarView(data, id) {
       items = studentCalendarItems(data.calendar, date);
     return btn(`<strong>${Number(date.slice(-2))}</strong>${items.map(item => `<span class="student-calendar-pill ${item.kind === 'task' && !['완료', '늦게완료', '면제'].includes(item.status) ? 'has-incomplete' : ''}">${esc(item.title)}</span>`).join('')}`, () => {
       studentCalendarDate = date;
+      studentCalendarExpanded = true;
       render();
     }, 'student-calendar-day' + (date === studentCalendarDate ? ' selected' : '') + (date.slice(0, 7) !== first.slice(0, 7) ? ' faded' : ''), `data-calendar-date="${date}" aria-label="${esc(C.formatDate(date))}" aria-pressed="${date === studentCalendarDate}"`);
-  }).join('')}</div><div class="student-calendar-detail"><h3>${esc(C.formatDate(studentCalendarDate))}</h3>${detail.map(item => `<div class="student-task"><div><strong>${esc(item.title)}</strong>${item.description ? `<small>${esc(item.description)}</small>` : ''}${item.kind === 'task' && item.memo ? `<p class="assignment-public-memo">${esc(item.memo)}</p>` : ''}${item.kind === 'task' ? `<small class="assignment-checker">🔍 확인자: ${item.checkerName ? esc(item.checkerName) + ' 학생' : '선생님 직접 확인'}</small>` : ''}</div>${item.status ? `<span>${esc(item.status)}</span>` : ''}</div>`).join('') || '<p class="muted">등록된 과제와 일정이 없습니다.</p>'}</div>`;
+  }).join('')}</div><div class="student-calendar-detail">${studentCalendarExpanded ? `<h3>${esc(C.formatDate(studentCalendarDate))}</h3>${detail.map(item => `<div class="student-task"><div><strong>${esc(item.title)}</strong>${item.description ? `<small>${esc(item.description)}</small>` : ''}${item.kind === 'task' && item.memo ? `<p class="assignment-public-memo">${esc(item.memo)}</p>` : ''}${item.kind === 'task' ? `<small class="assignment-checker">🔍 확인자: ${item.checkerName ? esc(item.checkerName) + ' 학생' : '선생님 직접 확인'}</small>` : ''}</div>${item.status ? `<span>${esc(item.status)}</span>` : ''}</div>`).join('') || '<p class="muted">등록된 과제와 일정이 없습니다.</p>'}` : '<p class="muted">날짜를 선택하면 해당 일자의 과제와 일정을 볼 수 있어요</p>'}</div>`;
+}
+function studentTodayEvents(data) {
+  return (data.calendar?.events || []).filter(e => e.date === data.date && (e.period == null || e.period === 0 || e.period === 7) || e.isDday).map(e => `<div class="student-day-event"><span class="badge">${esc(e.title)}${e.isDday ? ' ' + esc(C.dday(e.date, data.date)) : ''}</span>${e.description ? `<small>${esc(e.description)}</small>` : ''}</div>`).join('');
+}
+async function checkerRequest(assignmentId, targetId = null, completed = false) {
+  const checkerId = state.impersonatingStudentId || state.studentUser?.id,
+    credentials = checkerCredentials;
+  if (!checkerId) throw Error('학생 로그인을 확인하세요.');
+  if (state.impersonatingStudentId || ['demo', 'local'].includes(store.mode)) {
+    if (['demo', 'local'].includes(store.mode)) {
+      const raw = localStorage.getItem('startoday-demo-v1');
+      if (raw) store.db = C.normalizeDB(JSON.parse(raw));
+    }
+    if (!state.impersonatingStudentId) {
+      if (!checkerCredentials) throw Error('다시 로그인해 주세요.');
+      const student = localStudentMatch(checkerCredentials.identity),
+        info = student && studentPasswordInfo(student, store.db.settings[0]);
+      if (student?.id !== checkerId || !info || info.mustChangePassword || info.password !== checkerCredentials.password) throw Error('다시 로그인해 주세요.');
+    }
+    if (targetId !== null) await store.commit(C.checkerStateOps(store.db, checkerId, assignmentId, targetId, completed));
+    if (!state.impersonatingStudentId) state.studentSnapshot = studentSnapshot(store.db, store.db.students.find(s => s.id === checkerId));
+    return C.checkerChecklist(store.db, checkerId, assignmentId);
+  }
+  if (!checkerCredentials || !store.client) throw Error('다시 로그인해 주세요.');
+  const {
+    data,
+    error
+  } = await store.client.rpc(targetId === null ? 'startoday_student_checker_list' : 'startoday_student_checker_set', {
+    ...studentRpcIdentity(checkerCredentials.identity),
+    p_password: checkerCredentials.password,
+    p_assignment: assignmentId,
+    ...(targetId === null ? {} : {
+      p_student: targetId,
+      p_completed: completed
+    })
+  });
+  if (credentials !== checkerCredentials || checkerId !== (state.impersonatingStudentId || state.studentUser?.id)) throw Error('학생 화면이 변경되었습니다.');
+  studentRpcError(error);
+  if (!data) throw Error('오늘 확인할 수 있는 과제가 아니거나 로그인이 만료되었습니다.');
+  if (targetId !== null) {
+    store.signalChange('cloud', data.classId, data.revision);
+    if (data.snapshot) state.studentSnapshot = data.snapshot;
+  }
+  return data;
+}
+export async function openCheckerChecklist(assignmentId, scrollTop = 0) {
+  const list = await checkerRequest(assignmentId);
+  // An RPC may finish after the student has logged out or closed the screen.
+  if (state.viewMode !== 'student') return;
+  showCheckerChecklist(assignmentId, list, scrollTop);
+}
+function showCheckerChecklist(assignmentId, list, scrollTop) {
+  modal('🔍 ' + list.assignment.title, `<p class="muted">친구의 과제를 확인하고 완료에 체크하세요.</p><div class="peer-checklist">${list.students.map(student => `<label class="peer-check-row"><span>${esc(student.no)}. ${esc(student.name)}${student.excluded ? ' <small>제외</small>' : ''}</span><input type="checkbox" data-peer-student="${esc(student.id)}" ${student.completed ? 'checked' : ''} ${student.excluded ? 'disabled' : ''} aria-label="${esc(student.no)}번 ${esc(student.name)} 완료"></label>`).join('')}</div>`);
+  const body = document.querySelector('#modal .dialog-body');
+  body.scrollTop = scrollTop;
+  body.querySelectorAll('[data-peer-student]').forEach(input => input.onchange = () => run(async () => {
+    const old = input.checked,
+      top = body.scrollTop,
+      disabled = new Map([...body.querySelectorAll('input')].map(el => [el, el.disabled]));
+    body.querySelectorAll('input').forEach(el => el.disabled = true);
+    try {
+      const updated = await checkerRequest(assignmentId, input.dataset.peerStudent, old);
+      if (body.isConnected && document.querySelector('#modal').open && state.viewMode === 'student') {
+        render();
+        showCheckerChecklist(assignmentId, updated, top);
+      }
+    } catch (error) {
+      if (input.isConnected) {
+        input.checked = !old;
+        disabled.forEach((value, el) => el.disabled = value);
+      }
+      throw error;
+    }
+  }));
 }

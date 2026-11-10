@@ -34,7 +34,7 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
     const memo = slot?.publicMemo ?? slot?.memo ?? '';
     const privateMemo = !calendar && audience === 'teacher' ? slot?.privateMemo || '' : '';
     const subject = slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '';
-    const publicNotes = [...events.map(event => event.title + (event.description ? ' · ' + event.description : '')), memo].filter(Boolean).join('\n');
+    const publicNotes = [...new Set([...events.map(event => event.title + (event.description && event.description.trim() !== memo.trim() ? ' · ' + event.description : '')), memo].filter(Boolean))].join('\n');
     const time = settings().periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i];
     const content = `<div class="slot-period-row"><span class="slot-time">${p}교시</span><small class="slot-clock">${esc(time || '')}</small></div>${subject || publicNotes ? `<div class="slot-subject-row">${subject ? `<strong class="subject-title">${esc(subject)}</strong>` : ''}${publicNotes ? `<span class="slot-public-memo">${esc(publicNotes)}</span>` : ''}</div>` : ''}${privateMemo ? `<div class="slot-private-memo">🔒 ${esc(privateMemo)}</div>` : ''}`;
     if (audience === 'classroom') return `<div class="slot${slot ? ' subject-color subject-stripe' : ''}" style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}">${content}</div>`;
