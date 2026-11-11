@@ -24,7 +24,11 @@ export function newRecord(r) {
     autoRef: null,
     createdAt: C.now(),
     updatedAt: C.now(),
-    ...r
+    ...r,
+    areas: C.recordAreas(r),
+    ...(r.area !== undefined ? {
+      area: C.areaName(r.area)
+    } : {})
   };
 }
 export async function bulkRecord(kind) {
@@ -153,11 +157,11 @@ export function recordCard(r, controls = true, detail = false) {
     const state = db().assignmentStates.find(s => s.id === r.autoRef),
       a = db().assignments.find(a => a.id === state?.assignmentId);
     if (a) taskStateEditor(a, state.date, state.studentId);
-  }, 'record-edit', recordDeletions.has(r.id) ? 'disabled' : '') : btn('수정', () => recordEditor(r, true), 'record-edit', recordDeletions.has(r.id) ? 'disabled' : '')}${btn('삭제', event => requestRecordDeletion(r, event), 'record-delete', recordDeletions.has(r.id) ? 'disabled' : '')}${r.incidentId ? btn('사건 보기', () => incidentDetail(r.incidentId)) : ''}</div>` : ''}</div><div class="record-content-line">${(r.areas || []).map(badge).join('')}<span class="body">${esc(r.text)}</span></div>${r.action ? `<div class="action">지도 내용 · ${esc(r.action)}</div>` : ''}</article>`;
+  }, 'record-edit', recordDeletions.has(r.id) ? 'disabled' : '') : btn('수정', () => recordEditor(r, true), 'record-edit', recordDeletions.has(r.id) ? 'disabled' : '')}${btn('삭제', event => requestRecordDeletion(r, event), 'record-delete', recordDeletions.has(r.id) ? 'disabled' : '')}${r.incidentId ? btn('사건 보기', () => incidentDetail(r.incidentId)) : ''}</div>` : ''}</div><div class="record-content-line">${C.recordAreas(r).map(badge).join('')}<span class="body">${esc(r.text)}</span></div>${r.action ? `<div class="action">지도 내용 · ${esc(r.action)}</div>` : ''}</article>`;
 }
 export function recordsView() {
   const f = state.recordFilters,
-    list = db().records.filter(r => r.date >= f.from && r.date <= f.to && (!f.student || r.studentIds.includes(f.student)) && (!f.kind || r.kind === f.kind) && (!f.area || r.areas.includes(f.area)) && (!f.q || [r.text, r.action].join(' ').includes(f.q))).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+    list = db().records.filter(r => r.date >= f.from && r.date <= f.to && (!f.student || r.studentIds.includes(f.student)) && (!f.kind || r.kind === f.kind) && (!f.area || C.recordAreas(r).includes(C.areaName(f.area))) && (!f.q || [r.text, r.action].join(' ').includes(f.q))).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
   return `<div class="toolbar"><div><h2>관찰기록</h2><small>사실을 남기고, 변화의 흐름을 살펴보세요.</small></div><div class="row">${btn('오늘', () => {
     state.recordFilters.from = state.recordFilters.to = C.today();
     render();

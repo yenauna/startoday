@@ -159,7 +159,10 @@ try {
     await page.locator('#quick-student-query').fill('1');
     await page.locator('#quick-student-query').press('Enter');
     await page.locator('#quick-text').fill(text);
-    await page.locator('#quick-period').selectOption(period);
+    await page.locator('#quick-period').click();
+    await page.locator('#modal [data-period-value]').filter({
+      hasText: period === '자동' ? '시간 자동' : period
+    }).click();
     await page.locator('.quick-areas .area-chip').first().click();
     await page.locator('.record-actions').getByRole('button', {
       name: '칭찬',

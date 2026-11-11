@@ -50,6 +50,36 @@ begin
  select * into c from public.startoday_classes where id=c.id;
  return jsonb_build_object('class_id',c.id,'revision',c.revision,'data',result);
 end $$;
+-- Canonical XP alias; pure helpers stay private to authenticated RPC implementations.
+create or replace function public.startoday_area_name(value text) returns text language sql immutable as $$select case when value='학습태도' then '학습' else value end$$;
+create or replace function public.startoday_area_list(value jsonb) returns jsonb language sql immutable as $$
+ select coalesce(jsonb_agg(name order by position),'[]'::jsonb) from (
+ select public.startoday_area_name(a.name) as name,min(a.position) as position from jsonb_array_elements_text(case when jsonb_typeof(value)='array' then value else '[]'::jsonb end) with ordinality a(name,position) where a.name is not null group by public.startoday_area_name(a.name)
+ ) normalized;
+$$;
+revoke all on function public.startoday_area_name(text) from public,anon,authenticated;
+revoke all on function public.startoday_area_list(jsonb) from public,anon,authenticated;
+-- Merge the two spellings only. Other custom names and every record ID remain intact.
+do $$begin if to_regclass('public.startoday_areas') is not null then
+with aliases as (
+ select class_id,id,row_number() over(partition by class_id order by (data->>'deletedAt' is not null),coalesce((data->>'sortOrder')::numeric,0),id) as position
+ from public.startoday_areas where data->>'name' in ('학습태도','학습')
+) delete from public.startoday_areas a using aliases d where a.class_id=d.class_id and a.id=d.id and d.position>1;
+update public.startoday_areas set data=jsonb_set(data,'{name}','"학습"'::jsonb) where data->>'name'='학습태도';
+end if;end $$;
+update public.startoday_records set data=data||jsonb_build_object('areas',public.startoday_area_list(coalesce(data->'areas',jsonb_build_array(data->>'area'))))||case when data ? 'area' then jsonb_build_object('area',public.startoday_area_name(data->>'area')) else '{}'::jsonb end
+ where coalesce(data->'areas','[]'::jsonb) ? '학습태도' or data->>'area'='학습태도';
+update public.startoday_assignments set data=jsonb_set(data,'{statArea}','"학습"'::jsonb) where data->>'statArea'='학습태도';
+-- Preserve a renamed custom first stat while recovering otherwise orphaned learning references.
+do $$begin if to_regclass('public.startoday_areas') is not null then
+ insert into public.startoday_areas(class_id,owner_id,id,data)
+ select c.id,c.owner_id,available.id,jsonb_build_object('id',available.id,'name','학습','sortOrder',coalesce((select max((a.data->>'sortOrder')::numeric)+1 from public.startoday_areas a where a.class_id=c.id),0),'deletedAt',null)
+ from public.startoday_classes c
+ cross join lateral (select case when n=0 then 'area-learning' else 'area-learning-'||n end as id from generate_series(0,1000) n where not exists(select 1 from public.startoday_areas a where a.class_id=c.id and a.id=case when n=0 then 'area-learning' else 'area-learning-'||n end) order by n limit 1) available
+ where not exists(select 1 from public.startoday_areas a where a.class_id=c.id and a.data->>'name'='학습') and (exists(select 1 from public.startoday_records r where r.class_id=c.id and (coalesce(r.data->'areas','[]'::jsonb) ? '학습' or r.data->>'area'='학습')) or exists(select 1 from public.startoday_assignments a where a.class_id=c.id and a.data->>'statArea'='학습'));
+end if;end $$;
+
+
 create or replace function public.startoday_commit(p_class_id uuid,p_revision bigint,p_ops jsonb) returns bigint language plpgsql security definer set search_path=public as $$
 declare c public.startoday_classes; op jsonb; t text; v jsonb; old jsonb; n bigint; stamp text;
 begin
@@ -73,6 +103,9 @@ begin
  if coalesce(char_length(v->>'defaultStudentPassword'),0)<5 or char_length(v->>'defaultStudentPassword')>200 or v->>'defaultStudentPassword' !~ '[가-힣]' or v->>'defaultStudentPassword' ~ '[^가-힣0-9]' then raise exception 'INVALID_INITIAL_STUDENT_PASSWORD';end if;
  end if;
  end if;
+ if t='areas' then v:=jsonb_set(v,'{name}',coalesce(to_jsonb(public.startoday_area_name(v->>'name')),'null'::jsonb));end if;
+ if t='records' then v:=v||jsonb_build_object('areas',public.startoday_area_list(coalesce(v->'areas',jsonb_build_array(v->>'area'))));if v ? 'area' then v:=v||jsonb_build_object('area',public.startoday_area_name(v->>'area'));end if;end if;
+ if t='assignments' and v ? 'statArea' then v:=v||jsonb_build_object('statArea',public.startoday_area_name(v->>'statArea'));end if;
  if t='areas' and (jsonb_typeof(v->'name') is distinct from 'string' or coalesce(btrim(v->>'name'),'')='' or jsonb_typeof(v->'sortOrder') is distinct from 'number' or (v->>'sortOrder')::numeric<0 or (v->>'sortOrder')::numeric<>trunc((v->>'sortOrder')::numeric)) then raise exception 'INVALID_AREA'; end if;
  if t='records' then
  execute 'select data from public.startoday_records where class_id=$1 and id=$2' into old using c.id,op->>'id';
@@ -83,7 +116,8 @@ begin
  if not(v->>'kind'=any(array['칭찬','지도','관찰','추가기록'])) or jsonb_typeof(v->'studentIds')<>'array' then raise exception 'INVALID_RECORD'; end if;
  end if;
  if t in ('assignmentStates','routineStates') then
- if (v->>'date') !~ '^\d{4}-\d{2}-\d{2}$' or coalesce(v->>'studentId','')='' then raise exception 'INVALID_STATE'; end if;
+ if coalesce(v->>'date','') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' or coalesce(v->>'studentId','')='' then raise exception 'INVALID_STATE'; end if;
+ begin if to_char((v->>'date')::date,'YYYY-MM-DD')<>v->>'date' then raise exception 'INVALID_STATE';end if;exception when datetime_field_overflow or invalid_datetime_format then raise exception 'INVALID_STATE';end;
  if t='assignmentStates' and not(v->>'status'=any(array['진행중','완료','늦게완료','안함','면제'])) then raise exception 'INVALID_STATUS'; end if;
  if t='routineStates' and not(v->>'status'=any(array['진행중','완료','면제'])) then raise exception 'INVALID_STATUS'; end if;
  end if;

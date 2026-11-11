@@ -48,7 +48,7 @@ test('경험치 일괄 이름 교환·순서 변경은 기존 참조를 한 번�
   draft[0].deletedAt = C.now();
   draft.reverse();
   const next = C.applyOps(db, C.areaBatchOps(db, draft));
-  assert.deepEqual(next.records[0].areas, ['과제', '학습태도']);
+  assert.deepEqual(next.records[0].areas, ['과제', '학습']);
   assert.equal(next.records[0].text, '보존');
   assert.equal(next.assignments[0].statArea, '과제');
   assert.equal(next.areas.find(a => a.id === 'area-1').deletedAt, draft.find(a => a.id === 'area-1').deletedAt);

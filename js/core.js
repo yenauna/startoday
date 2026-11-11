@@ -1,4 +1,4 @@
-export const DEFAULT_AREAS = ['학습태도', '과제', '관계', '도전', '생활', '알바'];
+export const DEFAULT_AREAS = ['학습', '과제', '관계', '도전', '생활', '알바'];
 export const KINDS = ['칭찬', '지도', '관찰', '추가기록'];
 export const STATUSES = ['진행중', '완료', '늦게완료', '안함', '면제'];
 export const TABLES = ['students', 'incidents', 'records', 'assignments', 'assignmentStates', 'events', 'routines', 'routineStates', 'subject_rules', 'timetables', 'quests', 'settings', 'attendance', 'areas'];
@@ -174,7 +174,7 @@ export function classStatisticsSummary(database, date = today()) {
     for (const record of score.records) {
       if (record.kind === '칭찬') {
         praise++;
-        for (const area of new Set(record.areas || (record.area ? [record.area] : []))) counts.set(area, (counts.get(area) || 0) + 1);
+        for (const area of recordAreas(record)) counts.set(area, (counts.get(area) || 0) + 1);
       } else if (record.kind === '지도') advice++;
     }
   }
@@ -272,7 +272,7 @@ export function scores(db, s, a, b) {
   const records = db.records.filter(r => r.studentIds.includes(s) && r.date >= a && r.date <= b && !excluded(db, s, r.date));
   return {
     total: records.reduce((n, r) => n + delta(r), 0),
-    areas: Object.fromEntries(areaNames(db, true).map(k => [k, records.filter(r => (r.areas || [r.area]).includes(k)).reduce((n, r) => n + delta(r), 0)])),
+    areas: Object.fromEntries(areaNames(db, true).map(k => [k, records.filter(r => recordAreas(r).includes(k)).reduce((n, r) => n + delta(r), 0)])),
     records
   };
 }
@@ -290,6 +290,7 @@ export function pending(db, s, d) {
   return out;
 }
 export function taskStateOps(db, a, d, s, status, memo = '') {
+  validateTaskDate(d);
   if (!STATUSES.includes(status)) throw Error('올바르지 않은 과제 상태입니다.');
   if (!db.assignments.some(x => x.id === a.id) || !db.students.some(x => x.id === s) || !targeted(a, s)) throw Error('과제 대상 학생을 확인하세요.');
   const id = stateId(a.id, d, s),
@@ -316,8 +317,8 @@ export function taskStateOps(db, a, d, s, status, memo = '') {
       date: d,
       period: '',
       studentIds: [s],
-      areas: a.statArea ? [a.statArea] : [],
-      area: a.statArea || null,
+      areas: a.statArea ? [areaName(a.statArea)] : [],
+      area: a.statArea ? areaName(a.statArea) : null,
       kind: status === '안함' ? '지도' : status === '완료' ? '칭찬' : '관찰',
       text: `${a.title} ${status === '늦게완료' ? '늦게 완료' : status}${memo ? ' (' + memo + ')' : ''}`,
       action: '',
@@ -568,6 +569,7 @@ export function validateBackup(x) {
   if (x.data.settings.length !== 1 || x.data.settings[0].id !== 'main') throw Error('설정 데이터가 올바르지 않습니다.');
   for (const r of x.data.records) if (!Array.isArray(r.studentIds) || !Array.isArray(r.areas) || !KINDS.includes(r.kind) || typeof r.text !== 'string' || typeof r.createdAt !== 'string') throw Error('기록 형식 오류');
   for (const a of x.data.assignments) if (!a.repeat || !['none', 'daily', 'weekly'].includes(a.repeat.type) || !a.date) throw Error('과제 형식 오류');
+  normalizeDB(x.data);
   const d = x.data,
     studentIds = new Set(d.students.map(s => s.id)),
     assignmentIds = new Set(d.assignments.map(a => a.id)),
@@ -606,7 +608,7 @@ export function defaultAreas() {
   }));
 }
 export function areaRows(db, includeDeleted = false) {
-  const rows = Array.isArray(db.areas) && db.areas.length ? db.areas : defaultAreas();
+  const rows = canonicalAreas(db);
   return rows.filter(a => includeDeleted || !a.deletedAt).sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id));
 }
 export function areaNames(db, includeDeleted = false) {
@@ -616,9 +618,16 @@ export function normalizeDB(db) {
   delete db.tags;
   for (const row of db.records || []) delete row.tagIds;
   if (!Array.isArray(db.areas) || !db.areas.length) db.areas = defaultAreas();
+  const ops = areaMigrationOps(db);
+  if (ops.length) {
+    const next = applyOps(db, ops);
+    for (const table of ['areas', 'records', 'assignments']) if (next[table]) db[table] = next[table];
+  }
   return db;
 }
 export function mergeAreaRows(current, incoming) {
+  current = canonicalAreaRows(current);
+  incoming = canonicalAreaRows(incoming);
   const rows = current.map(a => ({
     ...a
   }));
@@ -638,7 +647,7 @@ export function mergeAreaRows(current, incoming) {
   }));
 }
 export function areaEditOps(db, id, name) {
-  name = name.trim();
+  name = areaName(name.trim());
   if (!name) throw Error('영역 이름을 입력하세요.');
   if (areaRows(db, true).some(a => a.id !== id && a.name === name)) throw Error('같은 이름의 영역이 있습니다.');
   const old = areaRows(db, true).find(a => a.id === id);
@@ -657,12 +666,12 @@ export function areaEditOps(db, id, name) {
       ...row
     };
     let changed = false;
-    for (const key of ['area', 'statArea']) if (next[key] === old.name) {
+    for (const key of ['area', 'statArea']) if (areaName(next[key]) === old.name) {
       next[key] = name;
       changed = true;
     }
-    if (next.areas?.includes(old.name)) {
-      next.areas = next.areas.map(a => a === old.name ? name : a);
+    if (next.areas?.some(a => areaName(a) === old.name)) {
+      next.areas = next.areas.map(a => areaName(a) === old.name ? name : areaName(a));
       changed = true;
     }
     if (changed) ops.push({
@@ -817,7 +826,7 @@ export function calendarEvents(db) {
 export function areaBatchOps(db, draft) {
   const rows = draft.map((a, sortOrder) => ({
     ...a,
-    name: a.name.trim(),
+    name: areaName(a.name.trim()),
     sortOrder
   }));
   if (rows.some(a => !a.name) || new Set(rows.map(a => a.name)).size !== rows.length) throw Error('경험치 이름을 비우거나 중복할 수 없습니다.');
@@ -829,8 +838,8 @@ export function areaBatchOps(db, draft) {
     data
   }));
   for (const r of db.records) {
-    const areas = (r.areas || []).map(a => renamed.get(a) || a),
-      area = renamed.get(r.area) || r.area;
+    const areas = recordAreas(r).map(a => renamed.get(a) || a),
+      area = renamed.get(areaName(r.area)) || areaName(r.area);
     if (JSON.stringify(areas) !== JSON.stringify(r.areas || []) || area !== r.area) ops.push({
       table: 'records',
       id: r.id,
@@ -843,12 +852,12 @@ export function areaBatchOps(db, draft) {
       }
     });
   }
-  for (const a of db.assignments) if (renamed.has(a.statArea) && renamed.get(a.statArea) !== a.statArea) ops.push({
+  for (const a of db.assignments) if (renamed.has(areaName(a.statArea)) && renamed.get(areaName(a.statArea)) !== a.statArea) ops.push({
     table: 'assignments',
     id: a.id,
     data: {
       ...a,
-      statArea: renamed.get(a.statArea)
+      statArea: renamed.get(areaName(a.statArea))
     }
   });
   return ops;
@@ -1125,6 +1134,7 @@ export function lunchPosition(config = {}) {
   return [3, 4, 5].includes(Number(config.lunchAfterPeriod)) ? Number(config.lunchAfterPeriod) : 4;
 }
 export function markRemainingUndoneOps(database, assignment, date) {
+  validateTaskDate(date);
   return activeStudents(database).filter(s => targeted(assignment, s.id) && !excluded(database, s.id, date) && assignmentStatus(database, assignment.id, date, s.id) === '진행중').flatMap(s => taskStateOps(database, assignment, date, s.id, '안함', database.assignmentStates.find(st => st.id === stateId(assignment.id, date, s.id))?.memo || ''));
 }
 export function assignmentPolicyOps(database) {
@@ -1133,7 +1143,7 @@ export function assignmentPolicyOps(database) {
     const assignment = database.assignments.find(a => a.id === state.assignmentId);
     if (!assignment || !targeted(assignment, state.studentId) || !database.students.some(s => s.id === state.studentId) || !STATUSES.includes(state.status)) continue;
     const old = database.records.find(r => r.autoRef === state.id),
-      change = taskStateOps(database, assignment, state.date, state.studentId, state.status, state.memo || '').find(op => op.table === 'records');
+      change = isTaskDate(state.date) ? taskStateOps(database, assignment, state.date, state.studentId, state.status, state.memo || '').find(op => op.table === 'records') : null;
     if (!change) continue;
     if (change.remove) {
       ops.push(change);
@@ -1252,4 +1262,102 @@ export function kingdomRecommendation(text, kind = '칭찬') {
 }
 export function kingdomSummary(counts) {
   return `<div class="kingdom-teacher-summary">${kingdomCatalog(counts).map(d => `<div><strong>${d.icon} ${esc(d.label)} · 칭찬 ${d.count}회</strong><span>${d.unlocked.map(t => esc(t.name)).join(' / ') || '아직 획득한 칭호가 없어요'}</span></div>`).join('')}</div>`;
+}
+export function areaName(value) {
+  return value === '학습태도' ? '학습' : value;
+}
+export function recordAreas(record) {
+  return [...new Set((record.areas || (record.area ? [record.area] : [])).map(areaName))];
+}
+export function canonicalAreaRows(rows) {
+  const kept = [];
+  for (const original of [...rows].sort((a, b) => Number(!!a.deletedAt) - Number(!!b.deletedAt) || a.sortOrder - b.sortOrder || a.id.localeCompare(b.id))) {
+    const row = {
+      ...original,
+      name: areaName(original.name)
+    };
+    if (!kept.some(a => a.name === row.name)) kept.push(row);
+  }
+  return kept;
+}
+export function areaMigrationOps(database) {
+  const ops = [],
+    rows = canonicalAreas(database);
+  for (const old of database.areas || []) {
+    const next = rows.find(a => a.id === old.id);
+    if (!next) ops.push({
+      table: 'areas',
+      id: old.id,
+      remove: true
+    });else if (next.name !== old.name) ops.push({
+      table: 'areas',
+      id: old.id,
+      data: next
+    });
+  }
+  for (const row of rows) if (database.areas?.length && !database.areas.some(old => old.id === row.id)) ops.push({
+    table: 'areas',
+    id: row.id,
+    data: row
+  });
+  for (const old of database.records || []) {
+    const areas = recordAreas(old),
+      area = areaName(old.area);
+    if (JSON.stringify(areas) !== JSON.stringify(old.areas || []) || area !== old.area) ops.push({
+      table: 'records',
+      id: old.id,
+      data: {
+        ...old,
+        areas,
+        ...(old.area !== undefined ? {
+          area
+        } : {})
+      }
+    });
+  }
+  for (const old of database.assignments || []) if (areaName(old.statArea) !== old.statArea) ops.push({
+    table: 'assignments',
+    id: old.id,
+    data: {
+      ...old,
+      statArea: areaName(old.statArea)
+    }
+  });
+  return ops;
+}
+export function isTaskDate(value) {
+  return typeof value === 'string' && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value) && value.slice(0, 4) !== '0000' && !!formatDate(value);
+}
+export function validateTaskDate(value) {
+  if (!isTaskDate(value)) throw Error('과제 날짜를 YYYY-MM-DD 형식의 올바른 날짜로 확인하세요.');
+  return value;
+}
+export function quickPeriodChoices(config = {}) {
+  const choices = ['아침'];
+  for (let p = 1; p <= 6; p++) {
+    choices.push(p + '교시');
+    if (p === lunchPosition(config)) choices.push('점심');
+  }
+  return [...choices, '방과후', '쉬는시간'];
+}
+export function areaScoreEntries(areas = {}) {
+  const merged = {};
+  for (const [name, score] of Object.entries(areas)) merged[areaName(name)] = (merged[areaName(name)] || 0) + Number(score || 0);
+  return Object.entries(merged);
+}
+export function canonicalAreas(database) {
+  const original = Array.isArray(database.areas) && database.areas.length ? database.areas : defaultAreas(),
+    rows = canonicalAreaRows(original);
+  if (!rows.some(a => a.name === '학습') && ((database.records || []).some(r => recordAreas(r).includes('학습')) || (database.assignments || []).some(a => areaName(a.statArea) === '학습'))) {
+    let id = 'area-learning',
+      suffix = 0;
+    while (original.some(a => a.id === id)) id = 'area-learning-' + ++suffix;
+    rows.push({
+      id,
+      name: '학습',
+      sortOrder: Math.max(-1, ...rows.map(a => a.sortOrder)) + 1,
+      deletedAt: null
+    });
+  }
+  return rows;
 }

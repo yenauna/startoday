@@ -1,3 +1,4 @@
+import { modal, closeModal } from './modal.js';
 import { render, navigate } from '../app.js';
 import * as C from '../core.js';
 import { db, name, settings } from '../shared/data.js';
@@ -75,7 +76,7 @@ function quickInput() {
   }, 'selection-dismiss')}</div>` : ''}<form class="quick" id="quick-form"><div class="quick-main"><div class="quick-entry-fields">${quickStudentsField()}<textarea id="quick-text" rows="1" aria-label="빠른 기록 입력" placeholder="내용">${esc(quickText)}</textarea></div><div class="chips quick-areas" role="group" aria-label="빠른 기록 경험치 영역">${C.areaNames(db()).map(a => btn(esc(a), () => {
     quickAreas = quickAreas.includes(a) ? quickAreas.filter(x => x !== a) : [...quickAreas, a];
     render();
-  }, 'area-chip' + (quickAreas.includes(a) ? ' selected' : ''), `aria-pressed="${quickAreas.includes(a)}"`)).join('')}</div></div><div id="quick-kingdom" class="kingdom-recommendation" aria-live="polite">${C.kingdomRecommendation(quickText)}</div><div class="quick-controls"><label class="quick-date" title="기록 날짜 선택"><span>📅 ${quickDate === C.today() ? '오늘' : esc(C.formatDate(quickDate))}</span><input type="date" id="quick-date" aria-label="빠른 기록 날짜" value="${esc(quickDate)}" required></label><select id="quick-period" aria-label="교시">${opts([['자동', autoPeriodLabel()], ['', '시간 미지정'], ...C.PERIODS], quickPeriod)}</select><div class="record-actions">${recordButtons(saveQuick)}</div></div></form></div>`;
+  }, 'area-chip' + (quickAreas.includes(a) ? ' selected' : ''), `aria-pressed="${quickAreas.includes(a)}"`)).join('')}</div></div><div id="quick-kingdom" class="kingdom-recommendation" aria-live="polite">${C.kingdomRecommendation(quickText)}</div><div class="quick-controls"><label class="quick-date" title="기록 날짜 선택"><span>📅 ${quickDate === C.today() ? '오늘' : esc(C.formatDate(quickDate))}</span><input type="date" id="quick-date" aria-label="빠른 기록 날짜" value="${esc(quickDate)}" required></label>${btn(quickPeriodLabel(), openQuickPeriod, 'quick-period-toggle', `id="quick-period" value="${esc(quickPeriod)}" aria-haspopup="dialog" aria-label="시간·교시 선택"`)}<div class="record-actions">${recordButtons(saveQuick)}</div></div></form></div>`;
 }
 export function bindQuickInput() {
   const form = $('#quick-form');
@@ -99,8 +100,7 @@ export function bindQuickInput() {
     }
   };
   showQuickStudentResults();
-  const field = $('#quick-text'),
-    period = $('#quick-period');
+  const field = $('#quick-text');
   const resize = () => {
     field.style.height = 'auto';
     field.style.height = field.scrollHeight + 'px';
@@ -113,10 +113,6 @@ export function bindQuickInput() {
     $('#quick-cancel').hidden = !state.selected.length && !quickText;
     updateAutoPeriod();
     resize();
-  };
-  period.onchange = () => {
-    quickPeriod = period.value;
-    updateAutoPeriod();
   };
   $('#quick-date').onchange = e => {
     if (e.target.value) {
@@ -154,15 +150,27 @@ export async function saveQuick(kind) {
     saving = false;
   }
 }
-function autoPeriodLabel() {
-  return '시간자동';
+function quickPeriodLabel() {
+  return '⏰ ' + (quickPeriod === '자동' ? '시간자동' : quickPeriod || '시간 미지정');
+}
+export function openQuickPeriod() {
+  const choose = value => {
+    quickPeriod = value;
+    const button = $('#quick-period');
+    if (button) {
+      button.value = value;
+      button.textContent = quickPeriodLabel();
+    }
+    closeModal();
+    updateAutoPeriod();
+  };
+  modal('시간·교시 선택', `<div class="quick-period-options">${[['자동', '시간 자동 (현재 시간 자동 매칭)'], ['', '시간 미지정']].map(([value, label]) => btn(label, () => choose(value), 'period-card' + (quickPeriod === value ? ' selected' : ''), `data-period-value="${value}" aria-pressed="${quickPeriod === value}"`)).join('')}</div><div class="quick-period-card-grid">${C.quickPeriodChoices(settings()).map(value => btn(value, () => choose(value), 'period-card' + (quickPeriod === value ? ' selected' : ''), `data-period-value="${value}" aria-pressed="${quickPeriod === value}"`)).join('')}</div>`);
 }
 function updateAutoPeriod() {
-  const option = $('#quick-period option[value="자동"]');
-  if (option && db()) {
-    option.textContent = autoPeriodLabel();
+  const button = $('#quick-period');
+  if (button && db()) {
     const inferred = C.inputPeriod(quickText, settings());
-    $('#quick-period').title = quickPeriod === '자동' ? '시간자동' + (inferred ? ' · ' + inferred : '') : quickPeriod ? '직접 선택 · ' + quickPeriod : '시간 미지정';
+    button.title = quickPeriod === '자동' ? '시간자동' + (inferred ? ' · ' + inferred : '') : quickPeriod ? '직접 선택 · ' + quickPeriod : '시간 미지정';
   }
 }
 setInterval(updateAutoPeriod, 60000);

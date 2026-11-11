@@ -1,4 +1,4 @@
-import { TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps } from './core.js';
+import { TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps } from './core.js';
 export class Store {
   constructor() {
     this.db = null;
@@ -215,10 +215,11 @@ export class Store {
       classGroup: config.classGroup || '1',
       defaultStudentPassword: config.defaultStudentPassword || '바람123'
     });
+    const areaMigration = areaMigrationOps(this.db);
     normalizeDB(this.db);
     const policy = assignmentPolicyOps(this.db);
     if (policy.length) this.db = applyOps(this.db, policy);
-    if (created || policy.length) {
+    if (created || policy.length || areaMigration.length) {
       try {
         localStorage.setItem('startoday-demo-v1', JSON.stringify(this.db));
         this.publishSync();
@@ -235,6 +236,7 @@ export class Store {
     this.classId = data.class_id;
     this.revision = data.revision;
     const seedAreas = Array.isArray(data.data.areas) && data.data.areas.length === 0;
+    const areaMigration = areaMigrationOps(data.data);
     this.db = normalizeDB(data.data);
     if (!this.db.settings.length) {
       const seed = initialDB();
@@ -250,6 +252,7 @@ export class Store {
         data: row
       })));
     }
+    if (areaMigration.length && !this.busy) await this.commit(areaMigration);
     const policy = assignmentPolicyOps(this.db);
     if (policy.length && !this.busy) await this.commit(policy);
     return this.db;

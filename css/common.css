@@ -959,3 +959,11 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .kingdom-domain progress::-webkit-progress-bar { background:#e5dfeb; border-radius:999px; }
 .kingdom-domain progress::-webkit-progress-value { background:linear-gradient(90deg,#cfa34d,#a87b32); border-radius:999px; }
 .kingdom-domain progress::-moz-progress-bar { background:#b58b3f; border-radius:999px; }
+
+.quick-controls .quick-period-toggle { flex:0 0 auto; padding:5px 9px; min-height:34px; font-size:12px; white-space:nowrap; }
+.quick-period-options { display:grid; gap:8px; margin-bottom:14px; }
+.quick-period-card-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
+.period-card { min-height:48px; padding:10px 8px; border:1px solid #dce2ec; border-radius:12px; background:#f6f7fb; color:var(--st-text); box-shadow:none; }
+.period-card.selected { background:var(--st-blue-bg); color:var(--st-blue-text); outline:2px solid #365c85; outline-offset:-2px; font-weight:700; }
+.period-card:hover,.period-card:focus-visible { border-color:#365c85; box-shadow:var(--st-shadow-1); }
+@media(max-width:480px){.quick-controls .quick-period-toggle{padding:5px 6px;font-size:12px}.quick-period-card-grid{gap:7px}.period-card{min-height:46px;padding:8px 6px;font-size:13px}}
