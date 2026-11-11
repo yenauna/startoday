@@ -213,7 +213,8 @@ export function studentCalendarData(database, id) {
       description: e.description || '',
       period: e.period,
       timeOfDay: e.timeOfDay,
-      isDday: !!e.isDday
+      isDday: !!e.isDday,
+      isImportant: e.isImportant !== false
     }))
   };
 }

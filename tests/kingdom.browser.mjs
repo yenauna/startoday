@@ -155,9 +155,9 @@ try {
     name: '👁️ 학생 화면으로 보기',
     exact: true
   }).click();
-  assert.equal(await page.locator('.student-shell [data-equipped-title=resident]').count(), 2);
+  assert.equal(await page.locator('.student-shell [data-equipped-title=resident]').count(), 1);
   await page.getByRole('button', {
-    name: '👑 별 왕국 칭호 도감',
+    name: '칭호도감',
     exact: true
   }).click();
   assert.equal(await page.locator('#modal .kingdom-domain').count(), 6);
@@ -209,9 +209,9 @@ try {
   await page.locator('#modal input[name=password]').fill('한글암호7');
   await page.locator('#modal button[type=submit]').click();
   await page.locator('.student-shell').waitFor();
-  assert.equal(await page.locator('.student-shell [data-equipped-title="jobs:3"]').count(), 2);
+  assert.equal(await page.locator('.student-shell [data-equipped-title="jobs:3"]').count(), 1);
   await page.getByRole('button', {
-    name: '👑 별 왕국 칭호 도감',
+    name: '칭호도감',
     exact: true
   }).click();
   await page.locator('[data-equip-title="learning:1"]').click();

@@ -51,12 +51,21 @@ export function economyView() {
   }, economyTeacherTab === 'shop' ? 'active' : '')}</nav>${economyTeacherTab === 'assets' ? `<section class="panel"><div class="table-wrap"><table><thead><tr><th>번호</th><th>이름</th><th>별명</th><th>현재 잔액</th><th>보유 아이템</th><th>관리</th></tr></thead><tbody>${list.map(s => `<tr><td>${esc(s.no)}</td><td>${esc(s.name)}</td><td>${esc(s.nickname || '')}</td><td>★ ${C.studentBalance(data, s.id)}</td><td>${C.studentHoldings(data, s.id).length}개</td><td>${btn('선물하기', () => economyGiftDialog(s))}${btn('지급/차감', () => economyAdjustDialog(s))}</td></tr>`).join('')}</tbody></table></div></section>` : `<section class="panel"><div class="toolbar">${btn('환불 허용: ' + (data.settings[0].allowRefund !== false ? '켜짐' : '꺼짐'), () => commit([up('settings', {
     ...data.settings[0],
     allowRefund: data.settings[0].allowRefund === false
-  })]))}${btn('새 물품/쿠폰 등록', () => economyItemDialog())}</div><div class="economy-grid">${(data.shop_items || []).filter(i => !i.deletedAt).map(i => economyItemCard(i, btn('수정', () => economyItemDialog(i)) + btn('삭제', async () => {
+  })]))}${btn('새 물품/쿠폰 등록', () => economyItemDialog())}</div>${economyGroupedItems((data.shop_items || []).filter(i => !i.deletedAt), i => btn('수정', () => economyItemDialog(i)) + btn('삭제', async () => {
     if (confirm('상점에서 이 물품을 삭제할까요? 기존 구매 내역은 유지됩니다.')) await commit([up('shop_items', {
       ...i,
       deletedAt: C.now()
     })]);
-  }))).join('')}</div></section>`}<section class="panel"><h3>최근 학급 경제 거래</h3>${economyHistory((data.economy_tx || []).slice(-100), true)}</section>`;
+  }))}</section>`}<section class="panel"><h3>최근 학급 경제 거래</h3>${economyHistory((data.economy_tx || []).slice(-100), true)}</section>`;
+}
+function economyGroupedItems(items, actions) {
+  const groups = new Map();
+  for (const item of items) {
+    const category = item.category?.trim() || '기타';
+    if (!groups.has(category)) groups.set(category, []);
+    groups.get(category).push(item);
+  }
+  return [...groups].map(([category, rows]) => `<section class="economy-category"><h3 class="economy-category-title">${esc(category)}</h3><div class="economy-grid economy-shop-grid">${rows.map(item => economyItemCard(item, actions(item))).join('')}</div></section>`).join('') || '<p class="muted">등록된 상품이 없습니다.</p>';
 }
 function economyItemCard(item, actions = '') {
   return `<article class="economy-item"><span class="badge">${esc(item.category)}</span><h3>${esc(item.name)}</h3><strong>★ ${esc(item.price)}별코인</strong><p>${item.stock === null ? '무한대' : item.stock === 0 ? '품절' : esc(item.stock) + '개 남음'}</p><div class="row">${actions}</div></article>`;
@@ -96,5 +105,5 @@ export function studentEconomyView(data, tab, category, changeTab, changeCategor
   const tx = data.transactions || [],
     items = data.items || [],
     categories = ['전체', ...new Set(items.map(i => i.category))];
-  return `<section class="student-card economy-wallet"><h2>내 지갑</h2><strong>★ ${esc(data.balance)}별코인</strong></section><nav class="economy-subtabs">${btn('내 자산', () => changeTab('assets'), tab === 'assets' ? 'active' : '')}${btn('상점', () => changeTab('shop'), tab === 'shop' ? 'active' : '')}</nav>${tab === 'assets' ? `<section class="student-card"><h2>내가 가진 쿠폰·물품</h2><div class="economy-grid">${tx.filter(t => t.status === '보유' && ['구매', '선물'].includes(t.type)).map(t => `<article class="economy-item"><h3>${esc(t.itemName)}</h3><small>${esc(economyDate(t.createdAt))} · ${esc(t.type)}</small><div class="row">${btn('사용하기', () => act('use', t.id, t.itemName))}${data.allowRefund && t.type === '구매' ? btn('환불', () => act('refund', t.id, t.itemName)) : ''}</div></article>`).join('') || '<p class="muted">아직 보유한 물품이 없어요.</p>'}</div><h3>내 거래 내역</h3>${economyHistory(tx)}</section>` : `<section class="student-card"><nav class="economy-subtabs">${categories.map(c => btn(esc(c), () => changeCategory(c), c === category ? 'active' : '')).join('')}</nav><div class="economy-grid">${items.filter(i => category === '전체' || i.category === category).map(i => economyItemCard(i, btn(i.stock === 0 ? '품절' : data.balance < i.price ? '잔액 부족' : '구매하기', () => act('buy', i.id, i.name), '', i.stock === 0 || data.balance < i.price ? 'disabled' : ''))).join('')}</div></section>`}`;
+  return `<section class="student-card economy-wallet"><h2>내 지갑</h2><strong>★ ${esc(data.balance)}별코인</strong></section><nav class="economy-subtabs">${btn('내 자산', () => changeTab('assets'), tab === 'assets' ? 'active' : '')}${btn('상점', () => changeTab('shop'), tab === 'shop' ? 'active' : '')}</nav>${tab === 'assets' ? `<section class="student-card"><h2>내가 가진 쿠폰·물품</h2><div class="economy-grid">${tx.filter(t => t.status === '보유' && ['구매', '선물'].includes(t.type)).map(t => `<article class="economy-item"><h3>${esc(t.itemName)}</h3><small>${esc(economyDate(t.createdAt))} · ${esc(t.type)}</small><div class="row">${btn('사용하기', () => act('use', t.id, t.itemName))}${data.allowRefund && t.type === '구매' ? btn('환불', () => act('refund', t.id, t.itemName)) : ''}</div></article>`).join('') || '<p class="muted">아직 보유한 물품이 없어요.</p>'}</div><h3>내 거래 내역</h3>${economyHistory(tx)}</section>` : `<section class="student-card"><nav class="economy-subtabs">${categories.map(c => btn(esc(c), () => changeCategory(c), c === category ? 'active' : '')).join('')}</nav>${economyGroupedItems(items.filter(i => category === '전체' || i.category === category), i => btn(i.stock === 0 ? '품절' : data.balance < i.price ? '잔액 부족' : '구매하기', () => act('buy', i.id, i.name), '', i.stock === 0 || data.balance < i.price ? 'disabled' : ''))}</section>`}`;
 }

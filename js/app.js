@@ -50,6 +50,7 @@ export function render() {
     document.querySelector('.print-root')?.remove();
     document.body.classList.remove('report-open');
     $('#app').innerHTML = renderStudentShell();
+    window.scrollTo?.(0, 0);
     return;
   }
   if (state.locked) return;

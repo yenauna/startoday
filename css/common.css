@@ -984,3 +984,12 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .economy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:12px}
 .economy-item{min-width:0;border:1px solid #dbe2ec;border-radius:16px;background:var(--st-surface,#fff);padding:16px;overflow-wrap:anywhere}.economy-item h3{margin:10px 0}.economy-item .row{margin-top:12px;flex-wrap:wrap}.economy-wallet strong{font-size:28px;color:var(--st-blue-text)}.student-economy{display:grid;gap:12px}.demo-reset{margin-bottom:10px}
 @media(max-width:480px){.sticky-navigation .tabs{overflow-x:auto;justify-content:flex-start;flex-wrap:nowrap}.sticky-navigation .tabs button{flex:0 0 auto}.economy-item{padding:12px}}
+
+/* Compact student profile and grouped shop; transaction controls are unchanged. */
+.student-header .student-profile-edit{padding:2px 6px;min-height:26px;font-size:14px;box-shadow:none;background:transparent;border:0;margin-left:5px;vertical-align:baseline}
+.student-character-space{min-height:64px}.student-growth .compact-codex{padding:5px 10px;font-size:12px;min-height:30px;box-shadow:none}
+.economy-category{margin:14px 0}.economy-category-title{font-size:15px;margin:0 0 8px}.economy-shop-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.economy-shop-grid .economy-item{padding:10px;border-radius:12px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0}
+.economy-shop-grid .economy-item .badge{font-size:10px;padding:2px 6px}.economy-shop-grid .economy-item h3{font-size:14px;line-height:1.4;margin:0;overflow-wrap:anywhere}.economy-shop-grid .economy-item strong{font-size:13px}.economy-shop-grid .economy-item p{font-size:12px;margin:0;color:var(--st-text-muted)}
+.economy-shop-grid .economy-item .row{margin-top:auto;padding-top:3px;gap:4px}.economy-shop-grid .economy-item button{padding:5px 8px;font-size:12px;min-height:30px}
+@media(max-width:640px){.economy-shop-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

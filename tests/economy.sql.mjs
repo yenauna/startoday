@@ -15,6 +15,8 @@ const d=C.initialDB();Object.assign(d.settings[0],{schoolName:'경제초등학�
 d.records=Array.from({length:10},(_,i)=>({id:'r'+i,studentIds:['s1'],kind:'칭찬',areas:['학습'],date:C.today(),text:'비공개예시',createdAt:C.now()}));d.shop_items=[{id:C.uid(),category:'쿠폰',name:'구매물품',price:50,stock:2},{id:C.uid(),category:'혜택',name:'무한물품',price:0,stock:null},{id:C.uid(),category:'물품',name:'품절물품',price:1,stock:0}];
 async function commit(ops){const before=await snap();await pg.query('select public.startoday_commit($1,$2,$3::jsonb)',[cid,before.revision,JSON.stringify(ops)]);}
 await commit(C.TABLES.flatMap(table=>d[table].map(data=>({table,id:data.id,data}))));
+d.events=[{id:'legacy',date:C.today(),title:'기존 일정'},{id:'normal',date:C.today(),title:'일반 안내',isImportant:false},{id:'important',date:C.today(),title:'중요 안내',isImportant:true}];
+await commit(d.events.map(data=>({table:'events',id:data.id,data})));
 const item=d.shop_items[0].id;
 async function studentRpc(action,target,no=1,password='나만암호7'){return (await pg.query(`select public.startoday_shop_${action}($1,$2,$3,$4,$5,$6) as data`,['경제초등학교','5','햇살',no,password,target])).rows[0].data;}
 async function ownerAction(action,student='s1',target=null,amount=0,memo=''){return (await pg.query('select public.startoday_economy_action($1,$2,$3,$4,$5,$6) as data',[cid,student,action,target,amount,memo])).rows[0].data;}
@@ -25,6 +27,7 @@ await assert.rejects(()=>pg.query('select public.startoday_coin_balance($1,$2)',
 assert.equal(await studentRpc('buy',item,3,'바람123'),null);
 assert.equal(await studentRpc('buy',item,1,'틀린암호7'),null);
 let result=await studentRpc('buy',item);assert.equal(result.snapshot.economy.balance,50);assert.equal(result.snapshot.economy.items.find(i=>i.id===item).stock,1);assert.equal(result.snapshot.economy.transactions.length,1);assert.ok(!JSON.stringify(result.snapshot.economy).includes('비공개지급사유'));assert.ok(!JSON.stringify(result.snapshot.economy).includes('나만암호7'));
+assert.deepEqual(Object.fromEntries(result.snapshot.calendar.events.map(e=>[e.title,e.isImportant])),{'기존 일정':true,'일반 안내':false,'중요 안내':true});
 const tx=result.snapshot.economy.transactions[0].id,revision=result.revision;
 await assert.rejects(()=>studentRpc('refund',tx,2,'다른암호7'),/INVALID_HOLDING/);
 await assert.rejects(()=>studentRpc('use',tx,2,'다른암호7'),/INVALID_HOLDING/);
