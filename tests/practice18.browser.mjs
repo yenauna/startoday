@@ -97,14 +97,14 @@ try {
     exact: true
   }).click();
   assert.equal(await page.locator('.student-stars').count(), 0);
-  assert.equal(await page.locator('.student-growth .kingdom-title-button').count(), 0);
+  assert.equal(await page.locator('.student-profile-card .kingdom-title-button').count(), 1);
   assert.equal(await page.getByRole('button', {
-    name: '칭호도감',
+    name: '칭호 도감 ›',
     exact: true
   }).count(), 1);
-  assert.equal(await page.locator('.student-header .student-profile-edit').count(), 1);
-  assert.equal(await page.locator('.student-growth .student-nickname-open').count(), 0);
-  assert.ok((await page.locator('.student-character-space').boundingBox()).height >= 64);
+  assert.equal(await page.locator('.student-profile-card .student-profile-edit').count(), 1);
+  assert.equal(await page.locator('.student-profile-card .student-nickname-open').count(), 1);
+  assert.equal(await page.locator('.student-character-space').count(), 0);
   const date = await page.evaluate(() => window.detailDate),
     cell = page.locator(`[data-calendar-date="${date}"]`);
   assert.equal(await cell.locator('.student-calendar-pill').filter({
@@ -126,7 +126,7 @@ try {
   });
   assert.equal(await page.evaluate(() => scrollY), 0);
   await page.getByRole('button', {
-    name: '칭호도감',
+    name: '칭호 도감 ›',
     exact: true
   }).click();
   assert.ok(!(await page.locator('#modal').innerText()).includes('키워드가 아닌'));

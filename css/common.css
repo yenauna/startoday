@@ -993,3 +993,28 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .economy-shop-grid .economy-item .badge{font-size:10px;padding:2px 6px}.economy-shop-grid .economy-item h3{font-size:14px;line-height:1.4;margin:0;overflow-wrap:anywhere}.economy-shop-grid .economy-item strong{font-size:13px}.economy-shop-grid .economy-item p{font-size:12px;margin:0;color:var(--st-text-muted)}
 .economy-shop-grid .economy-item .row{margin-top:auto;padding-top:3px;gap:4px}.economy-shop-grid .economy-item button{padding:5px 8px;font-size:12px;min-height:30px}
 @media(max-width:640px){.economy-shop-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* A compact profile: replace the image source without changing layout or data. */
+.student-header .student-site-name{flex:1;color:var(--st-text);font-size:16px}
+.student-dashboard .student-profile-card{padding:18px;background:#fffcf6;border:1px solid #e7e4ee;border-radius:22px;box-shadow:0 3px 12px rgba(40,50,71,.06)}
+.student-profile-main{display:grid;grid-template-columns:minmax(0,32%) minmax(0,1fr);gap:18px;align-items:center}
+.student-profile-art{display:grid;place-items:center;align-self:center;justify-self:center;max-width:180px;width:100%;background:#eeebfc;border-radius:48% 52% 46% 54%;padding:10px;min-width:0}
+.student-profile-image{display:block;width:100%;height:auto;max-height:230px;object-fit:contain;border-radius:0}
+.student-profile-info{min-width:0;color:var(--st-text);overflow-wrap:anywhere}
+.student-profile-class{display:block;color:var(--st-text-muted);font-size:12px;line-height:1.4}
+.student-profile-name{font-size:clamp(20px,3vw,28px);line-height:1.25;margin:3px 0 5px;font-weight:800}
+.student-profile-nickname{display:flex;align-items:center;gap:4px;min-width:0;font-size:13px;color:var(--st-blue-text);line-height:1.4}
+.student-profile-nickname>span{min-width:0;overflow-wrap:anywhere}
+.student-profile-card .student-profile-edit{display:inline-flex;align-items:center;justify-content:center;flex:0 0 40px;width:40px;min-height:40px;padding:6px;background:transparent;box-shadow:none;color:var(--st-blue-text);border:0}
+.student-profile-card .kingdom-title-button{display:block;min-height:40px;max-width:100%;margin:0;padding:4px 0;white-space:normal}
+.student-profile-card .kingdom-badge{white-space:normal;overflow-wrap:anywhere;line-height:1.5;text-align:left}
+.student-profile-score{display:flex;align-items:baseline;gap:6px;border-top:1px solid #e3e2e9;padding-top:10px;margin-top:5px}
+.student-profile-star{color:#d99718;font-size:22px;flex:0 0 auto}
+.student-profile-score h2{display:flex;align-items:baseline;flex-wrap:wrap;gap:3px 6px;font-size:14px;line-height:1.45;margin:0;min-width:0}
+.student-profile-score strong{font-size:clamp(26px,4vw,36px);line-height:1.2;overflow-wrap:anywhere;font-weight:800}
+.student-profile-score strong span{font-size:16px;margin-left:2px}
+.student-profile-card .compact-codex{font-size:12px;padding:5px 10px;min-height:40px;color:var(--st-blue-text);background:transparent;border:1px solid #c8d8ec;box-shadow:none;margin-top:7px;white-space:normal}
+.student-profile-areas{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));margin-top:16px;border-radius:14px;background:#eaf3ff;overflow:hidden}
+.student-profile-areas>div{display:flex;flex-wrap:wrap;justify-content:center;gap:3px;padding:9px 5px;font-size:12px;color:var(--st-blue-text);line-height:1.4;min-width:0;overflow-wrap:anywhere}
+.student-profile-areas>div+div{border-left:1px solid #d1e1f4}
+@media(max-width:600px){.student-dashboard .student-profile-card{padding:14px}.student-profile-main{gap:12px}.student-profile-areas{grid-template-columns:repeat(3,minmax(0,1fr))}.student-profile-areas>div:nth-child(4){border-left:0}.student-profile-areas>div:nth-child(n+4){border-top:1px solid #d1e1f4}}

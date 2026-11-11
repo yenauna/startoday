@@ -108,9 +108,9 @@ try {
   assert.equal(await page.locator('#modal input[name=nickname]').inputValue(), '별');
   await page.locator('#modal input[name=nickname]').fill('반짝별');
   await page.locator('#modal button[type=submit]').click();
-  assert((await page.locator('.student-header').textContent()).includes('"반짝별"'));
+  assert.equal(await page.locator('.student-profile-nickname>span').textContent(), '반짝별');
   await page.getByRole('button', {
-    name: '칭호도감',
+    name: '칭호 도감 ›',
     exact: true
   }).click();
   assert.equal(await page.locator('#modal .kingdom-domain').count(), 6);
@@ -222,7 +222,7 @@ try {
   }).textContent()).includes('2/3'));
   assert.equal(await page.locator('.quest-stamp-board .is-stamped').count(), 2);
   await page.getByRole('button', {
-    name: '칭호도감',
+    name: '칭호 도감 ›',
     exact: true
   }).click();
   assert((await page.locator('#modal [data-kingdom-domain=learning]').textContent()).includes('칭찬 45회 · 1/3단계'));
