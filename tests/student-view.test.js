@@ -292,3 +292,13 @@ test('학생 일정은 종일 행사와 D-day를 포함하고 확인자 전용 �
 test('학생 달력 상세는 처음엔 접히고 날짜를 직접 선택했을 때만 표시',()=>{
  const f=fixture(),date=C.today();f.source.assignments=[{id:'a',title:'오늘 과제',date,repeat:{type:'none'},target:'all'}];f.context.previewStudent('one');let html=f.context.renderStudentShell();assert(html.includes('날짜를 선택하면 해당 일자의 과제와 일정을 볼 수 있어요'));assert(!html.includes('<div class="student-calendar-detail"><h3>'));f.buttons.find(b=>b.label.startsWith(`<strong>${Number(date.slice(-2))}</strong>`) && b.label.includes('오늘 과제')).callback();html=f.context.renderStudentShell();assert(html.includes('<div class="student-calendar-detail"><h3>'));
 });
+
+test('클라우드 칭호 변경은 학생 인증 RPC만 사용하고 교사 저장·비밀번호 노출 없이 안전한 화면을 갱신',async()=>{
+ const f=fixture(),date=C.today();f.source.records=Array.from({length:3},(_,i)=>({id:'k'+i,date,kind:'칭찬',studentIds:['one'],text:'독서',createdAt:C.now()}));
+ const snapshot=f.context.studentSnapshot(f.source,f.source.students[0],date),requests=[],signals=[];
+ f.context.kingdomCards=()=>'';f.store.mode='none';f.store.db=null;f.store.signalChange=(...args)=>signals.push(args);f.store.commit=()=>{throw Error('teacher write forbidden');};
+ f.store.client={rpc:async(method,args)=>{requests.push({method,args});if(method==='startoday_student_login')return{data:{...snapshot,mustChangePassword:false}};assert.equal(method,'startoday_student_title_set');assert.equal(args.p_password,'푸른바람7');assert.equal(args.p_title,'reading:1');return{data:{classId:'class',revision:7,snapshot:{...snapshot,student:{...snapshot.student,equippedTitle:'reading:1'}}}};}};
+ f.context.studentLoginDialog();await f.dialog.submit(new Map([['schoolName','체험초등학교'],['schoolCode',''],['grade','5'],['classGroup','1'],['no','1'],['password','푸른바람7']]));
+ await f.context.equipStudentTitle('reading:1');assert.equal(f.state.studentSnapshot.student.equippedTitle,'reading:1');assert.equal(requests.length,2);assert.equal(signals[0][0],'cloud');assert.equal(signals[0][2],7);assert(!JSON.stringify(f.state.studentSnapshot).includes('password'));assert.equal(f.store.db,null);
+});
+test('교사 대리 접속 칭호 변경은 기존 저장 경로를 사용하고 미획득 칭호는 차단',async()=>{const f=fixture(),date=C.today();f.context.kingdomCards=()=>'';f.context.localStorage={getItem:()=>null};f.source.records=Array.from({length:3},(_,i)=>({id:'r'+i,date,kind:'칭찬',studentIds:['one'],text:'청소'}));f.context.previewStudent('one');await f.context.equipStudentTitle('cleaning:1');assert.equal(f.store.db.students[0].equippedTitle,'cleaning:1');assert.equal(f.state.impersonatingStudentId,'one');await assert.rejects(f.context.equipStudentTitle('reading:3'),/획득/);assert.equal(f.store.db.students[0].equippedTitle,'cleaning:1');});

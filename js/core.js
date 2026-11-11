@@ -1170,3 +1170,86 @@ export function quickRecordContext(database, text, date, choice = '자동') {
     } : {})
   };
 }
+
+// Kingdom achievements count praise records, independently of scores and XP names.
+export const KINGDOM_THRESHOLDS = [3, 7, 15];
+export const KINGDOM_DOMAINS = [['reading', '독서·도서관', '📚', ['책탑의 사서', '지혜의 기록관', '별빛 대서고의 현자'], ['독서', '책 읽기', '아침 독서', '도서관', '대출', '반납', '책 정리', '책 소개', '독후감']], ['cleaning', '청소·환경', '🌳', ['숲길의 정령사', '초록숲의 수호자', '생명의 숲 대정령사'], ['청소', '쓸기', '닦기', '쓰레기', '분리수거', '분리배출', '바닥 정리', '사물함 정리', '환경 정돈']], ['preparation', '수업준비·시간', '⏳', ['새벽의 길잡이', '시간의 마법사', '별의 시간 대마법사'], ['수업 준비', '준비물', '교과서', '공책 꺼내기', '필통', '시간 지키기', '등교 시간', '제시간', '착석']], ['writing', '글쓰기·공책', '🪶', ['깃펜의 서기관', '이야기의 연금술사', '별의 이야기 창조자'], ['글쓰기', '공책 정리', '필기', '배운 내용', '생각 쓰기', '논설문', '일기', '문장', '글 고쳐쓰기']], ['kindness', '사과·고운말', '💝', ['마음의 치유사', '화합의 음유시인', '별의 화합 대사'], ['사과', '미안', '잘못 인정', '화해', '고운 말', '바른 말', '다정한 말', '위로', '배려', '존중', '감사', '고맙']], ['fitness', '체력·운동', '🌬️', ['바람의 모험가', '질풍의 기사', '폭풍을 넘는 챔피언'], ['체육', '운동', '달리기', '줄넘기', '스트레칭', '던지기', '받기', '연습', '끝까지 도전', '체력']], ['safety', '규칙·안전', '🛡️', ['성문의 파수꾼', '약속의 수호기사', '별 왕국의 수호대장'], ['규칙 지키기', '약속 지키기', '안전 수칙', '복도에서 걷기', '줄 서기', '차례', '질서', '조심']]].map(([id, label, icon, titles, keywords]) => ({
+  id,
+  label,
+  icon,
+  titles,
+  keywords
+}));
+export function kingdomMatches(text = '') {
+  const body = String(text).replace(/\s+/g, '');
+  return KINGDOM_DOMAINS.filter(d => d.keywords.some(word => body.includes(word.replace(/\s+/g, '')))).map(d => d.id);
+}
+export function kingdomCounts(database, studentId, to = today()) {
+  const counts = Object.fromEntries(KINGDOM_DOMAINS.map(d => [d.id, 0]));
+  for (const record of database.records) {
+    if (record.kind !== '칭찬' || !record.studentIds?.includes(studentId) || !record.date || record.date > to || excluded(database, studentId, record.date)) continue;
+    let text = record.text;
+    const subjectPrefix = record.subjectCode ? '[' + record.subjectCode + ']' : null;
+    if (subjectPrefix && String(text).startsWith(subjectPrefix)) text = String(text).slice(subjectPrefix.length);
+    if (record.autoRef != null) {
+      const status = database.assignmentStates.find(s => s.id === record.autoRef && s.studentId === studentId),
+        assignment = database.assignments.find(a => a.id === status?.assignmentId);
+      if (!assignment || assignment.noStar || status.status !== '완료') continue;
+      text = assignment.title;
+    }
+    for (const id of kingdomMatches(text)) counts[id]++;
+  }
+  return counts;
+}
+export function kingdomCatalog(counts = {}) {
+  return KINGDOM_DOMAINS.map(domain => {
+    const count = Math.max(0, Number(counts?.[domain.id]) || 0),
+      stage = KINGDOM_THRESHOLDS.filter(n => count >= n).length,
+      next = KINGDOM_THRESHOLDS[stage] || null;
+    return {
+      ...domain,
+      count,
+      stage,
+      next,
+      remaining: next === null ? 0 : next - count,
+      current: stage ? domain.titles[stage - 1] : '아직 획득한 칭호가 없어요',
+      unlocked: domain.titles.slice(0, stage).map((name, i) => ({
+        id: domain.id + ':' + (i + 1),
+        name,
+        icon: domain.icon
+      }))
+    };
+  });
+}
+export function kingdomEquipped(student, counts) {
+  return kingdomCatalog(counts).flatMap(d => d.unlocked).find(t => t.id === (student?.equippedTitle ?? student?.equipped_title)) || {
+    id: null,
+    name: '별의 주민',
+    icon: '🌱'
+  };
+}
+export function studentTitleOps(database, studentId, titleId) {
+  const student = activeStudents(database).find(s => s.id === studentId);
+  if (!student) throw Error('학생을 확인하세요.');
+  if (titleId && !kingdomCatalog(kingdomCounts(database, studentId)).some(d => d.unlocked.some(t => t.id === titleId))) throw Error('획득한 칭호만 장착할 수 있습니다.');
+  return [{
+    table: 'students',
+    id: student.id,
+    data: {
+      ...student,
+      equippedTitle: titleId || null,
+      updatedAt: now()
+    }
+  }];
+}
+export function kingdomBadge(student, counts) {
+  const title = kingdomEquipped(student, counts);
+  return `<span class="kingdom-badge" data-equipped-title="${esc(title.id || 'resident')}">${title.icon} ${esc(title.name)}</span>`;
+}
+export function kingdomRecommendation(text, kind = '칭찬') {
+  const matches = kind === '칭찬' ? kingdomMatches(text) : [];
+  return `<span class="kingdom-recommend-label">👑 칭호 추천</span><span class="kingdom-recommend-chips">${KINGDOM_DOMAINS.map(d => `<span class="kingdom-recommend-chip ${matches.includes(d.id) ? 'is-recommended' : ''}" data-kingdom-domain="${d.id}">${d.icon} ${esc(d.label)}</span>`).join('')}</span><small>칭찬 저장 시 감지 영역마다 1회 집계</small>`;
+}
+export function kingdomSummary(counts) {
+  return `<div class="kingdom-teacher-summary">${kingdomCatalog(counts).map(d => `<div><strong>${d.icon} ${esc(d.label)} · 칭찬 ${d.count}회</strong><span>${d.unlocked.map(t => esc(t.name)).join(' / ') || '아직 획득한 칭호가 없어요'}</span></div>`).join('')}</div>`;
+}

@@ -925,3 +925,37 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-praise .record-content-line { margin-top:5px; }
 .student-praise .record-content-line .body { font-size:inherit; }
 .student-timetable-card>.timeline-slot { margin:4px 0; flex-direction:row; flex-wrap:wrap; align-items:baseline; gap:4px 8px; }
+
+/* Star Kingdom: a separate praise-count collection, never a replacement for XP. */
+.kingdom-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border-radius:12px; background:#fff4d4; color:#78561b; font-size:12px; font-weight:700; max-width:100%; overflow-wrap:anywhere; }
+.kingdom-title-button { padding:0; background:transparent; box-shadow:none; margin:4px 4px 4px 0; text-align:left; }
+.kingdom-title-button:hover .kingdom-badge,.kingdom-title-button:focus-visible .kingdom-badge { outline:2px solid #b88a35; }
+.student-kingdom { margin:4px 0; }
+.kingdom-recommendation { display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin:5px 0; font-size:11px; }
+.kingdom-recommendation small { color:var(--st-text-muted); font-size:10px; }
+.kingdom-recommend-chips { display:flex; flex-wrap:wrap; gap:4px; }
+.kingdom-recommend-chip { padding:3px 6px; border-radius:9px; border:1px solid #e1e5ed; color:var(--st-text-muted); background:#f6f7fa; }
+.kingdom-recommend-chip.is-recommended { background:#fff0ba; border-color:#d6ab42; color:#73500c; font-weight:700; }
+.kingdom-catalog { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
+.kingdom-domain { min-width:0; padding:16px; border-radius:18px; background:linear-gradient(140deg,#fffdf5,#f4f1fc); border:1px solid #e8e0ce; }
+.kingdom-domain h3 { margin:0 0 8px; }
+.kingdom-domain>strong,.kingdom-domain>small { display:block; margin:5px 0; }
+.kingdom-domain progress { width:100%; height:10px; accent-color:#b08a35; }
+.kingdom-domain p { font-size:12px; color:var(--st-text-muted); }
+.kingdom-domain ol { list-style:none; padding:0; margin:0; }
+.kingdom-domain li { display:flex; flex-direction:column; align-items:flex-start; gap:5px; padding:9px 0; border-top:1px solid #e5dfeb; }
+.kingdom-domain .is-locked { color:var(--st-text-muted); }
+.kingdom-domain li button { font-size:12px; padding:5px 9px; }
+.kingdom-domain .kingdom-equipped { background:#fff0ba; color:#73500c; }
+.kingdom-current { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.kingdom-teacher-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px; margin:10px 0; }
+.kingdom-teacher-summary div { border-radius:12px; background:#f8f6ef; padding:10px; }
+.kingdom-teacher-summary strong,.kingdom-teacher-summary span { display:block; font-size:12px; margin:3px 0; }
+.compact .student-kingdom { display:none; }
+@media(max-width:480px){.kingdom-recommendation{gap:3px}.kingdom-recommend-chip{font-size:10px;padding:2px 4px}.kingdom-catalog{grid-template-columns:1fr}.student-header .kingdom-badge{font-size:10px;padding:3px 5px}}
+.student-kingdom { display:flex; align-items:center; flex-wrap:wrap; gap:4px; }
+.student-kingdom .kingdom-earned-open { min-height:24px; padding:2px 6px; font-size:11px; background:#f5f1e6; color:#78561b; box-shadow:none; }
+.kingdom-domain progress { appearance:none; border:0; border-radius:999px; overflow:hidden; background:#e5dfeb; }
+.kingdom-domain progress::-webkit-progress-bar { background:#e5dfeb; border-radius:999px; }
+.kingdom-domain progress::-webkit-progress-value { background:linear-gradient(90deg,#cfa34d,#a87b32); border-radius:999px; }
+.kingdom-domain progress::-moz-progress-bar { background:#b58b3f; border-radius:999px; }

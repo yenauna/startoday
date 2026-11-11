@@ -128,6 +128,25 @@ create table if not exists public.startoday_student_login_attempts (
 );
 alter table public.startoday_student_login_attempts enable row level security;
 revoke all on public.startoday_student_login_attempts from public,anon,authenticated;
+-- Stored projection of the profile JSON; existing generic commits and RLS stay intact.
+alter table public.startoday_students add column if not exists equipped_title text generated always as (data->>'equippedTitle') stored;
+-- Private, all-history praise counts. Never return teacher records or state memos.
+create or replace function public.startoday_kingdom_counts(cid uuid,sid text)
+returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
+ select coalesce(jsonb_object_agg(domain.value->>'id',(
+  select count(*) from public.startoday_records r
+  left join public."startoday_assignmentStates" ast on ast.class_id=cid and ast.id=r.data->>'autoRef' and ast.data->>'studentId'=sid
+  left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId'
+  where r.class_id=cid and r.data->>'kind'='칭찬' and r.data->'studentIds' ? sid and r.data->>'date'<=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD')
+  and (r.data->>'autoRef' is null or (a.id is not null and coalesce(a.data->>'noStar','false')<>'true' and ast.data->>'status'='완료'))
+  and not exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=r.data->>'date' and atd.data->>'excluded'='true')
+  and exists(select 1 from jsonb_array_elements_text(domain.value->'keywords') keyword where strpos(
+    regexp_replace(coalesce(case when r.data->>'autoRef' is not null then a.data->>'title' when r.data->>'subjectCode' is not null and left(r.data->>'text',char_length(r.data->>'subjectCode')+2)='['||(r.data->>'subjectCode')||']' then substr(r.data->>'text',char_length(r.data->>'subjectCode')+3) else r.data->>'text' end,''),'[[:space:]]+','','g'),
+    regexp_replace(keyword.value,'[[:space:]]+','','g'))>0)
+ )), '{}'::jsonb) from jsonb_array_elements('[{"id":"reading","label":"독서·도서관","icon":"📚","titles":["책탑의 사서","지혜의 기록관","별빛 대서고의 현자"],"keywords":["독서","책 읽기","아침 독서","도서관","대출","반납","책 정리","책 소개","독후감"]},{"id":"cleaning","label":"청소·환경","icon":"🌳","titles":["숲길의 정령사","초록숲의 수호자","생명의 숲 대정령사"],"keywords":["청소","쓸기","닦기","쓰레기","분리수거","분리배출","바닥 정리","사물함 정리","환경 정돈"]},{"id":"preparation","label":"수업준비·시간","icon":"⏳","titles":["새벽의 길잡이","시간의 마법사","별의 시간 대마법사"],"keywords":["수업 준비","준비물","교과서","공책 꺼내기","필통","시간 지키기","등교 시간","제시간","착석"]},{"id":"writing","label":"글쓰기·공책","icon":"🪶","titles":["깃펜의 서기관","이야기의 연금술사","별의 이야기 창조자"],"keywords":["글쓰기","공책 정리","필기","배운 내용","생각 쓰기","논설문","일기","문장","글 고쳐쓰기"]},{"id":"kindness","label":"사과·고운말","icon":"💝","titles":["마음의 치유사","화합의 음유시인","별의 화합 대사"],"keywords":["사과","미안","잘못 인정","화해","고운 말","바른 말","다정한 말","위로","배려","존중","감사","고맙"]},{"id":"fitness","label":"체력·운동","icon":"🌬️","titles":["바람의 모험가","질풍의 기사","폭풍을 넘는 챔피언"],"keywords":["체육","운동","달리기","줄넘기","스트레칭","던지기","받기","연습","끝까지 도전","체력"]},{"id":"safety","label":"규칙·안전","icon":"🛡️","titles":["성문의 파수꾼","약속의 수호기사","별 왕국의 수호대장"],"keywords":["규칙 지키기","약속 지키기","안전 수칙","복도에서 걷기","줄 서기","차례","질서","조심"]}]'::jsonb) domain;
+$$;
+revoke all on function public.startoday_kingdom_counts(uuid,text) from public,anon,authenticated;
+
 -- Payload helper is private: initial-password users never receive a snapshot.
 create or replace function public.startoday_student_payload(cid uuid,sid text)
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
@@ -174,7 +193,7 @@ begin
    union all select config->'academicCalendar'->>dates.key,dates.title,'학사일정 · 설정에서 관리','null'::jsonb,null::text,false from (values ('term1Start','개학식'),('summerEnd','여름방학식'),('term2Start','개학식'),('winterEnd','겨울방학식'),('winterReturn','개학식'),('springEnd','종업식')) dates(key,title) where config->'academicCalendar'->>dates.key ~ '^\d{4}-\d{2}-\d{2}$' and (dates.key not in ('winterReturn','springEnd') or config->'academicCalendar'->>'springBreak'='true')
    union all select distinct holiday.value,'자율휴업일','학사일정 · 재량휴업일','null'::jsonb,null::text,false from jsonb_array_elements_text(case when jsonb_typeof(config->'academicCalendar'->'holidays')='array' then config->'academicCalendar'->'holidays' else '[]'::jsonb end) holiday(value)
  ) e),'[]'::jsonb)) into calendar;
- result:=jsonb_build_object('student',jsonb_build_object('id',sid,'no',student->'no','name',student->>'name'),'className',coalesce(config->>'className','우리반'),'date',day,'lunchAfterPeriod',case when config->>'lunchAfterPeriod' in ('3','4','5') then (config->>'lunchAfterPeriod')::integer else 4 end,'score',totals,'praise',letters,'tasks',tasks,'routines',routines,'timetable',timetable,'calendar',calendar,'checkingAssignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title')) from public.startoday_assignments a where a.class_id=cid and a.data->>'checkerStudentId'=sid and public.startoday_assignment_occurs(a.data,day)),'[]'::jsonb));
+ result:=jsonb_build_object('student',jsonb_build_object('id',sid,'no',student->'no','name',student->>'name','equippedTitle',student->>'equippedTitle'),'titleCounts',public.startoday_kingdom_counts(cid,sid),'className',coalesce(config->>'className','우리반'),'date',day,'lunchAfterPeriod',case when config->>'lunchAfterPeriod' in ('3','4','5') then (config->>'lunchAfterPeriod')::integer else 4 end,'score',totals,'praise',letters,'tasks',tasks,'routines',routines,'timetable',timetable,'calendar',calendar,'checkingAssignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title')) from public.startoday_assignments a where a.class_id=cid and a.data->>'checkerStudentId'=sid and public.startoday_assignment_occurs(a.data,day)),'[]'::jsonb));
  return result;
 end $$;
 revoke all on function public.startoday_student_payload(uuid,text) from public,anon,authenticated;
@@ -335,4 +354,29 @@ begin
 end $$;
 revoke all on function public.startoday_student_routine_set(text,text,text,integer,text,text,boolean) from public;
 grant execute on function public.startoday_student_routine_set(text,text,text,integer,text,text,boolean) to anon,authenticated;
+
+-- Students may equip only their own earned title, never arbitrary profile fields.
+create or replace function public.startoday_student_title_set(p_school text,p_grade text,p_class text,p_no integer,p_password text,p_title text)
+returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare verified jsonb; cid uuid; sid text; counts jsonb; title_id text:=nullif(p_title,''); domain text; level integer; owner uuid; rev bigint;
+begin
+ verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_password);
+ if verified is null or verified->>'mustChangePassword'='true' then return null;end if;
+ cid:=(verified->>'cid')::uuid;sid:=verified->>'sid';
+ perform 1 from public.startoday_classes where id=cid for update;
+ counts:=public.startoday_kingdom_counts(cid,sid);
+ if title_id is not null then
+  if title_id !~ '^(reading|cleaning|preparation|writing|kindness|fitness|safety):[1-3]$' then return null;end if;
+  domain:=split_part(title_id,':',1);level:=split_part(title_id,':',2)::integer;
+  if coalesce((counts->>domain)::integer,0)<(array[3,7,15])[level] then return null;end if;
+ end if;
+ update public.startoday_students set data=data||jsonb_build_object('equippedTitle',title_id,'updatedAt',to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),updated_at=now() where class_id=cid and id=sid and data->>'deletedAt' is null;
+ if not found then return null;end if;
+ select owner_id into owner from public.startoday_classes where id=cid;
+ update public.startoday_classes set revision=revision+1 where id=cid returning revision into rev;
+ insert into public.startoday_audit(owner_id,class_id,revision,table_name,row_id,operation) values(owner,cid,rev,'students',sid,'student_title_set');
+ return jsonb_build_object('classId',cid,'revision',rev,'snapshot',public.startoday_student_payload(cid,sid));
+end $$;
+revoke all on function public.startoday_student_title_set(text,text,text,integer,text,text) from public;
+grant execute on function public.startoday_student_title_set(text,text,text,integer,text,text) to anon,authenticated;
 commit;

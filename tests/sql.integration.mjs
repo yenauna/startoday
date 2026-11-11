@@ -155,4 +155,25 @@ snap=await snapshot();revision=Number(snap.revision);const lateState={id:C.state
 await commit([{table:'assignmentStates',id:lateState.id,data:lateState},{table:'records',id:'auto:'+lateState.id,data:{id:'auto:'+lateState.id,date:yesterday,studentIds:['s1'],kind:'칭찬',text:'LEGACY_PRIVATE',areas:['생활'],autoRef:lateState.id}}]);
 await pg.exec('set role anon');patchView=await schoolLogin('새암호123');assert(!JSON.stringify(patchView).includes('LEGACY_PRIVATE'));assert(!patchView.praise.some(r=>r.text.includes('늦게')));
 console.log('PASS: 지난 진행중 과제/점심 위치/시간 의미, 완료 +1·늦게완료/면제 0·안함 -1, 레거시 늦게완료 칭찬 차단 및 상태 메모 비노출');
+// Kingdom titles: all-history praise-only counts, keyword parity and self-only equip.
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
+const kingdomOps=[];for(const domain of C.KINGDOM_DOMAINS)for(const [i,keyword]of domain.keywords.entries())kingdomOps.push({table:'records',id:'kingdom-'+domain.id+'-'+i,data:{id:'kingdom-'+domain.id+'-'+i,date:day,kind:'칭찬',studentIds:['s1'],text:keyword+' '+keyword,areas:['생활']}});
+kingdomOps.push({table:'records',id:'kingdom-prefix',data:{id:'kingdom-prefix',date:day,kind:'칭찬',studentIds:['s1'],subjectCode:'체육',text:'[체육] 친구 도움'}},{table:'records',id:'kingdom-manual-tag',data:{id:'kingdom-manual-tag',date:day,kind:'칭찬',studentIds:['s1'],text:'[도서관] 정리'}});
+kingdomOps.push({table:'records',id:'kingdom-advice',data:{id:'kingdom-advice',date:day,kind:'지도',studentIds:['s1'],text:'SECRET 청소 독서 사과 규칙 지키기'}});
+await commit(kingdomOps);snap=await snapshot();revision=Number(snap.revision);const expectedKingdom=C.kingdomCounts(snap.data,'s1',day);
+await pg.exec('set role anon');let kingdomView=await schoolLogin('새암호123');assert.deepEqual(kingdomView.titleCounts,expectedKingdom);assert.equal(kingdomView.praise.length,50);assert(!JSON.stringify(kingdomView).includes('SECRET 청소'));
+await assert.rejects(pg.query('select public.startoday_kingdom_counts($1,$2)',[classId,'s1']),/permission denied/);
+async function titleSet(title,no=1,password='새암호123'){return(await pg.query('select public.startoday_student_title_set($1,$2,$3,$4,$5,$6) as data',['NEIS001','5','오',no,password,title])).rows[0].data;}
+assert.equal(await titleSet('reading:3'),null);assert.equal(await titleSet('reading:99'),null);assert.equal(await titleSet('<script>'),null);assert.equal(await titleSet('reading:1',1,'틀린암호123'),null);assert.equal(await titleSet('reading:1',2,'행복한5반'),null);
+let titleResult=await titleSet('reading:2');assert.equal(titleResult.snapshot.student.equippedTitle,'reading:2');assert.deepEqual(titleResult.snapshot.titleCounts,expectedKingdom);assert(!JSON.stringify(titleResult).includes('password'));assert.equal((await schoolLogin('새암호123')).student.equippedTitle,'reading:2');
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);assert.equal((await pg.query('select equipped_title from public.startoday_students where class_id=$1 and id=$2',[classId,'s1'])).rows[0].equipped_title,'reading:2');assert(!snap.data.students.find(s=>s.id==='s2').equippedTitle);
+const additional=Array.from({length:15-expectedKingdom.reading},(_,i)=>({table:'records',id:'kingdom-extra-'+i,data:{id:'kingdom-extra-'+i,date:day,kind:'칭찬',studentIds:['s1'],text:'책 읽기'}}));await commit(additional);
+await pg.exec('set role anon');titleResult=await titleSet('reading:3');assert.equal(titleResult.snapshot.titleCounts.reading,15);assert.equal(titleResult.snapshot.student.equippedTitle,'reading:3');titleResult=await titleSet(null);assert.equal(titleResult.snapshot.student.equippedTitle,null);
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
+const autoKingdom={id:'kingdom-auto',title:'독서',date:day,target:'all',repeat:{type:'none'}},autoSource=C.applyOps(snap.data,[{table:'assignments',id:autoKingdom.id,data:autoKingdom}]);
+await commit([{table:'assignments',id:autoKingdom.id,data:autoKingdom},...C.taskStateOps(autoSource,autoKingdom,day,'s1','완료','PRIVATE 청소')]);
+await pg.exec('set role anon');kingdomView=await schoolLogin('새암호123');assert.equal(kingdomView.titleCounts.reading,16);assert.equal(kingdomView.titleCounts.cleaning,expectedKingdom.cleaning);assert(!JSON.stringify(kingdomView).includes('PRIVATE 청소'));
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);await commit(C.taskStateOps(snap.data,autoKingdom,day,'s1','늦게완료','PRIVATE 청소'));
+await pg.exec('set role anon');kingdomView=await schoolLogin('새암호123');assert.equal(kingdomView.titleCounts.reading,15);assert.equal(kingdomView.titleCounts.cleaning,expectedKingdom.cleaning);
+console.log('PASS: 7영역 키워드 JS/SQL 일치, 중복·조언·타인 제외, 3/7/15 칭호 검증, 초기비밀번호/미획득/임의 칭호 차단, 본인 프로필만 수정 및 재로그인·생성열 유지');
 await pg.close();
