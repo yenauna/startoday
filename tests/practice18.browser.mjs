@@ -144,7 +144,7 @@ try {
   }).click();
   assert.equal(await page.locator('.village-product').count(), 6);
   const grid = page.locator('.economy-shop-grid').first();
-  assert.equal((await grid.evaluate(el => getComputedStyle(el).gridTemplateColumns)).split(' ').length, 3);
+  assert.equal(await grid.evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length), await grid.evaluate(el => Math.floor((el.clientWidth + parseFloat(getComputedStyle(el).columnGap)) / (180 + parseFloat(getComputedStyle(el).columnGap)))));
   await page.setViewportSize({
     width: 384,
     height: 850

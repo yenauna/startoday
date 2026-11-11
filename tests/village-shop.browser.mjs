@@ -117,18 +117,29 @@ try {
       exact: true
     })
   }).innerText()).includes('무제한'));
-  for (const width of [390, 768, 1100, 320, 360]) {
+  for (const width of [320, 340, 341, 360, 390, 640, 641, 768, 900, 901, 1100, 1440, 1920, 2560]) {
     await page.setViewportSize({
       width,
       height: 1000
     });
     const layout = await page.locator('.village-shop').evaluate(el => ({
       columns: getComputedStyle(el.querySelector('.village-product-grid')).gridTemplateColumns.split(' ').length,
+      gridWidth: el.querySelector('.village-product-grid').clientWidth,
+      gap: parseFloat(getComputedStyle(el.querySelector('.village-product-grid')).columnGap),
+      cardWidths: [...el.querySelectorAll('.village-product')].map(card => card.getBoundingClientRect().width),
+      headerWidth: document.querySelector('.student-header').getBoundingClientRect().width,
       overflow: document.documentElement.scrollWidth > innerWidth + 1,
       texture: getComputedStyle(el).backgroundSize,
       categoryScroll: el.querySelector('.village-categories').scrollWidth > el.querySelector('.village-categories').clientWidth
     }));
-    assert.equal(layout.columns, width < 341 ? 1 : width <= 640 ? 2 : 3);
+    if (width <= 900) assert.equal(layout.columns, width <= 340 ? 1 : width <= 640 ? 2 : 3);else {
+      assert.equal(layout.columns, Math.floor((layout.gridWidth + layout.gap) / (180 + layout.gap)));
+      assert.ok(layout.columns >= 4);
+      if (width >= 1100) assert.ok(layout.columns >= 5);
+      assert.ok(layout.cardWidths.every(cardWidth => cardWidth >= 179.9 && cardWidth <= 220.1));
+      assert.ok(layout.headerWidth <= 1010.1); // Common header keeps its original column.
+    }
+    assert.ok(layout.cardWidths.every(cardWidth => cardWidth <= 220.1));
     assert.equal(layout.overflow, false);
     assert.equal(layout.texture, '112px 76px');
     if (width === 390) assert.ok(layout.categoryScroll);
@@ -208,7 +219,7 @@ try {
     name: '새 물품/쿠폰 등록'
   }).count(), 1);
   assert.deepEqual(errors, []);
-  console.log('PASS: themed student shop only, 1/2/3 columns, long name, unlimited/sold-out/insufficient balance, legacy/custom categories, live purchase/holdings and unchanged home/teacher management');
+  console.log('PASS: themed student shop only, 1/2/3 and auto-fill desktop columns, long name, unlimited/sold-out/insufficient balance, legacy/custom categories, live purchase/holdings and unchanged home/teacher management');
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));

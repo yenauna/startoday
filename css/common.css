@@ -1070,3 +1070,10 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .village-shop .village-empty{grid-column:1 / -1;margin:8px 0;padding:20px 8px;text-align:center;color:#626d70;font-size:13px}
 @media(max-width:640px){.village-shop{--v-shop-pier:10px;--v-shop-gap:9px;padding-top:31px;padding-bottom:13px;border-radius:70px 70px 15px 15px / 35px 35px 15px 15px}.village-shop .village-stone-arch{height:48px}.village-shop .village-interior{padding:0 10px 12px}.village-shop .village-awning{width:84%;height:20px;margin-bottom:10px}.village-shop .village-shop-header{gap:7px;margin-bottom:10px}.village-shop .village-sign{font-size:17px;padding:6px 12px}.village-shop .village-wallet{font-size:14px;padding:5px 8px}.village-shop .village-categories{margin-bottom:11px}.village-shop .village-categories button{font-size:11px;padding:5px 8px}.village-shop .village-product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.village-shop .village-product{padding:10px 9px;gap:6px}.village-shop .village-product h3{font-size:13px}.village-shop .village-lantern{width:18px;height:40px;top:76px}.village-shop .village-lantern-left{left:-2px}.village-shop .village-lantern-right{right:-2px}}
 @media(max-width:340px){.village-shop .village-product-grid{grid-template-columns:1fr}.village-shop .village-sign{font-size:15px}.village-shop .village-lantern{display:none}}
+
+/* Only the student shop can grow beyond the home/profile column. */
+.village-shop .village-product{width:100%;max-width:220px;justify-self:center}
+@media(min-width:901px){
+  .student-economy:has(.village-shop){width:min(1760px,calc(100vw - 40px));margin-inline:calc((100% - min(1760px,calc(100vw - 40px))) / 2)}
+  .village-shop .village-product-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+}
