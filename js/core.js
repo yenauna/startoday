@@ -1199,7 +1199,7 @@ export function quickRecordContext(database, text, date, choice = '자동') {
 }
 
 // Titles bind to the six XP areas, never to words in record content.
-export const KINGDOM_THRESHOLDS = [5, 10, 15];
+export const KINGDOM_THRESHOLDS = [15, 30, 45];
 export const KINGDOM_DOMAINS = [['learning', '학습', '📘', 'area-1', ['지식의 탐색자', '사유의 탐구자', '통찰의 현자']], ['tasks', '과제', '📋', 'area-2', ['약속의 수행자', '완수의 장인', '결실의 마스터']], ['relationships', '관계', '🤝', 'area-3', ['공감의 동행자', '신뢰의 중재자', '화합의 대사']], ['challenge', '도전', '🧭', 'area-4', ['용기의 모험가', '역경의 돌파자', '불굴의 개척자']], ['life', '생활', '🌿', 'area-5', ['자율의 길잡이', '질서의 파수꾼', '균형의 수호자']], ['jobs', '알바', '🏰', 'area-6', ['길드의 지원자', '길드의 기둥', '길드의 대들보']]].map(([id, label, icon, areaId, titles]) => ({
   id,
   label,
@@ -1210,7 +1210,7 @@ export const KINGDOM_DOMAINS = [['learning', '학습', '📘', 'area-1', ['지�
 export function titleThresholds(config = {}) {
   const goal = Number(config.goal ?? config.titleGoal ?? 15);
   if (!Number.isInteger(goal) || goal < 3 || goal > 9999) throw Error('칭호 목표는 3~9999의 정수로 입력하세요.');
-  return [Math.ceil(goal / 3), Math.ceil(goal * 2 / 3), goal];
+  return [goal, goal * 2, goal * 3];
 }
 export function kingdomConfig(database) {
   return {

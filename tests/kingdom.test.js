@@ -20,11 +20,13 @@ function fixture(n = 0) {
   }));
   return db;
 }
-test('6대 경험치·18종 칭호는 5/10/15회로 해금되고 키워드와 무관', () => {
+test('6대 경험치·18종 칭호는 15/30/45회로 해금되고 키워드와 무관', () => {
+  assert.deepEqual(C.KINGDOM_THRESHOLDS, [15, 30, 45]);
+  assert.deepEqual(C.titleThresholds(), [15, 30, 45]);
   assert.equal(C.KINGDOM_DOMAINS.length, 6);
   assert.equal(C.KINGDOM_DOMAINS.flatMap(d => d.titles).length, 18);
   assert.equal(C.kingdomMatches, undefined);
-  for (const [n, stage] of [[0, 0], [4, 0], [5, 1], [9, 1], [10, 2], [14, 2], [15, 3]]) assert.equal(C.kingdomCatalog(C.kingdomCounts(fixture(n), 's'))[0].stage, stage);
+  for (const [n, stage] of [[0, 0], [14, 0], [15, 1], [29, 1], [30, 2], [44, 2], [45, 3]]) assert.equal(C.kingdomCatalog(C.kingdomCounts(fixture(n), 's'))[0].stage, stage);
   const db = fixture();
   db.records = [{
     id: 'r',
@@ -63,12 +65,12 @@ test('경험치 이름을 바꿔도 안정적인 영역 ID로 칭호를 연동',
   assert.equal(C.kingdomCounts(db, 's').jobs, 1);
   assert.equal(C.kingdomCatalog({}, C.kingdomConfig(db))[5].label, '1인1역');
 });
-test('교사 목표를 30회로 바꾸면 10/20/30 단계, 잘못된 목표는 거부', () => {
+test('교사 목표를 30회로 바꾸면 30/60/90 단계, 잘못된 목표는 거부', () => {
   assert.deepEqual(C.titleThresholds({
     goal: 30
-  }), [10, 20, 30]);
+  }), [30, 60, 90]);
   assert.equal(C.kingdomCatalog({
-    learning: 15
+    learning: 30
   }, {
     goal: 30
   })[0].stage, 1);
@@ -106,7 +108,7 @@ test('미래·타인·출결제외·관찰·추가기록은 칭호 횟수에서 
   assert.equal(C.kingdomCounts(db, 's').learning, 0);
 });
 test('대표 칭호는 획득 단계만 장착, 기록 삭제 시 기본 칭호로 표시', () => {
-  let db = fixture(15);
+  let db = fixture(45);
   for (const id of ['learning:1', 'learning:2', 'learning:3']) {
     db = C.applyOps(db, C.studentTitleOps(db, 's', id));
     assert.equal(C.kingdomEquipped(db.students[0], C.kingdomCounts(db, 's')).id, id);

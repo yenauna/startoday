@@ -76,7 +76,7 @@ try {
         passwordResetRequired: false
       }
     }];
-    for (const [area, count, text] of [['learning', 4, '학습'], ['life', 9, '생활'], ['jobs', 14, '알바']]) for (let i = 0; i < count; i++) ops.push({
+    for (const [area, count, text] of [['learning', 14, '학습'], ['life', 29, '생활'], ['jobs', 44, '알바']]) for (let i = 0; i < count; i++) ops.push({
       table: 'records',
       id: 'title-' + area + i,
       data: {
@@ -122,7 +122,7 @@ try {
       } = await import('/js/shared/state.js'),
       C = await import('/js/core.js');
     return C.kingdomCounts(store.db, window.kingdomStudentId).learning;
-  }), 5);
+  }), 15);
   await page.evaluate(async () => {
     const {
       recordEditor
@@ -158,7 +158,7 @@ try {
     exact: true
   }).click();
   assert.equal(await page.locator('#modal .kingdom-domain').count(), 6);
-  assert((await page.locator('#modal [data-kingdom-domain=learning]').textContent()).includes('5회 남았어요'));
+  assert((await page.locator('#modal [data-kingdom-domain=learning]').textContent()).includes('15회 남았어요'));
   assert((await page.locator('#modal [data-kingdom-domain=life]').textContent()).includes('질서의 파수꾼'));
   assert((await page.locator('#modal [data-kingdom-domain=jobs]').textContent()).includes('최고 단계'));
   assert.equal(await page.locator('[data-equip-title="learning:2"]').count(), 0);

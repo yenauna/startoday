@@ -423,7 +423,7 @@ begin
   else
    if title_id !~ '^(learning|tasks|relationships|challenge|life|jobs):[1-3]$' then return null;end if;
    domain:=split_part(title_id,':',1);level:=split_part(title_id,':',2)::integer;goal:=(public.startoday_title_config(cid)->>'goal')::integer;
-   if coalesce((counts->>domain)::integer,0)<(case level when 1 then ceil(goal/3.0)::integer when 2 then ceil(goal*2/3.0)::integer else goal end) then return null;end if;
+   if coalesce((counts->>domain)::integer,0)<(case level when 1 then goal when 2 then goal * 2 else goal * 3 end) then return null;end if;
   end if;
  end if;
  update public.startoday_students set data=data||jsonb_build_object('equippedTitle',title_id,'updatedAt',to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),updated_at=now() where class_id=cid and id=sid and data->>'deletedAt' is null;

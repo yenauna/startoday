@@ -157,10 +157,19 @@ await pg.exec('set role anon');patchView=await schoolLogin('새암호123');asser
 console.log('PASS: 지난 진행중 과제/점심 위치/시간 의미, 완료 +1·늦게완료/면제 0·안함 -1, 레거시 늦게완료 칭찬 차단 및 상태 메모 비노출');
 // XP title replacement: content keywords never count; assigned areas do.
 await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
-const xpOps=Array.from({length:15},(_,i)=>({table:'records',id:'xp-title-'+i,data:{id:'xp-title-'+i,date:day,kind:'칭찬',studentIds:['s1'],text:'단어와 무관',areas:['학습태도','학습']}}));xpOps.push({table:'records',id:'keywords-ignored',data:{id:'keywords-ignored',date:day,kind:'칭찬',studentIds:['s1'],text:'독서 청소 준비물',areas:[]}});await commit(xpOps);
-await pg.exec('set role anon');let kingdomView=await schoolLogin('새암호123');assert.equal(kingdomView.titleCounts.learning,15);assert.equal(kingdomView.titleCounts.reading,undefined);assert.deepEqual(kingdomView.titleCounts,C.kingdomCounts((await(async()=>{await pg.exec('set role authenticated');await asUser(owner);return(await snapshot()).data;})()),'s1',day));
+const xpOps=Array.from({length:14},(_,i)=>({table:'records',id:'xp-title-'+i,data:{id:'xp-title-'+i,date:day,kind:'칭찬',studentIds:['s1'],text:'단어와 무관',areas:['학습태도','학습']}}));xpOps.push({table:'records',id:'keywords-ignored',data:{id:'keywords-ignored',date:day,kind:'칭찬',studentIds:['s1'],text:'독서 청소 준비물',areas:[]}});await commit(xpOps);
+await pg.exec('set role anon');let kingdomView=await schoolLogin('새암호123');assert.equal(kingdomView.titleCounts.learning,14);assert.equal(kingdomView.titleCounts.reading,undefined);assert.deepEqual(kingdomView.titleCounts,C.kingdomCounts((await(async()=>{await pg.exec('set role authenticated');await asUser(owner);return(await snapshot()).data;})()),'s1',day));
 await pg.exec('set role anon');async function titleSet(title,no=1,password='새암호123'){return(await pg.query('select public.startoday_student_title_set($1,$2,$3,$4,$5,$6) as data',['NEIS001','5','오',no,password,title])).rows[0].data;}
 assert.equal(await titleSet('reading:1'),null);assert.equal(await titleSet('jobs:3'),null);assert.equal(await titleSet('learning:99'),null);assert.equal(await titleSet('learning:1',1,'틀린암호123'),null);assert.equal(await titleSet('learning:1',2,'행복한5반'),null);
+assert.equal(await titleSet('learning:1'),null);
+// At 15/30/45, each stage becomes eligible; immediately below it remains locked.
+for(const [level,below,threshold]of [[1,14,15],[2,29,30],[3,44,45]]){
+ await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);let count=C.kingdomCounts(snap.data,'s1',day).learning;
+ if(count<below){await commit(Array.from({length:below-count},(_,i)=>({table:'records',id:'threshold-'+level+'-'+i,data:{id:'threshold-'+level+'-'+i,date:day,kind:'칭찬',studentIds:['s1'],text:'경계 검증',areas:['학습']}})));}
+ await pg.exec('set role anon');assert.equal(await titleSet('learning:'+level),null);
+ await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);await commit([{table:'records',id:'unlock-'+level,data:{id:'unlock-'+level,date:day,kind:'칭찬',studentIds:['s1'],text:'경계 해금',areas:['학습']}}]);
+ await pg.exec('set role anon');const unlocked=await titleSet('learning:'+level);assert.equal(unlocked.snapshot.titleCounts.learning,threshold);assert.equal(unlocked.snapshot.student.equippedTitle,'learning:'+level);
+}
 let titleResult=await titleSet('learning:3');assert.equal(titleResult.snapshot.student.equippedTitle,'learning:3');assert.equal((await schoolLogin('새암호123')).student.equippedTitle,'learning:3');
 await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);await commit([{table:'settings',id:'main',data:{...snap.data.settings[0],titleGoal:30}}]);await pg.exec('set role anon');assert.equal(await titleSet('learning:3'),null);assert.equal((await titleSet('learning:1')).snapshot.titleConfig.goal,30);
 await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);await commit([{table:'settings',id:'main',data:{...snap.data.settings[0],titleGoal:15}}]);

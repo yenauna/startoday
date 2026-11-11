@@ -74,7 +74,7 @@ try {
         passwordResetRequired: false
       }
     }];
-    for (const [i, area] of ['학습', '과제', '관계', '도전', '생활', '알바'].entries()) for (let j = 0; j < 15; j++) ops.push({
+    for (const [i, area] of ['학습', '과제', '관계', '도전', '생활', '알바'].entries()) for (let j = 0; j < 45; j++) ops.push({
       table: 'records',
       id: 'xp' + i + '-' + j,
       data: {
@@ -222,7 +222,7 @@ try {
     name: '👑 별 왕국 칭호 도감',
     exact: true
   }).click();
-  assert((await page.locator('#modal [data-kingdom-domain=learning]').textContent()).includes('칭찬 15회 · 1/3단계'));
+  assert((await page.locator('#modal [data-kingdom-domain=learning]').textContent()).includes('칭찬 45회 · 1/3단계'));
   const reward = page.locator('.quest-reward-collection button');
   assert.equal(await reward.count(), 1);
   await reward.click();
