@@ -10,7 +10,7 @@ export const kindLabel = k => C.recordLabel({
 });
 export const name = id => {
   const s = db().students.find(x => x.id === id);
-  return s ? (s.deletedAt ? '(나간 학생) ' : '') + s.no + '. ' + s.name : '(나간 학생)';
+  return s ? (s.deletedAt ? '(나간 학생) ' : '') + s.no + '. ' + C.studentLabel(s) : '(나간 학생)';
 };
 export async function commit(ops, message = '저장했습니다.') {
   await store.commit(ops);

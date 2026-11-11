@@ -163,3 +163,10 @@ export function restoreToolRect(saved, index, width, height) {
   const valid = saved && ['left', 'top', 'width', 'height'].every(key => Number.isFinite(saved[key])) && saved.width > 0 && saved.height > 0;
   return clampToolWindow(valid ? saved : defaultToolRect(index, width, height), width, height);
 }
+export function preferredKoreanVoice(voices = []) {
+  return voices.filter(v => /^ko(?:[-_]|$)/i.test(v.lang || '')).map((v, i) => ({
+    v,
+    i,
+    quality: /natural|neural|신경망/i.test((v.name || '') + ' ' + (v.voiceURI || '')) ? 4 : /online|고품질/i.test((v.name || '') + ' ' + (v.voiceURI || '')) ? 3 : v.default ? 1 : 0
+  })).sort((a, b) => b.quality - a.quality || a.i - b.i)[0]?.v || null;
+}

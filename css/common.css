@@ -931,11 +931,6 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .kingdom-title-button { padding:0; background:transparent; box-shadow:none; margin:4px 4px 4px 0; text-align:left; }
 .kingdom-title-button:hover .kingdom-badge,.kingdom-title-button:focus-visible .kingdom-badge { outline:2px solid #b88a35; }
 .student-kingdom { margin:4px 0; }
-.kingdom-recommendation { display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin:5px 0; font-size:11px; }
-.kingdom-recommendation small { color:var(--st-text-muted); font-size:10px; }
-.kingdom-recommend-chips { display:flex; flex-wrap:wrap; gap:4px; }
-.kingdom-recommend-chip { padding:3px 6px; border-radius:9px; border:1px solid #e1e5ed; color:var(--st-text-muted); background:#f6f7fa; }
-.kingdom-recommend-chip.is-recommended { background:#fff0ba; border-color:#d6ab42; color:#73500c; font-weight:700; }
 .kingdom-catalog { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
 .kingdom-domain { min-width:0; padding:16px; border-radius:18px; background:linear-gradient(140deg,#fffdf5,#f4f1fc); border:1px solid #e8e0ce; }
 .kingdom-domain h3 { margin:0 0 8px; }
@@ -952,7 +947,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .kingdom-teacher-summary div { border-radius:12px; background:#f8f6ef; padding:10px; }
 .kingdom-teacher-summary strong,.kingdom-teacher-summary span { display:block; font-size:12px; margin:3px 0; }
 .compact .student-kingdom { display:none; }
-@media(max-width:480px){.kingdom-recommendation{gap:3px}.kingdom-recommend-chip{font-size:10px;padding:2px 4px}.kingdom-catalog{grid-template-columns:1fr}.student-header .kingdom-badge{font-size:10px;padding:3px 5px}}
+@media(max-width:480px){.kingdom-catalog{grid-template-columns:1fr}.student-header .kingdom-badge{font-size:10px;padding:3px 5px}}
 .student-kingdom { display:flex; align-items:center; flex-wrap:wrap; gap:4px; }
 .student-kingdom .kingdom-earned-open { min-height:24px; padding:2px 6px; font-size:11px; background:#f5f1e6; color:#78561b; box-shadow:none; }
 .kingdom-domain progress { appearance:none; border:0; border-radius:999px; overflow:hidden; background:#e5dfeb; }
@@ -967,3 +962,19 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .period-card.selected { background:var(--st-blue-bg); color:var(--st-blue-text); outline:2px solid #365c85; outline-offset:-2px; font-weight:700; }
 .period-card:hover,.period-card:focus-visible { border-color:#365c85; box-shadow:var(--st-shadow-1); }
 @media(max-width:480px){.quick-controls .quick-period-toggle{padding:5px 6px;font-size:12px}.quick-period-card-grid{gap:7px}.period-card{min-height:46px;padding:8px 6px;font-size:13px}}
+
+.quest-controls { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
+.quest-controls button { min-height:30px; padding:4px 7px; font-size:12px; }
+.quest-progress-card { background:#faf6e9; border:1px solid #ead9aa; }
+.quest-stamp-board { display:grid; grid-template-columns:repeat(auto-fill,minmax(24px,1fr)); gap:5px; flex:1 0 100%; margin-top:8px; }
+.quest-stamp-board span { display:grid; place-items:center; min-height:27px; border:1px dashed #cbd5e1; border-radius:8px; color:#94a3b8; }
+.quest-stamp-board .is-stamped { background:#fff1bc; color:#a36d11; border:1px solid #e2bf63; }
+.student-task:has(.quest-stamp-board) { flex-wrap:wrap; }
+.quest-reward-collection { margin-top:14px; padding:14px; border-radius:14px; background:#fff6da; }
+.quest-reward-collection>div { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:8px 0; }
+.title-goal-settings { margin-bottom:16px; padding:12px; border-radius:14px; background:#f8f6ee; }
+.title-goal-settings input { width:96px; }
+/* Long quests use persistent progress; ordinary task controls retain their layout. */
+.quest-progress-card .quest-controls { justify-content:flex-start; }
+.student-nickname-open { margin:4px; }
+.quest-reward-collection { overflow-wrap:anywhere; }

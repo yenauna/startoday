@@ -195,13 +195,16 @@ export function studentCalendarData(database, id) {
       title: a.title,
       date: a.date,
       endDate: a.endDate,
+      isQuest: !!a.isQuest,
+      questGoal: a.isQuest ? questGoal(a) : undefined,
       repeat: a.repeat,
       ...assignmentPublicInfo(database, a)
     })),
     states: database.assignmentStates.filter(s => s.studentId === id).map(s => ({
       assignmentId: s.assignmentId,
       date: s.date,
-      status: s.status
+      status: s.status,
+      stamps: s.stamps
     })),
     excludedDates: database.attendance.filter(row => row.studentId === id && row.excluded).map(row => row.date),
     events: calendarEvents(database).map(e => ({
@@ -256,9 +259,12 @@ export function initialDB() {
 export const targeted = (a, s) => a.target === 'all' || a.target?.studentIds?.includes(s);
 export function occurs(a, d) {
   if (a.deletedAt || d < a.date || a.endDate && d > a.endDate) return false;
+  if (a.isQuest) return true;
   return a.repeat.type === 'none' ? d === a.date : a.repeat.type === 'daily' || a.repeat.weekdays?.includes(weekday(d));
 }
 export function assignmentStatus(db, a, d, s) {
+  const assignment = db.assignments.find(row => row.id === a);
+  if (assignment?.isQuest) return questProgress(db, assignment, s).status;
   return db.assignmentStates.find(x => x.id === stateId(a, d, s))?.status || '진행중';
 }
 export function routineStatus(db, r, d, s) {
@@ -279,6 +285,13 @@ export function scores(db, s, a, b) {
 export function pending(db, s, d) {
   const out = [];
   for (const a of db.assignments.filter(a => targeted(a, s) && !a.deletedAt && a.date <= d && (!a.endDate || a.endDate >= a.date))) {
+    if (a.isQuest) {
+      if (occurs(a, d) && !excluded(db, s, d) && assignmentStatus(db, a.id, d, s) === '진행중') out.push({
+        assignment: a,
+        date: d
+      });
+      continue;
+    }
     const start = a.date;
     for (const day of dates(start, d)) {
       if (occurs(a, day) && !excluded(db, s, day) && assignmentStatus(db, a.id, day, s) === '진행중') out.push({
@@ -291,6 +304,7 @@ export function pending(db, s, d) {
 }
 export function taskStateOps(db, a, d, s, status, memo = '') {
   validateTaskDate(d);
+  if (a.isQuest) throw Error('장기 퀘스트는 스탬프로 체크하세요.');
   if (!STATUSES.includes(status)) throw Error('올바르지 않은 과제 상태입니다.');
   if (!db.assignments.some(x => x.id === a.id) || !db.students.some(x => x.id === s) || !targeted(a, s)) throw Error('과제 대상 학생을 확인하세요.');
   const id = stateId(a.id, d, s),
@@ -346,7 +360,9 @@ export function applyOps(db, ops) {
       if (i >= 0) list.splice(i, 1);
     } else {
       if (op.data.id !== op.id) throw Error('데이터 ID가 일치하지 않습니다.');
-      if (i >= 0) list[i] = structuredClone(op.data);else list.push(structuredClone(op.data));
+      const data = structuredClone(op.data);
+      if (op.table === 'students' && i >= 0 && Array.isArray(list[i].rewardTitles)) data.rewardTitles = mergeRewardTitles(list[i].rewardTitles, data.rewardTitles);
+      if (i >= 0) list[i] = data;else list.push(data);
     }
   }
   return copy;
@@ -1043,7 +1059,7 @@ export function classroomCountdown(database, config, instant = new Date()) {
   return null;
 }
 export function checkerAssignments(database, checkerId, date = today()) {
-  return database.assignments.filter(a => a.checkerStudentId === checkerId && occurs(a, date)).map(a => ({
+  return database.assignments.filter(a => !a.isQuest && a.checkerStudentId === checkerId && occurs(a, date)).map(a => ({
     id: a.id,
     title: a.title
   }));
@@ -1135,13 +1151,14 @@ export function lunchPosition(config = {}) {
 }
 export function markRemainingUndoneOps(database, assignment, date) {
   validateTaskDate(date);
-  return activeStudents(database).filter(s => targeted(assignment, s.id) && !excluded(database, s.id, date) && assignmentStatus(database, assignment.id, date, s.id) === '진행중').flatMap(s => taskStateOps(database, assignment, date, s.id, '안함', database.assignmentStates.find(st => st.id === stateId(assignment.id, date, s.id))?.memo || ''));
+  return activeStudents(database).filter(s => !assignment.isQuest && targeted(assignment, s.id) && !excluded(database, s.id, date) && assignmentStatus(database, assignment.id, date, s.id) === '진행중').flatMap(s => taskStateOps(database, assignment, date, s.id, '안함', database.assignmentStates.find(st => st.id === stateId(assignment.id, date, s.id))?.memo || ''));
 }
 export function assignmentPolicyOps(database) {
   const ops = [];
   for (const state of database.assignmentStates) {
     const assignment = database.assignments.find(a => a.id === state.assignmentId);
     if (!assignment || !targeted(assignment, state.studentId) || !database.students.some(s => s.id === state.studentId) || !STATUSES.includes(state.status)) continue;
+    if (assignment.isQuest) continue;
     const old = database.records.find(r => r.autoRef === state.id),
       change = isTaskDate(state.date) ? taskStateOps(database, assignment, state.date, state.studentId, state.status, state.memo || '').find(op => op.table === 'records') : null;
     if (!change) continue;
@@ -1181,58 +1198,73 @@ export function quickRecordContext(database, text, date, choice = '자동') {
   };
 }
 
-// Kingdom achievements count praise records, independently of scores and XP names.
-export const KINGDOM_THRESHOLDS = [3, 7, 15];
-export const KINGDOM_DOMAINS = [['reading', '독서·도서관', '📚', ['책탑의 사서', '지혜의 기록관', '별빛 대서고의 현자'], ['독서', '책 읽기', '아침 독서', '도서관', '대출', '반납', '책 정리', '책 소개', '독후감']], ['cleaning', '청소·환경', '🌳', ['숲길의 정령사', '초록숲의 수호자', '생명의 숲 대정령사'], ['청소', '쓸기', '닦기', '쓰레기', '분리수거', '분리배출', '바닥 정리', '사물함 정리', '환경 정돈']], ['preparation', '수업준비·시간', '⏳', ['새벽의 길잡이', '시간의 마법사', '별의 시간 대마법사'], ['수업 준비', '준비물', '교과서', '공책 꺼내기', '필통', '시간 지키기', '등교 시간', '제시간', '착석']], ['writing', '글쓰기·공책', '🪶', ['깃펜의 서기관', '이야기의 연금술사', '별의 이야기 창조자'], ['글쓰기', '공책 정리', '필기', '배운 내용', '생각 쓰기', '논설문', '일기', '문장', '글 고쳐쓰기']], ['kindness', '사과·고운말', '💝', ['마음의 치유사', '화합의 음유시인', '별의 화합 대사'], ['사과', '미안', '잘못 인정', '화해', '고운 말', '바른 말', '다정한 말', '위로', '배려', '존중', '감사', '고맙']], ['fitness', '체력·운동', '🌬️', ['바람의 모험가', '질풍의 기사', '폭풍을 넘는 챔피언'], ['체육', '운동', '달리기', '줄넘기', '스트레칭', '던지기', '받기', '연습', '끝까지 도전', '체력']], ['safety', '규칙·안전', '🛡️', ['성문의 파수꾼', '약속의 수호기사', '별 왕국의 수호대장'], ['규칙 지키기', '약속 지키기', '안전 수칙', '복도에서 걷기', '줄 서기', '차례', '질서', '조심']]].map(([id, label, icon, titles, keywords]) => ({
+// Titles bind to the six XP areas, never to words in record content.
+export const KINGDOM_THRESHOLDS = [5, 10, 15];
+export const KINGDOM_DOMAINS = [['learning', '학습', '📘', 'area-1', ['지식의 탐색자', '사유의 탐구자', '통찰의 현자']], ['tasks', '과제', '📋', 'area-2', ['약속의 수행자', '완수의 장인', '결실의 마스터']], ['relationships', '관계', '🤝', 'area-3', ['공감의 동행자', '신뢰의 중재자', '화합의 대사']], ['challenge', '도전', '🧭', 'area-4', ['용기의 모험가', '역경의 돌파자', '불굴의 개척자']], ['life', '생활', '🌿', 'area-5', ['자율의 길잡이', '질서의 파수꾼', '균형의 수호자']], ['jobs', '알바', '🏰', 'area-6', ['길드의 지원자', '길드의 기둥', '길드의 대들보']]].map(([id, label, icon, areaId, titles]) => ({
   id,
   label,
   icon,
-  titles,
-  keywords
+  areaId,
+  titles
 }));
-export function kingdomMatches(text = '') {
-  const body = String(text).replace(/\s+/g, '');
-  return KINGDOM_DOMAINS.filter(d => d.keywords.some(word => body.includes(word.replace(/\s+/g, '')))).map(d => d.id);
+export function titleThresholds(config = {}) {
+  const goal = Number(config.goal ?? config.titleGoal ?? 15);
+  if (!Number.isInteger(goal) || goal < 3 || goal > 9999) throw Error('칭호 목표는 3~9999의 정수로 입력하세요.');
+  return [Math.ceil(goal / 3), Math.ceil(goal * 2 / 3), goal];
+}
+export function kingdomConfig(database) {
+  return {
+    goal: Number(database.settings?.[0]?.titleGoal ?? 15),
+    labels: Object.fromEntries(KINGDOM_DOMAINS.map(d => [d.id, areaRows(database, true).find(a => a.id === d.areaId)?.name || d.label]))
+  };
 }
 export function kingdomCounts(database, studentId, to = today()) {
-  const counts = Object.fromEntries(KINGDOM_DOMAINS.map(d => [d.id, 0]));
-  for (const record of database.records) {
-    if (record.kind !== '칭찬' || !record.studentIds?.includes(studentId) || !record.date || record.date > to || excluded(database, studentId, record.date)) continue;
-    let text = record.text;
-    const subjectPrefix = record.subjectCode ? '[' + record.subjectCode + ']' : null;
-    if (subjectPrefix && String(text).startsWith(subjectPrefix)) text = String(text).slice(subjectPrefix.length);
-    if (record.autoRef != null) {
-      const status = database.assignmentStates.find(s => s.id === record.autoRef && s.studentId === studentId),
-        assignment = database.assignments.find(a => a.id === status?.assignmentId);
-      if (!assignment || assignment.noStar || status.status !== '완료') continue;
-      text = assignment.title;
+  const counts = Object.fromEntries(KINGDOM_DOMAINS.map(d => [d.id, 0])),
+    config = kingdomConfig(database);
+  for (const r of database.records) {
+    if (r.kind !== '칭찬' || !r.studentIds?.includes(studentId) || !r.date || r.date > to || excluded(database, studentId, r.date)) continue;
+    if (r.autoRef != null) {
+      const st = database.assignmentStates.find(s => s.id === r.autoRef && s.studentId === studentId),
+        a = database.assignments.find(a => a.id === st?.assignmentId);
+      if (!a || a.noStar || st.status !== '완료' || a.isQuest && Number(st.stamps || 0) < questGoal(a)) continue;
     }
-    for (const id of kingdomMatches(text)) counts[id]++;
+    const areas = recordAreas(r);
+    for (const d of KINGDOM_DOMAINS) if (areas.includes(config.labels[d.id])) counts[d.id]++;
   }
   return counts;
 }
-export function kingdomCatalog(counts = {}) {
-  return KINGDOM_DOMAINS.map(domain => {
-    const count = Math.max(0, Number(counts?.[domain.id]) || 0),
-      stage = KINGDOM_THRESHOLDS.filter(n => count >= n).length,
-      next = KINGDOM_THRESHOLDS[stage] || null;
+export function kingdomCatalog(counts = {}, config = {}) {
+  const thresholds = titleThresholds(config);
+  return KINGDOM_DOMAINS.map(d => {
+    const count = Math.max(0, Number(counts?.[d.id]) || 0),
+      stage = thresholds.filter(n => count >= n).length,
+      next = thresholds[stage] || null;
     return {
-      ...domain,
+      ...d,
+      label: config.labels?.[d.id] || d.label,
+      thresholds,
       count,
       stage,
       next,
       remaining: next === null ? 0 : next - count,
-      current: stage ? domain.titles[stage - 1] : '아직 획득한 칭호가 없어요',
-      unlocked: domain.titles.slice(0, stage).map((name, i) => ({
-        id: domain.id + ':' + (i + 1),
+      current: stage ? d.titles[stage - 1] : '아직 획득한 칭호가 없어요',
+      unlocked: d.titles.slice(0, stage).map((name, i) => ({
+        id: d.id + ':' + (i + 1),
         name,
-        icon: domain.icon
+        icon: d.icon
       }))
     };
   });
 }
-export function kingdomEquipped(student, counts) {
-  return kingdomCatalog(counts).flatMap(d => d.unlocked).find(t => t.id === (student?.equippedTitle ?? student?.equipped_title)) || {
+export function studentRewardTitles(student) {
+  return (student?.rewardTitles || []).filter(t => t && typeof t.id === 'string' && t.id.startsWith('quest:') && typeof t.name === 'string').map(t => ({
+    id: t.id,
+    name: t.name,
+    icon: '🏅'
+  }));
+}
+export function kingdomEquipped(student, counts, config = {}) {
+  return [...kingdomCatalog(counts, config).flatMap(d => d.unlocked), ...studentRewardTitles(student)].find(t => t.id === (student?.equippedTitle ?? student?.equipped_title)) || {
     id: null,
     name: '별의 주민',
     icon: '🌱'
@@ -1241,7 +1273,10 @@ export function kingdomEquipped(student, counts) {
 export function studentTitleOps(database, studentId, titleId) {
   const student = activeStudents(database).find(s => s.id === studentId);
   if (!student) throw Error('학생을 확인하세요.');
-  if (titleId && !kingdomCatalog(kingdomCounts(database, studentId)).some(d => d.unlocked.some(t => t.id === titleId))) throw Error('획득한 칭호만 장착할 수 있습니다.');
+  if (titleId && kingdomEquipped({
+    ...student,
+    equippedTitle: titleId
+  }, kingdomCounts(database, studentId), kingdomConfig(database)).id !== titleId) throw Error('획득한 칭호만 장착할 수 있습니다.');
   return [{
     table: 'students',
     id: student.id,
@@ -1252,16 +1287,83 @@ export function studentTitleOps(database, studentId, titleId) {
     }
   }];
 }
-export function kingdomBadge(student, counts) {
-  const title = kingdomEquipped(student, counts);
-  return `<span class="kingdom-badge" data-equipped-title="${esc(title.id || 'resident')}">${title.icon} ${esc(title.name)}</span>`;
+export function kingdomBadge(student, counts, config = {}) {
+  const t = kingdomEquipped(student, counts, config);
+  return `<span class="kingdom-badge" data-equipped-title="${esc(t.id || 'resident')}">${t.icon} ${esc(t.name)}</span>`;
 }
-export function kingdomRecommendation(text, kind = '칭찬') {
-  const matches = kind === '칭찬' ? kingdomMatches(text) : [];
-  return `<span class="kingdom-recommend-label">👑 칭호 추천</span><span class="kingdom-recommend-chips">${KINGDOM_DOMAINS.map(d => `<span class="kingdom-recommend-chip ${matches.includes(d.id) ? 'is-recommended' : ''}" data-kingdom-domain="${d.id}">${d.icon} ${esc(d.label)}</span>`).join('')}</span><small>칭찬 저장 시 감지 영역마다 1회 집계</small>`;
+export function kingdomSummary(counts, config = {}, student = null) {
+  return `<div class="kingdom-teacher-summary">${kingdomCatalog(counts, config).map(d => `<div><strong>${d.icon} ${esc(d.label)} · 칭찬 ${d.count}회</strong><span>${d.unlocked.map(t => esc(t.name)).join(' / ') || '아직 획득한 칭호가 없어요'}</span></div>`).join('')}${studentRewardTitles(student).map(t => `<div>🏅 ${esc(t.name)} · 퀘스트 보상</div>`).join('')}</div>`;
 }
-export function kingdomSummary(counts) {
-  return `<div class="kingdom-teacher-summary">${kingdomCatalog(counts).map(d => `<div><strong>${d.icon} ${esc(d.label)} · 칭찬 ${d.count}회</strong><span>${d.unlocked.map(t => esc(t.name)).join(' / ') || '아직 획득한 칭호가 없어요'}</span></div>`).join('')}</div>`;
+export function validateStudentNickname(value) {
+  if (typeof value !== 'string' || !/^[가-힣]{1,8}$/.test(value)) throw Error('별명은 공백 없이 완성된 한글 1~8자로 입력하세요. 영문·숫자·특수문자는 사용할 수 없습니다.');
+  return value;
+}
+export function studentNicknameOps(database, id, nickname) {
+  const s = activeStudents(database).find(s => s.id === id);
+  if (!s) throw Error('학생을 확인하세요.');
+  if (nickname !== null) validateStudentNickname(nickname);
+  return [{
+    table: 'students',
+    id,
+    data: {
+      ...s,
+      nickname,
+      updatedAt: now()
+    }
+  }];
+}
+export function studentLabel(s, studentMode = false) {
+  return s.name + (s.nickname ? studentMode ? ' "' + s.nickname + '"' : '(' + s.nickname + ')' : '');
+}
+export function questGoal(a) {
+  const n = Number(a.questGoal ?? 10);
+  if (!Number.isInteger(n) || n < 1 || n > 999) throw Error('퀘스트 목표는 1~999의 정수로 입력하세요.');
+  return n;
+}
+export function questProgress(database, a, studentId) {
+  const state = database.assignmentStates.find(s => s.id === stateId(a.id, a.date, studentId)),
+    goal = questGoal(a),
+    stamps = Math.min(goal, Math.max(0, Number(state?.stamps) || 0));
+  return {
+    stamps,
+    goal,
+    status: stamps >= goal ? '완료' : '진행중'
+  };
+}
+export function questStampOps(database, a, date, studentId, change, memo = null) {
+  validateTaskDate(date);
+  validateTaskDate(a.date);
+  if (!a.isQuest || !occurs(a, date) || excluded(database, studentId, date) || !Number.isInteger(change)) throw Error('퀘스트 대상과 날짜를 확인하세요.');
+  const student = activeStudents(database).find(s => s.id === studentId);
+  if (!student || !targeted(a, studentId)) throw Error('퀘스트 대상 학생을 확인하세요.');
+  const progress = questProgress(database, a, studentId),
+    stamps = Math.max(0, Math.min(progress.goal, progress.stamps + change)),
+    old = database.assignmentStates.find(s => s.id === stateId(a.id, a.date, studentId));
+  const ops = taskStateOps(database, {
+    ...a,
+    isQuest: false
+  }, a.date, studentId, stamps >= progress.goal ? '완료' : '진행중', memo ?? old?.memo ?? '');
+  ops[0].data.stamps = stamps;
+  const rewardRecord = ops.find(op => op.table === 'records' && op.data);
+  if (rewardRecord) {
+    const existing = database.records.find(r => r.autoRef === ops[0].id);
+    rewardRecord.data.date = progress.stamps >= progress.goal && existing ? existing.date : date;
+  }
+  const title = String(a.questTitle || '').trim();
+  if (stamps >= progress.goal && title && !studentRewardTitles(student).some(t => t.id === 'quest:' + a.id)) ops.push({
+    table: 'students',
+    id: studentId,
+    data: {
+      ...student,
+      rewardTitles: [...(student.rewardTitles || []), {
+        id: 'quest:' + a.id,
+        name: title,
+        assignmentId: a.id,
+        earnedAt: now()
+      }]
+    }
+  });
+  return ops;
 }
 export function areaName(value) {
   return value === '학습태도' ? '학습' : value;
@@ -1360,4 +1462,9 @@ export function canonicalAreas(database) {
     });
   }
   return rows;
+}
+export function mergeRewardTitles(existing = [], incoming = []) {
+  const out = [];
+  for (const t of [...(Array.isArray(existing) ? existing : []), ...(Array.isArray(incoming) ? incoming : [])]) if (t && typeof t.id === 'string' && !out.some(row => row.id === t.id)) out.push(structuredClone(t));
+  return out;
 }

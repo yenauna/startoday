@@ -81,7 +81,7 @@ end if;end $$;
 
 
 create or replace function public.startoday_commit(p_class_id uuid,p_revision bigint,p_ops jsonb) returns bigint language plpgsql security definer set search_path=public as $$
-declare c public.startoday_classes; op jsonb; t text; v jsonb; old jsonb; n bigint; stamp text;
+declare c public.startoday_classes; op jsonb; t text; v jsonb; old jsonb; n bigint; stamp text; quest jsonb; goal integer;
 begin
  if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
  select * into c from public.startoday_classes where id=p_class_id and owner_id=auth.uid() for update;
@@ -97,6 +97,15 @@ begin
  else
  v:=op->'data';
  if jsonb_typeof(v)<>'object' or v->>'id' is distinct from op->>'id' then raise exception 'INVALID_DATA'; end if;
+ if t='settings' and v ? 'titleGoal' and (jsonb_typeof(v->'titleGoal')<>'number' or (v->>'titleGoal')::numeric<>trunc((v->>'titleGoal')::numeric) or (v->>'titleGoal')::numeric not between 3 and 9999) then raise exception 'INVALID_TITLE_GOAL';end if;
+ if t='students' then
+  if v->>'nickname' is not null and v->>'nickname' !~ '^[가-힣]{1,8}$' then raise exception 'INVALID_NICKNAME';end if;
+  select data into old from public.startoday_students where class_id=c.id and id=op->>'id';
+  if old->'rewardTitles' is not null then v:=v||jsonb_build_object('rewardTitles',(select coalesce(jsonb_agg(kept.reward order by kept.position),'[]'::jsonb) from(select distinct on(x.reward->>'id') x.reward,x.position from jsonb_array_elements(coalesce(old->'rewardTitles','[]'::jsonb)||coalesce(v->'rewardTitles','[]'::jsonb)) with ordinality x(reward,position) order by x.reward->>'id',x.position) kept));end if;
+ end if;
+ if t='assignments' and v->>'isQuest'='true' then
+  if jsonb_typeof(v->'questGoal') is distinct from 'number' or (v->>'questGoal')::numeric<>trunc((v->>'questGoal')::numeric) or (v->>'questGoal')::numeric not between 1 and 999 or coalesce(char_length(btrim(v->>'questTitle')),0) not between 1 and 40 then raise exception 'INVALID_QUEST';end if;
+ end if;
  if t='settings' and v ? 'defaultStudentPassword' then
  select data into old from public.startoday_settings where class_id=c.id and id=op->>'id';
  if v->>'defaultStudentPassword' is distinct from old->>'defaultStudentPassword' then
@@ -119,6 +128,16 @@ begin
  if coalesce(v->>'date','') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' or coalesce(v->>'studentId','')='' then raise exception 'INVALID_STATE'; end if;
  begin if to_char((v->>'date')::date,'YYYY-MM-DD')<>v->>'date' then raise exception 'INVALID_STATE';end if;exception when datetime_field_overflow or invalid_datetime_format then raise exception 'INVALID_STATE';end;
  if t='assignmentStates' and not(v->>'status'=any(array['진행중','완료','늦게완료','안함','면제'])) then raise exception 'INVALID_STATUS'; end if;
+ if t='assignmentStates' then
+  select data into quest from public.startoday_assignments where class_id=c.id and id=v->>'assignmentId';
+  if quest->>'isQuest'='true' then
+   goal:=coalesce((quest->>'questGoal')::integer,10);
+   if not coalesce(quest->'target'='"all"'::jsonb or quest->'target'->'studentIds' ? (v->>'studentId'),false) or v->>'date' is distinct from quest->>'date' or jsonb_typeof(v->'stamps') is distinct from 'number' or (v->>'stamps')::numeric<>trunc((v->>'stamps')::numeric) or (v->>'stamps')::numeric not between 0 and goal or v->>'status' is distinct from (case when (v->>'stamps')::integer>=goal then '완료' else '진행중' end) then raise exception 'INVALID_QUEST_STATE';end if;
+   if (v->>'stamps')::integer>=goal then
+    update public.startoday_students set data=data||jsonb_build_object('rewardTitles',coalesce(data->'rewardTitles','[]'::jsonb)||jsonb_build_array(jsonb_build_object('id','quest:'||(quest->>'id'),'name',quest->>'questTitle','assignmentId',quest->>'id','earnedAt',stamp))) where class_id=c.id and id=v->>'studentId' and not exists(select 1 from jsonb_array_elements(coalesce(data->'rewardTitles','[]'::jsonb)) reward_entry(value) where reward_entry.value->>'id'='quest:'||(quest->>'id'));
+   end if;
+  end if;
+ end if;
  if t='routineStates' and not(v->>'status'=any(array['진행중','완료','면제'])) then raise exception 'INVALID_STATUS'; end if;
  end if;
  execute format('insert into public.%I(class_id,owner_id,id,data) values($1,$2,$3,$4) on conflict(class_id,id) do update set data=excluded.data,updated_at=now()','startoday_'||t) using c.id,auth.uid(),op->>'id',v;
@@ -150,7 +169,7 @@ do $$ begin if to_regclass('public.startoday_tags') is not null then execute 're
 create or replace function public.startoday_assignment_occurs(a jsonb, day text)
 returns boolean language sql immutable set search_path=public,pg_temp as $$
  select coalesce(a->>'deletedAt' is null and a->>'date'<=day and (a->>'endDate' is null or a->>'endDate'>=day) and
- ((a->'repeat'->>'type'='none' and a->>'date'=day) or a->'repeat'->>'type'='daily' or (a->'repeat'->>'type'='weekly' and a->'repeat'->'weekdays' @> jsonb_build_array(extract(dow from day::date)::integer))),false);
+ (a->>'isQuest'='true' or (a->'repeat'->>'type'='none' and a->>'date'=day) or a->'repeat'->>'type'='daily' or (a->'repeat'->>'type'='weekly' and a->'repeat'->'weekdays' @> jsonb_build_array(extract(dow from day::date)::integer))),false);
 $$;
 revoke all on function public.startoday_assignment_occurs(jsonb,text) from public,anon,authenticated;
 -- Student reads are an explicit allow-list, independent of teacher snapshots.
@@ -164,20 +183,20 @@ alter table public.startoday_student_login_attempts enable row level security;
 revoke all on public.startoday_student_login_attempts from public,anon,authenticated;
 -- Stored projection of the profile JSON; existing generic commits and RLS stay intact.
 alter table public.startoday_students add column if not exists equipped_title text generated always as (data->>'equippedTitle') stored;
--- Private, all-history praise counts. Never return teacher records or state memos.
-create or replace function public.startoday_kingdom_counts(cid uuid,sid text)
-returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
- select coalesce(jsonb_object_agg(domain.value->>'id',(
-  select count(*) from public.startoday_records r
-  left join public."startoday_assignmentStates" ast on ast.class_id=cid and ast.id=r.data->>'autoRef' and ast.data->>'studentId'=sid
-  left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId'
-  where r.class_id=cid and r.data->>'kind'='칭찬' and r.data->'studentIds' ? sid and r.data->>'date'<=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD')
-  and (r.data->>'autoRef' is null or (a.id is not null and coalesce(a.data->>'noStar','false')<>'true' and ast.data->>'status'='완료'))
-  and not exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=r.data->>'date' and atd.data->>'excluded'='true')
-  and exists(select 1 from jsonb_array_elements_text(domain.value->'keywords') keyword where strpos(
-    regexp_replace(coalesce(case when r.data->>'autoRef' is not null then a.data->>'title' when r.data->>'subjectCode' is not null and left(r.data->>'text',char_length(r.data->>'subjectCode')+2)='['||(r.data->>'subjectCode')||']' then substr(r.data->>'text',char_length(r.data->>'subjectCode')+3) else r.data->>'text' end,''),'[[:space:]]+','','g'),
-    regexp_replace(keyword.value,'[[:space:]]+','','g'))>0)
- )), '{}'::jsonb) from jsonb_array_elements('[{"id":"reading","label":"독서·도서관","icon":"📚","titles":["책탑의 사서","지혜의 기록관","별빛 대서고의 현자"],"keywords":["독서","책 읽기","아침 독서","도서관","대출","반납","책 정리","책 소개","독후감"]},{"id":"cleaning","label":"청소·환경","icon":"🌳","titles":["숲길의 정령사","초록숲의 수호자","생명의 숲 대정령사"],"keywords":["청소","쓸기","닦기","쓰레기","분리수거","분리배출","바닥 정리","사물함 정리","환경 정돈"]},{"id":"preparation","label":"수업준비·시간","icon":"⏳","titles":["새벽의 길잡이","시간의 마법사","별의 시간 대마법사"],"keywords":["수업 준비","준비물","교과서","공책 꺼내기","필통","시간 지키기","등교 시간","제시간","착석"]},{"id":"writing","label":"글쓰기·공책","icon":"🪶","titles":["깃펜의 서기관","이야기의 연금술사","별의 이야기 창조자"],"keywords":["글쓰기","공책 정리","필기","배운 내용","생각 쓰기","논설문","일기","문장","글 고쳐쓰기"]},{"id":"kindness","label":"사과·고운말","icon":"💝","titles":["마음의 치유사","화합의 음유시인","별의 화합 대사"],"keywords":["사과","미안","잘못 인정","화해","고운 말","바른 말","다정한 말","위로","배려","존중","감사","고맙"]},{"id":"fitness","label":"체력·운동","icon":"🌬️","titles":["바람의 모험가","질풍의 기사","폭풍을 넘는 챔피언"],"keywords":["체육","운동","달리기","줄넘기","스트레칭","던지기","받기","연습","끝까지 도전","체력"]},{"id":"safety","label":"규칙·안전","icon":"🛡️","titles":["성문의 파수꾼","약속의 수호기사","별 왕국의 수호대장"],"keywords":["규칙 지키기","약속 지키기","안전 수칙","복도에서 걷기","줄 서기","차례","질서","조심"]}]'::jsonb) domain;
+-- Six XP domains: praise counts are independent of record wording.
+create or replace function public.startoday_title_config(cid uuid) returns jsonb language plpgsql stable security definer set search_path=public,pg_temp as $$begin return (
+ select jsonb_build_object('goal',coalesce((select (data->>'titleGoal')::integer from public.startoday_settings where class_id=cid and id='main'),15),'labels',coalesce((select jsonb_object_agg(d.value->>'id',coalesce((select a.data->>'name' from public.startoday_areas a where a.class_id=cid and a.id=d.value->>'areaId'),d.value->>'label')) from jsonb_array_elements('[{"id":"learning","label":"학습","icon":"📘","areaId":"area-1","titles":["지식의 탐색자","사유의 탐구자","통찰의 현자"]},{"id":"tasks","label":"과제","icon":"📋","areaId":"area-2","titles":["약속의 수행자","완수의 장인","결실의 마스터"]},{"id":"relationships","label":"관계","icon":"🤝","areaId":"area-3","titles":["공감의 동행자","신뢰의 중재자","화합의 대사"]},{"id":"challenge","label":"도전","icon":"🧭","areaId":"area-4","titles":["용기의 모험가","역경의 돌파자","불굴의 개척자"]},{"id":"life","label":"생활","icon":"🌿","areaId":"area-5","titles":["자율의 길잡이","질서의 파수꾼","균형의 수호자"]},{"id":"jobs","label":"알바","icon":"🏰","areaId":"area-6","titles":["길드의 지원자","길드의 기둥","길드의 대들보"]}]'::jsonb) d),'{}'::jsonb)));end $$;
+revoke all on function public.startoday_title_config(uuid) from public,anon,authenticated;
+create or replace function public.startoday_kingdom_counts(cid uuid,sid text) returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
+ select jsonb_object_agg(d.value->>'id',(
+ select count(*) from public.startoday_records r
+ left join public."startoday_assignmentStates" st on st.class_id=cid and st.id=r.data->>'autoRef' and st.data->>'studentId'=sid
+ left join public.startoday_assignments a on a.class_id=cid and a.id=st.data->>'assignmentId'
+ where r.class_id=cid and r.data->>'kind'='칭찬' and r.data->'studentIds' ? sid and r.data->>'date'<=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD')
+ and not exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=r.data->>'date' and atd.data->>'excluded'='true')
+ and (r.data->>'autoRef' is null or (a.id is not null and coalesce(a.data->>'noStar','false')<>'true' and st.data->>'status'='완료' and (coalesce(a.data->>'isQuest','false')<>'true' or coalesce((st.data->>'stamps')::integer,0)>=coalesce((a.data->>'questGoal')::integer,10))))
+ and public.startoday_area_list(coalesce(r.data->'areas',jsonb_build_array(r.data->>'area'))) ? (public.startoday_title_config(cid)->'labels'->>(d.value->>'id'))
+ )) from jsonb_array_elements('[{"id":"learning","label":"학습","icon":"📘","areaId":"area-1","titles":["지식의 탐색자","사유의 탐구자","통찰의 현자"]},{"id":"tasks","label":"과제","icon":"📋","areaId":"area-2","titles":["약속의 수행자","완수의 장인","결실의 마스터"]},{"id":"relationships","label":"관계","icon":"🤝","areaId":"area-3","titles":["공감의 동행자","신뢰의 중재자","화합의 대사"]},{"id":"challenge","label":"도전","icon":"🧭","areaId":"area-4","titles":["용기의 모험가","역경의 돌파자","불굴의 개척자"]},{"id":"life","label":"생활","icon":"🌿","areaId":"area-5","titles":["자율의 길잡이","질서의 파수꾼","균형의 수호자"]},{"id":"jobs","label":"알바","icon":"🏰","areaId":"area-6","titles":["길드의 지원자","길드의 기둥","길드의 대들보"]}]'::jsonb) d;
 $$;
 revoke all on function public.startoday_kingdom_counts(uuid,text) from public,anon,authenticated;
 
@@ -205,11 +224,11 @@ begin
  left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId'
  where (r.data->>'autoRef' is null or (a.id is not null and ast.data->>'status'='완료')) and r.class_id=cid and r.data->>'kind'='칭찬' and r.data->'studentIds' ? sid and r.data->>'date'<=day
  order by r.data->>'date' desc,r.data->>'createdAt' desc limit 50) x;
- select coalesce(jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title','memo',coalesce(a.data->>'memo',''),'checkerName',coalesce((select concat(s.data->>'no','. ',s.data->>'name') from public.startoday_students s where s.class_id=cid and s.id=a.data->>'checkerStudentId' and s.data->>'deletedAt' is null),''),'date',due.date,'overdue',due.date<day,'status',case when exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=due.date and atd.data->>'excluded'='true') then '면제' else coalesce(st.data->>'status','진행중') end) order by due.date,a.data->>'title'),'[]'::jsonb) into tasks
+ select coalesce(jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title','memo',coalesce(a.data->>'memo',''),'checkerName',coalesce((select concat(s.data->>'no','. ',s.data->>'name') from public.startoday_students s where s.class_id=cid and s.id=a.data->>'checkerStudentId' and s.data->>'deletedAt' is null),''),'date',due.date,'isQuest',coalesce(a.data->>'isQuest','false')='true','goal',coalesce((a.data->>'questGoal')::integer,10),'stamps',coalesce((st.data->>'stamps')::integer,0),'overdue',due.date<day,'status',case when exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=due.date and atd.data->>'excluded'='true') then '면제' else coalesce(st.data->>'status','진행중') end) order by due.date,a.data->>'title'),'[]'::jsonb) into tasks
  from public.startoday_assignments a
  cross join lateral (select to_char(value,'YYYY-MM-DD') as date from generate_series((a.data->>'date')::date,day::date,interval '1 day') value) due
- left join public."startoday_assignmentStates" st on st.class_id=cid and st.id=a.id||':'||due.date||':'||sid
- where a.class_id=cid and public.startoday_assignment_occurs(a.data,due.date)
+ left join public."startoday_assignmentStates" st on st.class_id=cid and st.id=a.id||':'||case when a.data->>'isQuest'='true' then a.data->>'date' else due.date end||':'||sid
+ where a.class_id=cid and public.startoday_assignment_occurs(a.data,due.date) and (coalesce(a.data->>'isQuest','false')<>'true' or due.date=day)
  and (a.data->'target'='"all"'::jsonb or a.data->'target'->'studentIds' ? sid)
  and (due.date=day or (coalesce(st.data->>'status','진행중')='진행중' and not exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=due.date and atd.data->>'excluded'='true')));
  select coalesce(jsonb_agg(jsonb_build_object('id',r.id,'title',r.data->>'title','status',case when r.data->'exceptions'->day->>'exempt'='true' or exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=day and atd.data->>'excluded'='true') then '면제' else coalesce(st.data->>'status','진행중') end) order by coalesce((r.data->>'sortOrder')::numeric,0)),'[]'::jsonb) into routines
@@ -219,15 +238,15 @@ begin
  from public.startoday_timetables t left join public.startoday_subject_rules rules on rules.class_id=cid and rules.data->>'code'=t.data->>'subjectCode'
  where t.class_id=cid and t.data->>'date'=day and (t.data->>'period')::integer between 1 and 6;
  select jsonb_build_object(
- 'assignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title','date',a.data->>'date','endDate',a.data->>'endDate','repeat',a.data->'repeat','memo',coalesce(a.data->>'memo',''),'checkerName',coalesce((select concat(s.data->>'no','. ',s.data->>'name') from public.startoday_students s where s.class_id=cid and s.id=a.data->>'checkerStudentId' and s.data->>'deletedAt' is null),''))) from public.startoday_assignments a where a.class_id=cid and a.data->>'deletedAt' is null and (a.data->'target'='"all"'::jsonb or a.data->'target'->'studentIds' ? sid)),'[]'::jsonb),
- 'states',coalesce((select jsonb_agg(jsonb_build_object('assignmentId',st.data->>'assignmentId','date',st.data->>'date','status',st.data->>'status')) from public."startoday_assignmentStates" st where st.class_id=cid and st.data->>'studentId'=sid),'[]'::jsonb),
+ 'assignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title','date',a.data->>'date','endDate',a.data->>'endDate','repeat',a.data->'repeat','isQuest',coalesce(a.data->>'isQuest','false')='true','questGoal',coalesce((a.data->>'questGoal')::integer,10),'memo',coalesce(a.data->>'memo',''),'checkerName',coalesce((select concat(s.data->>'no','. ',s.data->>'name') from public.startoday_students s where s.class_id=cid and s.id=a.data->>'checkerStudentId' and s.data->>'deletedAt' is null),''))) from public.startoday_assignments a where a.class_id=cid and a.data->>'deletedAt' is null and (a.data->'target'='"all"'::jsonb or a.data->'target'->'studentIds' ? sid)),'[]'::jsonb),
+ 'states',coalesce((select jsonb_agg(jsonb_build_object('assignmentId',st.data->>'assignmentId','date',st.data->>'date','status',st.data->>'status','stamps',st.data->'stamps')) from public."startoday_assignmentStates" st where st.class_id=cid and st.data->>'studentId'=sid),'[]'::jsonb),
  'excludedDates',coalesce((select jsonb_agg(atd.data->>'date') from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'excluded'='true'),'[]'::jsonb),
  'events',coalesce((select jsonb_agg(jsonb_build_object('date',e.date,'title',e.title,'description',e.description,'period',e.period,'timeOfDay',e.time_of_day,'isDday',e.is_dday)) from (
    select ev.data->>'date' as date,ev.data->>'title' as title,coalesce(ev.data->>'description','') as description,ev.data->'period' as period,ev.data->>'timeOfDay' as time_of_day, coalesce(ev.data->>'isDday','false')='true' as is_dday from public.startoday_events ev where ev.class_id=cid
    union all select config->'academicCalendar'->>dates.key,dates.title,'학사일정 · 설정에서 관리','null'::jsonb,null::text,false from (values ('term1Start','개학식'),('summerEnd','여름방학식'),('term2Start','개학식'),('winterEnd','겨울방학식'),('winterReturn','개학식'),('springEnd','종업식')) dates(key,title) where config->'academicCalendar'->>dates.key ~ '^\d{4}-\d{2}-\d{2}$' and (dates.key not in ('winterReturn','springEnd') or config->'academicCalendar'->>'springBreak'='true')
    union all select distinct holiday.value,'자율휴업일','학사일정 · 재량휴업일','null'::jsonb,null::text,false from jsonb_array_elements_text(case when jsonb_typeof(config->'academicCalendar'->'holidays')='array' then config->'academicCalendar'->'holidays' else '[]'::jsonb end) holiday(value)
  ) e),'[]'::jsonb)) into calendar;
- result:=jsonb_build_object('student',jsonb_build_object('id',sid,'no',student->'no','name',student->>'name','equippedTitle',student->>'equippedTitle'),'titleCounts',public.startoday_kingdom_counts(cid,sid),'className',coalesce(config->>'className','우리반'),'date',day,'lunchAfterPeriod',case when config->>'lunchAfterPeriod' in ('3','4','5') then (config->>'lunchAfterPeriod')::integer else 4 end,'score',totals,'praise',letters,'tasks',tasks,'routines',routines,'timetable',timetable,'calendar',calendar,'checkingAssignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title')) from public.startoday_assignments a where a.class_id=cid and a.data->>'checkerStudentId'=sid and public.startoday_assignment_occurs(a.data,day)),'[]'::jsonb));
+ result:=jsonb_build_object('student',jsonb_build_object('id',sid,'no',student->'no','name',student->>'name','equippedTitle',student->>'equippedTitle','nickname',student->>'nickname','rewardTitles',coalesce((select jsonb_agg(jsonb_build_object('id',t->>'id','name',t->>'name')) from jsonb_array_elements(coalesce(student->'rewardTitles','[]'::jsonb)) t),'[]'::jsonb)),'titleCounts',public.startoday_kingdom_counts(cid,sid),'titleConfig',public.startoday_title_config(cid),'className',coalesce(config->>'className','우리반'),'date',day,'lunchAfterPeriod',case when config->>'lunchAfterPeriod' in ('3','4','5') then (config->>'lunchAfterPeriod')::integer else 4 end,'score',totals,'praise',letters,'tasks',tasks,'routines',routines,'timetable',timetable,'calendar',calendar,'checkingAssignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title')) from public.startoday_assignments a where a.class_id=cid and a.data->>'checkerStudentId'=sid and coalesce(a.data->>'isQuest','false')<>'true' and public.startoday_assignment_occurs(a.data,day)),'[]'::jsonb));
  return result;
 end $$;
 revoke all on function public.startoday_student_payload(uuid,text) from public,anon,authenticated;
@@ -314,7 +333,7 @@ returns jsonb language plpgsql security definer set search_path=public,pg_temp a
 declare a jsonb; day text:=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD'); roster jsonb;
 begin
  select data into a from public.startoday_assignments where class_id=cid and id=aid;
- if a is null or a->>'checkerStudentId' is distinct from sid or not public.startoday_assignment_occurs(a,day) then return null;end if;
+ if a is null or a->>'isQuest'='true' or a->>'checkerStudentId' is distinct from sid or not public.startoday_assignment_occurs(a,day) then return null;end if;
  select coalesce(jsonb_agg(jsonb_build_object('id',s.id,'no',s.data->'no','name',s.data->>'name',
  'excluded',exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=s.id and atd.data->>'date'=day and atd.data->>'excluded'='true'),
  'completed',coalesce(st.data->>'status' in ('완료','늦게완료','면제'),false)) order by (s.data->>'no')::integer),'[]'::jsonb) into roster
@@ -392,7 +411,7 @@ grant execute on function public.startoday_student_routine_set(text,text,text,in
 -- Students may equip only their own earned title, never arbitrary profile fields.
 create or replace function public.startoday_student_title_set(p_school text,p_grade text,p_class text,p_no integer,p_password text,p_title text)
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
-declare verified jsonb; cid uuid; sid text; counts jsonb; title_id text:=nullif(p_title,''); domain text; level integer; owner uuid; rev bigint;
+declare verified jsonb; cid uuid; sid text; counts jsonb; title_id text:=nullif(p_title,''); domain text; level integer; goal integer; owner uuid; rev bigint;
 begin
  verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_password);
  if verified is null or verified->>'mustChangePassword'='true' then return null;end if;
@@ -400,9 +419,12 @@ begin
  perform 1 from public.startoday_classes where id=cid for update;
  counts:=public.startoday_kingdom_counts(cid,sid);
  if title_id is not null then
-  if title_id !~ '^(reading|cleaning|preparation|writing|kindness|fitness|safety):[1-3]$' then return null;end if;
-  domain:=split_part(title_id,':',1);level:=split_part(title_id,':',2)::integer;
-  if coalesce((counts->>domain)::integer,0)<(array[3,7,15])[level] then return null;end if;
+  if exists(select 1 from public.startoday_students s cross join lateral jsonb_array_elements(coalesce(s.data->'rewardTitles','[]'::jsonb)) t where s.class_id=cid and s.id=sid and t->>'id'=title_id and title_id like 'quest:%') then null;
+  else
+   if title_id !~ '^(learning|tasks|relationships|challenge|life|jobs):[1-3]$' then return null;end if;
+   domain:=split_part(title_id,':',1);level:=split_part(title_id,':',2)::integer;goal:=(public.startoday_title_config(cid)->>'goal')::integer;
+   if coalesce((counts->>domain)::integer,0)<(case level when 1 then ceil(goal/3.0)::integer when 2 then ceil(goal*2/3.0)::integer else goal end) then return null;end if;
+  end if;
  end if;
  update public.startoday_students set data=data||jsonb_build_object('equippedTitle',title_id,'updatedAt',to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),updated_at=now() where class_id=cid and id=sid and data->>'deletedAt' is null;
  if not found then return null;end if;
@@ -413,4 +435,21 @@ begin
 end $$;
 revoke all on function public.startoday_student_title_set(text,text,text,integer,text,text) from public;
 grant execute on function public.startoday_student_title_set(text,text,text,integer,text,text) to anon,authenticated;
+
+create or replace function public.startoday_student_nickname_set(p_school text,p_grade text,p_class text,p_no integer,p_password text,p_nickname text)
+returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare verified jsonb;cid uuid;sid text;owner uuid;rev bigint;
+begin
+ verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_password);
+ if verified is null or verified->>'mustChangePassword'='true' then return null;end if;
+ if p_nickname is not null and p_nickname !~ '^[가-힣]{1,8}$' then return null;end if;
+ cid:=(verified->>'cid')::uuid;sid:=verified->>'sid';perform 1 from public.startoday_classes where id=cid for update;
+ update public.startoday_students set data=data||jsonb_build_object('nickname',p_nickname,'updatedAt',to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),updated_at=now() where class_id=cid and id=sid and data->>'deletedAt' is null;
+ if not found then return null;end if;select owner_id into owner from public.startoday_classes where id=cid;
+ update public.startoday_classes set revision=revision+1 where id=cid returning revision into rev;
+ insert into public.startoday_audit(owner_id,class_id,revision,table_name,row_id,operation) values(owner,cid,rev,'students',sid,'student_nickname_set');
+ return jsonb_build_object('classId',cid,'revision',rev,'snapshot',public.startoday_student_payload(cid,sid));
+end $$;
+revoke all on function public.startoday_student_nickname_set(text,text,text,integer,text,text) from public;
+grant execute on function public.startoday_student_nickname_set(text,text,text,integer,text,text) to anon,authenticated;
 commit;

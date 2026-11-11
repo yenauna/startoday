@@ -1,4 +1,4 @@
-import { TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps } from './core.js';
+import { TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps, mergeRewardTitles } from './core.js';
 export class Store {
   constructor() {
     this.db = null;
@@ -264,6 +264,16 @@ export class Store {
     try {
       const next = applyOps(this.db, ops);
       if (this.mode === 'demo' || this.mode === 'local') {
+        if (ops.some(op => op.table === 'students' && !op.remove)) {
+          try {
+            const latest = JSON.parse(localStorage.getItem('startoday-demo-v1') || 'null');
+            for (const op of ops.filter(op => op.table === 'students' && !op.remove)) {
+              const saved = latest?.students?.find(s => s.id === op.id),
+                target = next.students.find(s => s.id === op.id);
+              if (saved?.rewardTitles && target) target.rewardTitles = mergeRewardTitles(saved.rewardTitles, target.rewardTitles);
+            }
+          } catch {}
+        }
         localStorage.setItem('startoday-demo-v1', JSON.stringify(next));
         this.db = next;
         this.publishSync();

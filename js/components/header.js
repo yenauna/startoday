@@ -76,7 +76,7 @@ function quickInput() {
   }, 'selection-dismiss')}</div>` : ''}<form class="quick" id="quick-form"><div class="quick-main"><div class="quick-entry-fields">${quickStudentsField()}<textarea id="quick-text" rows="1" aria-label="빠른 기록 입력" placeholder="내용">${esc(quickText)}</textarea></div><div class="chips quick-areas" role="group" aria-label="빠른 기록 경험치 영역">${C.areaNames(db()).map(a => btn(esc(a), () => {
     quickAreas = quickAreas.includes(a) ? quickAreas.filter(x => x !== a) : [...quickAreas, a];
     render();
-  }, 'area-chip' + (quickAreas.includes(a) ? ' selected' : ''), `aria-pressed="${quickAreas.includes(a)}"`)).join('')}</div></div><div id="quick-kingdom" class="kingdom-recommendation" aria-live="polite">${C.kingdomRecommendation(quickText)}</div><div class="quick-controls"><label class="quick-date" title="기록 날짜 선택"><span>📅 ${quickDate === C.today() ? '오늘' : esc(C.formatDate(quickDate))}</span><input type="date" id="quick-date" aria-label="빠른 기록 날짜" value="${esc(quickDate)}" required></label>${btn(quickPeriodLabel(), openQuickPeriod, 'quick-period-toggle', `id="quick-period" value="${esc(quickPeriod)}" aria-haspopup="dialog" aria-label="시간·교시 선택"`)}<div class="record-actions">${recordButtons(saveQuick)}</div></div></form></div>`;
+  }, 'area-chip' + (quickAreas.includes(a) ? ' selected' : ''), `aria-pressed="${quickAreas.includes(a)}"`)).join('')}</div></div><div class="quick-controls"><label class="quick-date" title="기록 날짜 선택"><span>📅 ${quickDate === C.today() ? '오늘' : esc(C.formatDate(quickDate))}</span><input type="date" id="quick-date" aria-label="빠른 기록 날짜" value="${esc(quickDate)}" required></label>${btn(quickPeriodLabel(), openQuickPeriod, 'quick-period-toggle', `id="quick-period" value="${esc(quickPeriod)}" aria-haspopup="dialog" aria-label="시간·교시 선택"`)}<div class="record-actions">${recordButtons(saveQuick)}</div></div></form></div>`;
 }
 export function bindQuickInput() {
   const form = $('#quick-form');
@@ -109,7 +109,6 @@ export function bindQuickInput() {
   };
   field.oninput = () => {
     quickText = field.value;
-    $('#quick-kingdom').innerHTML = C.kingdomRecommendation(quickText);
     $('#quick-cancel').hidden = !state.selected.length && !quickText;
     updateAutoPeriod();
     resize();

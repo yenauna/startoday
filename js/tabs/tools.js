@@ -1,3 +1,4 @@
+import { preferredKoreanVoice } from '../shared/tools-core.js';
 import { createFormatCards } from '../components/format-cards.js';
 import { formatToolRange } from '../shared/tool-rich.js';
 import { requestPwaInstall } from '../shared/pwa.js';
@@ -584,8 +585,8 @@ function speakToolText(w, text) {
     utterance.lang = 'ko-KR';
     utterance.rate = Number(w.voiceRate?.value || 1);
     utterance.pitch = Number(w.voicePitch?.value || 1);
-    const voices = window.speechSynthesis.getVoices().filter(v => /^ko(?:-|_)/i.test(v.lang));
-    const voice = voices.find(v => (v.voiceURI || v.name) === w.voiceSelect?.value) || voices[0];
+    const voices = window.speechSynthesis.getVoices().filter(v => /^ko(?:[-_]|$)/i.test(v.lang));
+    const voice = voices.find(v => (v.voiceURI || v.name) === w.voiceSelect?.value) || preferredKoreanVoice(voices);
     if (voice) utterance.voice = voice;
     utterance.onend = () => {
       if (generation !== toolSpeechGeneration) return;
@@ -615,24 +616,26 @@ function buildToolSpeech(w) {
     const automatic = toolElement('option', '', '기기 기본 한국어 음성');
     automatic.value = '';
     w.voiceSelect.append(automatic);
-    for (const voice of window.speechSynthesis?.getVoices() || []) if (/^ko(?:-|_)/i.test(voice.lang)) {
+    for (const voice of window.speechSynthesis?.getVoices() || []) if (/^ko(?:[-_]|$)/i.test(voice.lang)) {
       const option = toolElement('option', '', voice.name || voice.voiceURI || '한국어');
       option.value = voice.voiceURI || voice.name;
       w.voiceSelect.append(option);
     }
-    w.voiceSelect.value = previous;
+    const selected = w.voiceUserSelected && [...w.voiceSelect.options].some(o => o.value === previous) && previous ? previous : preferredKoreanVoice(window.speechSynthesis?.getVoices() || [])?.voiceURI || preferredKoreanVoice(window.speechSynthesis?.getVoices() || [])?.name || '';
+    w.voiceSelect.value = selected;
   };
+  w.voiceSelect.onchange = () => w.voiceUserSelected = !!w.voiceSelect.value;
   refreshVoices();
   window.speechSynthesis?.addEventListener?.('voiceschanged', refreshVoices);
   w.cleanup = () => window.speechSynthesis?.removeEventListener?.('voiceschanged', refreshVoices);
   w.voiceRate = document.createElement('select');
   w.voiceRate.setAttribute('aria-label', '낭독 속도');
-  for (const speed of [.8, 1, 1.2]) {
-    const option = toolElement('option', '', speed.toFixed(1) + 'x');
+  for (const speed of [.8, .95, 1, 1.2]) {
+    const option = toolElement('option', '', String(speed) + 'x');
     option.value = String(speed);
     w.voiceRate.append(option);
   }
-  w.voiceRate.value = '1';
+  w.voiceRate.value = '0.95';
   w.voicePitch = document.createElement('input');
   w.voicePitch.type = 'range';
   w.voicePitch.min = '0.5';

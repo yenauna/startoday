@@ -81,7 +81,7 @@ export function studentDetail(id, from = state.date.slice(0, 7) + '-01', to = st
   const score = C.scores(db(), id, from, to),
     records = db().records.filter(r => r.studentIds.includes(id) && r.date >= from && r.date <= to).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
     pending = C.pending(db(), id, state.date);
-  modal(name(id), `<div class="student-kingdom-detail">${C.kingdomBadge(s, C.kingdomCounts(db(), s.id))}<details open><summary>👑 획득한 칭호 목록</summary>${C.kingdomSummary(C.kingdomCounts(db(), s.id))}</details></div><div class="student-detail-content" data-student-id="${esc(id)}" data-from="${esc(from)}" data-to="${esc(to)}"><div class="row" style="margin-bottom:14px">${btn('+ 기록', () => recordEditor({
+  modal(name(id), `<div class="student-kingdom-detail">${C.kingdomBadge(s, C.kingdomCounts(db(), s.id), C.kingdomConfig(db()))}<details open><summary>👑 획득한 칭호 목록</summary>${C.kingdomSummary(C.kingdomCounts(db(), s.id), C.kingdomConfig(db()), s)}</details></div><div class="student-detail-content" data-student-id="${esc(id)}" data-from="${esc(from)}" data-to="${esc(to)}"><div class="row" style="margin-bottom:14px">${btn('+ 기록', () => recordEditor({
     studentIds: [id],
     date: state.date
   }))}${btn('학생 수정', () => studentEditor(s))}${btn('👁️ 학생 화면으로 보기', () => previewStudent(s.id))}${btn('보고서로 내보내기', () => reportDialog(id, from, to), 'primary')}${btn('이번 주', () => studentDetail(id, C.addDays(state.date, -((C.weekday(state.date) + 6) % 7)), state.date))}${btn('이번 달', () => studentDetail(id, state.date.slice(0, 7) + '-01', state.date))}</div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(from)) || '날짜 선택'}</span><input aria-label="기록 조회 시작" type="date" id="student-from" value="${from}"></span><span>~</span><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(to)) || '날짜 선택'}</span><input aria-label="기록 조회 종료" type="date" id="student-to" value="${to}"></span>${btn('조회', () => studentDetail(id, $('#student-from').value, $('#student-to').value))}</div><div class="panel" style="margin-top:14px"><h3>★ ${score.total} · 기간 요약</h3><div class="chips">${C.areaNames(db(), true).map(a => badge(a + ' ' + score.areas[a])).join('')}</div></div><h3>미완료 과제 ${pending.length}건</h3>${pending.map(({
@@ -113,7 +113,7 @@ export function studentEditor(s = null) {
     studentCode: '',
     createdAt: C.now()
   };
-  modal(s ? '학생 수정' : '학생 추가', `<div class="formgrid">${input('번호', 'no', row.no, 'number', 'min="1" required')}${input('이름', 'name', row.name, 'text', 'required')}${input('교실 화면 별칭', 'alias', row.alias || '')}</div>${s ? btn('비밀번호 초기화', () => resetStudentPassword(row.id), 'danger') : ''}<p class="muted">개별 설정 전에는 반 공통 초기 비밀번호가 적용됩니다. 학생은 첫 로그인 시 새 비밀번호를 설정합니다.</p>`, async f => {
+  modal(s ? '학생 수정' : '학생 추가', `<div class="formgrid">${input('번호', 'no', row.no, 'number', 'min="1" required')}${input('이름', 'name', row.name, 'text', 'required')}${input('교실 화면 별명', 'alias', row.alias || '')}</div>${s ? btn('비밀번호 초기화', () => resetStudentPassword(row.id), 'danger') : ''}<p class="muted">개별 설정 전에는 반 공통 초기 비밀번호가 적용됩니다. 학생은 첫 로그인 시 새 비밀번호를 설정합니다.</p>`, async f => {
     const next = {
       ...(db().students.find(current => current.id === row.id) || row),
       no: Number(f.get('no')),

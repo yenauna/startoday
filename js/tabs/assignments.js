@@ -34,7 +34,7 @@ export function assignmentEditor(a = null, d = state.date) {
     statArea: C.areaRows(db()).find(area => area.id === 'area-2')?.name || null,
     createdAt: C.now()
   };
-  modal(a ? '과제 수정' : '새 과제', `<div class="formgrid">${input('과제 제목', 'title', r.title, 'text', 'required')}${input('시작일 / 마감일', 'date', r.date, 'date', 'required')}${select('반복', 'repeat', [['none', '없음'], ['daily', '매일'], ['weekly', '매주 요일 지정']], r.repeat.type)}${select('경험치 영역', 'statArea', [['', '미지정'], ...C.areaNames(db(), true).filter(a => C.areaNames(db()).includes(a) || a === r.statArea)], r.statArea || '')}<div class="span2" id="repeat-days"><label>반복 요일</label>${multiple([[1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토'], [0, '일']].map(([x, y]) => [String(x), y]), 'weekdays', (r.repeat.weekdays || []).map(String))}</div>${targetForm(r.target)}${select('제출 방식', 'submissionMode', [['check', '단순 체크'], ['text', '글 제출'], ['photo', '사진 첨부']], r.submissionMode || 'check')}${checkbox('학급 친구들에게 제출물 공유', 'shareSubmissions', r.shareSubmissions)}${checkbox('칭찬 별점 부여하지 않음 (단순 체크리스트)', 'noStar', r.noStar)}${textarea('메모(안내사항)', 'memo', r.memo || '')}${checkerPicker(r.checkerStudentId || '')}</div>`, async f => {
+  modal(a ? '과제 수정' : '새 과제', `<div class="formgrid">${input('과제 제목', 'title', r.title, 'text', 'required')}${input('시작일 / 마감일', 'date', r.date, 'date', 'required')}${select('반복', 'repeat', [['none', '없음'], ['daily', '매일'], ['weekly', '매주 요일 지정']], r.repeat.type)}${select('경험치 영역', 'statArea', [['', '미지정'], ...C.areaNames(db(), true).filter(a => C.areaNames(db()).includes(a) || a === r.statArea)], r.statArea || '')}<div class="span2" id="repeat-days"><label>반복 요일</label>${multiple([[1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토'], [0, '일']].map(([x, y]) => [String(x), y]), 'weekdays', (r.repeat.weekdays || []).map(String))}</div>${targetForm(r.target)}${select('제출 방식', 'submissionMode', [['check', '단순 체크'], ['text', '글 제출'], ['photo', '사진 첨부']], r.submissionMode || 'check')}${checkbox('학급 친구들에게 제출물 공유', 'shareSubmissions', r.shareSubmissions)}${checkbox('칭찬 별점 부여하지 않음 (단순 체크리스트)', 'noStar', r.noStar)}${checkbox('장기 퀘스트', 'isQuest', r.isQuest)}<div id="quest-options" class="span2 formgrid">${input('목표 횟수', 'questGoal', r.questGoal || 10, 'number', 'min="1" max="999" step="1"')}${input('완료 보상 칭호', 'questTitle', r.questTitle || '', 'text', 'maxlength="40"')}<small class="span2 muted">장기 퀘스트 도장은 교사가 확인합니다. 달성 보상 칭호는 영구 보존됩니다.</small></div>${textarea('메모(안내사항)', 'memo', r.memo || '')}${checkerPicker(r.checkerStudentId || '')}</div>`, async f => {
     const repeat = {
       type: f.get('repeat')
     };
@@ -52,21 +52,46 @@ export function assignmentEditor(a = null, d = state.date) {
       noStar: !!f.get('noStar'),
       submissionMode: ['check', 'text', 'photo'].includes(f.get('submissionMode')) ? f.get('submissionMode') : 'check',
       shareSubmissions: !!f.get('shareSubmissions'),
+      isQuest: !!f.get('isQuest'),
+      questGoal: Number(f.get('questGoal') || 10),
+      questTitle: String(f.get('questTitle') || '').trim(),
       memo: f.get('memo') || '',
-      checkerStudentId: f.get('checkerStudentId') || null
+      checkerStudentId: f.get('isQuest') ? null : f.get('checkerStudentId') || null
     };
     if (!next.title) throw Error('제목을 입력하세요.');
     if (next.checkerStudentId && !students().some(student => student.id === next.checkerStudentId)) throw Error('확인자 학생을 다시 선택하세요.');
     const states = db().assignmentStates.filter(s => s.assignmentId === next.id);
-    const rewardOps = !!a?.noStar === next.noStar ? [] : next.noStar ? db().records.filter(r => r.autoRef && states.some(s => s.id === r.autoRef)).map(r => ({
+    if (next.isQuest) {
+      C.questGoal(next);
+      if (!next.questTitle) throw Error('완료 보상 칭호를 입력하세요.');
+      if (next.questTitle.length > 40) throw Error('보상 칭호는 40자 이내로 입력하세요.');
+    }
+    if (states.length && !!a?.isQuest !== next.isQuest) throw Error('상태가 기록된 과제는 복사하여 새 퀘스트로 등록하세요.');
+    if (a?.isQuest && next.date !== a.date) throw Error('스탬프를 보존하려면 퀘스트 시작일을 유지하세요.');
+    const rewardOps = next.isQuest || !!a?.noStar === next.noStar ? [] : next.noStar ? db().records.filter(r => r.autoRef && states.some(s => s.id === r.autoRef)).map(r => ({
       table: 'records',
       id: r.id,
       remove: true
     })) : states.filter(s => C.targeted(next, s.studentId)).flatMap(s => C.taskStateOps(db(), next, s.date, s.studentId, s.status, s.memo || ''));
-    await commit([up('assignments', next), ...rewardOps]);
+    const scratch = C.applyOps(db(), [up('assignments', next)]);
+    const questOps = next.isQuest ? students().filter(s => C.targeted(next, s.id) && scratch.assignmentStates.some(st => st.assignmentId === next.id && st.studentId === s.id) && !C.excluded(scratch, s.id, state.date) && C.occurs(next, state.date)).flatMap(s => C.questStampOps(scratch, next, state.date, s.id, 0)) : [];
+    await commit([up('assignments', next), ...rewardOps, ...questOps]);
     closeModal();
   });
   setupTarget();
+  const questForm = $('#modal-form');
+  const updateQuest = () => {
+    const enabled = questForm.elements.isQuest.checked;
+    $('#quest-options').hidden = !enabled;
+    for (const input of $('#quest-options').querySelectorAll('input')) input.disabled = !enabled;
+    questForm.elements.questTitle.required = enabled;
+    for (const input of questForm.querySelectorAll('[name=checkerStudentId]')) {
+      input.disabled = enabled && !!input.value;
+      if (enabled && !input.value) input.checked = true;
+    }
+  };
+  questForm.elements.isQuest.onchange = updateQuest;
+  updateQuest();
   const repeat = $('#modal-form').elements.repeat;
   const update = () => $('#repeat-days').hidden = repeat.value !== 'weekly';
   repeat.onchange = update;
@@ -75,8 +100,9 @@ export function assignmentEditor(a = null, d = state.date) {
 export function assignmentsView() {
   const assignments = db().assignments.filter(a => !a.deletedAt),
     daily = assignments.filter(a => C.occurs(a, state.date));
-  return `<div class="toolbar"><div><h2>과제</h2><small>과제 × 날짜 × 학생마다 상태가 독립적으로 저장됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input id="assignment-date" aria-label="과제 날짜" type="date" value="${state.date}"></span>${btn('+ 과제', () => assignmentEditor(), 'primary')}</div></div><section class="panel"><h3>${esc(C.formatDate(state.date))} 과제 상태</h3>${daily.length ? `<div class="table-wrap assignment-matrix"><table><thead><tr><th>학생</th>${daily.map(a => `<th>${btn(esc(a.title), () => assignmentActions(a, state.date), 'assignment-title')}<div>${btn(allTaskTargetsComplete(a, state.date) ? '↩ 전원 미완료' : '✓ 전원 완료', () => completeAll(a, state.date), 'complete-all')}${btn('남은 진행중 전체 안함', () => markRemainingUndone(a, state.date), 'remaining-notdone')}</div></th>`).join('')}</tr></thead><tbody>${students().map(s => `<tr><th>${esc(name(s.id))}${C.excluded(db(), s.id, state.date) ? badge('제외') : ''}</th>${daily.map(a => {
+  return `<div class="toolbar"><div><h2>과제</h2><small>과제 × 날짜 × 학생마다 상태가 독립적으로 저장됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input id="assignment-date" aria-label="과제 날짜" type="date" value="${state.date}"></span>${btn('+ 과제', () => assignmentEditor(), 'primary')}</div></div><section class="panel"><h3>${esc(C.formatDate(state.date))} 과제 상태</h3>${daily.length ? `<div class="table-wrap assignment-matrix"><table><thead><tr><th>학생</th>${daily.map(a => `<th>${btn(esc(a.title), () => assignmentActions(a, state.date), 'assignment-title')}<div>${a.isQuest ? '<small>🏅 스탬프 퀘스트</small>' : btn(allTaskTargetsComplete(a, state.date) ? '↩ 전원 미완료' : '✓ 전원 완료', () => completeAll(a, state.date), 'complete-all')}${a.isQuest ? '' : btn('남은 진행중 전체 안함', () => markRemainingUndone(a, state.date), 'remaining-notdone')}</div></th>`).join('')}</tr></thead><tbody>${students().map(s => `<tr><th>${esc(name(s.id))}${C.excluded(db(), s.id, state.date) ? badge('제외') : ''}</th>${daily.map(a => {
     const taskState = db().assignmentStates.find(x => x.id === C.stateId(a.id, state.date, s.id));
+    if (a.isQuest) return `<td>${C.targeted(a, s.id) ? questControls(a, state.date, s.id) : '—'}</td>`;
     return `<td>${C.targeted(a, s.id) ? btn(esc(taskState?.status || '진행중'), () => queueTaskToggle(a, state.date, s.id), taskStatusClass(taskState?.status || '진행중'), `data-task-assignment="${esc(a.id)}" data-task-student="${esc(s.id)}" data-task-date="${state.date}" title="클릭: 상태 변경 · 더블클릭/우클릭: 메모 수정"`) + `<div class="muted">${esc(taskState?.memo || '')}</div>` : '—'}</td>`;
   }).join('')}</tr>`).join('')}</tbody></table></div>` : empty('이 날짜에 등록된 과제가 없습니다.', '새 과제를 등록하거나 날짜를 바꾸세요.')}</section>${assignmentCalendar(assignments)}${bindLater('assignment-date', 'change', e => {
     state.date = e.target.value || C.today();
@@ -85,6 +111,16 @@ export function assignmentsView() {
   })}`;
 }
 export function taskStateEditor(a, d, s, afterSave = null) {
+  if (a.isQuest) {
+    const p = C.questProgress(db(), a, s);
+    modal(name(s) + ' · ' + a.title, `${input('스탬프 수', 'stamps', p.stamps, 'number', `required min="0" max="${p.goal}" step="1"`)}${input('상태 메모', 'memo', db().assignmentStates.find(st => st.id === C.stateId(a.id, a.date, s))?.memo || '')}`, async f => {
+      const n = Number(f.get('stamps'));
+      if (!Number.isInteger(n) || n < 0 || n > p.goal) throw Error('스탬프 수를 확인하세요.');
+      await commit(C.questStampOps(db(), a, d, s, n - C.questProgress(db(), a, s).stamps, f.get('memo')));
+      if (afterSave) afterSave();else closeModal();
+    });
+    return;
+  }
   const current = db().assignmentStates.find(x => x.id === C.stateId(a.id, d, s));
   modal(`${name(s)} · ${a.title}`, `<p class="muted">${esc(C.formatDate(d))}의 과제 · 완료 +1 · 안함 −1 · 늦게완료/진행중/면제 0</p>${C.excluded(db(), s, d) ? '<div class="notice">출결 제외일입니다. 상태는 보존되며 점수 집계에서는 제외됩니다.</div>' : ''}${select('상태', 'status', C.STATUSES, current?.status || '진행중')}${input('상태 메모 · 선택', 'memo', current?.memo || '')}`, async f => {
     await commit(C.taskStateOps(db(), a, d, s, f.get('status'), f.get('memo').trim()));
@@ -144,6 +180,10 @@ function cancelTaskToggle(key) {
 function queueTaskToggle(a, date, studentId, clickedButton = null) {
   if (clickedButton?.dataset.longPressed === 'true') {
     delete clickedButton.dataset.longPressed;
+    return;
+  }
+  if (a.isQuest) {
+    awaitQuestStamp(a, date, studentId, 1);
     return;
   }
   const key = C.stateId(a.id, date, studentId);
@@ -281,12 +321,13 @@ function assignmentProgress(a, date) {
   const targets = students().filter(student => C.targeted(a, student.id));
   const eligible = targets.filter(student => !C.excluded(db(), student.id, date));
   const completed = eligible.filter(student => ['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, date, student.id))).length;
-  return `<section class="assignment-progress" data-assignment-id="${esc(a.id)}" data-date="${esc(date)}"><div class="toolbar"><h3>학생 진행도 · 완료 ${completed}/${eligible.length}명</h3>${btn(eligible.length && completed === eligible.length ? '↩ 전원 미완료' : '✓ 전원 완료', async () => {
+  return `<section class="assignment-progress" data-assignment-id="${esc(a.id)}" data-date="${esc(date)}"><div class="toolbar"><h3>학생 진행도 · 완료 ${completed}/${eligible.length}명</h3>${a.isQuest ? '<small>도장을 눌러 횟수를 늘리거나 줄이세요.</small>' : btn(eligible.length && completed === eligible.length ? '↩ 전원 미완료' : '✓ 전원 완료', async () => {
     await completeAll(a, date);
     refreshAssignmentProgress(a, date);
-  }, 'complete-all', eligible.length ? '' : 'disabled')}${btn('남은 진행중 전체 안함', () => markRemainingUndone(a, date), 'remaining-notdone')}</div><div class="assignment-progress-grid">${targets.map(student => {
+  }, 'complete-all', eligible.length ? '' : 'disabled')}${a.isQuest ? '' : btn('남은 진행중 전체 안함', () => markRemainingUndone(a, date), 'remaining-notdone')}</div><div class="assignment-progress-grid">${targets.map(student => {
     const status = C.assignmentStatus(db(), a.id, date, student.id),
       excluded = C.excluded(db(), student.id, date);
+    if (a.isQuest) return `<div class="assignment-progress-item quest-progress-card"><strong>${esc(student.no)}. ${esc(C.studentLabel(student))}${excluded ? ' ' + badge('제외') : ''}</strong>${questControls(a, date, student.id)}</div>`;
     return btn(`<span class="assignment-progress-name">${esc(student.no)}. ${esc(student.name)}${excluded ? ' ' + badge('제외') : ''}</span><span class="assignment-progress-status">${esc(status)}</span>`, event => queueTaskToggle(a, date, student.id, event.target.closest('button')), 'assignment-progress-item ' + taskStatusClass(status), `data-student-id="${esc(student.id)}" data-task-assignment="${esc(a.id)}" data-task-student="${esc(student.id)}" data-task-date="${esc(date)}" title="클릭: 상태 변경 · 길게 누르기/우클릭: 상세 수정" ${excluded ? 'disabled' : ''}`);
   }).join('') || '<p class="muted">대상 학생이 없습니다.</p>'}</div></section>`;
 }
@@ -339,3 +380,18 @@ document.addEventListener('pointerdown', e => {
   }, 550);
 });
 for (const event of ['pointerup', 'pointercancel', 'pointermove']) document.addEventListener(event, () => clearTimeout(taskHoldTimer));
+function questControls(a, date, studentId) {
+  const p = C.questProgress(db(), a, studentId),
+    disabled = C.excluded(db(), studentId, date);
+  return `<div class="quest-controls"><strong>🏅 ${p.stamps}/${p.goal}</strong>${btn('−', () => awaitQuestStamp(a, date, studentId, -1), '', disabled || p.stamps === 0 ? 'disabled' : '')}${btn('+ 도장', () => awaitQuestStamp(a, date, studentId, 1), '', disabled || p.stamps >= p.goal ? 'disabled' : '')}${btn('상세', () => taskStateEditor(a, date, studentId, () => assignmentActions(a, date)), '')}</div>`;
+}
+async function awaitQuestStamp(a, date, studentId, change) {
+  const scope = assignmentScope();
+  await persistAssignment(async () => {
+    if (scope !== assignmentScope()) return;
+    const ops = C.questStampOps(db(), a, date, studentId, change),
+      award = ops.find(op => op.table === 'students');
+    await commit(ops, award ? '🎉 ' + name(studentId) + ' · ' + a.questTitle + ' 칭호를 획득했어요!' : '스탬프를 저장했습니다.');
+    refreshAssignmentProgress(a, date);
+  });
+}

@@ -76,7 +76,7 @@ try {
         passwordResetRequired: false
       }
     }];
-    for (const [area, count, text] of [['reading', 2, '독서 청소'], ['preparation', 6, '준비물'], ['fitness', 14, '줄넘기']]) for (let i = 0; i < count; i++) ops.push({
+    for (const [area, count, text] of [['learning', 4, '학습'], ['life', 9, '생활'], ['jobs', 14, '알바']]) for (let i = 0; i < count; i++) ops.push({
       table: 'records',
       id: 'title-' + area + i,
       data: {
@@ -84,8 +84,8 @@ try {
         date: day,
         kind: '칭찬',
         studentIds: [student.id],
-        text,
-        areas: ['생활'],
+        text: '영역 기반 칭찬',
+        areas: [text],
         createdAt: stamp
       }
     });
@@ -106,7 +106,10 @@ try {
     render();
   });
   await page.locator('#quick-text').fill('도서관 반납 독서 청소');
-  assert.equal(await page.locator('#quick-kingdom .is-recommended').count(), 2);
+  assert.equal(await page.locator('#quick-kingdom').count(), 0);
+  await page.locator('.quick-areas .area-chip').filter({
+    hasText: '학습'
+  }).click();
   await page.locator('#quick-student-query').fill('1');
   await page.locator('#quick-student-query').press('Enter');
   await page.locator('.record-actions').getByRole('button', {
@@ -118,8 +121,8 @@ try {
         store
       } = await import('/js/shared/state.js'),
       C = await import('/js/core.js');
-    return C.kingdomCounts(store.db, window.kingdomStudentId).reading;
-  }), 3);
+    return C.kingdomCounts(store.db, window.kingdomStudentId).learning;
+  }), 5);
   await page.evaluate(async () => {
     const {
       recordEditor
@@ -130,22 +133,21 @@ try {
     });
   });
   await page.locator('#modal textarea[name=text]').fill('수업 준비 준비물 줄넘기');
-  assert.equal(await page.locator('#record-kingdom .is-recommended').count(), 2);
-  await page.locator('#modal select[name=kind]').selectOption('관찰');
-  assert.equal(await page.locator('#record-kingdom .is-recommended').count(), 0);
-  await page.locator('#modal select[name=kind]').selectOption('칭찬');
+  assert.equal(await page.locator('#record-kingdom').count(), 0);
+  await page.locator('#modal input[name=areas][value=생활]').check();
+  await page.locator('#modal input[name=areas][value=알바]').check();
   await page.locator('#modal button[type=submit]').click();
   const teacherCard = page.locator('article.student').first();
   await teacherCard.locator('.kingdom-earned-open').click();
-  assert.equal(await page.locator('#modal .kingdom-domain').count(), 7);
+  assert.equal(await page.locator('#modal .kingdom-domain').count(), 6);
   assert.equal(await page.locator('#modal [data-equip-title]').count(), 0);
   await page.locator('#modal .dialog-head').getByRole('button', {
     name: '닫기',
     exact: true
   }).click();
   await teacherCard.locator('.student-head button').click();
-  assert((await page.locator('.student-kingdom-detail').textContent()).includes('별빛 대서고') === false);
-  assert((await page.locator('.student-kingdom-detail').textContent()).includes('폭풍을 넘는 챔피언'));
+  assert((await page.locator('.student-kingdom-detail').textContent()).includes('통찰의 현자') === false);
+  assert((await page.locator('.student-kingdom-detail').textContent()).includes('길드의 대들보'));
   await page.locator('#modal').getByRole('button', {
     name: '👁️ 학생 화면으로 보기',
     exact: true
@@ -155,19 +157,15 @@ try {
     name: '👑 별 왕국 칭호 도감',
     exact: true
   }).click();
-  assert.equal(await page.locator('#modal .kingdom-domain').count(), 7);
-  await page.screenshot({
-    path: '/workspace/work/kingdom-codex-desktop.png',
-    fullPage: false
-  });
-  assert((await page.locator('#modal [data-kingdom-domain=reading]').textContent()).includes('4회 남았어요'));
-  assert((await page.locator('#modal [data-kingdom-domain=preparation]').textContent()).includes('시간의 마법사'));
-  assert((await page.locator('#modal [data-kingdom-domain=fitness]').textContent()).includes('최고 단계'));
-  assert.equal(await page.locator('[data-equip-title="reading:2"]').count(), 0);
-  await page.locator('[data-equip-title="reading:1"]').click();
-  await page.locator('.kingdom-current [data-equipped-title="reading:1"]').waitFor();
-  await page.locator('[data-equip-title="fitness:3"]').click();
-  await page.locator('.kingdom-current [data-equipped-title="fitness:3"]').waitFor();
+  assert.equal(await page.locator('#modal .kingdom-domain').count(), 6);
+  assert((await page.locator('#modal [data-kingdom-domain=learning]').textContent()).includes('5회 남았어요'));
+  assert((await page.locator('#modal [data-kingdom-domain=life]').textContent()).includes('질서의 파수꾼'));
+  assert((await page.locator('#modal [data-kingdom-domain=jobs]').textContent()).includes('최고 단계'));
+  assert.equal(await page.locator('[data-equip-title="learning:2"]').count(), 0);
+  await page.locator('[data-equip-title="learning:1"]').click();
+  await page.locator('.kingdom-current [data-equipped-title="learning:1"]').waitFor();
+  await page.locator('[data-equip-title="jobs:3"]').click();
+  await page.locator('.kingdom-current [data-equipped-title="jobs:3"]').waitFor();
   assert(!(await page.locator('.student-shell').textContent()).includes('SECRET_PRIVATE'));
   await page.locator('#modal .dialog-head').getByRole('button', {
     name: '닫기',
@@ -177,13 +175,13 @@ try {
     name: '교사 화면으로 돌아가기',
     exact: true
   }).click();
-  assert.equal(await page.locator('article.student').first().locator('[data-equipped-title="fitness:3"]').count(), 1);
+  assert.equal(await page.locator('article.student').first().locator('[data-equipped-title="jobs:3"]').count(), 1);
   await page.reload();
   await page.getByRole('button', {
     name: '가상 명단으로 먼저 살펴보기',
     exact: true
   }).click();
-  assert.equal(await page.locator('article.student').first().locator('[data-equipped-title="fitness:3"]').count(), 1);
+  assert.equal(await page.locator('article.student').first().locator('[data-equipped-title="jobs:3"]').count(), 1);
   const teacher = await page.context().newPage();
   await teacher.goto(page.url());
   await teacher.getByRole('button', {
@@ -208,21 +206,17 @@ try {
   await page.locator('#modal input[name=password]').fill('한글암호7');
   await page.locator('#modal button[type=submit]').click();
   await page.locator('.student-shell').waitFor();
-  assert.equal(await page.locator('.student-shell [data-equipped-title="fitness:3"]').count(), 2);
+  assert.equal(await page.locator('.student-shell [data-equipped-title="jobs:3"]').count(), 2);
   await page.getByRole('button', {
     name: '👑 별 왕국 칭호 도감',
     exact: true
   }).click();
-  await page.locator('[data-equip-title="reading:1"]').click();
-  await page.locator('.kingdom-current [data-equipped-title="reading:1"]').waitFor();
-  await teacher.locator('article.student').first().locator('[data-equipped-title="reading:1"]').waitFor();
+  await page.locator('[data-equip-title="learning:1"]').click();
+  await page.locator('.kingdom-current [data-equipped-title="learning:1"]').waitFor();
+  await teacher.locator('article.student').first().locator('[data-equipped-title="learning:1"]').waitFor();
   await page.setViewportSize({
     width: 390,
     height: 844
-  });
-  await page.screenshot({
-    path: '/workspace/work/kingdom-codex-mobile.png',
-    fullPage: false
   });
   assert.equal(await page.locator('#modal .kingdom-catalog').evaluate(e => getComputedStyle(e).gridTemplateColumns.split(' ').length), 1);
   assert(await page.locator('#modal').evaluate(e => e.scrollWidth <= e.clientWidth + 1));
@@ -239,7 +233,7 @@ try {
       const {
         equipStudentTitle
       } = await import('/js/tabs/student-view.js');
-      await equipStudentTitle('reading:1');
+      await equipStudentTitle('learning:1');
       return '';
     } catch (e) {
       return e.message;
@@ -247,7 +241,7 @@ try {
   })).includes('학생 로그인'));
   await teacher.close();
   assert.deepEqual(errors, []);
-  console.log('PASS: live quick/modal recommendations, three title stages, teacher collections, preview and real student equip, reload persistence, cross-window sync, mobile codex and logout guard');
+  console.log('PASS: XP-based collection, three title stages, teacher collections, preview and real student equip, reload persistence, cross-window sync, mobile codex and logout guard');
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));
