@@ -13,7 +13,7 @@ import { dayEditor, periodInfo, timeSlots } from './timetable.js';
 export function weekSummary() {
   const start = C.addDays(state.date, -((C.weekday(state.date) + 6) % 7)),
     end = C.addDays(start, 4);
-  return [...C.upcomingWeekEvents(db(), state.date).map(e => `${e.title}${e.description ? ' · ' + e.description : ''}`), ...db().timetables.filter(t => t.date > state.date && t.date <= end && periodInfo(t).type !== '일반').map(t => `${t.period}교시 ${t.subjectCode} ${periodInfo(t).type}`)].join(' · ') || '';
+  return [...C.upcomingWeekEvents(db(), state.date).filter(e => !e.isDday).map(e => `${e.title}${e.description ? ' · ' + e.description : ''}`), ...db().timetables.filter(t => t.date > state.date && t.date <= end && periodInfo(t).type !== '일반').map(t => `${t.period}교시 ${t.subjectCode} ${periodInfo(t).type}`)].join(' · ') || '';
 }
 export function dashboard() {
   if (state.dashMode !== 'normal') return checkView();

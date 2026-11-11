@@ -1156,3 +1156,17 @@ export const TEXT_COLOR_CARDS = [['검정', '#172033'], ['회색', '#64748B'], [
   name,
   color
 }));
+
+// Resolve against the record's selected day, never today's timetable implicitly.
+export function quickRecordContext(database, text, date, choice = '자동') {
+  const period = choice === '자동' ? inputPeriod(text, database.settings[0]) : recordPeriod(choice);
+  const number = choice !== '자동' || explicitPeriod(text) ? String(period).match(/^([1-6])교시$/) : null;
+  const slot = number ? database.timetables.find(t => t.date === date && Number(t.period) === Number(number[1])) : null;
+  return {
+    date,
+    period,
+    ...(slot?.subjectCode ? {
+      subjectCode: slot.subjectCode
+    } : {})
+  };
+}

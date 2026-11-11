@@ -896,9 +896,6 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .checker-card-picker button[aria-pressed="true"] { outline:2px solid #365c85; background:var(--st-blue-bg); }
 .assignment-calendar-add { padding:1px 6px; min-height:22px; float:right; }
 .student-task.is-overdue { background:#ffe0e5!important; border-color:#f5a8b7!important; color:#9f1239; }
-.student-praise .student-pills { display:flex; flex-wrap:wrap; gap:6px; }
-.timeline-event-slot { display:flex; flex-wrap:wrap; gap:6px; padding:5px 8px; margin:4px 0; background:#f0f3f7; border-radius:10px; }
-.timeline-event-slot>small { font-size:11px; color:var(--st-text-muted); }
 .format-card-tools { display:inline-flex; gap:4px; align-items:center; }
 .format-card-tools>button { padding:4px 8px; min-height:30px; }
 .format-card-picker { position:fixed; inset:auto; margin:0; width:212px; padding:10px; border:1px solid #d6deeb; border-radius:14px; background:#fcfcfe; box-shadow:var(--st-shadow-3); z-index:1000; }
@@ -912,3 +909,19 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .subject-mood-chip { display:flex; align-items:center; min-height:42px; border-left:4px solid var(--pair-accent)!important; border-radius:10px; }
 .subject-mood-chip[aria-pressed="true"] { outline:2px solid #365c85; outline-offset:2px; }
 @media(max-width:480px){.assignment-progress-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.assignment-progress-grid .assignment-progress-item{padding:7px 6px;font-size:12px}.assignment-progress .toolbar button{font-size:12px;padding:4px 7px}}
+
+/* Explicit, always-visible checker cards avoid hidden-toggle and form-submit traps. */
+.checker-picker { min-width:0; border:0; padding:0; margin:0; }
+.checker-picker legend { margin-bottom:6px; font-weight:600; }
+.checker-picker .checker-card-picker { display:grid; }
+.checker-choice { position:relative; margin:0; cursor:pointer; }
+.checker-choice input { position:absolute; opacity:0; width:1px; height:1px; }
+.checker-choice span { display:block; padding:8px; border:1px solid #d6deeb; border-radius:10px; text-align:center; background:#fff; }
+.checker-choice input:checked+span { background:var(--st-blue-bg); color:var(--st-blue-text); outline:2px solid #365c85; outline-offset:-2px; }
+.checker-choice input:focus-visible+span { outline:2px solid #365c85; outline-offset:2px; }
+.assignment-matrix .assignment-title { padding:3px 0; font:inherit; font-weight:700; background:transparent; box-shadow:none; text-align:left; }
+.assignment-title:hover,.assignment-title:focus-visible { text-decoration:underline; }
+.assignment-matrix .remaining-notdone { font-size:11px; padding:3px 5px; min-height:24px; margin-top:4px; }
+.student-praise .record-content-line { margin-top:5px; }
+.student-praise .record-content-line .body { font-size:inherit; }
+.student-timetable-card>.timeline-slot { margin:4px 0; flex-direction:row; flex-wrap:wrap; align-items:baseline; gap:4px 8px; }

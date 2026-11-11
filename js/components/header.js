@@ -136,16 +136,12 @@ export async function saveQuick(kind) {
   if (!text) throw Error('내용을 입력하세요.');
   const ids = [...new Set(state.selected)];
   if (!ids.length) throw Error('대상 학생을 선택하세요.');
-  const parsed = {
-    date: $('#quick-date')?.value || quickDate || state.date,
-    period: C.inputPeriod(text, settings())
-  };
-  const period = $('#quick-period').value;
-  if (period !== '자동') parsed.period = period;
+  const parsed = C.quickRecordContext(db(), text, $('#quick-date')?.value || quickDate || state.date, $('#quick-period').value);
+  const recordText = parsed.subjectCode && !text.startsWith('[' + parsed.subjectCode + ']') ? '[' + parsed.subjectCode + '] ' + text : text;
   const scope = quickScope;
   saving = true;
   try {
-    await saveDirectRecords(kind, text, ids, [...quickAreas], parsed);
+    await saveDirectRecords(kind, recordText, ids, [...quickAreas], parsed);
     if (scope === quickScope && quickText.trim() === text && JSON.stringify(state.selected) === JSON.stringify(ids)) {
       quickText = '';
       quickStudentQuery = '';

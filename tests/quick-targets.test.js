@@ -109,8 +109,54 @@ test('동명이인 또는 잘못 입력한 학생은 임의로 선택하지 않�
   assert.throws(() => f.context.addQuickStudentQuery(), /학생 번호/);
   assert.deepEqual(f.state.selected, ['one']);
 });
-
-test('여러 번호/이름을 입력하면 쉼표·공백을 기준으로 후보를 모두 표시',()=>{
- const f=quickFixture();
- for(const query of ['1 2 5','1, 2, 5','지우 다온 가온'])assert.deepEqual(Array.from(f.context.quickStudentCandidates(query,f.database)).map(s=>s.id),['one','two','three']);
+test('여러 번호/이름을 입력하면 쉼표·공백을 기준으로 후보를 모두 표시', () => {
+  const f = quickFixture();
+  for (const query of ['1 2 5', '1, 2, 5', '지우 다온 가온']) assert.deepEqual(Array.from(f.context.quickStudentCandidates(query, f.database)).map(s => s.id), ['one', 'two', 'three']);
+});
+test('빠른 기록은 본문 교시를 선택한 날짜의 과목으로 연결하고 메타데이터와 본문을 함께 저장', async () => {
+  const f = quickFixture();
+  f.database.timetables = [{
+    id: 'today',
+    date: '2026-11-09',
+    period: 2,
+    subjectCode: '수학'
+  }, {
+    id: 'other',
+    date: '2026-11-10',
+    period: 2,
+    subjectCode: '국어'
+  }];
+  f.fields['#quick-text'].value = '2교시 친구를 도와줌';
+  f.fields['#quick-period'].value = '자동';
+  await f.context.saveQuick('칭찬');
+  assert.equal(f.saved[1], '[수학] 2교시 친구를 도와줌');
+  assert.equal(f.saved[4].subjectCode, '수학');
+  assert.equal(f.saved[4].period, '2교시');
+  assert.equal(f.saved[4].date, '2026-11-09');
+});
+test('직접 선택한 교시는 본문보다 우선하며 시간표 없는 교시는 과목을 임의 생성하지 않음', () => {
+  const db = C.initialDB();
+  db.timetables = [{
+    id: 't',
+    date: '2026-11-09',
+    period: 3,
+    subjectCode: '과학'
+  }];
+  assert.equal(C.quickRecordContext(db, '2교시 발표', '2026-11-09', '3교시').subjectCode, '과학');
+  assert.equal(C.quickRecordContext(db, '3교시 발표', '2026-11-10', '자동').subjectCode, undefined);
+  for (const period of ['', '점심', '쉬는시간']) assert.equal(C.quickRecordContext(db, '3교시 발표', '2026-11-09', period).subjectCode, undefined);
+});
+test('빠른 기록 과목 접두어는 이미 있는 경우 중복하지 않음', async () => {
+  const f = quickFixture();
+  f.database.timetables = [{
+    id: 't',
+    date: '2026-11-09',
+    period: 3,
+    subjectCode: '국어'
+  }];
+  f.fields['#quick-text'].value = '[국어] 3교시 발표';
+  f.fields['#quick-period'].value = '3교시';
+  await f.context.saveQuick('관찰');
+  assert.equal(f.saved[1], '[국어] 3교시 발표');
+  assert.equal(f.saved[4].subjectCode, '국어');
 });

@@ -67,7 +67,6 @@ export function assignmentEditor(a = null, d = state.date) {
     closeModal();
   });
   setupTarget();
-  bindCheckerPicker();
   const repeat = $('#modal-form').elements.repeat;
   const update = () => $('#repeat-days').hidden = repeat.value !== 'weekly';
   repeat.onchange = update;
@@ -76,7 +75,7 @@ export function assignmentEditor(a = null, d = state.date) {
 export function assignmentsView() {
   const assignments = db().assignments.filter(a => !a.deletedAt),
     daily = assignments.filter(a => C.occurs(a, state.date));
-  return `<div class="toolbar"><div><h2>과제</h2><small>과제 × 날짜 × 학생마다 상태가 독립적으로 저장됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input id="assignment-date" aria-label="과제 날짜" type="date" value="${state.date}"></span>${btn('+ 과제', () => assignmentEditor(), 'primary')}</div></div><section class="panel"><h3>${esc(C.formatDate(state.date))} 과제 상태</h3>${daily.length ? `<div class="table-wrap assignment-matrix"><table><thead><tr><th>학생</th>${daily.map(a => `<th>${esc(a.title)}<div>${btn(allTaskTargetsComplete(a, state.date) ? '↩ 전원 미완료' : '✓ 전원 완료', () => completeAll(a, state.date), 'complete-all')}</div></th>`).join('')}</tr></thead><tbody>${students().map(s => `<tr><th>${esc(name(s.id))}${C.excluded(db(), s.id, state.date) ? badge('제외') : ''}</th>${daily.map(a => {
+  return `<div class="toolbar"><div><h2>과제</h2><small>과제 × 날짜 × 학생마다 상태가 독립적으로 저장됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input id="assignment-date" aria-label="과제 날짜" type="date" value="${state.date}"></span>${btn('+ 과제', () => assignmentEditor(), 'primary')}</div></div><section class="panel"><h3>${esc(C.formatDate(state.date))} 과제 상태</h3>${daily.length ? `<div class="table-wrap assignment-matrix"><table><thead><tr><th>학생</th>${daily.map(a => `<th>${btn(esc(a.title), () => assignmentActions(a, state.date), 'assignment-title')}<div>${btn(allTaskTargetsComplete(a, state.date) ? '↩ 전원 미완료' : '✓ 전원 완료', () => completeAll(a, state.date), 'complete-all')}${btn('남은 진행중 전체 안함', () => markRemainingUndone(a, state.date), 'remaining-notdone')}</div></th>`).join('')}</tr></thead><tbody>${students().map(s => `<tr><th>${esc(name(s.id))}${C.excluded(db(), s.id, state.date) ? badge('제외') : ''}</th>${daily.map(a => {
     const taskState = db().assignmentStates.find(x => x.id === C.stateId(a.id, state.date, s.id));
     return `<td>${C.targeted(a, s.id) ? btn(esc(taskState?.status || '진행중'), () => queueTaskToggle(a, state.date, s.id), taskStatusClass(taskState?.status || '진행중'), `data-task-assignment="${esc(a.id)}" data-task-student="${esc(s.id)}" data-task-date="${state.date}" title="클릭: 상태 변경 · 더블클릭/우클릭: 메모 수정"`) + `<div class="muted">${esc(taskState?.memo || '')}</div>` : '—'}</td>`;
   }).join('')}</tr>`).join('')}</tbody></table></div>` : empty('이 날짜에 등록된 과제가 없습니다.', '새 과제를 등록하거나 날짜를 바꾸세요.')}</section>${assignmentCalendar(assignments)}${bindLater('assignment-date', 'change', e => {
@@ -285,14 +284,7 @@ function assignmentProgress(a, date) {
   return `<section class="assignment-progress" data-assignment-id="${esc(a.id)}" data-date="${esc(date)}"><div class="toolbar"><h3>학생 진행도 · 완료 ${completed}/${eligible.length}명</h3>${btn(eligible.length && completed === eligible.length ? '↩ 전원 미완료' : '✓ 전원 완료', async () => {
     await completeAll(a, date);
     refreshAssignmentProgress(a, date);
-  }, 'complete-all', eligible.length ? '' : 'disabled')}${btn('⚡ 남은 진행중 전체 안함 처리', async () => {
-    for (const student of targets) cancelTaskToggle(C.stateId(a.id, date, student.id));
-    await persistAssignment(async () => {
-      const ops = C.markRemainingUndoneOps(db(), a, date);
-      if (ops.length) await commit(ops, '남은 진행중 과제를 안함 처리했습니다.');
-    });
-    refreshAssignmentProgress(a, date);
-  }, 'remaining-notdone')}</div><div class="assignment-progress-grid">${targets.map(student => {
+  }, 'complete-all', eligible.length ? '' : 'disabled')}${btn('남은 진행중 전체 안함', () => markRemainingUndone(a, date), 'remaining-notdone')}</div><div class="assignment-progress-grid">${targets.map(student => {
     const status = C.assignmentStatus(db(), a.id, date, student.id),
       excluded = C.excluded(db(), student.id, date);
     return btn(`<span class="assignment-progress-name">${esc(student.no)}. ${esc(student.name)}${excluded ? ' ' + badge('제외') : ''}</span><span class="assignment-progress-status">${esc(status)}</span>`, event => queueTaskToggle(a, date, student.id, event.target.closest('button')), 'assignment-progress-item ' + taskStatusClass(status), `data-student-id="${esc(student.id)}" data-task-assignment="${esc(a.id)}" data-task-student="${esc(student.id)}" data-task-date="${esc(date)}" title="클릭: 상태 변경 · 길게 누르기/우클릭: 상세 수정" ${excluded ? 'disabled' : ''}`);
@@ -321,25 +313,18 @@ function exemptionBadge(a, date) {
   return count ? ' ' + badge('면제 ' + count) : '';
 }
 function checkerPicker(id) {
-  return `<div class="span2"><label>확인 (대신 체크해 주는 학생)</label><input type="hidden" name="checkerStudentId" value="${esc(id)}"><button type="button" class="checker-picker-toggle" aria-expanded="false">${id ? esc(name(id)) : '선생님'}</button><div class="checker-card-picker" hidden>${[['', '선생님'], ...students().map(s => [s.id, name(s.id)])].map(([value, label]) => `<button type="button" data-checker-id="${esc(value)}" aria-pressed="${id === value}">${esc(label)}</button>`).join('')}</div></div>`;
+  const list = [['', '선생님'], ...students().map(s => [s.id, name(s.id)])];
+  return `<fieldset class="span2 checker-picker"><legend>확인 (대신 체크해 주는 학생)</legend><div class="checker-card-picker" role="radiogroup" aria-label="과제 확인자">${list.map(([value, label]) => `<label class="checker-choice"><input type="radio" name="checkerStudentId" value="${esc(value)}" ${id === value ? 'checked' : ''}><span>${esc(label)}</span></label>`).join('')}</div></fieldset>`;
 }
-function bindCheckerPicker() {
-  const form = $('#modal-form'),
-    toggle = form.querySelector('.checker-picker-toggle'),
-    grid = form.querySelector('.checker-card-picker');
-  toggle.onclick = () => {
-    grid.hidden = !grid.hidden;
-    toggle.setAttribute('aria-expanded', String(!grid.hidden));
-  };
-  grid.onclick = e => {
-    const button = e.target.closest('[data-checker-id]');
-    if (!button) return;
-    form.elements.checkerStudentId.value = button.dataset.checkerId;
-    toggle.textContent = button.textContent;
-    grid.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
-    grid.hidden = true;
-    toggle.setAttribute('aria-expanded', 'false');
-  };
+async function markRemainingUndone(a, date) {
+  const scope = assignmentScope();
+  for (const student of students()) cancelTaskToggle(C.stateId(a.id, date, student.id));
+  await persistAssignment(async () => {
+    if (scope !== assignmentScope()) return;
+    const ops = C.markRemainingUndoneOps(db(), a, date);
+    if (ops.length) await commit(ops, '남은 진행중 과제를 안함 처리했습니다.');
+  });
+  refreshAssignmentProgress(a, date);
 }
 let taskHoldTimer;
 document.addEventListener('pointerdown', e => {

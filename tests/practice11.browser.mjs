@@ -81,7 +81,7 @@ try {
         id: 'p' + p,
         date,
         period: p,
-        subjectCode: '국어',
+        subjectCode: p === 2 ? '수학' : '국어',
         publicMemo: '준비물\n태블릿',
         privateMemo: 'PRIVATE_TEACHER'
       }
@@ -114,6 +114,26 @@ try {
         statArea: '과제'
       }
     });
+    ops.push({
+      table: 'events',
+      id: 'future-dday',
+      data: {
+        id: 'future-dday',
+        date: C.addDays(date, 1),
+        period: 2,
+        title: '미래 디데이 시험',
+        isDday: true
+      }
+    }, {
+      table: 'timetables',
+      id: 'past-science',
+      data: {
+        id: 'past-science',
+        date: yesterday,
+        period: 3,
+        subjectCode: '과학'
+      }
+    });
     await store.commit(ops);
     state.date = date;
     render();
@@ -127,6 +147,59 @@ try {
   const timeline = await page.locator('.registered-schedule').first().textContent();
   assert(timeline.indexOf('3교시') < timeline.indexOf('점심 행사'));
   assert(timeline.indexOf('점심 행사') < timeline.indexOf('4교시'));
+  assert((await page.locator('.dashboard-today-events').textContent()).includes('미래 디데이 시험 D-1'));
+  assert(!(await page.locator('.registered-schedule').first().textContent()).includes('미래 디데이 시험'));
+  assert(!(await page.locator('.ticker').allTextContents()).join('').includes('미래 디데이 시험'));
+  // A parsed lesson and a manual lesson both link the actual selected date's subject.
+  const quickSave = async (text, period, date) => {
+    if (date) {
+      await page.locator('#quick-date').fill(date);
+      await page.locator('#quick-date').dispatchEvent('change');
+    }
+    await page.locator('#quick-student-query').fill('1');
+    await page.locator('#quick-student-query').press('Enter');
+    await page.locator('#quick-text').fill(text);
+    await page.locator('#quick-period').selectOption(period);
+    await page.locator('.quick-areas .area-chip').first().click();
+    await page.locator('.record-actions').getByRole('button', {
+      name: '칭찬',
+      exact: true
+    }).click();
+  };
+  await quickSave('2교시 친구를 도와줌', '자동');
+  assert.equal(await page.evaluate(async () => {
+    const {
+      store
+    } = await import('/js/shared/state.js');
+    return store.db.records.find(r => r.text.includes('친구를 도와줌')).subjectCode;
+  }), '수학');
+  const past = await page.evaluate(async () => {
+    const C = await import('/js/core.js');
+    return C.addDays(window.qaDate, -1);
+  });
+  await quickSave('준비물을 챙겨줌', '3교시', past);
+  assert.deepEqual(await page.evaluate(async () => {
+    const {
+      store
+    } = await import('/js/shared/state.js');
+    const r = store.db.records.find(r => r.text.includes('준비물을 챙겨줌'));
+    return {
+      date: r.date,
+      subject: r.subjectCode,
+      text: r.text
+    };
+  }), {
+    date: past,
+    subject: '과학',
+    text: '[과학] 준비물을 챙겨줌'
+  });
+  await page.locator('#quick-date').fill(await page.evaluate(() => window.qaDate));
+  await page.locator('#quick-date').dispatchEvent('change');
+  const teacherTimeStyle = await page.locator('.registered-schedule .timeline-slot').first().evaluate(e => ({
+    background: getComputedStyle(e).backgroundColor,
+    size: getComputedStyle(e.querySelector('strong')).fontSize,
+    weight: getComputedStyle(e.querySelector('strong')).fontWeight
+  }));
   // Notice formatting uses 4x5 native popovers without losing the selected text.
   await page.locator('#notice-editor').fill('안내 문장');
   await page.locator('#notice-editor').evaluate(editor => {
@@ -163,15 +236,17 @@ try {
     name: '과제',
     exact: true
   }).click();
-  await page.locator('[data-assignment-id="today"][data-assignment-date]').first().click();
+  await page.locator('.assignment-title').filter({
+    hasText: '오늘 과제'
+  }).click();
   assert.equal(await page.locator('#modal .assignment-progress-item').count(), 20);
   const card = page.locator('#modal .assignment-progress-item').first();
   assert.equal(await card.locator('.assignment-progress-status').textContent(), '진행중');
   await card.click();
   await page.waitForTimeout(450);
   assert.equal(await page.locator('#modal .assignment-progress-item').first().locator('.assignment-progress-status').textContent(), '완료');
-  await page.getByRole('button', {
-    name: '⚡ 남은 진행중 전체 안함 처리',
+  await page.locator('#modal').getByRole('button', {
+    name: '남은 진행중 전체 안함',
     exact: true
   }).click();
   await page.waitForTimeout(150);
@@ -198,15 +273,76 @@ try {
   await add.click();
   assert.equal(await page.locator('#modal input[name=date]').inputValue(), expectedDate);
   await page.locator('#modal input[name=title]').fill('카드 확인 과제');
-  await page.locator('.checker-picker-toggle').click();
-  await page.locator('.checker-card-picker button').nth(2).click();
-  assert.equal(await page.locator('#modal input[name=checkerStudentId]').inputValue(), await page.evaluate(async () => {
+  assert.equal(await page.locator('.checker-choice').count(), 21);
+  await page.locator('.checker-choice').nth(2).click();
+  await page.locator('.checker-choice').first().click();
+  assert.equal(await page.locator('input[name=checkerStudentId]:checked').inputValue(), '');
+  await page.locator('.checker-choice').nth(2).click();
+  assert.equal(await page.locator('#modal input[name=checkerStudentId]:checked').inputValue(), await page.evaluate(async () => {
     const {
       store
     } = await import('/js/shared/state.js');
     return store.db.students[1].id;
   }));
   await page.locator('#modal button[type=submit]').click();
+  // Reopening an assignment retains the native radio choice, and teacher reset is one tap.
+  await page.locator('.assignment-calendar-task').filter({
+    hasText: '카드 확인 과제'
+  }).click();
+  await page.locator('#modal').getByRole('button', {
+    name: '수정',
+    exact: true
+  }).click();
+  assert.equal(await page.locator('#modal input[name=checkerStudentId]:checked').inputValue(), await page.evaluate(async () => {
+    const {
+      store
+    } = await import('/js/shared/state.js');
+    return store.db.students[1].id;
+  }));
+  await page.locator('.checker-choice').first().click();
+  await page.locator('#modal button[type=submit]').click();
+  assert.equal(await page.evaluate(async () => {
+    const {
+      store
+    } = await import('/js/shared/state.js');
+    return store.db.assignments.find(a => a.title === '카드 확인 과제').checkerStudentId;
+  }), null);
+  // The matrix header uses the same bulk handler as the calendar modal.
+  await page.evaluate(async () => {
+    const {
+        store
+      } = await import('/js/shared/state.js'),
+      {
+        render
+      } = await import('/js/app.js');
+    await store.commit([{
+      table: 'assignments',
+      id: 'header-bulk',
+      data: {
+        id: 'header-bulk',
+        title: '헤더 일괄',
+        date: window.qaDate,
+        target: 'all',
+        repeat: {
+          type: 'none'
+        },
+        noStar: true
+      }
+    }]);
+    render();
+  });
+  await page.locator('.assignment-matrix thead th').filter({
+    hasText: '헤더 일괄'
+  }).getByRole('button', {
+    name: '남은 진행중 전체 안함',
+    exact: true
+  }).click();
+  await page.waitForFunction(async () => {
+    const {
+      store
+    } = await import('/js/shared/state.js');
+    return store.db.assignmentStates.filter(s => s.assignmentId === 'header-bulk' && s.status === '안함').length === 20;
+  });
   // Modal cards stay multiple columns in a phone viewport, long press opens details.
   await page.setViewportSize({
     width: 390,
@@ -239,6 +375,17 @@ try {
     hasText: '밀린 과제'
   }).count(), 1);
   assert(!(await page.locator('.student-shell').textContent()).includes('PRIVATE_TEACHER'));
+  const letter = page.locator('.student-praise').filter({
+    hasText: '친구를 도와줌'
+  });
+  assert.equal(await letter.locator('.record-content-line .badge').count(), 1);
+  assert.equal(await letter.locator('.record-content-line .body').textContent(), '[수학] 2교시 친구를 도와줌');
+  assert(await letter.locator('.record-content-line').evaluate(e => e.querySelector('.badge').compareDocumentPosition(e.querySelector('.body')) & Node.DOCUMENT_POSITION_FOLLOWING));
+  assert.deepEqual(await page.locator('.student-timetable-card>.timeline-slot').first().evaluate(e => ({
+    background: getComputedStyle(e).backgroundColor,
+    size: getComputedStyle(e.querySelector('strong')).fontSize,
+    weight: getComputedStyle(e.querySelector('strong')).fontWeight
+  })), teacherTimeStyle);
   const studentTimeline = await page.locator('.student-timetable-card').textContent();
   assert(studentTimeline.indexOf('3교시') < studentTimeline.indexOf('점심 행사'));
   assert(studentTimeline.indexOf('점심 행사') < studentTimeline.indexOf('4교시'));
@@ -260,6 +407,8 @@ try {
     } = await import('/js/app.js');
     navigate('설정');
   });
+  assert.equal(await page.locator('[data-settings-category="기본 정보"] select[name=lunchAfterPeriod]').count(), 0);
+  await page.locator('[data-settings-tab=학사일정]').click();
   await page.locator('select[name=lunchAfterPeriod]').selectOption('5');
   await page.getByRole('button', {
     name: '설정 저장',
