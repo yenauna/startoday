@@ -62,6 +62,9 @@ try {
       {
         render
       } = await import('/js/app.js');
+    // Isolate regression fixtures from the enriched public demo seed.
+    for (const table of ['records','assignments','assignmentStates','routines','routineStates','events','shop_items','economy_tx']) store.db[table] = [];
+    localStorage.setItem('startoday-demo-v1', JSON.stringify(store.db));
     const student = store.db.students[0];
     window.kingdomStudentId = student.id;
     const day = C.today(),

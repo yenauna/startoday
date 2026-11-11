@@ -6,7 +6,7 @@ core=(root/'js/core.js').read_text()
 names=re.findall(r'export (?:const|function) (\w+)',core)
 core=core.replace('export ','')
 store=(root/'js/store.js').read_text()
-store=re.sub(r'^import .*?;\n','const {TABLES,normalizeDB,initialDB,applyOps,uid,now,assignmentPolicyOps,areaMigrationOps,mergeRewardTitles}=C;\n',store,flags=re.M).replace('export class Store','class Store')
+store=re.sub(r'^import .*?;\n','const {TABLES,normalizeDB,initialDB,applyOps,uid,now,assignmentPolicyOps,areaMigrationOps,mergeRewardTitles,demoDB,shopBuyOps,shopRefundOps,shopUseOps,teacherGiftOps,teacherBalanceAdjustOps}=C;\n',store,flags=re.M).replace('export class Store','class Store')
 modules={}
 def collect(module):
     if module in modules or module in ('js/core.js','js/store.js'):

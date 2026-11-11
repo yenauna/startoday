@@ -1,4 +1,4 @@
-import { TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps, mergeRewardTitles } from './core.js';
+import { TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps, mergeRewardTitles, demoDB, shopBuyOps, shopRefundOps, shopUseOps, teacherGiftOps, teacherBalanceAdjustOps } from './core.js';
 export class Store {
   constructor() {
     this.db = null;
@@ -192,21 +192,7 @@ export class Store {
     } catch {}
     const created = !this.db;
     if (!this.db) {
-      this.db = initialDB();
-      this.db.students = Array.from({
-        length: 20
-      }, (_, i) => ({
-        id: uid(),
-        no: i + 1,
-        name: ['가온', '나래', '다온', '라온', '마루', '바다', '새봄', '아람', '여름', '지우'][i % 10] + (i < 10 ? '' : '별'),
-        group: String(i % 5 + 1),
-        seat: {
-          row: Math.floor(i / 5),
-          col: i % 5
-        },
-        academicYear: 2026,
-        createdAt: now()
-      }));
+      this.db = demoDB();
     }
     const config = this.db.settings[0];
     if (config) Object.assign(config, {
@@ -258,6 +244,18 @@ export class Store {
     return this.db;
   }
   async commit(ops) {
+    if (!['demo', 'local'].includes(this.mode)) return this.commitSnapshot(ops);
+    const scope = this.mode + ':' + this.classId;
+    const save = async () => {
+      if (scope !== this.mode + ':' + this.classId) throw Error('화면이 변경되었습니다.');
+      const saved = localStorage.getItem('startoday-demo-v1');
+      if (saved) this.db = normalizeDB(JSON.parse(saved));
+      return this.commitSnapshot(ops);
+    };
+    if (typeof navigator !== 'undefined' && navigator.locks) return navigator.locks.request('startoday-economy:' + this.mode + ':' + this.classId, save);
+    return save();
+  }
+  async commitSnapshot(ops) {
     if (this.syncLoading) await this.syncLoading;
     if (this.busy) throw Error('저장 중입니다. 잠시 후 다시 시도하세요.');
     this.busy = true;
@@ -306,6 +304,56 @@ export class Store {
     } finally {
       this.busy = false;
     }
+  }
+  async economyAction(action, studentId, target = null, amount = 0, memo = '') {
+    const scope = this.mode + ':' + this.classId + ':' + (this.user?.id || '');
+    const valid = () => scope === this.mode + ':' + this.classId + ':' + (this.user?.id || '');
+    const execute = async () => {
+      if (!valid()) throw Error('화면이 변경되었습니다.');
+      if (this.mode === 'cloud') {
+        if (this.busy) throw Error('저장 중입니다.');
+        this.busy = true;
+        try {
+          const {
+            data,
+            error
+          } = await this.client.rpc('startoday_economy_action', {
+            p_class_id: this.classId,
+            p_student: studentId,
+            p_action: action,
+            p_target: target,
+            p_amount: amount,
+            p_memo: memo
+          });
+          if (error) {
+            if (['PGRST202', '42883'].includes(error.code)) throw Error('경제 기능을 사용하려면 Supabase에서 최신 schema.sql을 실행해 주세요.');
+            throw Error(error.message);
+          }
+          if (!valid()) throw Error('화면이 변경되었습니다.');
+          this.db = normalizeDB(data.data);
+          this.revision = data.revision;
+          this.publishSync();
+        } finally {
+          this.busy = false;
+        }
+      } else {
+        if (!['demo', 'local'].includes(this.mode)) throw Error('로그인이 필요합니다.');
+        const saved = localStorage.getItem('startoday-demo-v1');
+        if (saved) this.db = normalizeDB(JSON.parse(saved));
+        const makers = {
+          buy: shopBuyOps,
+          refund: shopRefundOps,
+          use: shopUseOps,
+          gift: teacherGiftOps
+        };
+        const ops = action === 'adjust' ? teacherBalanceAdjustOps(this.db, studentId, amount, memo) : makers[action]?.(this.db, studentId, target);
+        if (!ops) throw Error('지원하지 않는 거래입니다.');
+        await this.commitSnapshot(ops);
+      }
+    };
+    // Same-origin tabs serialize read/check/write; cloud transactions lock the class row.
+    if (typeof navigator !== 'undefined' && navigator.locks) return navigator.locks.request('startoday-economy:' + this.mode + ':' + this.classId, execute);
+    return execute();
   }
   async cloudBackup() {
     if (this.mode !== 'cloud') throw Error('구글 로그인 후 사용할 수 있습니다.');

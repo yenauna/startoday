@@ -978,3 +978,9 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .quest-progress-card .quest-controls { justify-content:flex-start; }
 .student-nickname-open { margin:4px; }
 .quest-reward-collection { overflow-wrap:anywhere; }
+
+/* Economy uses existing spacing and card tokens; no changes to star-score UI. */
+.economy-subtabs{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}.economy-subtabs .active{background:var(--st-blue-bg);color:var(--st-blue-text);outline:2px solid var(--st-blue-text)}
+.economy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:12px}
+.economy-item{min-width:0;border:1px solid #dbe2ec;border-radius:16px;background:var(--st-surface,#fff);padding:16px;overflow-wrap:anywhere}.economy-item h3{margin:10px 0}.economy-item .row{margin-top:12px;flex-wrap:wrap}.economy-wallet strong{font-size:28px;color:var(--st-blue-text)}.student-economy{display:grid;gap:12px}.demo-reset{margin-bottom:10px}
+@media(max-width:480px){.sticky-navigation .tabs{overflow-x:auto;justify-content:flex-start;flex-wrap:nowrap}.sticky-navigation .tabs button{flex:0 0 auto}.economy-item{padding:12px}}

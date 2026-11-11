@@ -1,7 +1,7 @@
 export const DEFAULT_AREAS = ['학습', '과제', '관계', '도전', '생활', '알바'];
 export const KINDS = ['칭찬', '지도', '관찰', '추가기록'];
 export const STATUSES = ['진행중', '완료', '늦게완료', '안함', '면제'];
-export const TABLES = ['students', 'incidents', 'records', 'assignments', 'assignmentStates', 'events', 'routines', 'routineStates', 'subject_rules', 'timetables', 'quests', 'settings', 'attendance', 'areas'];
+export const TABLES = ['students', 'incidents', 'records', 'assignments', 'assignmentStates', 'events', 'routines', 'routineStates', 'subject_rules', 'timetables', 'quests', 'settings', 'attendance', 'areas', 'shop_items', 'economy_tx'];
 export const uid = () => {
   if (crypto.randomUUID) return crypto.randomUUID();
   const b = crypto.getRandomValues(new Uint8Array(16));
@@ -232,6 +232,7 @@ export function initialDB() {
     reportHeader: '우리 아이의 학교생활',
     lastBackupAt: null,
     academicYear: 2026,
+    allowRefund: true,
     schoolName: '',
     timetableDisplay: {
       showTeacher: true,
@@ -570,6 +571,8 @@ export function redact(text, db, s) {
 }
 export function validateBackup(x) {
   if (!x || x.app !== 'startoday' || x.version !== 1 || !x.data) throw Error('오늘의 별 버전 1 백업 파일이 아닙니다.');
+  x.data.shop_items ??= [];
+  x.data.economy_tx ??= [];
   delete x.data.tags;
   for (const row of x.data.records || []) delete row.tagIds;
   if (x.data.areas === undefined) x.data.areas = defaultAreas();
@@ -585,6 +588,9 @@ export function validateBackup(x) {
   if (x.data.settings.length !== 1 || x.data.settings[0].id !== 'main') throw Error('설정 데이터가 올바르지 않습니다.');
   for (const r of x.data.records) if (!Array.isArray(r.studentIds) || !Array.isArray(r.areas) || !KINDS.includes(r.kind) || typeof r.text !== 'string' || typeof r.createdAt !== 'string') throw Error('기록 형식 오류');
   for (const a of x.data.assignments) if (!a.repeat || !['none', 'daily', 'weekly'].includes(a.repeat.type) || !a.date) throw Error('과제 형식 오류');
+  const economyUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  for (const item of x.data.shop_items) if (!economyUuid.test(item.id) || typeof item.name !== 'string' || !item.name.trim() || !Number.isSafeInteger(item.price) || item.price < 0 || item.price > 1000000000 || !(item.stock === null || Number.isSafeInteger(item.stock) && item.stock >= 0 && item.stock <= 1000000000)) throw Error('상점 물품 형식 오류');
+  for (const tx of x.data.economy_tx) if (!economyUuid.test(tx.id) || !x.data.students.some(s => s.id === tx.studentId) || !['구매', '선물', '환불', '지급', '차감'].includes(tx.type) || !Number.isSafeInteger(tx.amount) || Math.abs(tx.amount) > 1000000000 || typeof tx.createdAt !== 'string' || ['구매', '선물'].includes(tx.type) && (!economyUuid.test(tx.itemId) || !['보유', '사용완료', '환불됨'].includes(tx.status)) || tx.type === '구매' && tx.amount > 0 || tx.type === '선물' && tx.amount !== 0 || ['환불', '지급'].includes(tx.type) && tx.amount < 0 || tx.type === '차감' && tx.amount >= 0) throw Error('경제 거래 형식 오류');
   normalizeDB(x.data);
   const d = x.data,
     studentIds = new Set(d.students.map(s => s.id)),
@@ -631,6 +637,9 @@ export function areaNames(db, includeDeleted = false) {
   return areaRows(db, includeDeleted).map(a => a.name);
 }
 export function normalizeDB(db) {
+  db.shop_items ??= [];
+  db.economy_tx ??= [];
+  if (db.settings?.[0]) db.settings[0].allowRefund ??= true;
   delete db.tags;
   for (const row of db.records || []) delete row.tagIds;
   if (!Array.isArray(db.areas) || !db.areas.length) db.areas = defaultAreas();
@@ -1467,4 +1476,191 @@ export function mergeRewardTitles(existing = [], incoming = []) {
   const out = [];
   for (const t of [...(Array.isArray(existing) ? existing : []), ...(Array.isArray(incoming) ? incoming : [])]) if (t && typeof t.id === 'string' && !out.some(row => row.id === t.id)) out.push(structuredClone(t));
   return out;
+}
+
+// The coin ledger is separate from praise/advice records and never changes star scores.
+export function studentBalance(database, studentId, date = today()) {
+  return scores(database, studentId, '', date).total * 10 + (database.economy_tx || []).filter(t => t.studentId === studentId).reduce((n, t) => n + t.amount, 0);
+}
+export function studentHoldings(database, studentId) {
+  return (database.economy_tx || []).filter(t => t.studentId === studentId && t.status === '보유' && ['구매', '선물'].includes(t.type));
+}
+function economyStudent(database, id) {
+  if (!database.students.some(s => s.id === id && !s.deletedAt)) throw Error('학생을 확인하세요.');
+}
+function economyItem(database, id) {
+  const item = (database.shop_items || []).find(i => i.id === id && !i.deletedAt);
+  if (!item || !item.name || !Number.isSafeInteger(item.price) || item.price < 0 || !(item.stock === null || Number.isSafeInteger(item.stock) && item.stock >= 0)) throw Error('상점 물품 정보를 확인하세요.');
+  if (item.stock === 0) throw Error('품절된 물품입니다.');
+  return item;
+}
+function economyEntry(studentId, type, amount, item = {}, memo = '') {
+  return {
+    id: uid(),
+    studentId,
+    type,
+    amount,
+    itemId: item.id || null,
+    itemName: item.name || '',
+    status: ['구매', '선물'].includes(type) ? '보유' : null,
+    memo,
+    createdAt: now()
+  };
+}
+function economyUp(table, data) {
+  return {
+    table,
+    id: data.id,
+    data
+  };
+}
+function acquireItemOps(database, studentId, itemId, gift) {
+  economyStudent(database, studentId);
+  const item = economyItem(database, itemId);
+  if (!gift && studentBalance(database, studentId) < item.price) throw Error('잔액이 부족합니다.');
+  return [...(item.stock === null ? [] : [economyUp('shop_items', {
+    ...item,
+    stock: item.stock - 1
+  })]), economyUp('economy_tx', economyEntry(studentId, gift ? '선물' : '구매', gift ? 0 : -item.price, item))];
+}
+export function shopBuyOps(database, studentId, itemId) {
+  return acquireItemOps(database, studentId, itemId, false);
+}
+export function teacherGiftOps(database, studentId, itemId) {
+  return acquireItemOps(database, studentId, itemId, true);
+}
+export function shopRefundOps(database, studentId, txId) {
+  economyStudent(database, studentId);
+  if (database.settings[0]?.allowRefund === false) throw Error('환불이 허용되지 않습니다.');
+  const tx = (database.economy_tx || []).find(t => t.id === txId && t.studentId === studentId && t.type === '구매' && t.status === '보유');
+  if (!tx) throw Error('미사용 구매 물품만 환불할 수 있습니다.');
+  const item = (database.shop_items || []).find(i => i.id === tx.itemId);
+  return [economyUp('economy_tx', {
+    ...tx,
+    status: '환불됨'
+  }), ...(item && item.stock !== null ? [economyUp('shop_items', {
+    ...item,
+    stock: item.stock + 1
+  })] : []), economyUp('economy_tx', {
+    ...economyEntry(studentId, '환불', -tx.amount, {
+      id: tx.itemId,
+      name: tx.itemName
+    }),
+    originalTxId: tx.id
+  })];
+}
+export function shopUseOps(database, studentId, txId) {
+  economyStudent(database, studentId);
+  const tx = studentHoldings(database, studentId).find(t => t.id === txId);
+  if (!tx) throw Error('보유 중인 물품만 사용할 수 있습니다.');
+  return [economyUp('economy_tx', {
+    ...tx,
+    status: '사용완료'
+  })];
+}
+export function teacherBalanceAdjustOps(database, studentId, amount, memo = '') {
+  economyStudent(database, studentId);
+  if (!Number.isSafeInteger(amount) || !amount || Math.abs(amount) > 1000000000) throw Error('0이 아닌 정수 금액을 입력하세요.');
+  return [economyUp('economy_tx', economyEntry(studentId, amount > 0 ? '지급' : '차감', amount, {}, String(memo)))];
+}
+export function studentEconomySnapshot(database, studentId) {
+  return {
+    balance: studentBalance(database, studentId),
+    allowRefund: database.settings[0]?.allowRefund !== false,
+    items: (database.shop_items || []).filter(i => !i.deletedAt).map(i => ({
+      id: i.id,
+      category: i.category,
+      name: i.name,
+      price: i.price,
+      stock: i.stock
+    })),
+    transactions: (database.economy_tx || []).filter(t => t.studentId === studentId).map(t => ({
+      id: t.id,
+      type: t.type,
+      itemId: t.itemId,
+      itemName: t.itemName,
+      amount: t.amount,
+      status: t.status,
+      createdAt: t.createdAt
+    }))
+  };
+}
+export function demoDB() {
+  const database = initialDB(),
+    year = Number(today().slice(0, 4)),
+    stamp = now();
+  Object.assign(database.settings[0], {
+    schoolName: '체험초등학교',
+    grade: 5,
+    classGroup: '1',
+    defaultStudentPassword: '바람123',
+    allowRefund: true,
+    titleGoal: 15
+  });
+  database.students = Array.from({
+    length: 20
+  }, (_, i) => ({
+    id: uid(),
+    no: i + 1,
+    name: ['가온', '나래', '다온', '라온', '마루', '바다', '새봄', '아람', '여름', '지우'][i % 10] + (i < 10 ? '' : '별'),
+    seat: {
+      row: Math.floor(i / 5),
+      col: i % 5
+    },
+    academicYear: year,
+    createdAt: stamp
+  }));
+  database.routines = ['우유 마시기', '점심 양치하기'].map((title, i) => ({
+    id: uid(),
+    title,
+    target: 'all',
+    sortOrder: i,
+    createdAt: stamp
+  }));
+  database.assignments = ['수학 100-101쪽, 수익 56-57쪽', '국어 78쪽 5번', '글쓰기(주제 : 저축)'].map(title => ({
+    id: uid(),
+    title,
+    date: today(),
+    repeat: {
+      type: 'none'
+    },
+    target: 'all',
+    statArea: '과제',
+    createdAt: stamp
+  }));
+  database.shop_items = [['쿠폰', '하루 자리 바꾸기권', 50, 3], ['쿠폰', '1일 짝꿍 선택권', 70, 2], ['쿠폰', '1일 청소 면제권', 30, 5], ['혜택', '5분 자유시간권', 20, null], ['물품', '캐릭터 스티커 세트', 40, 10], ['간식', '맛있는 젤리', 15, 15]].map(([category, name, price, stock]) => ({
+    id: uid(),
+    category,
+    name,
+    price,
+    stock,
+    createdAt: stamp
+  }));
+  const examples = [['학습', '지도', '2교시 과학 시간에 짝꿍에게 여러 차례 말을 걸음.'], ['학습', '칭찬', "논리적인 문장으로 본인의 생각을 담아 '동물원'에 대한 주장하는 글을 썼음."], ['학습', '관찰', '[수학 2단원 마무리 시험] 3+9=13이라고 계산하여 틀림.'], ['관계', '칭찬', '다른 친구가 바닥에 물을 쏟았는데 화장실에서 휴지를 가져다가 함께 닦아줌.'], ['관계', '칭찬', '3교시 미술. 가위를 가져오지 않은 친구들에게 빌려줌.'], ['관계', '칭찬', '복도를 걸어가다가 친구와 부딪혔을 때 먼저 정중하게 사과하고 괜찮은지 물어봄.'], ['관계', '지도', '모둠 활동 중 친구의 말을 중간에 끊고 본인 주장만 강하게 내세움.'], ['도전', '칭찬', '처음에는 단소에서 아무 소리도 나지 않았는데 꾸준히 연습하여 이제는 중임무황태를 낼 수 있음.'], ['도전', '칭찬', '음악 교과서 수록곡 5개를 리코더로 연주하기에 성공함.'], ['도전', '칭찬', '5교시 체육. 기준선을 넘겨 공을 던지지 못해 몇 차례 아웃이 되었으나 포기하지 않고 계속 도전함.'], ['생활', '지도', '지각 : 9시 5분 교실 입실'], ['생활', '칭찬', '교실 앞 복도에 떨어져 있는 주인 없는 쓰레기를 주움.'], ['알바', '칭찬', '학습준비물실에서 도화지 갖고 오기'], ['알바', '칭찬', '학습준비물실에 수채화 도구 반납하기'], ['알바', '칭찬', '다른 반에 가정통신문 배달하기'], ['알바', '칭찬', '선생님과 함께 수학 75쪽 채점하기']];
+  const days = ['02', '04', '05', '06', '09', '10', '11'];
+  function seedRecord(s, example, n) {
+    const [area, kind, text] = example;
+    database.records.push({
+      id: uid(),
+      studentIds: [s.id],
+      date: `${year}-11-${days[n % days.length]}`,
+      period: '',
+      kind,
+      text,
+      areas: [area],
+      createdAt: stamp
+    });
+  }
+  examples.forEach((example, i) => seedRecord(database.students[i % 20], example, i));
+  database.students.forEach((s, i) => {
+    if (i < 3) {
+      const area = ['학습', '관계', '도전'][i],
+        options = examples.filter(e => e[0] === area && e[1] === '칭찬');
+      for (let n = 0; n < 15; n++) seedRecord(s, options[n % options.length], n);
+    } else {
+      const count = 3 + i % 6;
+      while (database.records.filter(r => r.studentIds.includes(s.id)).length < count) seedRecord(s, examples[(i + database.records.length) % examples.length], database.records.length);
+    }
+  });
+  return database;
 }

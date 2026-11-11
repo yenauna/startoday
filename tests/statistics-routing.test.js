@@ -45,7 +45,7 @@ test('통계·수업도구 탭 라우팅을 지원하고 이전 학생 주소는
     bindTimetableDrag() {},
     installGlobalEvents() {}
   };
-  for (const name of ['dashboard', 'recordsView', 'calendarView', 'assignmentsView', 'routinesView', 'studentsView', 'seatsView', 'settingsView', 'toolsView']) context[name] = () => name;
+  for (const name of ['economyView', 'dashboard', 'recordsView', 'calendarView', 'assignmentsView', 'routinesView', 'studentsView', 'seatsView', 'settingsView', 'toolsView']) context[name] = () => name;
   const source = readFileSync(new URL('../js/app.js', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '').replaceAll('export ', '').replace(/^boot\(\);$/m, '');
   vm.createContext(context);
   vm.runInContext(source, context);

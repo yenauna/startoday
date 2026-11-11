@@ -1,3 +1,4 @@
+import { studentEconomyView, economyMessage } from './economy.js';
 import { kingdomCards } from '../components/kingdom.js';
 import { render } from '../app.js';
 import { closeModal, modal } from '../components/modal.js';
@@ -10,6 +11,11 @@ import { studentPasswordInfo, studentIdentityMatches, validateStudentPassword } 
 
 // Credentials stay in this module's memory only, cleared on logout; never in DOM/storage/channels.
 let checkerCredentials = null;
+let studentEconomyTab = 'assets',
+  studentEconomyCategory = '전체',
+  studentSection = 'home',
+  studentEconomyScope = '',
+  studentEconomySaving = false;
 
 // Only this allow-listed projection crosses into the student shell. Never pass
 // teacher records, private state memos, credentials or the class snapshot to its markup.
@@ -30,6 +36,7 @@ export function studentSnapshot(source, student, date = C.today()) {
       rewardTitles: C.studentRewardTitles(student),
       equippedTitle: student.equippedTitle || null
     },
+    economy: C.studentEconomySnapshot(source, student.id),
     className: source.settings[0]?.className || '우리반',
     date,
     lunchAfterPeriod: C.lunchPosition(source.settings[0]),
@@ -242,6 +249,8 @@ export function previewStudent(id) {
 }
 export function leaveStudentView() {
   checkerCredentials = null;
+  studentSection = 'home';
+  studentEconomyScope = '';
   closeModal();
   state.actions?.clear();
   studentCalendarScope = '';
@@ -265,13 +274,34 @@ export function renderStudentShell() {
   if (!student) return `<main class="student-shell"><p>학생 정보를 확인할 수 없습니다.</p>${btn('돌아가기', leaveStudentView)}</main>`;
   const data = state.impersonatingStudentId ? studentSnapshot(store.db, student) : state.studentSnapshot;
   if (!data) return `<main class="student-shell">${btn('다시 로그인', leaveStudentView)}</main>`;
+  const scopeEconomy = store.mode + ':' + store.classId + ':' + student.id;
+  if (scopeEconomy !== studentEconomyScope) {
+    studentEconomyScope = scopeEconomy;
+    studentSection = 'home';
+    studentEconomyTab = 'assets';
+    studentEconomyCategory = '전체';
+  }
+  const economyNavigation = `<nav class="economy-subtabs">${btn('내 교실(홈)', () => {
+    studentSection = 'home';
+    render();
+  }, studentSection === 'home' ? 'active' : '')}${btn('경제', () => {
+    studentSection = 'economy';
+    render();
+  }, studentSection === 'economy' ? 'active' : '')}</nav>`;
+  const economyContent = () => studentEconomyView(data.economy, studentEconomyTab, studentEconomyCategory, tab => {
+    studentEconomyTab = tab;
+    render();
+  }, category => {
+    studentEconomyCategory = category;
+    render();
+  }, studentEconomyAct);
   const titleButton = () => btn(C.kingdomBadge(data.student, data.titleCounts, data.titleConfig), openKingdomCodex, 'kingdom-title-button', 'aria-label="별 왕국 칭호 도감 열기"');
   const pills = areas => (areas || []).map(a => `<span class="student-pill">${esc(a)}</span>`).join('');
   const taskList = (list, routine = false) => list.map(task => {
     const done = ['완료', '늦게완료', '면제'].includes(task.status);
     return `${routine ? `<button type="button" class="student-task student-routine-toggle ${done ? 'is-complete' : 'is-pending'}" data-routine-id="${esc(task.id || '')}" ${task.status === '면제' || !task.id ? 'disabled' : ''} aria-pressed="${done}">` : `<div class="student-task ${task.overdue ? 'is-overdue ' : ''}${done ? 'is-complete' : 'is-pending'}">`}<div><strong class="${routine ? 'student-routine-title' : ''}">${esc(task.title)}</strong>${task.date ? `<small>${esc(C.formatDate(task.date))}</small>` : ''}${!routine && task.memo ? `<p class="assignment-public-memo">${esc(task.memo)}</p>` : ''}${!routine ? `<small class="assignment-checker">🔍 확인: ${checkerLabel(task.checkerName)}</small>` : ''}</div><span>${task.isQuest ? `${task.status === '면제' ? '면제 · ' : ''}🏅 ${task.stamps}/${task.goal}` : (done ? '✓ ' : '') + esc(task.status)}</span>${task.isQuest ? questStampBoard(task.stamps, task.goal) : ''}${routine ? '</button>' : '</div>'}`;
   }).join('') || '<p class="muted">오늘 할 일이 없습니다.</p>';
-  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드 (${esc(student.no)}. ${esc(student.name)})${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<header class="student-header"><img class="logo" src="assets/logo-icon.jpg" alt="오늘의 별"><div><strong>${esc(data.className)}</strong><span>${esc(student.no)}. ${esc(C.studentLabel(data.student, true))}</span>${titleButton()}</div>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header><main class="student-dashboard"><section class="student-card student-growth"><h2>내가 모은 별 ${esc(data.score.total)}개</h2><div class="student-stars">★ ${esc(data.score.total)}개</div>${btn('별명 설정', studentNicknameDialog, 'student-nickname-open')}${titleButton()}${btn('👑 별 왕국 칭호 도감', openKingdomCodex, 'kingdom-codex-open')}<div class="student-pills">${pills(C.areaScoreEntries(data.score.areas || {}).map(([a, n]) => a + ' ' + n))}</div></section><section class="student-card student-timetable-card"><h2>오늘의 일정</h2><div class="student-today-events">${studentTodayEvents(data)}</div>${studentDaySchedule(data)}</section><section class="student-card student-tasks-card"><h2>오늘의 과제 &amp; 루틴</h2><h3 class="student-section-heading">📘 오늘의 과제</h3>${taskList(data.tasks)}<h3 class="student-section-heading">🔄 매일 루틴</h3>${taskList(data.routines, true)}${(data.checkingAssignments || []).map(a => btn('🔍 내가 확인할 친구 과제: ' + esc(a.title), () => openCheckerChecklist(a.id), 'peer-checker-card')).join('')}</section><section class="student-card student-calendar-card"><h2>과제·일정 달력</h2>${studentCalendarView(data, student.id)}</section><section class="student-card student-praise-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><div class="record-content-line">${C.recordAreas(r).map(area => `<span class="badge">${esc(area)}</span>`).join('')}<span class="body">${esc(r.text)}</span></div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main></div>`;
+  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드 (${esc(student.no)}. ${esc(student.name)})${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<header class="student-header"><img class="logo" src="assets/logo-icon.jpg" alt="오늘의 별"><div><strong>${esc(data.className)}</strong><span>${esc(student.no)}. ${esc(C.studentLabel(data.student, true))}</span>${titleButton()}</div>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header>${economyNavigation}${studentSection === 'economy' ? `<main class="student-economy">${economyContent()}</main>` : `<main class="student-dashboard"><section class="student-card student-growth"><h2>내가 모은 별 ${esc(data.score.total)}개</h2><div class="student-stars">★ ${esc(data.score.total)}개</div>${btn('별명 설정', studentNicknameDialog, 'student-nickname-open')}${titleButton()}${btn('👑 별 왕국 칭호 도감', openKingdomCodex, 'kingdom-codex-open')}<div class="student-pills">${pills(C.areaScoreEntries(data.score.areas || {}).map(([a, n]) => a + ' ' + n))}</div></section><section class="student-card student-timetable-card"><h2>오늘의 일정</h2><div class="student-today-events">${studentTodayEvents(data)}</div>${studentDaySchedule(data)}</section><section class="student-card student-tasks-card"><h2>오늘의 과제 &amp; 루틴</h2><h3 class="student-section-heading">📘 오늘의 과제</h3>${taskList(data.tasks)}<h3 class="student-section-heading">🔄 매일 루틴</h3>${taskList(data.routines, true)}${(data.checkingAssignments || []).map(a => btn('🔍 내가 확인할 친구 과제: ' + esc(a.title), () => openCheckerChecklist(a.id), 'peer-checker-card')).join('')}</section><section class="student-card student-calendar-card"><h2>과제·일정 달력</h2>${studentCalendarView(data, student.id)}</section><section class="student-card student-praise-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><div class="record-content-line">${C.recordAreas(r).map(area => `<span class="badge">${esc(area)}</span>`).join('')}<span class="body">${esc(r.text)}</span></div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main>`}</div>`;
 }
 let studentCalendarScope = '',
   studentCalendarDate = '',
@@ -621,4 +651,45 @@ function questStampBoard(stamps, goal) {
   return `<div class="quest-stamp-board" aria-label="스탬프 ${stamps}/${goal}">${Array.from({
     length: Math.min(goal, 30)
   }, (_, i) => `<span class="${i < stamps ? 'is-stamped' : ''}" aria-hidden="true">${i < stamps ? '★' : '☆'}</span>`).join('')}${goal > 30 ? `<small>${stamps}/${goal}</small>` : ''}</div>`;
+}
+async function studentEconomyAct(action, target, label) {
+  if (studentEconomySaving || !confirm(`${label} · ${action === 'buy' ? '구매' : action === 'refund' ? '환불' : '사용완료'} 처리할까요?`)) return;
+  const id = state.impersonatingStudentId || state.studentUser?.id,
+    credentials = checkerCredentials,
+    preview = !!state.impersonatingStudentId;
+  studentEconomySaving = true;
+  try {
+    if (preview || ['demo', 'local'].includes(store.mode)) {
+      if (!preview) {
+        const raw = localStorage.getItem('startoday-demo-v1');
+        if (raw) store.db = C.normalizeDB(JSON.parse(raw));
+        const student = credentials && localStudentMatch(credentials.identity),
+          info = student && studentPasswordInfo(student, store.db.settings[0]);
+        if (student?.id !== id || !info || info.mustChangePassword || info.password !== credentials.password) throw Error('다시 로그인해 주세요.');
+      }
+      await store.economyAction(action, id, target);
+      if (!preview && credentials === checkerCredentials && id === state.studentUser?.id) state.studentSnapshot = studentSnapshot(store.db, store.db.students.find(s => s.id === id));
+    } else {
+      if (!credentials || !store.client) throw Error('다시 로그인해 주세요.');
+      const {
+        data,
+        error
+      } = await store.client.rpc('startoday_shop_' + action, {
+        ...studentRpcIdentity(credentials.identity),
+        p_password: credentials.password,
+        [action === 'buy' ? 'p_item_id' : 'p_tx_id']: target
+      });
+      if (error) throw Error(economyMessage(error));
+      if (credentials !== checkerCredentials || id !== state.studentUser?.id) return;
+      if (!data?.snapshot) throw Error('거래 정보를 확인하지 못했습니다. 다시 로그인해 주세요.');
+      state.studentSnapshot = data.snapshot;
+      store.signalChange('cloud', data.classId, data.revision);
+    }
+    render();
+    toast('처리했습니다.');
+  } catch (error) {
+    toast(economyMessage(error));
+  } finally {
+    studentEconomySaving = false;
+  }
 }
