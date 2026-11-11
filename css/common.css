@@ -1018,3 +1018,55 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-profile-areas>div{display:flex;flex-wrap:wrap;justify-content:center;gap:3px;padding:9px 5px;font-size:12px;color:var(--st-blue-text);line-height:1.4;min-width:0;overflow-wrap:anywhere}
 .student-profile-areas>div+div{border-left:1px solid #d1e1f4}
 @media(max-width:600px){.student-dashboard .student-profile-card{padding:14px}.student-profile-main{gap:12px}.student-profile-areas{grid-template-columns:repeat(3,minmax(0,1fr))}.student-profile-areas>div:nth-child(4){border-left:0}.student-profile-areas>div:nth-child(n+4){border-top:1px solid #d1e1f4}}
+
+/* Student shop only: independent masonry, awning, sign and live product controls. */
+.village-shop{
+  --v-shop-stone:#f7eddb;--v-shop-mortar:#cfb79b;--v-shop-wall:#e2ebee;
+  --v-shop-ink:#283247;--v-shop-wood:#96643f;--v-shop-trim:#987650;
+  --v-shop-sage:#6f8565;--v-shop-sage-light:#d6dbb9;--v-shop-brass:#b98b3e;
+  --v-shop-paper:#fffaf0;--v-shop-blue:#d5e3ec;--v-shop-gap:12px;--v-shop-pier:20px;
+  position:relative;isolation:isolate;min-width:0;padding:38px var(--v-shop-pier) 20px;
+  border:1px solid var(--v-shop-mortar);border-radius:110px 110px 20px 20px / 48px 48px 20px 20px;
+  background:var(--v-shop-stone) url('../assets/shop/stone.svg') repeat;background-size:112px 76px;
+  box-shadow:inset 0 2px 0 #fffaf0,0 5px 16px #67554012;color:var(--v-shop-ink);
+}
+.village-shop .village-stone-arch{position:absolute;inset:0 0 auto;height:62px;z-index:2;pointer-events:none;overflow:hidden;border-radius:110px 110px 0 0 / 48px 48px 0 0}
+.village-shop .village-stone-arch svg{display:block;width:100%;height:100%}
+.village-shop .village-arch-shadow{fill:none;stroke:#bba180;stroke-width:27;stroke-linecap:round}
+.village-shop .village-arch-stones{fill:none;stroke:#fff3df;stroke-width:24;stroke-dasharray:31 3;stroke-linecap:butt}
+.village-shop .village-interior{position:relative;min-width:0;padding:0 18px 18px;border:1px solid #b9c7c9;border-radius:68px 68px 12px 12px / 22px 22px 12px 12px;background:var(--v-shop-wall) url('../assets/shop/plaster.svg') repeat;background-size:96px 96px;box-shadow:inset 0 2px 6px #657d8820}
+.village-shop .village-awning{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));width:78%;max-width:540px;height:24px;margin:-5px auto 12px;position:relative;filter:drop-shadow(0 3px 2px #4e624429)}
+.village-shop .village-awning:before{content:'';position:absolute;inset:0 -5px auto;height:6px;border:1px solid #745336;border-radius:3px;background:#ad8053;z-index:1}
+.village-shop .village-awning i{display:block;background:linear-gradient(0deg,#8e9e7d,#b4c09f);border-radius:0 0 9px 9px;border:1px solid #788b6560;box-shadow:inset 0 -3px 0 #566a3b16}
+.village-shop .village-awning i:nth-child(even){background:linear-gradient(0deg,#d6dabc,#e7e8ce);border-color:#aeb89880}
+.village-shop .village-shop-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;min-width:0}
+.village-shop .village-sign{position:relative;min-width:0;margin:0;padding:7px 18px;background:var(--v-shop-wood) url('../assets/shop/wood.svg') repeat;background-size:160px 60px;border:3px double #e1ba7b;border-radius:16px;box-shadow:0 0 0 1px #704b32,0 3px 0 #68472c22;color:#fff6df;text-shadow:0 1px 1px #503322;font-size:clamp(17px,2vw,22px);line-height:1.3;font-weight:800;white-space:nowrap}
+.village-shop .village-sign:before,.village-shop .village-sign:after{content:'';position:absolute;top:calc(50% - 2px);width:4px;height:4px;border-radius:50%;background:#edcc86;box-shadow:0 1px 1px #3b291e}
+.village-shop .village-sign:before{left:6px}.village-shop .village-sign:after{right:6px}
+.village-shop .village-wallet{display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:0 1 auto;min-width:0;max-width:47%;padding:5px 10px;border:1px solid #c79e57;border-radius:999px;background:#fff9e9;box-shadow:inset 0 0 0 2px #f1dfba,0 2px 3px #816c4120;color:#62492c;font-size:17px;font-weight:800;overflow-wrap:anywhere;line-height:1.3}
+.village-shop .village-wallet>span{color:#be8521;flex-shrink:0}
+.village-shop .village-categories{display:flex;flex-wrap:nowrap;gap:3px;min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;padding:4px;margin:0 0 14px;border:1px solid #c8af8d;border-radius:10px;background:#fff9ed;box-shadow:0 2px 3px #6b5a3e12;scrollbar-width:thin;scrollbar-color:#abbb9d transparent}
+.village-shop .village-categories button{flex:1 0 auto;min-height:32px;padding:5px 9px;border:1px solid transparent;border-radius:7px;box-shadow:none;background:transparent;color:#34413b;font-size:12px;line-height:1.3;white-space:nowrap}
+.village-shop .village-categories button.is-selected{background:#647e60;border-color:#536d4f;color:#fffdf1;box-shadow:inset 0 1px 0 #a6b69b}
+.village-shop .village-categories button:hover:not(.is-selected){background:#e9eddf}
+.village-shop .village-categories button:focus-visible,.village-shop .village-buy:focus-visible{outline:3px solid #365c85;outline-offset:2px}
+.village-shop .village-product-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--v-shop-gap);min-width:0}
+.village-shop .village-product{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:8px;min-width:0;padding:12px 13px;border:1px solid var(--v-shop-trim);border-radius:13px;background:var(--v-shop-paper);box-shadow:inset 0 0 0 3px #f3e9d5,0 3px 4px #5c4e3920;overflow-wrap:anywhere;text-align:center}
+.village-shop .village-product:before,.village-shop .village-product:after{content:'';position:absolute;inset:5px 5px auto;height:7px;border-left:2px solid #9a754a;border-right:2px solid #9a754a;border-radius:7px 7px 0 0;pointer-events:none}
+.village-shop .village-product:after{inset:auto 5px 5px;transform:rotate(180deg)}
+.village-shop .village-product-plaque{display:block;position:relative;align-self:center;max-width:100%;padding:2px 12px;border:1px solid #bf9c57;border-radius:5px;background:linear-gradient(#f6e9be,#e9d39a);box-shadow:inset 0 0 0 1px #fff7d5;color:#644b2d;font-size:11px;font-weight:700;line-height:1.4;overflow-wrap:anywhere}
+.village-shop .village-product-plaque:before,.village-shop .village-product-plaque:after{content:'';position:absolute;top:calc(50% - 1px);width:2px;height:2px;border-radius:50%;background:#ae7e35}
+.village-shop .village-product-plaque:before{left:4px}.village-shop .village-product-plaque:after{right:4px}
+.village-shop .village-product h3{font-size:15px;line-height:1.45;font-weight:750;margin:0;color:var(--v-shop-ink);overflow-wrap:anywhere}
+.village-shop .village-product-meta{display:flex;align-items:baseline;justify-content:center;flex-wrap:wrap;gap:3px 10px;margin-top:auto;min-width:0}
+.village-shop .village-product-meta strong{font-size:14px;color:var(--v-shop-ink);overflow-wrap:anywhere}
+.village-shop .village-product-meta strong span{color:#b68023}
+.village-shop .village-product-meta small{font-size:11px;color:#62665f;overflow-wrap:anywhere}
+.village-shop .village-buy{align-self:stretch;min-height:34px;padding:5px 8px;border:1px solid #7e9cab;border-radius:9px;background:var(--v-shop-blue);box-shadow:inset 0 1px 0 #f7fcff,0 2px 2px #75889120;color:#29475c;font-size:13px;font-weight:700;line-height:1.35;white-space:normal}
+.village-shop .village-buy:hover:not(:disabled){background:#c3d9e7;border-color:#567e96}
+.village-shop .village-buy:disabled{opacity:1;background:#e4e3df;color:#73716a;border-color:#b7b3aa;box-shadow:inset 0 1px 0 #f9f8f4;cursor:not-allowed}
+.village-shop .village-lantern{position:absolute;top:93px;width:26px;height:56px;background:url('../assets/shop/lantern.svg') center / contain no-repeat;pointer-events:none}
+.village-shop .village-lantern-left{left:2px}.village-shop .village-lantern-right{right:2px;transform:scaleX(-1)}
+.village-shop .village-empty{grid-column:1 / -1;margin:8px 0;padding:20px 8px;text-align:center;color:#626d70;font-size:13px}
+@media(max-width:640px){.village-shop{--v-shop-pier:10px;--v-shop-gap:9px;padding-top:31px;padding-bottom:13px;border-radius:70px 70px 15px 15px / 35px 35px 15px 15px}.village-shop .village-stone-arch{height:48px}.village-shop .village-interior{padding:0 10px 12px}.village-shop .village-awning{width:84%;height:20px;margin-bottom:10px}.village-shop .village-shop-header{gap:7px;margin-bottom:10px}.village-shop .village-sign{font-size:17px;padding:6px 12px}.village-shop .village-wallet{font-size:14px;padding:5px 8px}.village-shop .village-categories{margin-bottom:11px}.village-shop .village-categories button{font-size:11px;padding:5px 8px}.village-shop .village-product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.village-shop .village-product{padding:10px 9px;gap:6px}.village-shop .village-product h3{font-size:13px}.village-shop .village-lantern{width:18px;height:40px;top:76px}.village-shop .village-lantern-left{left:-2px}.village-shop .village-lantern-right{right:-2px}}
+@media(max-width:340px){.village-shop .village-product-grid{grid-template-columns:1fr}.village-shop .village-sign{font-size:15px}.village-shop .village-lantern{display:none}}

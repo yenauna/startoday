@@ -142,7 +142,7 @@ try {
     name: '상점',
     exact: true
   }).click();
-  assert.equal(await page.locator('.economy-category').count(), 4);
+  assert.equal(await page.locator('.village-product').count(), 6);
   const grid = page.locator('.economy-shop-grid').first();
   assert.equal((await grid.evaluate(el => getComputedStyle(el).gridTemplateColumns)).split(' ').length, 3);
   await page.setViewportSize({
