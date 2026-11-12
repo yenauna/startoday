@@ -290,7 +290,7 @@ test('학생 일정은 종일 행사와 D-day를 포함하고 확인자 전용 �
  f.context.previewStudent('one');let html=f.context.renderStudentShell();assert(html.includes('오늘의 일정'));assert(html.includes('오늘 행사'));assert(html.includes('소풍 D-7'));assert(html.includes('내가 확인할 친구 과제: 검사할 과제'));f.context.previewStudent('two');html=f.context.renderStudentShell();assert(!html.includes('내가 확인할 친구 과제'));
 });
 test('학생 달력 상세는 처음엔 접히고 날짜를 직접 선택했을 때만 표시',()=>{
- const f=fixture(),date=C.today();f.source.assignments=[{id:'a',title:'오늘 과제',date,repeat:{type:'none'},target:'all'}];f.context.previewStudent('one');let html=f.context.renderStudentShell();assert(html.includes('날짜를 선택하면 해당 일자의 과제와 일정을 볼 수 있어요'));assert(!html.includes('<div class="student-calendar-detail"><h3>'));f.buttons.find(b=>b.label.startsWith(`<strong>${Number(date.slice(-2))}</strong>`) && b.label.includes('오늘 과제')).callback();html=f.context.renderStudentShell();assert(html.includes('<div class="student-calendar-detail"><h3>'));
+ const f=fixture(),date=C.today();f.source.assignments=[{id:'a',title:'오늘 과제',date,repeat:{type:'none'},target:'all'}];f.context.previewStudent('one');let html=f.context.renderStudentShell();assert(html.includes('날짜를 선택하면 해당 일자의 과제와 일정을 볼 수 있어요'));assert(!html.includes('<div class="student-calendar-detail"><h3>'));f.buttons.find(b=>b.label.startsWith(`<strong>${Number(date.slice(5,7))}.${Number(date.slice(-2))}</strong>`) && b.label.includes('오늘 과제')).callback();html=f.context.renderStudentShell();assert(html.includes('<div class="student-calendar-detail"><h3>'));
 });
 
 test('클라우드 칭호 변경은 학생 인증 RPC만 사용하고 교사 저장·비밀번호 노출 없이 안전한 화면을 갱신',async()=>{

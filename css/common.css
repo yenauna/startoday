@@ -1160,3 +1160,86 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 /* Calendar labels stay compact; full text remains in the tooltip and date detail. */
 .student-home-village .student-calendar-pill{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
 .student-home-village .student-timetable-card .slot-period-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 7px}
+
+/* Reference composition: full-height arch, right-hand stats and compact information rows. */
+.student-home-topbar{display:flex;align-items:center;gap:22px;margin-bottom:22px;min-width:0}
+.student-home-topbar .student-header{margin:0;padding-right:22px;border-right:1px solid #7d86a2;gap:8px;min-width:0}
+.student-home-topbar .student-site-name{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:10px;background:#222d56;color:#fffdf7;font-size:20px;font-weight:800;white-space:nowrap}
+.student-home-topbar .student-brand-star{font-size:26px;line-height:1;color:#f6cc65}
+.student-home-topbar .economy-subtabs{margin:0;flex-wrap:nowrap;gap:10px;min-width:0}
+.student-home-topbar .economy-subtabs button{padding:7px 16px;min-height:36px;font-size:15px;white-space:nowrap;box-shadow:none;border:1px solid #e0ddef;background:#f9f7ff;color:#1f2b4b}
+.student-home-topbar .economy-subtabs .active{outline:0;background:#ddd7f0;border-color:#ddd7f0;font-weight:750}
+.student-home-village{--sh-line:#c8a77a;--sh-radius:17px;--sh-gap:20px;grid-template-columns:minmax(0,.82fr) minmax(0,1fr)}
+.student-home-village>.student-card{background:#fffefe;box-shadow:0 2px 3px #4d3c1f12}
+.student-home-village .student-profile-card{padding:0;overflow:hidden;background:#fffefe}
+.student-home-village .student-profile-main{grid-template-columns:minmax(0,34%) minmax(0,1fr);gap:0;align-items:stretch}
+.student-home-village .student-profile-art{display:grid;max-width:none;width:100%;padding:0;border:0;border-radius:0;background:#f5eddf url('../assets/shop/stone.svg') repeat;background-size:112px 76px;box-shadow:none;align-self:stretch}
+.student-home-village .student-character-scene{width:100%;min-height:340px;border-radius:0;overflow:visible}
+.student-home-village .student-home-scene-wall{background:transparent url('../assets/shop/student-arch.webp') center / 100% 100% no-repeat}
+.student-home-village .student-character-layers{padding:85px 20px 20px;align-self:end}
+.student-home-village .student-profile-image{max-height:250px;max-width:100%;width:100%;height:auto;object-fit:contain}
+.student-home-village .student-profile-info{padding:24px 25px 25px;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.student-home-village .student-profile-class{font-size:16px;font-weight:650;color:#1f2b4b}
+.student-home-village .student-profile-identity{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin:3px 0 4px;min-width:0}
+.student-home-village .student-profile-name{font-size:clamp(24px,3.2vw,36px);margin:0;line-height:1.3}
+.student-home-village .student-profile-nickname{font-size:13px;color:#29354f}
+.student-home-village .student-profile-card .student-profile-edit{width:30px;flex-basis:30px;min-height:34px;padding:3px}
+.student-home-village .student-profile-card .kingdom-title-button{align-self:flex-start;max-width:100%;min-height:34px;padding:2px 0;margin:6px 0 0}
+.student-home-village .kingdom-badge{position:relative;border:3px double #be9c61;border-radius:9px;padding:3px 15px;background:#fcf6e9;box-shadow:0 1px 1px #7b5b3022;font-size:14px;color:#26324e}
+.student-home-village .kingdom-badge:before,.student-home-village .kingdom-badge:after{content:'';position:absolute;top:calc(50% - 2px);width:4px;height:4px;border-radius:50%;background:#b78e45;pointer-events:none}
+.student-home-village .kingdom-badge:before{left:4px}.student-home-village .kingdom-badge:after{right:4px}
+.student-home-village .student-profile-scorebar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:9px;margin-top:16px;padding-top:14px;border-top:1px solid #c7a46c;min-width:0}
+.student-home-village .student-profile-score{padding:0;margin:0;border:0;min-width:0}
+.student-home-village .student-profile-score h2{font-size:16px;gap:6px;align-items:center}
+.student-home-village .student-profile-score strong{font-size:36px;line-height:1.3}
+.student-home-village .student-profile-star{font-size:27px;color:#efc35f;text-shadow:0 1px 0 #c18a28}
+.student-home-village .student-profile-card .compact-codex{margin:0;padding:6px 13px;min-height:36px;font-size:13px;border-color:#bda075;border-radius:10px;background:#fffdf7;color:#26324e;white-space:nowrap}
+.student-home-village .student-profile-areas{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;background:none;border:0;border-radius:0;margin-top:20px;overflow:visible}
+.student-home-village .student-profile-areas>div{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:9px 3px;border:0!important;border-radius:10px;background:#e7f0f9;color:#22304d;font-size:14px;font-weight:600}
+.student-home-village .student-profile-areas>div:nth-child(2),.student-home-village .student-profile-areas>div:nth-child(6){background:#faf3e8}
+.student-home-village .student-profile-areas>div:nth-child(3){background:#e9efdf}.student-home-village .student-profile-areas>div:nth-child(4){background:#eee9f6}.student-home-village .student-profile-areas>div:nth-child(5){background:#e7f0f9}
+.student-home-village .student-profile-areas strong{font-size:24px;line-height:1.2}
+.student-home-village .student-home-sign{position:relative;border-radius:12px;padding:4px 20px;border-width:3px;color:#fffaf0;font-size:18px;box-shadow:0 1px 1px #75513133;margin-bottom:14px}
+.student-home-village .student-home-sign:before,.student-home-village .student-home-sign:after{content:'';position:absolute;top:calc(50% - 3px);width:6px;height:6px;background:#d6b879;box-shadow:0 1px 0 #6b4d2f;border-radius:50%;pointer-events:none}
+.student-home-village .student-home-sign:before{left:5px}.student-home-village .student-home-sign:after{right:5px}
+.student-home-village .student-timetable-card>p.muted{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:120px;margin:12px 0 0;padding:14px 0;text-align:center;font-size:14px;color:#24314c}
+.student-home-village .student-timetable-card>p.muted:before{content:'';width:46px;height:42px;border:3px solid #b9c4d6;border-radius:7px;background:linear-gradient(#b9c4d6,#b9c4d6) 0 10px / 100% 2px no-repeat;box-shadow:inset 0 4px 0 #fff;flex-shrink:0}
+.student-home-village .student-section-heading{font-size:16px;font-weight:750;color:#24314c;border:0;margin:2px 0 8px}
+.student-home-village .student-tasks-card .student-task>div:first-child{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;flex:1;min-width:0}
+.student-home-village .student-tasks-card .student-task>div>strong{grid-column:1;grid-row:1;font-size:13px;line-height:1.55}
+.student-home-village .student-tasks-card .student-task>div>small:not(.assignment-checker){grid-column:2;grid-row:1;align-self:center;font-size:10px;white-space:nowrap;color:#6d7380}
+.student-home-village .student-tasks-card .assignment-checker,.student-home-village .student-tasks-card .assignment-public-memo{grid-column:1 / -1;font-size:11px}
+.student-home-village .student-tasks-card .student-task>span{padding:3px 6px;border-radius:9px;font-size:10px;background:#f1d6dc;color:#82515c;align-self:center}
+.student-home-village .student-tasks-card .student-task.is-complete>span{background:#edf1e7;color:#5b6a4e}
+.student-home-village .student-calendar-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px}
+.student-home-village .student-calendar-card>h2{grid-column:1;grid-row:1;margin:0;border:0;padding:0;font-size:18px}
+.student-home-village .student-calendar-controls{grid-column:2;grid-row:1;justify-content:flex-end;margin:0;gap:6px}
+.student-home-village .student-calendar-controls button{padding:4px 8px;min-height:32px;border-radius:8px;font-size:12px}
+.student-home-village .student-calendar-grid{grid-column:1 / -1;gap:0;border:1px solid #c9cbd6;border-radius:11px;overflow:hidden}
+.student-home-village .student-calendar-detail{grid-column:1 / -1;margin-top:0}
+.student-home-village .student-calendar-grid .weekday{margin:0;padding:7px 3px;background:#f4f2f9;border-right:1px solid #dcdde5;border-bottom:1px solid #dcdde5;color:#26314d;font-size:13px}
+.student-home-village .student-calendar-day{min-height:70px;padding:5px 7px;gap:2px;border:0;border-right:1px solid #e0e1e8;border-bottom:1px solid #e0e1e8;border-radius:0;background:#fff;box-shadow:none}
+.student-home-village .student-calendar-day>strong{font-size:12px;line-height:1.4}
+.student-home-village .student-calendar-day:nth-child(7n+6)>strong,.student-home-village .student-calendar-grid .weekday:nth-child(6){color:#4567ae}
+.student-home-village .student-calendar-day:nth-child(7n)>strong,.student-home-village .student-calendar-grid .weekday:nth-child(7){color:#a54853}
+.student-home-village .student-calendar-day.selected{border-radius:6px;outline:2px solid #6986b2;background:#fafdff}
+.student-home-village .student-calendar-pill{-webkit-line-clamp:1;font-size:10px;padding:2px 3px;line-height:1.4;border-radius:5px}
+.student-home-village .student-praise-card>h2{border-bottom:2px solid #bda16b;margin-bottom:14px}
+.student-home-village .student-praise{display:grid;grid-template-columns:135px minmax(0,1fr);align-items:baseline;gap:12px;padding:11px 20px 11px 14px;border-radius:5px;margin-top:10px}
+.student-home-village .student-praise>small{border-right:1px solid #c7a86e;padding-right:10px;font-size:12px;color:#344158;overflow-wrap:anywhere}
+.student-home-village .student-praise .record-content-line{margin:0;min-width:0;gap:7px}
+.student-home-village .student-praise .record-content-line .body{flex:1 1 180px}
+.student-home-village .student-praise .badge{background:#e9efdf;color:#425541;border:0;padding:3px 10px}
+@media(max-width:760px){.student-home-village .student-calendar-card{display:block}.student-home-village .student-calendar-card>h2{border-bottom:1px solid #d5bd95;padding-bottom:9px;margin-bottom:10px}.student-home-village .student-calendar-controls{justify-content:flex-start;gap:5px;margin-bottom:10px;flex-wrap:wrap}.student-home-village .student-tasks-card .student-task>div:first-child{grid-template-columns:minmax(0,1fr)}.student-home-village .student-tasks-card .student-task>div>small:not(.assignment-checker){grid-column:1;grid-row:auto;white-space:normal}.student-home-village .student-praise{grid-template-columns:1fr;gap:6px}.student-home-village .student-praise>small{border-right:0;padding-right:0}}
+@media(max-width:640px){.student-home-topbar{gap:8px;margin-bottom:16px}.student-home-topbar .student-header{padding-right:8px;gap:5px}.student-home-topbar .student-site-name{font-size:14px;padding:6px 8px;gap:5px}.student-home-topbar .student-brand-star{font-size:19px}.student-home-topbar .student-header>button{font-size:11px;padding:4px 5px;min-height:28px}.student-home-topbar .economy-subtabs{gap:5px}.student-home-topbar .economy-subtabs button{font-size:12px;padding:6px 8px;min-height:32px}.student-home-village{grid-template-columns:minmax(0,1fr)}.student-home-village .student-profile-info{padding:15px 12px}.student-home-village .student-profile-main{grid-template-columns:minmax(0,34%) minmax(0,1fr)}.student-home-village .student-character-scene{min-height:260px}.student-home-village .student-character-layers{padding:65px 8px 15px}.student-home-village .student-profile-class{font-size:12px}.student-home-village .student-profile-identity{gap:2px 5px}.student-home-village .student-profile-name{font-size:22px}.student-home-village .student-profile-nickname{font-size:11px}.student-home-village .kingdom-badge{font-size:11px;padding:3px 10px}.student-home-village .student-profile-scorebar{margin-top:9px;padding-top:9px;gap:6px}.student-home-village .student-profile-score h2{font-size:12px;gap:4px}.student-home-village .student-profile-score strong{font-size:27px}.student-home-village .student-profile-star{font-size:21px}.student-home-village .student-profile-card .compact-codex{font-size:11px;min-height:30px;padding:4px 8px}.student-home-village .student-profile-areas{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:12px}.student-home-village .student-profile-areas>div{padding:6px 2px;font-size:11px;gap:3px}.student-home-village .student-profile-areas strong{font-size:19px}.student-home-village .student-home-sign{font-size:16px;padding:3px 15px}.student-home-village .student-calendar-day{padding:4px 3px;min-height:58px}.student-home-village .student-calendar-day>strong{font-size:10px}.student-home-village .student-calendar-grid .weekday{font-size:11px}.student-home-village .student-calendar-controls button{padding:4px 7px}.student-home-village .student-timetable-card>p.muted{min-height:100px;padding:10px 0}}
+@media(max-width:370px){.student-home-topbar{gap:6px}.student-home-topbar .student-site-name{font-size:12px;padding:6px}.student-home-topbar .student-brand-star{font-size:16px}.student-home-topbar .student-header{padding-right:6px}.student-home-topbar .economy-subtabs button{font-size:11px;padding:5px 6px}.student-home-village .student-profile-info{padding:13px 10px}.student-home-village .student-profile-name{font-size:20px}}
+.student-home-village .student-profile-class{font-size:17px}
+.student-home-village .student-profile-areas>div{font-size:15px}.student-home-village .student-profile-areas strong{font-size:28px}
+.student-home-village .student-home-sign{font-size:20px}
+.student-home-village .student-tasks-card .student-task>div>strong{font-size:15px}
+.student-home-village .student-tasks-card .student-task>div>small:not(.assignment-checker){font-size:11px}
+.student-home-village .student-tasks-card .student-task>span{font-size:11px}
+.student-home-village .student-calendar-card>h2:before{flex-basis:30px;height:28px;border:0;border-radius:0;box-shadow:none;transform:none;background:url('../assets/shop/home-book.svg') center / contain no-repeat}
+.student-home-village .student-praise-card>h2:before{flex-basis:29px;height:35px;border:0;border-radius:0;box-shadow:none;background:url('../assets/shop/home-seal.svg') center / contain no-repeat}
+@media(max-width:640px){.student-home-village .student-profile-class{font-size:12px}.student-home-village .student-profile-areas>div{font-size:11px}.student-home-village .student-profile-areas strong{font-size:19px}.student-home-village .student-home-sign{font-size:17px}.student-home-village .student-tasks-card .student-task>div>strong{font-size:13px}.student-home-village .student-tasks-card .student-task>div>small:not(.assignment-checker){font-size:10px}.student-home-village .student-tasks-card .student-task>span{font-size:10px}}
+@media(min-width:761px){.student-home-village .student-calendar-card:before{content:'';grid-column:1 / -1;grid-row:2;height:1px;background:#ccb37f;pointer-events:none}}

@@ -2,6 +2,7 @@
 from pathlib import Path
 import re
 import base64
+import mimetypes
 root=next(p for p in (Path(__file__).resolve().parent,Path(__file__).resolve().parents[1]) if (p/'index.html').exists())
 core=(root/'js/core.js').read_text()
 names=re.findall(r'export (?:const|function) (\w+)',core)
@@ -26,7 +27,7 @@ html=(root/'index.html').read_text()
 # Keep the small repeating shop decorations available in the file-open demo.
 def inline_style(match):
     css=(root/match.group(1)).read_text()
-    css=re.sub(r"url\(['\"]?\.\./assets/shop/([^'\")]+)['\"]?\)",lambda asset:'url("data:image/svg+xml;base64,'+base64.b64encode((root/'assets/shop'/asset.group(1)).read_bytes()).decode()+'")',css)
+    css=re.sub(r"url\(['\"]?\.\./assets/shop/([^'\")]+)['\"]?\)",lambda asset:'url("data:'+(mimetypes.guess_type(asset.group(1))[0] or 'application/octet-stream')+';base64,'+base64.b64encode((root/'assets/shop'/asset.group(1)).read_bytes()).decode()+'")',css)
     return '<style>'+css+'</style>'
 html=re.sub(r'<link rel="stylesheet" href="([^"]+)">',inline_style,html)
 html=html.replace('<script src="config.js"></script>','<script>window.STARTODAY_CONFIG={supabaseUrl:"",supabaseKey:""};</script>')
