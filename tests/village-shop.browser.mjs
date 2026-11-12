@@ -59,6 +59,11 @@ try {
         state
       } = await import('/js/shared/state.js'),
       C = await import('/js/core.js');
+    // Isolate the legacy individual-shop fixture from the crowdfunding seed.
+    store.db.shop_items = store.db.shop_items.filter(i => !i.isGroupBuy);
+    store.db.group_buy_contribs = [];
+    store.db.economy_tx = store.db.economy_tx.filter(t => !t.groupBuy);
+    localStorage.setItem('startoday-demo-v1', JSON.stringify(store.db));
     const s = store.db.students[0];
     const entries = [['쿠폰', '작은 자리 선택권', 10, null], ['물품', '온 학급 친구들과 함께 쓰는 아주아주 긴 이름의 특별한 문구 꾸러미 선물 세트', 15, 5], ['간식', '초코 쿠키', 10, 0], ['혜택', '특별한 하루', 99999, 2], ['우리 반 특별 수업 기념품 모음', '오래된 자료도 보이는 기념품', 20, 3]];
     const ops = entries.map(([category, name, price, stock]) => {

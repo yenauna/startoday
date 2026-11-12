@@ -662,8 +662,12 @@ function questStampBoard(stamps, goal) {
     length: Math.min(goal, 30)
   }, (_, i) => `<span class="${i < stamps ? 'is-stamped' : ''}" aria-hidden="true">${i < stamps ? '★' : '☆'}</span>`).join('')}${goal > 30 ? `<small>${stamps}/${goal}</small>` : ''}</div>`;
 }
-async function studentEconomyAct(action, target, label) {
-  if (studentEconomySaving || !confirm(`${label} · ${action === 'buy' ? '구매' : action === 'refund' ? '환불' : '사용완료'} 처리할까요?`)) return;
+async function studentEconomyAct(action, target, label, amount = 0) {
+  if (studentEconomySaving) {
+    if (action === 'fund') throw Error('처리 중입니다. 잠시 후 다시 시도하세요.');
+    return;
+  }
+  if (!['fund', 'refresh'].includes(action) && !confirm(`${label} · ${action === 'buy' ? '구매' : action === 'refund' ? '환불' : '사용완료'} 처리할까요?`)) return;
   const id = state.impersonatingStudentId || state.studentUser?.id,
     credentials = checkerCredentials,
     preview = !!state.impersonatingStudentId;
@@ -677,26 +681,27 @@ async function studentEconomyAct(action, target, label) {
           info = student && studentPasswordInfo(student, store.db.settings[0]);
         if (student?.id !== id || !info || info.mustChangePassword || info.password !== credentials.password) throw Error('다시 로그인해 주세요.');
       }
-      await store.economyAction(action, id, target);
+      if (action !== 'refresh') await store.economyAction(action, id, target, amount);
       if (!preview && credentials === checkerCredentials && id === state.studentUser?.id) state.studentSnapshot = studentSnapshot(store.db, store.db.students.find(s => s.id === id));
     } else {
       if (!credentials || !store.client) throw Error('다시 로그인해 주세요.');
       const {
         data,
         error
-      } = await store.client.rpc('startoday_shop_' + action, {
+      } = await store.client.rpc(action === 'refresh' ? 'startoday_student_login' : action === 'fund' ? 'startoday_shop_fund_group_buy' : 'startoday_shop_' + action, {
         ...studentRpcIdentity(credentials.identity),
         p_password: credentials.password,
-        [action === 'buy' ? 'p_item_id' : 'p_tx_id']: target
+        ...(action === 'refresh' ? {} : action === 'fund' ? { p_student_id: id, p_item_id: target, p_amount: amount } : { [action === 'buy' ? 'p_item_id' : 'p_tx_id']: target })
       });
       if (error) throw Error(economyMessage(error));
       if (credentials !== checkerCredentials || id !== state.studentUser?.id) return;
-      if (!data?.snapshot) throw Error('거래 정보를 확인하지 못했습니다. 다시 로그인해 주세요.');
-      state.studentSnapshot = data.snapshot;
-      store.signalChange('cloud', data.classId, data.revision);
+      const snapshot = action === 'refresh' ? data : data?.snapshot;
+      if (!snapshot?.student || snapshot.mustChangePassword) throw Error('거래 정보를 확인하지 못했습니다. 다시 로그인해 주세요.');
+      state.studentSnapshot = snapshot;
+      if (action !== 'refresh') store.signalChange('cloud', data.classId, data.revision);
     }
     render();
-    toast('처리했습니다.');
+    if (action !== 'refresh') toast(action === 'fund' ? '학급 공동구매에 기여했어요.' : '처리했습니다.');
   } catch (error) {
     toast(economyMessage(error));
   } finally {

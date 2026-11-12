@@ -2,9 +2,14 @@ import * as C from '../core.js';
 import { render } from '../app.js';
 import { state, store } from '../shared/state.js';
 import { commit, db, students, name, up } from '../shared/data.js';
-import { btn, esc, input, select, textarea, toast } from '../shared/ui.js';
+import { btn, esc, input, select, textarea, toast, checkbox } from '../shared/ui.js';
 import { modal, closeModal } from '../components/modal.js';
 let economyTeacherTab = 'assets';
+// The whole card opens details; buttons keep their own action and keyboard semantics.
+document.addEventListener('click', event => {
+  if (event.target.closest('button,input,a,select,textarea')) return;
+  event.target.closest('.group-buy-card')?.querySelector('.group-buy-detail-open')?.click();
+});
 export function economyMessage(error) {
   if (['PGRST202', '42883'].includes(error?.code)) return '경제 기능을 사용하려면 Supabase에서 최신 schema.sql을 실행해 주세요.';
   const text = error?.message || '';
@@ -13,7 +18,11 @@ export function economyMessage(error) {
     SOLD_OUT: '품절된 물품입니다.',
     REFUNDS_DISABLED: '환불이 허용되지 않습니다.',
     INVALID_HOLDING: '이미 사용하거나 환불한 물품입니다.',
-    ITEM_UNAVAILABLE: '판매 중인 물품이 아닙니다.'
+    ITEM_UNAVAILABLE: '판매 중인 물품이 아닙니다.',
+    GROUP_BUY_CLOSED: '이미 모금이 완료되었습니다.',
+    INVALID_AMOUNT: '1 이상의 정수 금액을 입력하세요.',
+    INVALID_GROUP_BUY: '공동구매 물품을 확인하세요.',
+    INVALID_GROUP_USE: '달성된 미사용 보상만 사용할 수 있습니다.'
   }).find(([code]) => text.includes(code))?.[1] || text || '거래를 완료하지 못했습니다.';
 }
 async function economyTeacherAction(action, id, target = null, amount = 0, memo = '') {
@@ -51,7 +60,7 @@ export function economyView() {
   }, economyTeacherTab === 'shop' ? 'active' : '')}</nav>${economyTeacherTab === 'assets' ? `<section class="panel"><div class="table-wrap"><table><thead><tr><th>번호</th><th>이름</th><th>별명</th><th>현재 잔액</th><th>보유 아이템</th><th>관리</th></tr></thead><tbody>${list.map(s => `<tr><td>${esc(s.no)}</td><td>${esc(s.name)}</td><td>${esc(s.nickname || '')}</td><td>★ ${C.studentBalance(data, s.id)}</td><td>${C.studentHoldings(data, s.id).length}개</td><td>${btn('선물하기', () => economyGiftDialog(s))}${btn('지급/차감', () => economyAdjustDialog(s))}</td></tr>`).join('')}</tbody></table></div></section>` : `<section class="panel"><div class="toolbar">${btn('환불 허용: ' + (data.settings[0].allowRefund !== false ? '켜짐' : '꺼짐'), () => commit([up('settings', {
     ...data.settings[0],
     allowRefund: data.settings[0].allowRefund === false
-  })]))}${btn('새 물품/쿠폰 등록', () => economyItemDialog())}</div>${economyGroupedItems((data.shop_items || []).filter(i => !i.deletedAt), i => btn('수정', () => economyItemDialog(i)) + btn('삭제', async () => {
+  })]))}${btn('새 물품/쿠폰 등록', () => economyItemDialog())}</div>${economyGroupedItems((data.shop_items || []).filter(i => !i.deletedAt), i => (i.isGroupBuy ? btn('상세 보기', () => teacherGroupBuyDialog(i.id), 'group-buy-detail-open') + (i.isFunded && !i.isUsed ? btn('보상 사용 완료', () => teacherUseGroupBuy(i.id)) : '') : '') + btn('수정', () => economyItemDialog(i)) + btn('삭제', async () => {
     if (confirm('상점에서 이 물품을 삭제할까요? 기존 구매 내역은 유지됩니다.')) await commit([up('shop_items', {
       ...i,
       deletedAt: C.now()
@@ -68,28 +77,37 @@ function economyGroupedItems(items, actions) {
   return [...groups].map(([category, rows]) => `<section class="economy-category"><h3 class="economy-category-title">${esc(category)}</h3><div class="economy-grid economy-shop-grid">${rows.map(item => economyItemCard(item, actions(item))).join('')}</div></section>`).join('') || '<p class="muted">등록된 상품이 없습니다.</p>';
 }
 function economyItemCard(item, actions = '') {
+  if (item.isGroupBuy) return `<article class="economy-item group-buy-card">${groupBuyProgress(item)}<h3>${esc(item.name)}</h3><div class="row">${actions}</div></article>`;
   return `<article class="economy-item"><span class="badge">${esc(item.category)}</span><h3>${esc(item.name)}</h3><strong>★ ${esc(item.price)}별코인</strong><p>${item.stock === null ? '무한대' : item.stock === 0 ? '품절' : esc(item.stock) + '개 남음'}</p><div class="row">${actions}</div></article>`;
 }
 function economyItemDialog(item = null) {
-  modal(item ? '물품/쿠폰 수정' : '새 물품/쿠폰 등록', input('카테고리', 'category', item?.category || '쿠폰') + input('이름', 'name', item?.name || '', 'text', 'required maxlength="100"') + input('금액 (별코인)', 'price', item?.price ?? 0, 'number', 'required min="0" max="1000000000" step="1"') + input('수량 (비워두면 무한대)', 'stock', item?.stock ?? '', 'number', 'min="0" max="1000000000" step="1"'), async f => {
-    const price = Number(f.get('price')),
-      stock = f.get('stock') === '' ? null : Number(f.get('stock')),
+  const el = modal(item ? '물품/쿠폰 수정' : '새 물품/쿠폰 등록', input('카테고리', 'category', item?.category || '쿠폰') + input('이름', 'name', item?.name || '', 'text', 'required maxlength="100"') + textarea('설명', 'description', item?.description || '') + checkbox('공동구매 물품', 'isGroupBuy', !!item?.isGroupBuy) + `<div class="shop-price-field">${input('금액 (별코인)', 'price', item?.isGroupBuy ? item.groupGoal : item?.price ?? 0, 'number', 'required min="0" max="1000000000" step="1"')}</div>` + input('수량 (비워두면 무한대)', 'stock', item?.stock ?? '', 'number', 'min="0" max="1000000000" step="1"'), async f => {
+    const price = Number(f.get('price')), isGroupBuy = f.has('isGroupBuy'),
+      stock = isGroupBuy || !f.get('stock') ? null : Number(f.get('stock')),
       nameValue = String(f.get('name')).trim();
-    if (!nameValue || !Number.isSafeInteger(price) || price < 0 || !(stock === null || Number.isSafeInteger(stock) && stock >= 0)) throw Error('이름, 금액, 수량을 확인하세요.');
-    await commit([up('shop_items', {
-      ...item,
-      id: item?.id || C.uid(),
-      category: String(f.get('category')).trim() || '기타',
-      name: nameValue,
-      price,
-      stock,
-      createdAt: item?.createdAt || C.now()
-    })]);
+    if (!nameValue || !Number.isSafeInteger(price) || price < 0 || price > 1000000000 || !(stock === null || Number.isSafeInteger(stock) && stock >= 0 && stock <= 1000000000)) throw Error('이름, 금액, 수량을 확인하세요.');
+    await commit(C.shopItemEditOps(db(), {
+      ...item, id: item?.id || C.uid(), category: String(f.get('category')).trim() || '기타',
+      name: nameValue, description: String(f.get('description') || '').slice(0, 2000),
+      price, stock, isGroupBuy, groupGoal: isGroupBuy ? price : 0, createdAt: item?.createdAt || C.now()
+    }));
     closeModal();
   });
+  const toggle = () => {
+    const group = el.querySelector('[name=isGroupBuy]').checked;
+    const price = el.querySelector('[name=price]');
+    price.parentElement.firstChild.textContent = group ? '목표 모금액 (별코인)' : '금액 (별코인)';
+    price.min = group ? '1' : '0';
+    const stock = el.querySelector('[name=stock]');
+    stock.disabled = group;
+    stock.placeholder = group ? '무제한 · 1회성 학급 보상' : '';
+    if (group) stock.value = '';
+  };
+  el.querySelector('[name=isGroupBuy]').onchange = toggle;
+  toggle();
 }
 function economyGiftDialog(s) {
-  modal(name(s.id) + ' · 선물하기', `<div class="economy-grid">${(db().shop_items || []).filter(i => !i.deletedAt).map(i => economyItemCard(i, btn('선물하기', () => economyTeacherAction('gift', s.id, i.id), '', i.stock === 0 ? 'disabled' : ''))).join('') || '<p>먼저 상점 물품을 등록하세요.</p>'}</div>`);
+  modal(name(s.id) + ' · 선물하기', `<div class="economy-grid">${(db().shop_items || []).filter(i => !i.deletedAt && !i.isGroupBuy).map(i => economyItemCard(i, btn('선물하기', () => economyTeacherAction('gift', s.id, i.id), '', i.stock === 0 ? 'disabled' : ''))).join('') || '<p>먼저 상점 물품을 등록하세요.</p>'}</div>`);
 }
 function economyAdjustDialog(s) {
   modal(name(s.id) + ' · 지급/차감', input('금액 (지급은 양수, 차감은 음수)', 'amount', '', 'number', 'required step="1" min="-1000000000" max="1000000000"') + textarea('사유', 'memo', ''), async f => {
@@ -120,10 +138,81 @@ function villageShopView(data, category, changeCategory, act) {
     categories = ['전체', ...new Set(items.map(item => villageCategory(item.category)).filter(c => c !== '전체'))];
   const requested = villageCategory(category),
     selected = categories.includes(requested) ? requested : '전체';
-  return `<nav class="village-categories" aria-label="상품 카테고리">${categories.map(c => btn(esc(c), () => changeCategory(c), c === selected ? 'is-selected' : '', `aria-pressed="${c === selected}"`)).join('')}</nav><div class="economy-grid economy-shop-grid village-product-grid">${items.filter(item => selected === '전체' || villageCategory(item.category) === selected).map(item => `<article class="economy-item village-product"><span class="village-product-plaque">${esc(villageCategory(item.category))}</span><h3>${esc(item.name)}</h3><div class="village-product-meta"><strong><span aria-hidden="true">★</span> ${esc(item.price)}</strong><small>${item.stock === null ? '무제한' : item.stock === 0 ? '품절' : esc(item.stock) + '개 남음'}</small></div>${btn(item.stock === 0 ? '품절' : data.balance < item.price ? '잔액 부족' : '구매하기', () => act('buy', item.id, item.name), 'village-buy', item.stock === 0 || data.balance < item.price ? 'disabled' : '')}</article>`).join('') || '<p class="village-empty">등록된 상품이 없습니다.</p>'}</div>`;
+  return `<nav class="village-categories" aria-label="상품 카테고리">${categories.map(c => btn(esc(c), () => changeCategory(c), c === selected ? 'is-selected' : '', `aria-pressed="${c === selected}"`)).join('')}</nav><div class="economy-grid economy-shop-grid village-product-grid">${items.filter(item => selected === '전체' || villageCategory(item.category) === selected).map(item => item.isGroupBuy ? groupBuyStudentCard(item, data, act) : `<article class="economy-item village-product"><span class="village-product-plaque">${esc(villageCategory(item.category))}</span><h3>${esc(item.name)}</h3><div class="village-product-meta"><strong><span aria-hidden="true">★</span> ${esc(item.price)}</strong><small>${item.stock === null ? '무제한' : item.stock === 0 ? '품절' : esc(item.stock) + '개 남음'}</small></div>${btn(item.stock === 0 ? '품절' : data.balance < item.price ? '잔액 부족' : '구매하기', () => act('buy', item.id, item.name), 'village-buy', item.stock === 0 || data.balance < item.price ? 'disabled' : '')}</article>`).join('') || '<p class="village-empty">등록된 상품이 없습니다.</p>'}</div>`;
 }
 function villageEconomyFrame(title, balance, navigation, content) {
   return `<section class="village-shop" aria-label="${esc(title)}"><div class="village-stone-arch" aria-hidden="true"><svg viewBox="0 0 600 80" preserveAspectRatio="none"><path d="M12 73Q50 14 144 14H456Q550 14 588 73" class="village-arch-shadow"/><path d="M12 70Q50 11 144 11H456Q550 11 588 70" class="village-arch-stones"/></svg></div><div class="village-interior"><div class="village-awning" aria-hidden="true">${Array.from({
     length: 10
   }, () => '<i></i>').join('')}</div><header class="village-shop-header"><h2 class="village-sign">${esc(title)}</h2><span class="village-wallet" aria-label="내 지갑 ${esc(balance)}별코인"><span aria-hidden="true">★</span> ${esc(balance)}</span></header>${navigation}${content}</div><span class="village-lantern village-lantern-left" aria-hidden="true"></span><span class="village-lantern village-lantern-right" aria-hidden="true"></span></section>`;
+}
+
+function groupBuyProgress(item) {
+  const goal = item.groupGoal || 0, collected = item.groupCollected || 0;
+  const percent = goal > 0 ? Math.min(100, Math.floor(collected / goal * 100)) : 0;
+  return `<span class="badge group-buy-badge">🤝 학급 공동구매</span><p class="group-buy-progress-text">현재 ${esc(collected)} / 목표 ${esc(goal)}별 (${percent}%)</p><progress class="group-buy-progress" value="${esc(collected)}" max="${esc(goal || 1)}" aria-label="모금 진행률">${percent}%</progress>${item.isUsed ? '<p class="group-buy-state">보상 사용 완료</p>' : item.isFunded ? '<p class="group-buy-state">🎉 모금 달성!</p>' : ''}`;
+}
+function groupBuyStudentCard(item, data, act) {
+  const open = () => studentGroupBuyDialog(item.id, act);
+  return `<article class="economy-item village-product group-buy-card">${groupBuyProgress(item)}${btn(esc(item.name), open, 'group-buy-detail-open', 'aria-label="' + esc(item.name) + ' 상세 보기"')}<p>${esc(item.description || '')}</p>${btn(item.isFunded ? '🎉 모금 완료!' : '함께 모으기(기부)', open, 'village-buy', item.isFunded ? 'disabled' : '')}</article>`;
+}
+let activeGroupBuy = null, groupBuyTimer = null;
+function studentGroupBuyDialog(itemId, act) {
+  const id = state.impersonatingStudentId || state.studentUser?.id;
+  openGroupBuy({ itemId, studentId: id, getData: () => {
+    if (state.viewMode !== 'student' || id !== (state.impersonatingStudentId || state.studentUser?.id)) return null;
+    return state.impersonatingStudentId ? C.studentEconomySnapshot(db(), id) : state.studentSnapshot?.economy;
+  }, fund: amount => act('fund', itemId, '', amount), refresh: () => act('refresh') });
+}
+function teacherGroupBuyDialog(itemId) {
+  const scope = store.mode + ':' + store.classId + ':' + (store.user?.id || '');
+  openGroupBuy({ itemId, getData: () => {
+    if (!db() || state.viewMode === 'student' || scope !== store.mode + ':' + store.classId + ':' + (store.user?.id || '')) return null;
+    const item = db().shop_items.find(i => i.id === itemId && !i.deletedAt);
+    return { items: item ? [{ ...item, contributors: C.groupBuyContributors(db(), itemId) }] : [] };
+  }, refresh: async () => { if (store.mode === 'cloud') { await store.load(); render(); } } });
+}
+async function teacherUseGroupBuy(itemId) {
+  if (!confirm('학급 공동구매 보상을 사용 완료로 표시할까요?')) return;
+  try {
+    await store.economyAction('group_use', null, itemId);
+    render();
+    toast('보상 사용을 완료했습니다.');
+  } catch (error) { toast(economyMessage(error)); }
+}
+function openGroupBuy(config) {
+  activeGroupBuy = config;
+  drawGroupBuyDialog();
+  clearInterval(groupBuyTimer);
+  groupBuyTimer = setInterval(async () => {
+    if (activeGroupBuy !== config || !document.querySelector('#modal[open] .group-buy-detail')) { clearInterval(groupBuyTimer); return; }
+    if (config.refreshing || document.hidden) return;
+    config.refreshing = true;
+    try { await config.refresh(); if (activeGroupBuy === config) syncGroupBuyDialog(); }
+    catch (error) { toast(economyMessage(error)); }
+    finally { config.refreshing = false; }
+  }, 4000);
+}
+export function syncGroupBuyDialog() {
+  if (activeGroupBuy && document.querySelector('#modal[open] .group-buy-detail')) drawGroupBuyDialog();
+}
+function drawGroupBuyDialog() {
+  const config = activeGroupBuy, data = config?.getData();
+  const item = data?.items?.find(i => i.id === config.itemId);
+  if (!item) { closeModal(); return; }
+  const field = document.querySelector('#modal .group-buy-detail [name=amount]');
+  const focused = field && document.activeElement === field;
+  const value = field?.value || '1';
+  const max = Math.max(0, Math.min(data.balance || 0, item.groupGoal - item.groupCollected));
+  const canFund = !!config.studentId && !item.isFunded && !item.isUsed && max > 0;
+  const rows = [...(item.contributors || [])].sort((a,b) => b.amount - a.amount || a.studentId.localeCompare(b.studentId));
+  const body = `<div class="group-buy-detail" data-item-id="${esc(item.id)}"><p>${esc(item.description || '')}</p>${groupBuyProgress(item)}<p>남은 금액 <strong>${esc(Math.max(0, item.groupGoal - item.groupCollected))}별</strong></p><section aria-label="기여도 순위"><h3>기여도 순위 (참여자 명단)</h3><ol class="group-buy-ranking" aria-live="polite">${rows.map((c, i) => `<li class="${c.studentId === config.studentId ? 'is-me' : ''}">${i + 1}등 ${esc(c.name)} (${esc(c.amount)}별)${c.studentId === config.studentId ? ' · 나의 기여' : ''}</li>`).join('') || '<li>첫 기여를 기다리고 있어요.</li>'}</ol></section>${config.studentId ? `<p>내 보유 잔액 <strong>${esc(data.balance)}별코인</strong></p>${canFund ? input('기여할 별코인', 'amount', Math.min(Number(value) || 1, max), 'number', `required min="1" max="${Math.min(1000000000, data.balance)}" step="1"`) + `<div class="group-buy-quick">${[1,5,10].map(n => btn('+' + n + '별', () => {
+    const field = document.querySelector('#modal [name=amount]');
+    if (field) field.value = Math.min(max, (Number(field.value) || 0) + n);
+  })).join('')}${btn('전액', () => { const field = document.querySelector('#modal [name=amount]'); if (field) field.value = max; })}</div>` : `<p>${item.isFunded ? '🎉 모금 완료!' : '기여할 수 있는 잔액이 없습니다.'}</p>`}` : item.isFunded && !item.isUsed ? btn('보상 사용 완료', () => teacherUseGroupBuy(item.id)) : ''}</div>`;
+  modal(item.name, body, canFund ? async f => {
+    const amount = Number(f.get('amount'));
+    if (!Number.isSafeInteger(amount) || amount < 1) throw Error('1 이상의 정수 금액을 입력하세요.');
+    await config.fund(amount);
+  } : null, '기여하기');
+  if (focused) document.querySelector('#modal [name=amount]')?.focus({ preventScroll: true });
 }

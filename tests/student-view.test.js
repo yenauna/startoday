@@ -319,3 +319,26 @@ test('일반 안내도 수업이 없는 교시에 등록되면 학생 오늘 일
  const f=fixture(),date=C.today();f.source.events=[{id:'normal',date,period:6,title:'6교시 일반 안내',description:'준비물 확인',isImportant:false}];
  const snapshot=f.context.studentSnapshot(f.source,f.source.students[0],date),html=f.context.studentDaySchedule(snapshot);assert(html.includes('6교시 일반 안내'));assert(html.includes('준비물 확인'));assert(html.includes('6교시'));assert.equal(snapshot.calendar.events[0].isImportant,false);
 });
+
+test('클라우드 공동구매 기여는 본인 인증·금액 RPC로 보내고 최신 안전 snapshot으로 갱신',async()=>{
+ const f=fixture();let d=f.source;
+ d.shop_items=[{id:C.uid(),name:'학급 파티',price:100,stock:null,isGroupBuy:true,groupGoal:100,groupCollected:0,isFunded:false,isUsed:false}];
+ Object.assign(d,C.applyOps(d,C.teacherBalanceAdjustOps(d,'one',50)));
+ let snapshot=f.context.studentSnapshot(d,d.students[0]);const calls=[];
+ f.store.mode='none';f.store.db=null;f.store.signalChange=()=>{};
+ f.store.client={rpc:async(method,args)=>{
+   calls.push({method,args});
+   if(method==='startoday_student_login')return {data:{...snapshot,mustChangePassword:false}};
+   assert.equal(method,'startoday_shop_fund_group_buy');assert.equal(args.p_student_id,'one');assert.equal(args.p_password,'푸른바람7');assert.equal(args.p_amount,10);
+   d=C.applyOps(d,C.shopFundGroupBuyOps(d,'one',d.shop_items[0].id,args.p_amount));
+   snapshot=f.context.studentSnapshot(d,d.students[0]);return{data:{classId:'c',revision:4,snapshot}};
+ }};
+ f.context.studentLoginDialog();await f.dialog.submit(new Map([['schoolName','체험초등학교'],['schoolCode',''],['grade','5'],['classGroup','1'],['no','1'],['password','푸른바람7']]));
+ await f.context.studentEconomyAct('fund',d.shop_items[0].id,'',10);
+ assert.equal(f.state.studentSnapshot.economy.balance,40);
+ assert.equal(f.state.studentSnapshot.economy.items[0].groupCollected,10);
+ assert.equal(f.store.db,null);
+ await f.context.studentEconomyAct('refresh');
+ assert.equal(calls.at(-1).method,'startoday_student_login');
+ assert.equal(f.state.studentSnapshot.economy.items[0].contributors[0].amount,10);
+});

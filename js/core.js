@@ -1,7 +1,7 @@
 export const DEFAULT_AREAS = ['학습', '과제', '관계', '도전', '생활', '알바'];
 export const KINDS = ['칭찬', '지도', '관찰', '추가기록'];
 export const STATUSES = ['진행중', '완료', '늦게완료', '안함', '면제'];
-export const TABLES = ['students', 'incidents', 'records', 'assignments', 'assignmentStates', 'events', 'routines', 'routineStates', 'subject_rules', 'timetables', 'quests', 'settings', 'attendance', 'areas', 'shop_items', 'economy_tx'];
+export const TABLES = ['students', 'incidents', 'records', 'assignments', 'assignmentStates', 'events', 'routines', 'routineStates', 'subject_rules', 'timetables', 'quests', 'settings', 'attendance', 'areas', 'shop_items', 'economy_tx', 'group_buy_contribs'];
 export const uid = () => {
   if (crypto.randomUUID) return crypto.randomUUID();
   const b = crypto.getRandomValues(new Uint8Array(16));
@@ -575,6 +575,7 @@ export function validateBackup(x) {
   if (!x || x.app !== 'startoday' || x.version !== 1 || !x.data) throw Error('오늘의 별 버전 1 백업 파일이 아닙니다.');
   x.data.shop_items ??= [];
   x.data.economy_tx ??= [];
+  x.data.group_buy_contribs ??= [];
   delete x.data.tags;
   for (const row of x.data.records || []) delete row.tagIds;
   if (x.data.areas === undefined) x.data.areas = defaultAreas();
@@ -593,6 +594,16 @@ export function validateBackup(x) {
   const economyUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   for (const item of x.data.shop_items) if (!economyUuid.test(item.id) || typeof item.name !== 'string' || !item.name.trim() || !Number.isSafeInteger(item.price) || item.price < 0 || item.price > 1000000000 || !(item.stock === null || Number.isSafeInteger(item.stock) && item.stock >= 0 && item.stock <= 1000000000)) throw Error('상점 물품 형식 오류');
   for (const tx of x.data.economy_tx) if (!economyUuid.test(tx.id) || !x.data.students.some(s => s.id === tx.studentId) || !['구매', '선물', '환불', '지급', '차감'].includes(tx.type) || !Number.isSafeInteger(tx.amount) || Math.abs(tx.amount) > 1000000000 || typeof tx.createdAt !== 'string' || ['구매', '선물'].includes(tx.type) && (!economyUuid.test(tx.itemId) || !['보유', '사용완료', '환불됨'].includes(tx.status)) || tx.type === '구매' && tx.amount > 0 || tx.type === '선물' && tx.amount !== 0 || ['환불', '지급'].includes(tx.type) && tx.amount < 0 || tx.type === '차감' && tx.amount >= 0) throw Error('경제 거래 형식 오류');
+  for (const item of x.data.shop_items.filter(i => i.isGroupBuy)) {
+    if (!Number.isSafeInteger(item.groupGoal) || item.groupGoal < 1 || item.groupGoal > 1000000000 || !Number.isSafeInteger(item.groupCollected) || item.groupCollected < 0 || item.groupCollected > item.groupGoal || item.stock !== null || item.isFunded !== (item.groupCollected === item.groupGoal) || item.isUsed && !item.isFunded) throw Error('공동구매 형식 오류');
+    if (x.data.group_buy_contribs.filter(c => c.itemId === item.id).reduce((sum, c) => sum + c.amount, 0) !== item.groupCollected) throw Error('공동구매 기여 합계 오류');
+  }
+  const contributionKeys = new Set();
+  for (const c of x.data.group_buy_contribs) {
+    const key = c.itemId + ':' + c.studentId;
+    if (contributionKeys.has(key) || c.id !== key || !x.data.shop_items.some(i => i.id === c.itemId && i.isGroupBuy) || !x.data.students.some(s => s.id === c.studentId) || !Number.isSafeInteger(c.amount) || c.amount <= 0 || c.amount > 1000000000 || typeof c.createdAt !== 'string' || typeof c.updatedAt !== 'string') throw Error('공동구매 기여 형식 오류');
+    contributionKeys.add(key);
+  }
   normalizeDB(x.data);
   const d = x.data,
     studentIds = new Set(d.students.map(s => s.id)),
@@ -641,6 +652,7 @@ export function areaNames(db, includeDeleted = false) {
 export function normalizeDB(db) {
   db.shop_items ??= [];
   db.economy_tx ??= [];
+  db.group_buy_contribs ??= [];
   if (db.settings?.[0]) db.settings[0].allowRefund ??= true;
   delete db.tags;
   for (const row of db.records || []) delete row.tagIds;
@@ -1522,6 +1534,7 @@ function economyUp(table, data) {
 function acquireItemOps(database, studentId, itemId, gift) {
   economyStudent(database, studentId);
   const item = economyItem(database, itemId);
+  if (item.isGroupBuy) throw Error('공동구매 물품은 기여하기를 이용하세요.');
   if (!gift && studentBalance(database, studentId) < item.price) throw Error('잔액이 부족합니다.');
   return [...(item.stock === null ? [] : [economyUp('shop_items', {
     ...item,
@@ -1569,8 +1582,46 @@ export function teacherBalanceAdjustOps(database, studentId, amount, memo = '') 
   if (!Number.isSafeInteger(amount) || !amount || Math.abs(amount) > 1000000000) throw Error('0이 아닌 정수 금액을 입력하세요.');
   return [economyUp('economy_tx', economyEntry(studentId, amount > 0 ? '지급' : '차감', amount, {}, String(memo)))];
 }
+export function groupBuyContributors(database, itemId, studentId = null) {
+  return (database.group_buy_contribs || []).filter(c => c.itemId === itemId).map(c => {
+    const student = database.students.find(s => s.id === c.studentId);
+    return { studentId: c.studentId, name: student?.deletedAt ? '전출 학생' : student?.name || '전출 학생', amount: c.amount, isMe: c.studentId === studentId };
+  }).sort((a, b) => b.amount - a.amount || a.studentId.localeCompare(b.studentId));
+}
+export function shopFundGroupBuyOps(database, studentId, itemId, requested) {
+  economyStudent(database, studentId);
+  const item = economyItem(database, itemId);
+  if (!item.isGroupBuy || !Number.isSafeInteger(item.groupGoal) || item.groupGoal <= 0) throw Error('공동구매 물품을 확인하세요.');
+  if (item.isFunded || item.isUsed || item.groupCollected >= item.groupGoal) throw Error('이미 모금이 완료되었습니다.');
+  if (!Number.isSafeInteger(requested) || requested <= 0 || requested > 1000000000) throw Error('1 이상의 정수 금액을 입력하세요.');
+  const amount = Math.min(requested, item.groupGoal - (item.groupCollected || 0));
+  if (studentBalance(database, studentId) < amount) throw Error('잔액이 부족합니다.');
+  const prior = (database.group_buy_contribs || []).find(c => c.itemId === itemId && c.studentId === studentId);
+  const collected = (item.groupCollected || 0) + amount, stamp = now();
+  return [economyUp('shop_items', { ...item, groupCollected: collected, isFunded: collected >= item.groupGoal }),
+    economyUp('group_buy_contribs', { id: itemId + ':' + studentId, itemId, studentId, amount: (prior?.amount || 0) + amount, createdAt: prior?.createdAt || stamp, updatedAt: stamp }),
+    economyUp('economy_tx', { ...economyEntry(studentId, '차감', -amount, item, '학급 공동구매 기여'), groupBuy: true })];
+}
+export function shopUseGroupBuyOps(database, itemId) {
+  const item = economyItem(database, itemId);
+  if (!item.isGroupBuy || !item.isFunded || item.isUsed) throw Error('달성된 미사용 공동구매 보상만 사용할 수 있습니다.');
+  return [economyUp('shop_items', { ...item, isUsed: true })];
+}
+export function shopItemEditOps(database, proposed) {
+  const old = database.shop_items.find(i => i.id === proposed.id);
+  const collected = old?.groupCollected || 0;
+  if (collected > 0 && (!proposed.isGroupBuy || proposed.groupGoal < collected || old.isFunded && proposed.groupGoal !== old.groupGoal)) throw Error('기여가 있는 공동구매의 유형을 변경하거나 목표를 모금액 아래로 줄일 수 없습니다. 달성 후 목표는 변경할 수 없습니다.');
+  const item = { ...proposed, groupCollected: collected, isFunded: !!proposed.isGroupBuy && (old?.isFunded || collected >= proposed.groupGoal), isUsed: !!old?.isUsed };
+  if (item.isGroupBuy) {
+    if (!Number.isSafeInteger(item.groupGoal) || item.groupGoal < 1 || item.groupGoal > 1000000000) throw Error('목표 모금액은 1 이상의 정수여야 합니다.');
+    item.stock = null;
+    item.price = item.groupGoal;
+  } else Object.assign(item, { groupGoal: 0, groupCollected: 0, isFunded: false, isUsed: false });
+  return [economyUp('shop_items', item)];
+}
 export function studentEconomySnapshot(database, studentId) {
   return {
+    studentId,
     balance: studentBalance(database, studentId),
     allowRefund: database.settings[0]?.allowRefund !== false,
     items: (database.shop_items || []).filter(i => !i.deletedAt).map(i => ({
@@ -1578,7 +1629,14 @@ export function studentEconomySnapshot(database, studentId) {
       category: i.category,
       name: i.name,
       price: i.price,
-      stock: i.stock
+      stock: i.stock,
+      description: i.description || '',
+      isGroupBuy: !!i.isGroupBuy,
+      groupGoal: i.groupGoal || 0,
+      groupCollected: i.groupCollected || 0,
+      isFunded: !!i.isFunded,
+      isUsed: !!i.isUsed,
+      ...(i.isGroupBuy ? { contributors: groupBuyContributors(database, i.id, studentId) } : {})
     })),
     transactions: (database.economy_tx || []).filter(t => t.studentId === studentId).map(t => ({
       id: t.id,
@@ -1697,6 +1755,17 @@ export function demoDB() {
       }
     }
   });
+  const group = { id: uid(), category: '특별혜택', name: '금요일 보드게임 파티', description: '우리 반이 함께 모아 보드게임 1시간을 즐겨요!', price: 100, stock: null, isGroupBuy: true, groupGoal: 100, groupCollected: 0, isFunded: false, isUsed: false, createdAt: stamp };
+  database.shop_items.push(group);
+  for (const [index, amount] of [[0, 30], [1, 25], [2, 10]]) {
+    const sid = database.students[index].id;
+    // November praise records can still be in the future when this demo is opened earlier in the year.
+    const shortage = amount - studentBalance(database, sid);
+    if (shortage > 0) Object.assign(database, applyOps(database, teacherBalanceAdjustOps(database, sid, shortage, '공동구매 체험 지원금')));
+    const ops = shopFundGroupBuyOps(database, sid, group.id, amount);
+    const next = applyOps(database, ops);
+    Object.assign(database, next);
+  }
   return database;
 }
 

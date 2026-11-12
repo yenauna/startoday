@@ -56,6 +56,74 @@ end $$;
 grant delete on public.startoday_shop_items to authenticated;
 create index if not exists startoday_economy_student on public.startoday_economy_tx(class_id,student_id);
 create unique index if not exists startoday_one_refund on public.startoday_economy_tx(class_id,(data->>'originalTxId')) where data->>'type'='환불';
+-- Group-buy metadata mirrors the existing JSONB contract used by backups and clients.
+alter table public.startoday_shop_items add column if not exists is_group_buy boolean not null default false;
+alter table public.startoday_shop_items add column if not exists group_goal integer not null default 0;
+alter table public.startoday_shop_items add column if not exists group_collected integer not null default 0;
+alter table public.startoday_shop_items add column if not exists is_funded boolean not null default false;
+alter table public.startoday_shop_items add column if not exists is_used boolean not null default false;
+create or replace function public.startoday_group_item_sync() returns trigger language plpgsql set search_path=public,pg_temp as $$
+begin
+ new.is_group_buy:=coalesce((new.data->>'isGroupBuy')::boolean,false);
+ new.group_goal:=coalesce((new.data->>'groupGoal')::integer,0);
+ new.group_collected:=coalesce((new.data->>'groupCollected')::integer,0);
+ new.is_funded:=coalesce((new.data->>'isFunded')::boolean,false);
+ new.is_used:=coalesce((new.data->>'isUsed')::boolean,false);
+ if new.is_group_buy then
+  if jsonb_typeof(new.data->'groupGoal') is distinct from 'number' or (new.data->>'groupGoal')::numeric<>trunc((new.data->>'groupGoal')::numeric) or jsonb_typeof(new.data->'groupCollected') is distinct from 'number' or (new.data->>'groupCollected')::numeric<>trunc((new.data->>'groupCollected')::numeric) then raise exception 'INVALID_GROUP_BUY';end if;
+  if new.group_goal not between 1 and 1000000000 or new.group_collected not between 0 and new.group_goal or new.is_funded is distinct from (new.group_collected=new.group_goal) or new.is_used and not new.is_funded or new.data->'stock' is distinct from 'null'::jsonb or (new.data->>'price')::numeric<>new.group_goal then raise exception 'INVALID_GROUP_BUY';end if;
+ elsif new.group_collected<>0 or new.is_funded or new.is_used then raise exception 'INVALID_GROUP_BUY';end if;
+ if TG_OP='UPDATE' and old.group_collected>0 then
+  if not new.is_group_buy or new.group_collected<old.group_collected or old.is_funded and (not new.is_funded or new.group_goal<>old.group_goal) or old.is_used and not new.is_used then raise exception 'GROUP_BUY_HAS_CONTRIBUTIONS';end if;
+ end if;
+ return new;
+end $$;
+revoke all on function public.startoday_group_item_sync() from public,anon,authenticated;
+drop trigger if exists startoday_group_item_sync on public.startoday_shop_items;
+create trigger startoday_group_item_sync before insert or update on public.startoday_shop_items for each row execute function public.startoday_group_item_sync();
+update public.startoday_shop_items set data=data where coalesce((data->>'isGroupBuy')::boolean,false) and not is_group_buy;
+create table if not exists public.startoday_group_buy_contribs (
+ class_id uuid not null references public.startoday_classes(id), owner_id uuid not null references auth.users(id),
+ id text not null, item_id uuid not null, student_id text not null, amount integer not null check(amount between 1 and 1000000000),
+ created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
+ data jsonb not null check(jsonb_typeof(data)='object' and data->>'id'=id),
+ primary key(class_id,id), unique(class_id,item_id,student_id),
+ foreign key(class_id,item_id) references public.startoday_shop_items(class_id,id) deferrable initially deferred,
+ foreign key(class_id,student_id) references public.startoday_students(class_id,id) deferrable initially deferred
+);
+create or replace function public.startoday_group_contrib_sync() returns trigger language plpgsql set search_path=public,pg_temp as $$
+begin
+ new.item_id:=(new.data->>'itemId')::uuid;new.student_id:=new.data->>'studentId';
+ if jsonb_typeof(new.data->'amount') is distinct from 'number' or (new.data->>'amount')::numeric<>trunc((new.data->>'amount')::numeric) then raise exception 'INVALID_AMOUNT';end if;
+ new.amount:=(new.data->>'amount')::integer;
+ new.created_at:=(new.data->>'createdAt')::timestamptz;new.updated_at:=(new.data->>'updatedAt')::timestamptz;
+ if new.id<>new.item_id::text||':'||new.student_id then raise exception 'INVALID_CONTRIBUTION_ID';end if;
+ return new;
+end $$;
+revoke all on function public.startoday_group_contrib_sync() from public,anon,authenticated;
+drop trigger if exists startoday_group_contrib_sync on public.startoday_group_buy_contribs;
+create trigger startoday_group_contrib_sync before insert or update on public.startoday_group_buy_contribs for each row execute function public.startoday_group_contrib_sync();
+alter table public.startoday_group_buy_contribs enable row level security;
+drop policy if exists own_rows on public.startoday_group_buy_contribs;
+create policy own_rows on public.startoday_group_buy_contribs for select to authenticated using(owner_id=auth.uid());
+revoke all on public.startoday_group_buy_contribs from public,anon,authenticated;
+grant select on public.startoday_group_buy_contribs to authenticated;
+-- Check final transaction state so backup batches and atomic funding both remain valid.
+create or replace function public.startoday_group_buy_integrity() returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+declare cid uuid;target uuid;item public.startoday_shop_items;contributed bigint;
+begin
+ cid:=coalesce(new.class_id,old.class_id);
+ if TG_TABLE_NAME='startoday_shop_items' then target:=coalesce(new.id,old.id);else target:=coalesce(new.item_id,old.item_id);end if;
+ select * into item from public.startoday_shop_items where class_id=cid and id=target;
+ select coalesce(sum(amount),0) into contributed from public.startoday_group_buy_contribs where class_id=cid and item_id=target;
+ if contributed>0 and (item.id is null or not item.is_group_buy) or item.is_group_buy and contributed<>item.group_collected then raise exception 'GROUP_BUY_TOTAL_MISMATCH';end if;
+ return null;
+end $$;
+revoke all on function public.startoday_group_buy_integrity() from public,anon,authenticated;
+drop trigger if exists startoday_group_buy_integrity on public.startoday_shop_items;
+create constraint trigger startoday_group_buy_integrity after insert or update or delete on public.startoday_shop_items deferrable initially deferred for each row execute function public.startoday_group_buy_integrity();
+drop trigger if exists startoday_group_buy_integrity on public.startoday_group_buy_contribs;
+create constraint trigger startoday_group_buy_integrity after insert or update or delete on public.startoday_group_buy_contribs deferrable initially deferred for each row execute function public.startoday_group_buy_integrity();
 create or replace function public.startoday_snapshot() returns jsonb language plpgsql security definer set search_path=public as $$
 declare c public.startoday_classes; result jsonb:='{}'; t text; rows jsonb;
 begin
@@ -64,7 +132,7 @@ begin
  select * into c from public.startoday_classes where owner_id=auth.uid();
  -- 공유 잠금으로 여러 테이블 읽기 도중 다른 기기가 수정하지 못하게 합니다.
  perform 1 from public.startoday_classes where id=c.id for share;
- foreach t in array array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx'] loop
+ foreach t in array array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx','group_buy_contribs'] loop
  execute format('select coalesce(jsonb_agg(data),''[]''::jsonb) from public.%I where class_id=$1 and owner_id=$2','startoday_'||t) into rows using c.id,auth.uid();
  result:=result||jsonb_build_object(t,rows);
  end loop;
@@ -112,7 +180,7 @@ begin
  stamp:=to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
  for op in select * from jsonb_array_elements(p_ops) loop
  t:=op->>'table';
- if not(t=any(array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx'])) or coalesce(op->>'id','')='' then raise exception 'INVALID_TABLE_OR_ID'; end if;
+ if not(t=any(array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx','group_buy_contribs'])) or coalesce(op->>'id','')='' then raise exception 'INVALID_TABLE_OR_ID'; end if;
  if coalesce((op->>'remove')::boolean,false) then
  execute format('delete from public.%I where class_id=$1 and id::text=$2','startoday_'||t) using c.id,op->>'id';
  else
@@ -236,7 +304,10 @@ create or replace function public.startoday_coin_balance(cid uuid,sid text) retu
  select coalesce((select sum(case when r.data->>'autoRef' is not null then case when a.data->>'noStar'='true' then 0 when ast.data->>'status'='완료' then 1 when ast.data->>'status'='안함' then -1 else 0 end else case r.data->>'kind' when '칭찬' then 1 when '지도' then -1 else 0 end end)*10 from public.startoday_records r left join public."startoday_assignmentStates" ast on ast.class_id=cid and ast.id=r.data->>'autoRef' and ast.data->>'studentId'=sid left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId' where r.class_id=cid and r.data->'studentIds' ? sid and r.data->>'date'<=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD') and not exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=r.data->>'date' and atd.data->>'excluded'='true')),0)+coalesce((select sum((data->>'amount')::bigint) from public.startoday_economy_tx where class_id=cid and student_id=sid),0)
 $$;
 create or replace function public.startoday_economy_payload(cid uuid,sid text) returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
- select jsonb_build_object('balance',public.startoday_coin_balance(cid,sid),'allowRefund',coalesce((select data->>'allowRefund' from public.startoday_settings where class_id=cid and id='main'),'true')<>'false','items',coalesce((select jsonb_agg(jsonb_build_object('id',id,'category',data->>'category','name',data->>'name','price',data->'price','stock',data->'stock') order by created_at,id) from public.startoday_shop_items where class_id=cid and data->>'deletedAt' is null),'[]'::jsonb),'transactions',coalesce((select jsonb_agg(jsonb_build_object('id',id,'type',data->>'type','itemId',data->>'itemId','itemName',data->>'itemName','itemCategory',coalesce(nullif(data->>'itemCategory',''),(select i.data->>'category' from public.startoday_shop_items i where i.class_id=cid and i.id::text=etx.data->>'itemId'),'기타'),'amount',data->'amount','status',data->>'status','createdAt',data->>'createdAt') order by created_at,id) from public.startoday_economy_tx etx where class_id=cid and student_id=sid),'[]'::jsonb))
+ select jsonb_build_object('studentId',sid,'balance',public.startoday_coin_balance(cid,sid),'allowRefund',coalesce((select data->>'allowRefund' from public.startoday_settings where class_id=cid and id='main'),'true')<>'false',
+ 'items',coalesce((select jsonb_agg(jsonb_build_object('id',i.id,'category',i.data->>'category','name',i.data->>'name','description',coalesce(i.data->>'description',''),'price',i.data->'price','stock',i.data->'stock','isGroupBuy',i.is_group_buy,'groupGoal',i.group_goal,'groupCollected',i.group_collected,'isFunded',i.is_funded,'isUsed',i.is_used,
+ 'contributors',case when i.is_group_buy then coalesce((select jsonb_agg(jsonb_build_object('studentId',gc.student_id,'name',case when st.data->>'deletedAt' is null then coalesce(st.data->>'name','전출 학생') else '전출 학생' end,'amount',gc.amount,'isMe',gc.student_id=sid) order by gc.amount desc,gc.student_id) from public.startoday_group_buy_contribs gc left join public.startoday_students st on st.class_id=gc.class_id and st.id=gc.student_id where gc.class_id=cid and gc.item_id=i.id),'[]'::jsonb) else '[]'::jsonb end) order by i.created_at,i.id) from public.startoday_shop_items i where i.class_id=cid and i.data->>'deletedAt' is null),'[]'::jsonb),
+ 'transactions',coalesce((select jsonb_agg(jsonb_build_object('id',id,'type',data->>'type','itemId',data->>'itemId','itemName',data->>'itemName','itemCategory',coalesce(nullif(data->>'itemCategory',''),(select i.data->>'category' from public.startoday_shop_items i where i.class_id=cid and i.id::text=etx.data->>'itemId'),'기타'),'amount',data->'amount','status',data->>'status','createdAt',data->>'createdAt') order by created_at,id) from public.startoday_economy_tx etx where class_id=cid and student_id=sid),'[]'::jsonb))
 $$;
 revoke all on function public.startoday_coin_balance(uuid,text),public.startoday_economy_payload(uuid,text) from public,anon,authenticated;
 create or replace function public.startoday_student_payload(cid uuid,sid text)
@@ -491,15 +562,69 @@ begin
 end $$;
 revoke all on function public.startoday_student_nickname_set(text,text,text,integer,text,text) from public;
 grant execute on function public.startoday_student_nickname_set(text,text,text,integer,text,text) to anon,authenticated;
+-- All writers lock the class first, then the item. Contributions and the debit share one transaction.
+create or replace function public.startoday_group_buy_mutate(cid uuid,sid text,target uuid,requested integer,use_reward boolean default false) returns bigint language plpgsql security definer set search_path=public,pg_temp as $$
+declare c public.startoday_classes;item public.startoday_shop_items;prior public.startoday_group_buy_contribs;paid integer;total integer;rev bigint;txid uuid:=gen_random_uuid();stamp text:=to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
+begin
+ select * into c from public.startoday_classes where id=cid for update;
+ if c.id is null then raise exception 'FORBIDDEN';end if;
+ select * into item from public.startoday_shop_items where class_id=cid and id=target and data->>'deletedAt' is null for update;
+ if item.id is null or not item.is_group_buy then raise exception 'INVALID_GROUP_BUY';end if;
+ if use_reward then
+  if auth.uid() is distinct from c.owner_id then raise exception 'FORBIDDEN';end if;
+  if not item.is_funded or item.is_used then raise exception 'INVALID_GROUP_USE';end if;
+  update public.startoday_shop_items set data=data||jsonb_build_object('isUsed',true),updated_at=now() where id=target;
+ else
+  if not exists(select 1 from public.startoday_students where class_id=cid and id=sid and data->>'deletedAt' is null) then raise exception 'INVALID_STUDENT';end if;
+  if requested is null or requested not between 1 and 1000000000 then raise exception 'INVALID_AMOUNT';end if;
+  if item.is_funded or item.is_used or item.group_collected>=item.group_goal then raise exception 'GROUP_BUY_CLOSED';end if;
+  paid:=least(requested,item.group_goal-item.group_collected);
+  if public.startoday_coin_balance(cid,sid)<paid then raise exception 'INSUFFICIENT_BALANCE';end if;
+  total:=item.group_collected+paid;
+  select * into prior from public.startoday_group_buy_contribs where class_id=cid and item_id=target and student_id=sid;
+  insert into public.startoday_group_buy_contribs(class_id,owner_id,id,data) values(cid,c.owner_id,target::text||':'||sid,jsonb_build_object('id',target::text||':'||sid,'itemId',target,'studentId',sid,'amount',coalesce(prior.amount,0)+paid,'createdAt',coalesce(prior.data->>'createdAt',stamp),'updatedAt',stamp)) on conflict(class_id,id) do update set data=excluded.data;
+  update public.startoday_shop_items set data=data||jsonb_build_object('groupCollected',total,'isFunded',total>=item.group_goal),updated_at=now() where id=target;
+  insert into public.startoday_economy_tx(id,owner_id,class_id,student_id,data) values(txid,c.owner_id,cid,sid,jsonb_build_object('id',txid,'studentId',sid,'type','차감','amount',-paid,'itemId',target,'itemName',item.data->>'name','itemCategory',coalesce(item.data->>'category','기타'),'groupBuy',true,'status',null,'memo','학급 공동구매 기여','createdAt',stamp));
+ end if;
+ update public.startoday_classes set revision=revision+1 where id=cid returning revision into rev;
+ insert into public.startoday_audit(owner_id,class_id,revision,table_name,row_id,operation) values(c.owner_id,cid,rev,'shop_items',target::text,case when use_reward then 'group_use' else 'fund' end);
+ return rev;
+end $$;
+revoke all on function public.startoday_group_buy_mutate(uuid,text,uuid,integer,boolean) from public,anon,authenticated;
+create or replace function public.startoday_shop_fund_group_buy(p_student_id text,p_item_id uuid,p_amount integer,p_school text default null,p_grade text default null,p_class text default null,p_no integer default null,p_password text default null) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare verified jsonb;cid uuid;sid text;rev bigint;
+begin
+ verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_password);
+ if verified is null or verified->>'mustChangePassword'='true' then raise exception 'AUTH_REQUIRED';end if;
+ cid:=(verified->>'cid')::uuid;sid:=verified->>'sid';
+ if sid is distinct from p_student_id then raise exception 'FORBIDDEN';end if;
+ rev:=public.startoday_group_buy_mutate(cid,sid,p_item_id,p_amount);
+ return jsonb_build_object('classId',cid,'revision',rev,'snapshot',public.startoday_student_payload(cid,sid));
+end $$;
+revoke all on function public.startoday_shop_fund_group_buy(text,uuid,integer,text,text,text,integer,text) from public;
+grant execute on function public.startoday_shop_fund_group_buy(text,uuid,integer,text,text,text,integer,text) to anon,authenticated;
+create or replace function public.startoday_shop_use_group_buy(p_teacher_id uuid,p_item_id uuid) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare cid uuid;
+begin
+ if auth.uid() is null or auth.uid() is distinct from p_teacher_id then raise exception 'FORBIDDEN';end if;
+ select class_id into cid from public.startoday_shop_items where id=p_item_id and owner_id=auth.uid();
+ if cid is null then raise exception 'FORBIDDEN';end if;
+ perform public.startoday_group_buy_mutate(cid,null,p_item_id,0,true);
+ return public.startoday_snapshot();
+end $$;
+revoke all on function public.startoday_shop_use_group_buy(uuid,uuid) from public,anon;
+grant execute on function public.startoday_shop_use_group_buy(uuid,uuid) to authenticated;
 -- A single class-row lock serializes all balance/stock decisions with teacher commits.
 create or replace function public.startoday_economy_mutate(cid uuid,sid text,action text,target uuid,amount integer default 0,memo text default '') returns bigint language plpgsql security definer set search_path=public,pg_temp as $$
 declare c public.startoday_classes;item public.startoday_shop_items;holding public.startoday_economy_tx;v jsonb;txid uuid:=gen_random_uuid();stamp text:=to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');rev bigint;price integer;kind text;
 begin
+ if action in ('fund','group_use') then return public.startoday_group_buy_mutate(cid,sid,target,amount,action='group_use');end if;
  select * into c from public.startoday_classes where id=cid for update;
  if c.id is null or not exists(select 1 from public.startoday_students where class_id=cid and id=sid and data->>'deletedAt' is null) then raise exception 'INVALID_STUDENT';end if;
  if action in ('buy','gift') then
   select * into item from public.startoday_shop_items where class_id=cid and id=target and data->>'deletedAt' is null for update;
   if item.id is null then raise exception 'ITEM_UNAVAILABLE';end if;
+  if item.is_group_buy then raise exception 'INVALID_GROUP_BUY';end if;
   price:=(item.data->>'price')::integer;
   if item.data->'stock'<>'null'::jsonb and (item.data->>'stock')::integer<=0 then raise exception 'SOLD_OUT';end if;
   if action='buy' and public.startoday_coin_balance(cid,sid)<price then raise exception 'INSUFFICIENT_BALANCE';end if;

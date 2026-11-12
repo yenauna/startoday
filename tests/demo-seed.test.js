@@ -2,18 +2,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as C from '../js/core.js';
 import { Store } from '../js/store.js';
-test('새 체험 시드는 루틴 2종·과제 3종·상점 6종 및 무한 재고 제공', () => {
+test('새 체험 시드는 루틴 2종·과제 3종·상점 7종 및 무한 재고 제공', () => {
   const d = C.demoDB();
   assert.deepEqual(d.routines.map(r => r.title), ['우유 마시기', '점심 양치하기']);
   assert.equal(d.assignments.length, 3);
-  assert.equal(d.shop_items.length, 6);
+  assert.equal(d.shop_items.length, 7);
   assert.equal(d.shop_items.find(i => i.name === '5분 자유시간권').stock, null);
   assert.deepEqual(d.students.slice(0, 3).map(s => s.name), ['가온', '나래', '다온']);
   assert.equal(C.validateBackup({
     app: 'startoday',
     version: 1,
     data: d
-  }).shop_items.length, 6);
+  }).shop_items.length, 7);
 });
 test('11월 분산 예시 기록 및 첫 3명 각 영역 15회 칭찬 해금', () => {
   const d = C.demoDB(),
@@ -56,7 +56,7 @@ test('기존 체험 자료는 재접속 시 보존, 지정 키 제거 후 최신
     store.db = null;
     store.demo();
     assert.equal(store.db.students[0].name, '가온');
-    assert.equal(store.db.shop_items.length, 6);
+    assert.equal(store.db.shop_items.length, 7);
     assert.equal(map.get('other-key'), '보존');
   } finally {
     globalThis.localStorage = old;

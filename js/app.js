@@ -1,4 +1,4 @@
-import { economyView } from './tabs/economy.js';
+import { economyView, syncGroupBuyDialog } from './tabs/economy.js';
 import { setupPwa } from './shared/pwa.js';
 import { bindQuickInput, renderLogin, renderShell } from './components/header.js';
 import { db } from './shared/data.js';
@@ -51,6 +51,7 @@ export function render() {
     document.body.classList.remove('report-open');
     const scrollY = window.scrollY;
     $('#app').innerHTML = renderStudentShell();
+    syncGroupBuyDialog();
     window.scrollTo?.(0, scrollY);
     return;
   }
@@ -66,6 +67,7 @@ export function render() {
   $('#app').innerHTML = renderShell(renderTab);
   bindQuickInput();
   bindTimetableDrag();
+  syncGroupBuyDialog();
 }
 window.addEventListener('startoday-sync', () => {
   if (state.locked) {

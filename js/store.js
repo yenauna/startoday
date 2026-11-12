@@ -1,4 +1,4 @@
-import { TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps, mergeRewardTitles, demoDB, shopBuyOps, shopRefundOps, shopUseOps, teacherGiftOps, teacherBalanceAdjustOps } from './core.js';
+import { TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps, mergeRewardTitles, demoDB, shopBuyOps, shopRefundOps, shopUseOps, teacherGiftOps, teacherBalanceAdjustOps, shopFundGroupBuyOps, shopUseGroupBuyOps } from './core.js';
 export class Store {
   constructor() {
     this.db = null;
@@ -73,7 +73,7 @@ export class Store {
       return;
     }
     // Do not silently advance a modal editor's revision while it holds old form data.
-    if (this.busy || typeof document !== 'undefined' && document.querySelector?.('dialog[open]')) {
+    if (this.busy || typeof document !== 'undefined' && document.querySelector?.('dialog[open]') && !document.querySelector('dialog[open]')?.querySelector?.('.group-buy-detail')) {
       this.syncTimer = setTimeout(() => {
         this.syncTimer = null;
         this.flushSync();
@@ -317,7 +317,7 @@ export class Store {
           const {
             data,
             error
-          } = await this.client.rpc('startoday_economy_action', {
+          } = await this.client.rpc(action === 'group_use' ? 'startoday_shop_use_group_buy' : 'startoday_economy_action', action === 'group_use' ? { p_teacher_id: this.user?.id, p_item_id: target } : {
             p_class_id: this.classId,
             p_student: studentId,
             p_action: action,
@@ -346,7 +346,7 @@ export class Store {
           use: shopUseOps,
           gift: teacherGiftOps
         };
-        const ops = action === 'adjust' ? teacherBalanceAdjustOps(this.db, studentId, amount, memo) : makers[action]?.(this.db, studentId, target);
+        const ops = action === 'fund' ? shopFundGroupBuyOps(this.db, studentId, target, amount) : action === 'group_use' ? shopUseGroupBuyOps(this.db, target) : action === 'adjust' ? teacherBalanceAdjustOps(this.db, studentId, amount, memo) : makers[action]?.(this.db, studentId, target);
         if (!ops) throw Error('지원하지 않는 거래입니다.');
         await this.commitSnapshot(ops);
       }

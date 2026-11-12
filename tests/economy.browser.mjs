@@ -56,7 +56,7 @@ try {
 
   await page.getByRole('button',{name:'경제',exact:true}).click();
   await page.getByRole('button',{name:'상점 관리',exact:true}).click();
-  assert.equal(await page.locator('.economy-item').count(),6);
+  assert.equal(await page.locator('.economy-item').count(),7);
   await page.getByRole('button',{name:'새 물품/쿠폰 등록',exact:true}).click();
   await page.locator('#modal [name=name]').fill('검증 쿠폰');
   await page.locator('#modal [name=price]').fill('10');
@@ -124,7 +124,7 @@ try {
   await page.getByRole('button',{name:'로그아웃',exact:true}).click();
   await page.getByRole('button',{name:'가상 명단으로 먼저 살펴보기',exact:true}).click();
   await page.getByRole('button',{name:'체험 자료 초기화',exact:true}).click();
-  await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.economy_tx.length===0&&store.db.shop_items.length===6;});
+  await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.economy_tx.filter(t=>t.groupBuy).length===3&&store.db.shop_items.length===7;});
   await page.screenshot({path:'/tmp/startoday-economy-desktop.png',fullPage:true});
   await page.getByRole('button',{name:'경제',exact:true}).click();
   await page.getByRole('button',{name:'상점 관리',exact:true}).click();
