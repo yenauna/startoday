@@ -1243,3 +1243,8 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-home-village .student-praise-card>h2:before{flex-basis:29px;height:35px;border:0;border-radius:0;box-shadow:none;background:url('../assets/shop/home-seal.svg') center / contain no-repeat}
 @media(max-width:640px){.student-home-village .student-profile-class{font-size:12px}.student-home-village .student-profile-areas>div{font-size:11px}.student-home-village .student-profile-areas strong{font-size:19px}.student-home-village .student-home-sign{font-size:17px}.student-home-village .student-tasks-card .student-task>div>strong{font-size:13px}.student-home-village .student-tasks-card .student-task>div>small:not(.assignment-checker){font-size:10px}.student-home-village .student-tasks-card .student-task>span{font-size:10px}}
 @media(min-width:761px){.student-home-village .student-calendar-card:before{content:'';grid-column:1 / -1;grid-row:2;height:1px;background:#ccb37f;pointer-events:none}}
+
+/* Character and its lilac backdrop remain independent from profile/account data. */
+.student-home-village .student-character-layers:before{content:'';grid-area:1 / 1;align-self:end;justify-self:center;width:100%;height:78%;border-radius:50%;background:#ece7f8;opacity:.65;transform:rotate(-7deg);pointer-events:none}
+.student-home-village .student-character-layers .student-profile-image{position:relative;z-index:1;justify-self:center;max-height:260px;object-fit:contain}
+.student-home-village .student-character-equipment{z-index:2}

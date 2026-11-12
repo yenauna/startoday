@@ -186,7 +186,7 @@ try {
       fullPage: true
     });
     await page.getByRole('button', {
-      name: '특별 혜택',
+      name: '혜택',
       exact: true
     }).click();
     assert.deepEqual(await page.locator('.village-product h3').allTextContents(), ['5분 자유시간권', '특별한 하루']);

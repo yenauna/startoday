@@ -234,6 +234,7 @@ export function initialDB() {
     lastBackupAt: null,
     academicYear: 2026,
     allowRefund: true,
+    studentPraisePeriod: 'all',
     schoolName: '',
     timetableDisplay: {
       showTeacher: true,
@@ -1503,6 +1504,9 @@ function economyEntry(studentId, type, amount, item = {}, memo = '') {
     amount,
     itemId: item.id || null,
     itemName: item.name || '',
+    ...(item.id ? {
+      itemCategory: String(item.category || '기타')
+    } : {}),
     status: ['구매', '선물'].includes(type) ? '보유' : null,
     memo,
     createdAt: now()
@@ -1545,7 +1549,8 @@ export function shopRefundOps(database, studentId, txId) {
   })] : []), economyUp('economy_tx', {
     ...economyEntry(studentId, '환불', -tx.amount, {
       id: tx.itemId,
-      name: tx.itemName
+      name: tx.itemName,
+      category: tx.itemCategory || item?.category || '기타'
     }),
     originalTxId: tx.id
   })];
@@ -1580,6 +1585,7 @@ export function studentEconomySnapshot(database, studentId) {
       type: t.type,
       itemId: t.itemId,
       itemName: t.itemName,
+      itemCategory: t.itemCategory || (database.shop_items || []).find(i => i.id === t.itemId)?.category || '기타',
       amount: t.amount,
       status: t.status,
       createdAt: t.createdAt
@@ -1664,4 +1670,13 @@ export function demoDB() {
     }
   });
   return database;
+}
+
+// The visibility window affects praise letters only, never scores or earned titles.
+export function studentPraiseRange(config = {}, date = today()) {
+  const period = ['all', '30d', '7d', 'month'].includes(config.studentPraisePeriod) ? config.studentPraisePeriod : 'all';
+  return {
+    from: period === '30d' ? addDays(date, -29) : period === '7d' ? addDays(date, -6) : period === 'month' ? date.slice(0, 8) + '01' : '',
+    to: date
+  };
 }

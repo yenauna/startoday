@@ -23,6 +23,9 @@ collect('js/app.js')
 order=['js/shared/state.js']+[p for p in modules if p not in ('js/shared/state.js','js/app.js')]+['js/app.js']
 app='\n'.join(re.sub(r'^import .*?;\n','',modules[p],flags=re.M).replace('export ','') for p in order)
 js='(()=>{\nconst C=(()=>{\n'+core+'\nreturn {'+','.join(names)+'};\n})();\n'+store+'\n'+app+'\n})();'
+# Include the default student character in the standalone file as well.
+character='data:image/png;base64,'+base64.b64encode((root/'assets/character-default.png').read_bytes()).decode()
+js=js.replace("'assets/character-default.png'", repr(character))
 html=(root/'index.html').read_text()
 # Keep the small repeating shop decorations available in the file-open demo.
 def inline_style(match):

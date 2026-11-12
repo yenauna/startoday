@@ -119,6 +119,7 @@ begin
  v:=op->'data';
  if jsonb_typeof(v)<>'object' or v->>'id' is distinct from op->>'id' then raise exception 'INVALID_DATA'; end if;
  if t='settings' and v ? 'allowRefund' and jsonb_typeof(v->'allowRefund')<>'boolean' then raise exception 'INVALID_REFUND_SETTING';end if;
+ if t='settings' and v ? 'studentPraisePeriod' and (jsonb_typeof(v->'studentPraisePeriod') is distinct from 'string' or v->>'studentPraisePeriod' not in ('all','30d','7d','month')) then raise exception 'INVALID_STUDENT_PRAISE_PERIOD';end if;
  if t='settings' and v ? 'titleGoal' and (jsonb_typeof(v->'titleGoal')<>'number' or (v->>'titleGoal')::numeric<>trunc((v->>'titleGoal')::numeric) or (v->>'titleGoal')::numeric not between 3 and 9999) then raise exception 'INVALID_TITLE_GOAL';end if;
  if t='students' then
   if v->>'nickname' is not null and v->>'nickname' !~ '^[가-힣]{1,8}$' then raise exception 'INVALID_NICKNAME';end if;
@@ -235,16 +236,17 @@ create or replace function public.startoday_coin_balance(cid uuid,sid text) retu
  select coalesce((select sum(case when r.data->>'autoRef' is not null then case when a.data->>'noStar'='true' then 0 when ast.data->>'status'='완료' then 1 when ast.data->>'status'='안함' then -1 else 0 end else case r.data->>'kind' when '칭찬' then 1 when '지도' then -1 else 0 end end)*10 from public.startoday_records r left join public."startoday_assignmentStates" ast on ast.class_id=cid and ast.id=r.data->>'autoRef' and ast.data->>'studentId'=sid left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId' where r.class_id=cid and r.data->'studentIds' ? sid and r.data->>'date'<=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD') and not exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=r.data->>'date' and atd.data->>'excluded'='true')),0)+coalesce((select sum((data->>'amount')::bigint) from public.startoday_economy_tx where class_id=cid and student_id=sid),0)
 $$;
 create or replace function public.startoday_economy_payload(cid uuid,sid text) returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
- select jsonb_build_object('balance',public.startoday_coin_balance(cid,sid),'allowRefund',coalesce((select data->>'allowRefund' from public.startoday_settings where class_id=cid and id='main'),'true')<>'false','items',coalesce((select jsonb_agg(jsonb_build_object('id',id,'category',data->>'category','name',data->>'name','price',data->'price','stock',data->'stock') order by created_at,id) from public.startoday_shop_items where class_id=cid and data->>'deletedAt' is null),'[]'::jsonb),'transactions',coalesce((select jsonb_agg(jsonb_build_object('id',id,'type',data->>'type','itemId',data->>'itemId','itemName',data->>'itemName','amount',data->'amount','status',data->>'status','createdAt',data->>'createdAt') order by created_at,id) from public.startoday_economy_tx where class_id=cid and student_id=sid),'[]'::jsonb))
+ select jsonb_build_object('balance',public.startoday_coin_balance(cid,sid),'allowRefund',coalesce((select data->>'allowRefund' from public.startoday_settings where class_id=cid and id='main'),'true')<>'false','items',coalesce((select jsonb_agg(jsonb_build_object('id',id,'category',data->>'category','name',data->>'name','price',data->'price','stock',data->'stock') order by created_at,id) from public.startoday_shop_items where class_id=cid and data->>'deletedAt' is null),'[]'::jsonb),'transactions',coalesce((select jsonb_agg(jsonb_build_object('id',id,'type',data->>'type','itemId',data->>'itemId','itemName',data->>'itemName','itemCategory',coalesce(nullif(data->>'itemCategory',''),(select i.data->>'category' from public.startoday_shop_items i where i.class_id=cid and i.id::text=etx.data->>'itemId'),'기타'),'amount',data->'amount','status',data->>'status','createdAt',data->>'createdAt') order by created_at,id) from public.startoday_economy_tx etx where class_id=cid and student_id=sid),'[]'::jsonb))
 $$;
 revoke all on function public.startoday_coin_balance(uuid,text),public.startoday_economy_payload(uuid,text) from public,anon,authenticated;
 create or replace function public.startoday_student_payload(cid uuid,sid text)
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
 declare student jsonb; config jsonb; day text:=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD');
- result jsonb; totals jsonb; letters jsonb; tasks jsonb; routines jsonb; timetable jsonb; calendar jsonb;
+ result jsonb; totals jsonb; letters jsonb; tasks jsonb; routines jsonb; timetable jsonb; calendar jsonb; praise_from text;
 begin
  select data into student from public.startoday_students where class_id=cid and id=sid;
  select data into config from public.startoday_settings where class_id=cid and id='main';
+ praise_from:=case config->>'studentPraisePeriod' when '30d' then to_char(day::date-29,'YYYY-MM-DD') when '7d' then to_char(day::date-6,'YYYY-MM-DD') when 'month' then substring(day,1,8)||'01' else '' end;
  -- Only numbers are aggregated from advice; its text is never returned.
  with scored as (
  select r.data,case when r.data->>'autoRef' is not null then case when a.data->>'noStar'='true' then 0 when ast.data->>'status'='완료' then 1 when ast.data->>'status'='안함' then -1 else 0 end else case r.data->>'kind' when '칭찬' then 1 when '지도' then -1 else 0 end end as delta
@@ -259,8 +261,8 @@ begin
  from public.startoday_records r
  left join public."startoday_assignmentStates" ast on ast.class_id=cid and ast.id=r.data->>'autoRef' and ast.data->>'studentId'=sid
  left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId'
- where (r.data->>'autoRef' is null or (a.id is not null and ast.data->>'status'='완료')) and r.class_id=cid and r.data->>'kind'='칭찬' and r.data->'studentIds' ? sid and r.data->>'date'<=day
- order by r.data->>'date' desc,r.data->>'createdAt' desc limit 50) x;
+ where (r.data->>'autoRef' is null or (a.id is not null and ast.data->>'status'='완료')) and r.class_id=cid and r.data->>'kind'='칭찬' and r.data->'studentIds' ? sid and r.data->>'date'>=praise_from and r.data->>'date'<=day
+ order by r.data->>'date' desc,r.data->>'createdAt' desc) x;
  select coalesce(jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title','memo',coalesce(a.data->>'memo',''),'checkerName',coalesce((select concat(s.data->>'no','. ',s.data->>'name') from public.startoday_students s where s.class_id=cid and s.id=a.data->>'checkerStudentId' and s.data->>'deletedAt' is null),''),'date',due.date,'isQuest',coalesce(a.data->>'isQuest','false')='true','goal',coalesce((a.data->>'questGoal')::integer,10),'stamps',coalesce((st.data->>'stamps')::integer,0),'overdue',due.date<day,'status',case when exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=due.date and atd.data->>'excluded'='true') then '면제' else coalesce(st.data->>'status','진행중') end) order by due.date,a.data->>'title'),'[]'::jsonb) into tasks
  from public.startoday_assignments a
  cross join lateral (select to_char(value,'YYYY-MM-DD') as date from generate_series((a.data->>'date')::date,day::date,interval '1 day') value) due
@@ -503,7 +505,7 @@ begin
   if action='buy' and public.startoday_coin_balance(cid,sid)<price then raise exception 'INSUFFICIENT_BALANCE';end if;
   if item.data->'stock'<>'null'::jsonb then update public.startoday_shop_items set data=jsonb_set(data,'{stock}',to_jsonb((data->>'stock')::integer-1)),updated_at=now() where id=item.id;end if;
   kind:=case when action='buy' then '구매' else '선물' end;
-  v:=jsonb_build_object('id',txid,'studentId',sid,'type',kind,'itemId',item.id,'itemName',item.data->>'name','amount',case when action='buy' then -price else 0 end,'status','보유','memo','','createdAt',stamp);
+  v:=jsonb_build_object('id',txid,'studentId',sid,'type',kind,'itemId',item.id,'itemName',item.data->>'name','itemCategory',coalesce(item.data->>'category','기타'),'amount',case when action='buy' then -price else 0 end,'status','보유','memo','','createdAt',stamp);
  elsif action in ('refund','use') then
   select * into holding from public.startoday_economy_tx where class_id=cid and id=target and student_id=sid and data->>'status'='보유' and data->>'type' in ('구매','선물') for update;
   if holding.id is null then raise exception 'INVALID_HOLDING';end if;
@@ -512,7 +514,7 @@ begin
    if holding.data->>'type'<>'구매' then raise exception 'INVALID_HOLDING';end if;
    update public.startoday_shop_items set data=jsonb_set(data,'{stock}',to_jsonb((data->>'stock')::integer+1)),updated_at=now() where class_id=cid and id=(holding.data->>'itemId')::uuid and data->'stock'<>'null'::jsonb;
    update public.startoday_economy_tx set data=jsonb_set(data,'{status}','"환불됨"'),updated_at=now() where id=holding.id;
-   v:=jsonb_build_object('id',txid,'studentId',sid,'type','환불','itemId',holding.data->>'itemId','itemName',holding.data->>'itemName','amount',-(holding.data->>'amount')::integer,'originalTxId',holding.id,'status',null,'memo','','createdAt',stamp);
+   v:=jsonb_build_object('id',txid,'studentId',sid,'type','환불','itemId',holding.data->>'itemId','itemName',holding.data->>'itemName','itemCategory',coalesce(holding.data->>'itemCategory',(select i.data->>'category' from public.startoday_shop_items i where i.class_id=cid and i.id::text=holding.data->>'itemId'),'기타'),'amount',-(holding.data->>'amount')::integer,'originalTxId',holding.id,'status',null,'memo','','createdAt',stamp);
   else
    update public.startoday_economy_tx set data=jsonb_set(data,'{status}','"사용완료"'),updated_at=now() where id=holding.id;
    txid:=holding.id;

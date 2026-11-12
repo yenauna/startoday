@@ -11,7 +11,7 @@ import { studentPasswordInfo, studentIdentityMatches, validateStudentPassword } 
 
 // Credentials stay in this module's memory only, cleared on logout; never in DOM/storage/channels.
 // Swap this source for a full-body or portrait character; contain preserves its proportions.
-const STUDENT_PROFILE_IMAGE = 'assets/logo-icon.jpg';
+const STUDENT_PROFILE_IMAGE = 'assets/character-default.png';
 let checkerCredentials = null;
 let studentEconomyTab = 'assets',
   studentEconomyCategory = '전체',
@@ -23,6 +23,7 @@ let studentEconomyTab = 'assets',
 // teacher records, private state memos, credentials or the class snapshot to its markup.
 export function studentSnapshot(source, student, date = C.today()) {
   const score = C.scores(source, student.id, '', date);
+  const praiseRange = C.studentPraiseRange(source.settings[0], date);
   const excluded = C.excluded(source, student.id, date);
   const automaticPraise = record => {
     const status = source.assignmentStates.find(row => row.id === record.autoRef && row.studentId === student.id);
@@ -85,7 +86,7 @@ export function studentSnapshot(source, student, date = C.today()) {
         defaultColorValue: rule?.defaultColorValue
       };
     }),
-    praise: source.records.filter(r => r.kind === '칭찬' && r.studentIds.includes(student.id) && r.date <= date && (!r.autoRef || automaticPraise(r) !== null)).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 50).map(r => ({
+    praise: source.records.filter(r => r.kind === '칭찬' && r.studentIds.includes(student.id) && r.date >= praiseRange.from && r.date <= praiseRange.to && (!r.autoRef || automaticPraise(r) !== null)).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || '')).map(r => ({
       kind: '칭찬',
       date: r.date,
       period: C.recordPeriod(r.period),
@@ -518,8 +519,8 @@ function studentDaySchedule(data) {
       8: '방과후'
     }[part.period]}</strong>${part.events.map(e => `<span class="timeline-event">${esc(e.title)}${e.description ? `<small class="slot-public-memo">${esc(e.description)}</small>` : ''}</span>`).join('')}</div>` : '';
     const t = data.timetable.find(t => t.period === part.period);
-    if (!t) return '';
-    const events = (data.calendar?.events || []).filter(e => e.date === data.date && C.eventTimePeriod(e) === t.period);
+    const events = (data.calendar?.events || []).filter(e => e.date === data.date && C.eventTimePeriod(e) === part.period);
+    if (!t) return events.length ? `<div class="timeline-slot" data-timeline-period="${part.period}"><strong>${part.period}교시</strong>${events.map(e => `<span class="timeline-event">${esc(e.title)}${e.description ? `<small class="slot-public-memo">${esc(e.description)}</small>` : ''}</span>`).join('')}</div>` : '';
     return `<div class="student-task subject-color subject-stripe" style="${C.subjectColorStyle({
       code: t.subject,
       color: t.color,

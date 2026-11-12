@@ -183,3 +183,10 @@ test('클라우드 거래 응답 대기 중 로그아웃하면 교사 스냅샷�
   assert.equal(store.db, null);
   assert.equal(store.revision, 0);
 });
+
+test('구매·선물은 원래 상품 카테고리를 저장하며 변경·삭제·환불 뒤에도 보존',()=>{
+ let d=fixture();const id=d.shop_items[0].id;d.shop_items[0].category='수학';d.shop_items[0].name='면제';d=C.applyOps(d,C.shopBuyOps(d,'s',id));d=C.applyOps(d,C.teacherGiftOps(d,'other',id));assert.equal(d.economy_tx[0].itemCategory,'수학');assert.equal(d.economy_tx[1].itemCategory,'수학');d.shop_items[0].category='글쓰기';d.shop_items[0].deletedAt=C.now();assert.equal(C.studentEconomySnapshot(d,'s').transactions[0].itemCategory,'수학');assert.equal(C.studentEconomySnapshot(d,'other').transactions[0].itemCategory,'수학');const tx=d.economy_tx[0];d=C.applyOps(d,C.shopRefundOps(d,'s',tx.id));assert.equal(d.economy_tx.at(-1).itemCategory,'수학');assert.equal(C.studentBalance(d,'s'),10);
+});
+test('옛 거래의 카테고리는 삭제 보관된 원상품에서도 복원하고 정보가 없으면 기타',()=>{
+ let d=fixture();const id=d.shop_items[0].id;d.shop_items[0].category='글쓰기';d=C.applyOps(d,C.shopBuyOps(d,'s',id));delete d.economy_tx[0].itemCategory;d.shop_items[0].deletedAt=C.now();assert.equal(C.studentEconomySnapshot(d,'s').transactions[0].itemCategory,'글쓰기');d.shop_items=[];assert.equal(C.studentEconomySnapshot(d,'s').transactions[0].itemCategory,'기타');
+});
