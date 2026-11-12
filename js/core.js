@@ -1644,9 +1644,18 @@ export function demoDB() {
     createdAt: stamp
   }));
   const examples = [['학습', '지도', '2교시 과학 시간에 짝꿍에게 여러 차례 말을 걸음.'], ['학습', '칭찬', "논리적인 문장으로 본인의 생각을 담아 '동물원'에 대한 주장하는 글을 썼음."], ['학습', '관찰', '[수학 2단원 마무리 시험] 3+9=13이라고 계산하여 틀림.'], ['관계', '칭찬', '다른 친구가 바닥에 물을 쏟았는데 화장실에서 휴지를 가져다가 함께 닦아줌.'], ['관계', '칭찬', '3교시 미술. 가위를 가져오지 않은 친구들에게 빌려줌.'], ['관계', '칭찬', '복도를 걸어가다가 친구와 부딪혔을 때 먼저 정중하게 사과하고 괜찮은지 물어봄.'], ['관계', '지도', '모둠 활동 중 친구의 말을 중간에 끊고 본인 주장만 강하게 내세움.'], ['도전', '칭찬', '처음에는 단소에서 아무 소리도 나지 않았는데 꾸준히 연습하여 이제는 중임무황태를 낼 수 있음.'], ['도전', '칭찬', '음악 교과서 수록곡 5개를 리코더로 연주하기에 성공함.'], ['도전', '칭찬', '5교시 체육. 기준선을 넘겨 공을 던지지 못해 몇 차례 아웃이 되었으나 포기하지 않고 계속 도전함.'], ['생활', '지도', '지각 : 9시 5분 교실 입실'], ['생활', '칭찬', '교실 앞 복도에 떨어져 있는 주인 없는 쓰레기를 주움.'], ['알바', '칭찬', '학습준비물실에서 도화지 갖고 오기'], ['알바', '칭찬', '학습준비물실에 수채화 도구 반납하기'], ['알바', '칭찬', '다른 반에 가정통신문 배달하기'], ['알바', '칭찬', '선생님과 함께 수학 75쪽 채점하기']];
+  const praisePools = {
+    학습: ['과학 시간에 실험 결과가 다른 까닭을 질문함.', '수학 문제의 풀이 과정을 친구들 앞에서 설명함.', '국어 시간에 글의 중심 생각을 정확히 찾음.', '사회 자료의 출처를 확인하고 발표에 활용함.', '관찰한 식물의 변화를 그림과 글로 기록함.', '틀린 문제를 다시 풀고 실수한 이유를 정리함.', '책에서 새로 알게 된 사실을 독서장에 정리함.', '분수의 크기를 그림으로 비교해 설명함.', '실험 전에 예상한 결과와 실제 결과를 비교함.', '모르는 낱말을 사전에서 찾아 문장을 만듦.', '단원평가를 마친 뒤 오답을 스스로 점검함.', '토론에 필요한 근거를 책에서 찾아 표시함.', '수업 준비물을 미리 챙기고 활동을 시작함.', '친구의 발표를 듣고 핵심 내용을 요약함.', '배운 내용을 자기 말로 바꾸어 정리함.'],
+    관계: ['새로 온 친구에게 교실을 안내함.', '모둠 친구들의 의견을 차례로 듣고 정리함.', '혼자 있는 친구에게 먼저 함께 놀자고 제안함.', '친구가 잃어버린 지우개를 함께 찾아줌.', '발표를 어려워하는 친구에게 따뜻하게 응원함.', '친구의 도움에 고마운 까닭을 구체적으로 말함.', '놀이 순서를 친구들과 공평하게 정함.', '다툼이 생겼을 때 상대의 이야기를 끝까지 들음.', '무거운 준비물을 옮기는 친구를 도와줌.', '모둠에서 맡은 역할을 친구와 의논해 나눔.', '다른 의견에도 존중하는 표현을 사용함.', '넘어진 친구에게 다가가 괜찮은지 물어봄.', '친구 작품의 좋은 점을 구체적으로 칭찬함.', '짝이 놓친 수업 안내를 친절하게 알려줌.', '쉬는 시간에 빌린 책을 감사 인사와 함께 돌려줌.'],
+    도전: ['어려운 줄넘기 동작을 끝까지 연습함.', '처음으로 학급 앞에서 자원하여 발표함.', '실패한 실험의 방법을 바꾸어 다시 시도함.', '익숙하지 않은 체육 활동에도 용기 있게 참여함.', '높은 음의 리코더 운지를 스스로 연습함.', '복잡한 종이접기를 설명서를 보며 완성함.', '어려운 수학 문제를 여러 방법으로 풀어봄.', '처음 맡은 사회자 역할을 끝까지 해냄.', '긴 글을 읽기 위한 하루 목표를 세워 실천함.', '미술 작품을 고쳐 그리며 끝까지 완성함.', '달리기 기록을 높이려고 꾸준히 연습함.', '새로운 악기의 연주법을 질문하고 따라 해봄.', '실수한 발표를 다시 준비해 도전함.', '낯선 모둠 활동에서 먼저 역할을 맡음.', '스스로 세운 연습 계획을 한 주 동안 지킴.']
+  };
+  for (const [area, texts] of Object.entries(praisePools)) {
+    for (const text of texts) examples.push([area, '칭찬', text]);
+  }
   const days = ['02', '04', '05', '06', '09', '10', '11'];
   function seedRecord(s, example, n) {
     const [area, kind, text] = example;
+    if (database.records.some(r => r.studentIds.includes(s.id) && r.text === text)) return;
     database.records.push({
       id: uid(),
       studentIds: [s.id],
@@ -1658,15 +1667,34 @@ export function demoDB() {
       createdAt: stamp
     });
   }
+  // Stable Fisher–Yates shuffle keeps demo fixtures reproducible across reloads.
+  function shuffled(pool, seed) {
+    const rows = [...pool];
+    for (let n = rows.length - 1; n > 0; n--) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      const j = seed % (n + 1);
+      [rows[n], rows[j]] = [rows[j], rows[n]];
+    }
+    return rows;
+  }
+  // Seed each supplied classroom example, then rotate distinct pools per student.
   examples.forEach((example, i) => seedRecord(database.students[i % 20], example, i));
   database.students.forEach((s, i) => {
     if (i < 3) {
-      const area = ['학습', '관계', '도전'][i],
-        options = examples.filter(e => e[0] === area && e[1] === '칭찬');
-      for (let n = 0; n < 15; n++) seedRecord(s, options[n % options.length], n);
+      const area = ['학습', '관계', '도전'][i];
+      const options = shuffled(examples.filter(e => e[0] === area && e[1] === '칭찬'), i + 1);
+      for (const example of options) {
+        if (database.records.filter(r => r.studentIds.includes(s.id) && r.kind === '칭찬' && r.areas.includes(area)).length >= 15) break;
+        seedRecord(s, example, database.records.length);
+      }
+      s.equippedTitle = ['learning:1', 'relationships:1', 'challenge:1'][i];
     } else {
       const count = 3 + i % 6;
-      while (database.records.filter(r => r.studentIds.includes(s.id)).length < count) seedRecord(s, examples[(i + database.records.length) % examples.length], database.records.length);
+      const options = shuffled(examples, i + 1);
+      for (const example of options) {
+        if (database.records.filter(r => r.studentIds.includes(s.id)).length >= count) break;
+        seedRecord(s, example, database.records.length);
+      }
     }
   });
   return database;

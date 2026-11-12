@@ -1074,7 +1074,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 /* Only the student shop can grow beyond the home/profile column. */
 .village-shop .village-product{width:100%;max-width:220px;justify-self:center}
 @media(min-width:901px){
-  .student-economy:has(.village-shop){width:min(1760px,calc(100vw - 40px));margin-inline:calc((100% - min(1760px,calc(100vw - 40px))) / 2)}
+  .student-economy:has(.village-shop){width:100%;margin-inline:0}
   .village-shop .village-product-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
 }
 
@@ -1248,3 +1248,37 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-home-village .student-character-layers:before{content:'';grid-area:1 / 1;align-self:end;justify-self:center;width:100%;height:78%;border-radius:50%;background:#ece7f8;opacity:.65;transform:rotate(-7deg);pointer-events:none}
 .student-home-village .student-character-layers .student-profile-image{position:relative;z-index:1;justify-self:center;max-height:260px;object-fit:contain}
 .student-home-village .student-character-equipment{z-index:2}
+
+/* Shared student chrome and compact teacher controls. */
+.student-home-topbar{flex-wrap:wrap}
+.student-home-topbar .student-header{flex:1;flex-wrap:wrap;border:0;padding-right:0}
+.student-header-class{color:#56634c;overflow-wrap:anywhere}
+.student-home-topbar .economy-subtabs button{border:1px solid #ad925c;background:#f7f1df;color:#415643;border-radius:12px 12px 4px 4px}
+.student-home-topbar .economy-subtabs .active{background:#d7e0cb;border-color:#8f7847;color:#304a36;box-shadow:inset 0 -3px #ad925c}
+.economy-category .economy-shop-grid{grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr))}
+.calendar .day .slot.calendar-lesson{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:baseline;gap:4px}
+.calendar-lesson .slot-clock{display:none}
+.day .calendar-lesson .slot-subject-row{flex-wrap:nowrap;overflow:hidden}
+.day .calendar-lesson .slot-public-memo{flex:1 1 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot-important-memo{display:none}
+.assignment-progress-grid{grid-template-columns:repeat(5,minmax(0,1fr));max-height:none}
+.assignment-progress-item{min-width:0;overflow-wrap:anywhere}
+@media(max-width:800px){.assignment-progress-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:640px){
+ .assignment-progress-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+ .assignment-progress-item{padding:8px 4px;font-size:12px}
+ .day .calendar-lesson .slot-public-memo{display:none}
+ .day .calendar-lesson .slot-important-memo{display:block;grid-column:1/-1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px}
+ .calendar .event.is-ordinary{display:none}
+ .calendar .event.is-important{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .calendar .event .event-description{display:none}
+}
+.calendar-day-details{font-size:10px;padding:2px 4px;min-height:24px;margin-bottom:3px}
+
+.day .calendar-lesson .subject-title{white-space:nowrap;flex-shrink:0}
+
+@media(max-width:640px){
+ .calendar .timeline-event.is-ordinary{display:none}
+ .calendar .timeline-event.is-important{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .calendar .timeline-event small{display:none}
+}

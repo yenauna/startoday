@@ -88,7 +88,7 @@ try {
   assert.ok((await page.locator('.village-empty').innerText()).includes('보관함이 비어 있어요'));
   assert.equal(await page.locator('.village-ledger-empty').count(), 1);
   await page.getByRole('button', {
-    name: '내 교실(홈)',
+    name: '별빛 교실',
     exact: true
   }).click();
   await page.evaluate(async () => {
@@ -173,11 +173,11 @@ try {
     if (width <= 900) assert.equal(layout.columns, width <= 340 ? 1 : width <= 640 ? 2 : 3);else {
       assert.equal(layout.columns, Math.floor((layout.gridWidth + layout.gap) / (180 + layout.gap)));
       assert.ok(layout.columns >= 4);
-      if (width >= 1100) assert.ok(layout.columns >= 5);
-      assert.ok(layout.cardWidths.every(cardWidth => cardWidth >= 179.9 && cardWidth <= 220.1));
+      if (width >= 1100) assert.ok(layout.columns >= 4);
+      assert.ok(layout.cardWidths.every(cardWidth => cardWidth >= 179.9 && cardWidth <= 260.1));
       assert.ok(layout.headerWidth <= 1010.1); // Common header keeps its original column.
     }
-    assert.ok(layout.cardWidths.every(cardWidth => cardWidth <= 220.1));
+    assert.ok(layout.cardWidths.every(cardWidth => cardWidth <= 260.1));
     assert.equal(layout.overflow, false);
     assert.equal(layout.texture, '112px 76px');
     if (width === 390) assert.ok(layout.categoryScroll);
@@ -264,7 +264,7 @@ try {
   }).click();
   assert.ok((await page.locator('.student-economy').innerText()).includes('작은 자리 선택권'));
   await page.getByRole('button', {
-    name: '내 교실(홈)',
+    name: '별빛 교실',
     exact: true
   }).click();
   assert.equal((await page.locator('.student-profile-card').innerHTML()).replace(/data-action="[0-9]+"/g, ''), home);

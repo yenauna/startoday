@@ -35,8 +35,9 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
     const privateMemo = !calendar && audience === 'teacher' ? slot?.privateMemo || '' : '';
     const subject = slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '';
     const publicNotes = [...new Set([...events.map(event => event.title + (event.description && event.description.trim() !== memo.trim() ? ' · ' + event.description : '')), memo].filter(Boolean))].join('\n');
+    const importantNotes = events.filter(event => event.isImportant !== false).map(event => event.title).join(' · ');
     const time = settings().periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i];
-    const content = `<div class="slot-period-row"><span class="slot-time">${p}교시</span><small class="slot-clock">${esc(time || '')}</small></div>${subject || publicNotes ? `<div class="slot-subject-row">${subject ? `<strong class="subject-title">${esc(subject)}</strong>` : ''}${publicNotes ? `<span class="slot-public-memo">${esc(publicNotes)}</span>` : ''}</div>` : ''}${privateMemo ? `<div class="slot-private-memo">🔒 ${esc(privateMemo)}</div>` : ''}`;
+    const content = `<div class="slot-period-row"><span class="slot-time">${p}교시</span><small class="slot-clock">${esc(time || '')}</small></div>${subject || publicNotes ? `<div class="slot-subject-row">${subject ? `<strong class="subject-title">${esc(subject)}</strong>` : ''}${publicNotes ? `<span class="slot-public-memo">${esc(publicNotes)}</span>` : ''}</div>` : ''}${calendar && importantNotes ? `<span class="slot-important-memo">${esc(importantNotes)}</span>` : ''}${privateMemo ? `<div class="slot-private-memo">🔒 ${esc(privateMemo)}</div>` : ''}`;
     if (audience === 'classroom') return `<div class="slot${slot ? ' subject-color subject-stripe' : ''}" style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}">${content}</div>`;
     return btn(content, () => {
       if (state.dragSlot) {
@@ -45,13 +46,17 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
         return swapSlots(from, `${d}:${p}`);
       }
       dayEditor(d, '시간표', p);
-    }, 'slot' + (slot ? ' subject-color subject-stripe' : ''), `style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}" title="${esc(slot?.subjectCode || '')}" draggable="${!!slot}" data-drag="${d}:${p}" data-drop="${d}:${p}"`);
+    }, 'slot' + (calendar ? ' calendar-lesson' : '') + (slot ? ' subject-color subject-stripe' : ''), `style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}" title="${esc(slot?.subjectCode || '')}" draggable="${!!slot}" data-drag="${d}:${p}" data-drop="${d}:${p}"`);
   });
   return C.dayTimeline(db(), d).map(part => part.type === 'lesson' ? lessonSlots[part.period - 1] : part.events.length && (!calendar || state.calendarFilters.events) ? `<div class="timeline-slot timeline-${part.period}" data-timeline-period="${part.period}"><strong>${{
     0: '아침',
     7: '점심',
     8: '방과후'
-  }[part.period]}</strong>${part.events.map(event => audience === 'classroom' ? `<div class="timeline-event">${esc(event.title)}${event.description ? `<small>${esc(event.description)}</small>` : ''}</div>` : btn(esc(event.title) + (event.description ? `<small>${esc(event.description)}</small>` : ''), () => dayEditor(d, '일정', null, event), 'timeline-event')).join('')}</div>` : '').join('');
+  }[part.period]}</strong>${part.events.map(event => audience === 'classroom' ? `<div class="timeline-event">${esc(event.title)}${event.description ? `<small>${esc(event.description)}</small>` : ''}</div>` : btn(esc(event.title) + (event.description ? `<small>${esc(event.description)}</small>` : ''), () => dayEditor(d, '일정', null, event), 'timeline-event' + (event.isImportant !== false ? ' is-important' : ' is-ordinary'))).join('')}</div>` : '').join('');
+}
+function calendarDayDetails(date) {
+  const events = C.calendarEvents(db()).filter(event => event.date === date);
+  modal(C.formatDate(date) + ' · 시간표와 메모', timeSlots(date) + events.map(event => btn(esc(event.title) + (event.description ? `<small>${esc(event.description)}</small>` : ''), () => dayEditor(date, '일정', null, event), 'event')).join(''));
 }
 export function calendarView() {
   const first = state.calendarDate.slice(0, 7) + '-01',
@@ -87,7 +92,7 @@ export function calendarView() {
     const d = C.addDays(start, i),
       events = C.calendarEvents(db()).filter(e => e.date === d && C.eventTimePeriod(e) == null),
       tasks = db().assignments.filter(a => C.occurs(a, d));
-    return `<div class="day ${d.slice(0, 7) !== state.calendarDate.slice(0, 7) ? 'faded' : ''} ${d === C.today() ? 'today' : ''}">${btn(`<span>${Number(d.slice(-2))}${state.calendarMode === 'week' ? '일' : ''}</span><small>＋</small>`, () => dayEditor(d), 'day-head')}${state.calendarFilters.events ? events.map(e => btn(esc(e.title) + (e.description ? `<small class="event-description">${esc(e.description)}</small>` : '') + (e.isDday ? ' ' + badge(C.dday(e.date)) : ''), () => dayEditor(d, '일정', null, e), 'event')).join('') : ''}${state.calendarFilters.time ? timeSlots(d, true) : ''}${state.calendarFilters.tasks ? tasks.map(a => {
+    return `<div class="day ${d.slice(0, 7) !== state.calendarDate.slice(0, 7) ? 'faded' : ''} ${d === C.today() ? 'today' : ''}">${btn(`<span>${Number(d.slice(-2))}${state.calendarMode === 'week' ? '일' : ''}</span><small>＋</small>`, () => dayEditor(d), 'day-head')}${btn('메모 상세', () => calendarDayDetails(d), 'calendar-day-details')}${state.calendarFilters.events ? events.map(e => btn(esc(e.title) + (e.description ? `<small class="event-description">${esc(e.description)}</small>` : '') + (e.isDday ? ' ' + badge(C.dday(e.date)) : ''), () => dayEditor(d, '일정', null, e), 'event' + (e.isImportant !== false ? ' is-important' : ' is-ordinary'))).join('') : ''}${state.calendarFilters.time ? timeSlots(d, true) : ''}${state.calendarFilters.tasks ? tasks.map(a => {
       const targets = students().filter(s => C.targeted(a, s.id) && !C.excluded(db(), s.id, d)),
         done = targets.filter(s => ['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, d, s.id))).length;
       return `<div class="taskline">${btn(esc(a.title) + ` <small>${done}/${targets.length}</small>`, () => {

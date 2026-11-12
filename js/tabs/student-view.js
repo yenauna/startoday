@@ -40,6 +40,7 @@ export function studentSnapshot(source, student, date = C.today()) {
       equippedTitle: student.equippedTitle || null
     },
     economy: C.studentEconomySnapshot(source, student.id),
+    schoolName: source.settings[0]?.schoolName || '',
     className: source.settings[0]?.className || '우리반',
     date,
     lunchAfterPeriod: C.lunchPosition(source.settings[0]),
@@ -284,7 +285,7 @@ export function renderStudentShell() {
     studentEconomyTab = 'assets';
     studentEconomyCategory = '전체';
   }
-  const economyNavigation = `<nav class="economy-subtabs">${btn('내 교실(홈)', () => {
+  const economyNavigation = `<nav class="economy-subtabs">${btn('별빛 교실', () => {
     studentSection = 'home';
     render();
   }, studentSection === 'home' ? 'active' : '')}${btn('경제', () => {
@@ -308,7 +309,7 @@ export function renderStudentShell() {
     const done = ['완료', '늦게완료', '면제'].includes(task.status);
     return `${routine ? `<button type="button" class="student-task student-routine-toggle ${done ? 'is-complete' : 'is-pending'}" data-routine-id="${esc(task.id || '')}" ${task.status === '면제' || !task.id ? 'disabled' : ''} aria-pressed="${done}">` : `<div class="student-task ${task.overdue ? 'is-overdue ' : ''}${done ? 'is-complete' : 'is-pending'}">`}<div><strong class="${routine ? 'student-routine-title' : ''}">${esc(task.title)}</strong>${task.date ? `<small>${esc(C.formatDate(task.date))}</small>` : ''}${!routine && task.memo ? `<p class="assignment-public-memo">${esc(task.memo)}</p>` : ''}${!routine ? `<small class="assignment-checker">🔍 확인: ${checkerLabel(task.checkerName)}</small>` : ''}</div><span>${task.isQuest ? `${task.status === '면제' ? '면제 · ' : ''}🏅 ${task.stamps}/${task.goal}` : (done ? '✓ ' : '') + esc(task.status)}</span>${task.isQuest ? questStampBoard(task.stamps, task.goal) : ''}${routine ? '</button>' : '</div>'}`;
   }).join('') || '<p class="muted">오늘 할 일이 없습니다.</p>';
-  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}${studentSection === 'home' ? `<div class="student-home-topbar"><header class="student-header"><strong class="student-site-name"><span class="student-brand-star" aria-hidden="true">★</span>오늘의 별</strong>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header>${economyNavigation}</div>` : `<header class="student-header"><strong class="student-site-name">오늘의 별</strong>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header>${economyNavigation}`}${studentSection === 'economy' ? `<main class="student-economy">${economyContent()}</main>` : `<main class="student-dashboard student-home-village">${profileCard}<section class="student-card student-timetable-card"><h2 class="student-home-sign">오늘의 일정</h2><div class="student-today-events">${studentTodayEvents(data)}</div>${studentDaySchedule(data)}</section><section class="student-card student-tasks-card"><h2 class="student-home-sign">오늘의 과제 &amp; 루틴</h2><h3 class="student-section-heading">오늘의 과제</h3>${taskList(data.tasks)}<h3 class="student-section-heading">매일 루틴</h3>${taskList(data.routines, true)}${(data.checkingAssignments || []).map(a => btn('🔍 내가 확인할 친구 과제: ' + esc(a.title), () => openCheckerChecklist(a.id), 'peer-checker-card')).join('')}</section><section class="student-card student-calendar-card"><h2>과제·일정 달력</h2>${studentCalendarView(data, student.id)}</section><section class="student-card student-praise-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><div class="record-content-line">${C.recordAreas(r).map(area => `<span class="badge">${esc(area)}</span>`).join('')}<span class="body">${esc(r.text)}</span></div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main>`}</div>`;
+  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<div class="student-home-topbar"><header class="student-header"><strong class="student-site-name"><span class="student-brand-star" aria-hidden="true">★</span>오늘의 별</strong><small class="student-header-class">${esc(data.schoolName || recentStudentSchool().name || '')} ${esc(data.className)}</small>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header>${economyNavigation}</div>${studentSection === 'economy' ? `<main class="student-economy">${economyContent()}</main>` : `<main class="student-dashboard student-home-village">${profileCard}<section class="student-card student-timetable-card"><h2 class="student-home-sign">오늘의 일정</h2><div class="student-today-events">${studentTodayEvents(data)}</div>${studentDaySchedule(data)}</section><section class="student-card student-tasks-card"><h2 class="student-home-sign">오늘의 과제 &amp; 루틴</h2><h3 class="student-section-heading">오늘의 과제</h3>${taskList(data.tasks)}<h3 class="student-section-heading">매일 루틴</h3>${taskList(data.routines, true)}${(data.checkingAssignments || []).map(a => btn('🔍 내가 확인할 친구 과제: ' + esc(a.title), () => openCheckerChecklist(a.id), 'peer-checker-card')).join('')}</section><section class="student-card student-calendar-card"><h2>과제·일정 달력</h2>${studentCalendarView(data, student.id)}</section><section class="student-card student-praise-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><div class="record-content-line">${C.recordAreas(r).map(area => `<span class="badge">${esc(area)}</span>`).join('')}<span class="body">${esc(r.text)}</span></div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main>`}</div>`;
 }
 let studentCalendarScope = '',
   studentCalendarDate = '',
@@ -364,7 +365,8 @@ function studentCalendarView(data, id) {
   }, (_, index) => {
     const date = C.addDays(start, index),
       items = studentCalendarItems(data.calendar, date);
-    return btn(`<strong>${Number(date.slice(5, 7))}.${Number(date.slice(-2))}</strong>${items.filter(item => item.kind !== 'event' || item.isImportant).map(item => `<span title="${esc(item.title)}" class="student-calendar-pill ${item.kind === 'task' && !['완료', '늦게완료', '면제'].includes(item.status) ? 'has-incomplete' : ''}">${esc(item.title)}</span>`).join('')}`, () => {
+    return btn(`<strong>${Number(date.slice(5, 7))}.${Number(date.slice(-2))}</strong>${items.filter(item => item.kind !== 'event' || item.isImportant).map(item => `<span title="${esc(item.title)}" class="student-calendar-pill ${item.kind === 'task' && !['완료', '늦게완료', '면제'].includes(item.status) ? 'has-incomplete' : ''}">${esc(item.title)}</span>`).join('')}`, event => {
+      event?.preventDefault();
       studentCalendarExpanded = !(studentCalendarExpanded && studentCalendarDate === date);
       studentCalendarDate = date;
       render();

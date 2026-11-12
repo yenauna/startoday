@@ -49,8 +49,9 @@ export function render() {
     state.actions.clear();
     document.querySelector('.print-root')?.remove();
     document.body.classList.remove('report-open');
+    const scrollY = window.scrollY;
     $('#app').innerHTML = renderStudentShell();
-    window.scrollTo?.(0, 0);
+    window.scrollTo?.(0, scrollY);
     return;
   }
   if (state.locked) return;

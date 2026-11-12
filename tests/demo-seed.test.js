@@ -62,3 +62,16 @@ test('기존 체험 자료는 재접속 시 보존, 지정 키 제거 후 최신
     globalThis.localStorage = old;
   }
 });
+
+test('체험 학생마다 기록 원문이 중복되지 않고 획득 칭호가 장착됨', () => {
+  const d = C.demoDB();
+  for (const student of d.students) {
+    const texts = d.records.filter(r => r.studentIds.includes(student.id)).map(r => r.text);
+    assert.equal(new Set(texts).size, texts.length, student.name);
+  }
+  for (const student of d.students.slice(0, 3)) {
+    const unlocked = C.kingdomCatalog(C.kingdomCounts(d, student.id, C.today().slice(0, 4) + '-11-11'), C.kingdomConfig(d)).flatMap(row => row.unlocked);
+    assert.ok(unlocked.some(title => title.id === student.equippedTitle));
+    assert.ok(student.equippedTitle.endsWith(':1'));
+  }
+});
