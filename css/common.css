@@ -1077,3 +1077,29 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
   .student-economy:has(.village-shop){width:min(1760px,calc(100vw - 40px));margin-inline:calc((100% - min(1760px,calc(100vw - 40px))) / 2)}
   .village-shop .village-product-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
 }
+
+/* Student assets use the same village frame, wallet, cards and grid as the shop. */
+.village-shop .village-economy-tabs{max-width:320px;margin:0 auto 16px;background:#e6ddc9;border-color:#b8a07c}
+.village-shop .village-economy-tabs button{font-size:13px;font-weight:700;min-height:36px}
+.village-shop .village-product,.village-shop .village-ledger{background-image:url('../assets/shop/parchment.svg');background-repeat:repeat;background-size:96px 96px}
+.village-shop .village-section-title{font-size:16px;font-weight:750;color:#6f4f31;margin:0 0 12px;line-height:1.5;overflow-wrap:anywhere}
+.village-shop .village-holdings{min-width:0}
+.village-shop .village-holding{color:#62482f;text-align:left}
+.village-shop .village-holding h3{color:#62482f;text-align:center}
+.village-shop .village-holding-date{font-size:11px;line-height:1.6;color:#7a6b58;overflow-wrap:anywhere;text-align:center}
+.village-shop .village-holding-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;padding-top:4px}
+.village-shop .village-holding-actions button{flex:1 1 76px;min-width:0}
+.village-shop .village-refund{background:#e9e5d9;border-color:#b3a58e;color:#685e4b;box-shadow:inset 0 1px 0 #fffdf6}
+.village-shop .village-refund:hover:not(:disabled){background:#e1dccb;border-color:#9c8c70}
+.village-shop .village-ledger{margin-top:20px;padding:16px;border:1px solid #bba17d;border-radius:13px;background-color:var(--v-shop-paper);box-shadow:inset 4px 0 0 #e5d6b9,0 2px 5px #68523415;min-width:0;color:#62482f}
+.village-shop .village-ledger-entries{list-style:none;padding:0;margin:0;min-width:0}
+.village-shop .village-ledger-entry{display:grid;grid-template-columns:minmax(140px,180px) minmax(0,1fr) auto;align-items:center;gap:8px 16px;padding:12px 0;border-top:1px dashed #d4c4a7;min-width:0}
+.village-shop .village-ledger-date{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:11px;color:#7c6c55;min-width:0;overflow-wrap:anywhere}
+.village-shop .village-ledger-type{display:inline-block;font-size:10px;padding:1px 6px;background:#eee5d2;border-radius:5px;color:#705939}
+.village-shop .village-ledger-item{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-width:0;overflow-wrap:anywhere;font-size:13px}
+.village-shop .village-ledger-status{font-size:10px;line-height:1.5;padding:2px 7px;border:1px solid #c7d0b8;background:#edf0df;color:#57684b;border-radius:7px;max-width:100%;overflow-wrap:anywhere}
+.village-shop .village-ledger-amount{font-size:14px;text-align:right;overflow-wrap:anywhere;min-width:0}
+.village-shop .village-ledger-amount small{font-size:10px;font-weight:500;color:#7b6f5b}
+.village-shop .village-ledger-amount.is-credit{color:#476e51}.village-shop .village-ledger-amount.is-debit{color:#9a5a43}.village-shop .village-ledger-amount.is-neutral{color:#7b6f5b}
+.village-shop .village-ledger-empty{padding:12px 0;font-size:13px;color:#7b6f5b;line-height:1.6}
+@media(max-width:640px){.village-shop .village-ledger{padding:12px}.village-shop .village-ledger-entry{grid-template-columns:minmax(0,1fr) auto;gap:6px 10px}.village-shop .village-ledger-date{grid-column:1 / -1}.village-shop .village-ledger-item{font-size:12px}.village-shop .village-ledger-amount{max-width:100px}.village-shop .village-ledger-amount small{display:block}}

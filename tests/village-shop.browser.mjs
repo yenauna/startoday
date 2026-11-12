@@ -81,6 +81,44 @@ try {
     state.viewMode = 'student';
     (await import('/js/app.js')).render();
   });
+  await page.getByRole('button', {
+    name: '경제',
+    exact: true
+  }).click();
+  assert.ok((await page.locator('.village-empty').innerText()).includes('보관함이 비어 있어요'));
+  assert.equal(await page.locator('.village-ledger-empty').count(), 1);
+  await page.getByRole('button', {
+    name: '내 교실(홈)',
+    exact: true
+  }).click();
+  await page.evaluate(async () => {
+    const {
+      store
+    } = await import('/js/shared/state.js');
+    const C = await import('/js/core.js');
+    const sid = window.villageStudent;
+    const ops = Array.from({
+      length: 9
+    }, (_, i) => {
+      const id = C.uid();
+      return {
+        table: 'economy_tx',
+        id,
+        data: {
+          id,
+          studentId: sid,
+          type: i === 0 ? '구매' : '선물',
+          itemId: store.db.shop_items[0].id,
+          itemName: i === 1 ? '우리 반 모험가가 차곡차곡 모아 둔 이름이 아주 긴 특별한 물품 보관함 테스트' : '보관 물품 ' + (i + 1),
+          amount: i === 0 ? -10 : 0,
+          status: '보유',
+          createdAt: C.now()
+        }
+      };
+    });
+    await store.commit([...ops, ...C.teacherBalanceAdjustOps(store.db, sid, 25, '비공개 교사 사유'), ...C.teacherBalanceAdjustOps(store.db, sid, -5, '비공개 교사 사유')]);
+    (await import('/js/app.js')).render();
+  });
   const home = (await page.locator('.student-profile-card').innerHTML()).replace(/data-action="[0-9]+"/g, '');
   await page.getByRole('button', {
     name: '경제',
@@ -130,7 +168,7 @@ try {
       headerWidth: document.querySelector('.student-header').getBoundingClientRect().width,
       overflow: document.documentElement.scrollWidth > innerWidth + 1,
       texture: getComputedStyle(el).backgroundSize,
-      categoryScroll: el.querySelector('.village-categories').scrollWidth > el.querySelector('.village-categories').clientWidth
+      categoryScroll: el.querySelector('[aria-label="상품 카테고리"]').scrollWidth > el.querySelector('[aria-label="상품 카테고리"]').clientWidth
     }));
     if (width <= 900) assert.equal(layout.columns, width <= 340 ? 1 : width <= 640 ? 2 : 3);else {
       assert.equal(layout.columns, Math.floor((layout.gridWidth + layout.gap) / (180 + layout.gap)));
@@ -159,6 +197,34 @@ try {
     assert.equal(await page.locator('.village-product').count(), 1);
     await page.getByRole('button', {
       name: '전체',
+      exact: true
+    }).click();
+    await page.getByRole('button', {
+      name: '내 자산',
+      exact: true
+    }).click();
+    assert.equal(await page.locator('.village-holding').count(), 9);
+    assert.equal(await page.locator('.student-economy table').count(), 0);
+    assert.equal(await page.locator('.village-wallet').count(), 1);
+    const assetsLayout = await page.locator('.village-shop').evaluate(el => ({
+      columns: getComputedStyle(el.querySelector('.village-product-grid')).gridTemplateColumns.split(' ').length,
+      widths: [...el.querySelectorAll('.village-holding')].map(c => c.getBoundingClientRect().width),
+      overflow: document.documentElement.scrollWidth > innerWidth + 1
+    }));
+    assert.equal(assetsLayout.columns, layout.columns);
+    assert.ok(assetsLayout.widths.every(w => w <= 220.1));
+    assert.equal(assetsLayout.overflow, false);
+    assert.equal(await page.locator('.village-ledger-entry').count(), 11);
+    assert.ok((await page.locator('.village-ledger .is-credit').innerText()).includes('+25'));
+    assert.ok(!(await page.locator('.village-ledger').innerText()).includes('비공개 교사 사유'));
+    const useButton = page.locator('.village-holding-actions button').first();
+    assert.ok((await useButton.boundingBox()).width >= 70);
+    if ([390, 1100].includes(width)) await page.screenshot({
+      path: '/tmp/village-assets-' + width + '.png',
+      fullPage: true
+    });
+    await page.getByRole('button', {
+      name: '상점',
       exact: true
     }).click();
   }
@@ -219,7 +285,7 @@ try {
     name: '새 물품/쿠폰 등록'
   }).count(), 1);
   assert.deepEqual(errors, []);
-  console.log('PASS: themed student shop only, 1/2/3 and auto-fill desktop columns, long name, unlimited/sold-out/insufficient balance, legacy/custom categories, live purchase/holdings and unchanged home/teacher management');
+  console.log('PASS: themed student shop and holdings,  1/2/3 and auto-fill desktop columns, long name, unlimited/sold-out/insufficient balance, legacy/custom categories, live purchase/holdings and unchanged home/teacher management');
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));
