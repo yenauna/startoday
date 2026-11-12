@@ -74,6 +74,8 @@ try {
       id: student.id,
       data: {
         ...student,
+        equippedTitle: null,
+        rewardTitles: [],
         password: '한글암호7',
         passwordChanged: true,
         passwordResetRequired: false

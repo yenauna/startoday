@@ -191,10 +191,10 @@ try {
   });
   const rootHome = page.locator('.student-home-village');
   assert.equal(await rootHome.count(), 1);
-  assert.equal(await page.locator('.student-profile-info .student-profile-areas').count(), 1);
+  assert.equal(await page.locator('.student-profile-main > .student-profile-areas').count(), 1);
   assert.equal(await page.locator('.student-home-topbar .economy-subtabs').count(), 1);
-  assert.ok((await page.locator('.student-home-scene-wall').evaluate(el => getComputedStyle(el).backgroundImage)).includes('student-arch.webp'));
-  assert.equal(await page.locator('.student-character-scene').evaluate(el => el.getBoundingClientRect().height >= 300), true);
+  assert.equal(await page.locator('.student-avatar-stage [data-character-slot=background]').count(), 1);
+  assert.equal(await page.locator('.student-character-scene').evaluate(el => el.getBoundingClientRect().height >= 240), true);
   assert.equal(await page.locator('.student-profile-score strong').innerText(), expected.total + '개');
   assert.ok((await page.locator('.student-profile-name').innerText()).includes('이름이아주긴우리반가온'));
   assert.ok((await page.locator('.student-profile-card .kingdom-badge').innerText()).includes('든든한 수호자'));

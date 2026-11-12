@@ -1282,3 +1282,44 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
  .calendar .timeline-event.is-important{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  .calendar .timeline-event small{display:none}
 }
+
+/* B profile: wide layered stage, independent identity and title controls. */
+.student-home-village .student-profile-main{display:flex;flex-direction:column;gap:0;padding:22px;min-width:0}
+.student-profile-header{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+.student-home-village .student-profile-info{padding:0;justify-content:flex-start}
+.student-home-village .student-profile-identity{display:flex;flex-direction:column;align-items:flex-start;gap:5px;margin:3px 0 0}
+.student-home-village .student-profile-name{font-size:clamp(21px,2.5vw,30px)}
+.student-home-village .student-profile-nickname{background:#e6f0ff;border-radius:999px;padding:0 5px 0 12px;max-width:100%}
+.student-home-village .student-profile-score{justify-content:flex-end;align-items:flex-start;gap:7px;padding:0;border:0;margin:0}
+.student-home-village .student-profile-score h2{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:14px;text-align:right;overflow-wrap:anywhere}
+.student-home-village .student-profile-score strong{font-size:clamp(30px,4vw,44px);max-width:100%}
+.student-home-village .student-profile-star{color:#f6c34d;font-size:30px;line-height:1.2}
+.student-home-village .student-avatar-stage{width:100%;max-width:none;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;margin:5px 0 0;align-self:stretch;isolation:isolate}
+.student-home-village .student-avatar-stage .student-character-scene{position:relative;display:grid;grid-template-areas:'scene';width:100%;min-height:260px;overflow:hidden;border-radius:18px}
+.student-avatar-background,.student-avatar-objects{grid-area:scene;position:relative;min-width:0;pointer-events:none}
+.student-avatar-background{z-index:0}.student-avatar-objects{z-index:1}
+.student-home-village .student-avatar-stage .student-character-scene:before{content:'';grid-area:scene;align-self:center;justify-self:center;width:78%;max-width:370px;height:68%;border-radius:50%;background:#ece7fb;transform:rotate(-12deg);pointer-events:none;z-index:0}
+.student-home-village .student-avatar-stage .student-character-layers{position:relative;grid-area:scene;align-self:end;justify-self:center;width:min(60%,240px);padding:0 0 8px;z-index:2}
+.student-home-village .student-avatar-stage .student-character-layers:before{height:12px;width:74%;background:#b8b0cc;opacity:.4;transform:none}
+.student-home-village .student-avatar-stage .student-profile-image{height:250px;max-height:250px;width:100%;object-fit:contain}
+.student-profile-controls{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.student-home-village .student-profile-controls .kingdom-title-button{align-self:center;margin:0;padding:0;min-height:34px}
+.student-home-village .student-profile-controls .kingdom-badge{text-align:center;border:0;border-radius:999px;background:#fff4d9;padding:7px 16px;box-shadow:none}
+.student-home-village .student-profile-controls .kingdom-badge:before,.student-home-village .student-profile-controls .kingdom-badge:after{display:none}
+.student-home-village .student-profile-controls .compact-codex{border-radius:999px;border-color:#b7cfee;background:#f6faff;color:#315b91;font-size:12px;min-height:32px;padding:4px 12px}
+.student-home-village .student-profile-areas{grid-template-columns:repeat(6,minmax(0,1fr));gap:0;margin-top:14px;border-radius:14px;overflow:hidden;background:#eaf3ff;padding:9px 0}
+.student-home-village .student-profile-areas>div{flex-direction:row;flex-wrap:wrap;gap:3px;padding:2px;background:transparent!important;border-radius:0;font-size:12px;font-weight:500}
+.student-home-village .student-profile-areas>div+div{border-left:1px solid #c6d8ef!important}
+.student-home-village .student-profile-areas strong{font-size:14px;line-height:1.4}
+@media(max-width:640px){
+ .student-home-village .student-profile-main{padding:16px 12px}
+ .student-profile-header{gap:8px}
+ .student-home-village .student-profile-class{font-size:12px}
+ .student-home-village .student-profile-name{font-size:21px}
+ .student-home-village .student-profile-score h2{font-size:12px}
+ .student-home-village .student-profile-star{font-size:24px}
+ .student-home-village .student-avatar-stage .student-character-scene{min-height:240px}
+ .student-home-village .student-avatar-stage .student-profile-image{height:230px;max-height:230px}
+ .student-home-village .student-profile-areas>div{font-size:10px}
+ .student-home-village .student-profile-areas strong{font-size:12px}
+}
