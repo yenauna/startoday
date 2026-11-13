@@ -177,7 +177,7 @@ try {
     hasText: '독서 원정'
   });
   assert.equal(await th.locator('.remaining-notdone').count(), 0);
-  await th.getByRole('button', { name: '관리', exact: true }).click();
+  await th.getByRole('button', { name: '진행도/도장판 열기', exact: true }).click();
   const student = page.locator('#modal .quest-progress-card').first();
   assert((await student.textContent()).includes('0/3'));
   for (let i = 1; i <= 3; i++) {

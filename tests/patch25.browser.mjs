@@ -50,8 +50,10 @@ try {
  assert.equal(await longCard.count(),1);assert.match(await longCard.innerText(),/꾸준한 탐험가/);
  assert.equal(await page.locator('.assignment-calendar [data-assignment-id]').filter({hasText:'25차 독서 도전'}).count(),0);
  assert.equal(await page.locator('.assignment-matrix').filter({hasText:'25차 독서 도전'}).count(),0);
- await longCard.locator('li').first().getByRole('button',{name:'+ 도장',exact:true}).click();
- await page.waitForFunction(()=>[...document.querySelectorAll('.long-assignment-card')].find(el=>el.textContent.includes('25차 독서 도전'))?.querySelector('li strong')?.textContent.includes('2/3'));
+ await longCard.getByRole('button',{name:'진행도/도장판 열기',exact:true}).click();
+ await page.locator('#modal .quest-progress-card').first().getByRole('button',{name:'+ 도장',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('#modal .quest-progress-card strong + .quest-controls strong')?.textContent.includes('2/3'));
+ await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();
  await page.evaluate(async()=>{(await import('/js/app.js')).navigate('설정');});
  await page.getByRole('button',{name:'학생 명단',exact:true}).click();
  const first=page.locator('[data-roster-student]').first();
@@ -90,7 +92,7 @@ try {
  await tool.getByLabel('뽑기 연출').selectOption('cards');
  const drawn=[];
  for(let i=0;i<3;i++){
-  await tool.getByRole('button',{name:'뽑기',exact:true}).click();
+  await tool.getByRole('button',{name:'다음 카드 뽑기',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('.tool-draw-card')?.classList.contains('is-drawn'));
   drawn.push(await tool.locator('.tool-draw-card').innerText());
  }

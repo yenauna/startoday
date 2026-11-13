@@ -1371,3 +1371,37 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
  body:has(.economy-assets-table) .sticky-navigation .tabs{margin-top:0;margin-bottom:8px}
  body:has(.economy-assets-table) .sticky-navigation .tabs button{padding-top:6px;padding-bottom:6px}
 }
+
+/* Cumulative projects use full-width student space and compact teacher summaries. */
+.student-home-village .student-long-assignments{grid-column:1 / -1;min-width:0}
+.student-quest-subtasks{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px;padding:0;margin:10px 0 0;flex:1 0 100%}
+.student-quest-subtasks li,.quest-subtask-toggle{padding:10px 12px;border:1px solid #e2dced;border-radius:12px;background:#f7f4fc;overflow-wrap:anywhere;white-space:normal;text-align:left}
+.student-quest-subtasks .is-complete,.quest-subtask-toggle.is-complete{background:#edf6e9;border-color:#b9d8ac;color:#40623d}
+.quest-subtask-buttons{display:grid;gap:8px;margin:12px 0}.long-assignment-card h4{margin:0 0 8px}.long-assignment-card p{margin-bottom:8px}
+/* Keep four-character student names intact on touch displays. */
+.tools-widget .tool-box-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+.tool-box-grid .tool-mystery-box{min-height:95px;padding:10px 8px;font-size:clamp(12px,calc(170px / var(--candidate-length,4)),26px)}
+.tool-random-stage:has(.tool-card-deck){display:grid;place-items:center;flex:1;min-height:300px}
+.tool-card-deck{display:grid;place-items:center;width:100%;height:100%;padding:20px}
+.tool-card-deck .tool-draw-card,.tool-card-deck .tool-draw-card.is-drawn{display:grid;place-items:center;width:320px;max-width:100%;height:260px;line-height:1.35;min-width:0;flex:none;transition:none;font-size:clamp(14px,calc(280px / var(--candidate-length,4)),48px)}
+.tool-card-deck .tool-draw-card.is-drawn{animation:tool-card-flip .3s ease-out}
+.tool-random-canvas[role=button]{cursor:pointer;touch-action:manipulation}
+@keyframes tool-card-flip{from{transform:rotateY(-70deg);opacity:.5}to{transform:rotateY(0);opacity:1}}
+.economy-drawer-toggle{border:0;background:transparent;box-shadow:none;padding:0;text-align:left;font:inherit;font-weight:inherit;min-height:24px}
+.economy-student-card[data-economy-student],tr[data-economy-student]{cursor:pointer}
+.economy-student-drawer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:14px;background:#f8f6fc;border:1px solid #e5dfef;border-radius:12px;margin-top:10px;animation:economy-drawer-open .18s ease-out;white-space:normal}
+.economy-student-drawer section{min-width:0}.economy-student-drawer h4{margin:0 0 8px}.economy-student-drawer ul{list-style:none;padding:0;margin:0;max-height:320px;overflow:auto}
+.economy-student-drawer li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #e6e0ef;overflow-wrap:anywhere}
+.economy-student-drawer li>span{min-width:0}.economy-student-drawer button{flex:none;font-size:12px;min-height:32px;padding:4px 8px}
+.economy-assets-table .economy-drawer-row>td{white-space:normal}.economy-assets-table .economy-student-drawer button{min-height:30px}
+.economy-gift-grid-panel{margin-top:12px;border-top:1px solid #e2dcea;padding-top:12px}.economy-gift-grid-panel h4{font-size:13px;margin:0 0 8px}
+.economy-student-gift-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(40px,1fr));gap:6px}.economy-student-gift-grid button{min-height:40px;padding:5px;background:#f0eafa}
+@keyframes economy-drawer-open{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:640px){.economy-student-drawer{grid-template-columns:minmax(0,1fr)}}
+@media(prefers-reduced-motion:reduce){.tool-card-deck .tool-draw-card.is-drawn,.economy-student-drawer{animation:none}}
+
+/* Animate only the face so the touch target and deck never change their bounds. */
+.tool-card-deck .tool-draw-card.is-drawn{animation:none}
+.tool-card-face{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.tool-card-deck .tool-draw-card.is-drawn .tool-card-face{animation:tool-card-flip .3s ease-out}
+@media(prefers-reduced-motion:reduce){.tool-card-deck .tool-draw-card.is-drawn .tool-card-face{animation:none}}

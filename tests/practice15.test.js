@@ -74,7 +74,7 @@ test('퀘스트 보상은 도장 감소·과제 삭제·백업 복원 후에도 
   assert.equal(restored.students[0].equippedTitle, 'quest:q');
   assert.equal(restored.students[0].rewardTitles.length, 1);
 });
-test('단순 체크 퀘스트는 별점 없이 보상만 지급하고 제외·비대상·잘못된 증감은 차단', () => {
+test('단순 체크 퀘스트는 별점 없이 보상만 지급하고 출결 제외일에도 누적 처리하고 비대상·잘못된 증감은 차단', () => {
   let d = db(),
     a = d.assignments[0];
   a.noStar = true;
@@ -90,7 +90,7 @@ test('단순 체크 퀘스트는 별점 없이 보상만 지급하고 제외·�
     studentId: 's',
     excluded: true
   }];
-  assert.throws(() => C.questStampOps(d, a, a.date, 's', 1));
+  assert.doesNotThrow(() => C.questStampOps(d, a, a.date, 's', 1));
   assert.deepEqual(C.markRemainingUndoneOps(d, a, a.date), []);
 });
 test('퀘스트 미완료는 날짜마다 중복 나열하지 않고 또래 검사 대상에서 제외', () => {

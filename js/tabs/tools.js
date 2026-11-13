@@ -810,6 +810,7 @@ function buildToolRandom(w) {
     privacy.hidden = source.value !== 'students';
     w.randomItems = source.value === 'students' ? toolCandidates(store.db.students, w.privateNames) : parseToolList(source.value === 'saved' ? toolSaved().lists[Number(saved.value)]?.text || '' : input.value);
     w.randomMode = method.value;
+    action.hidden = ['cards', 'wheel'].includes(method.value);
     action.textContent = method.value === 'boxes' ? '전체 열기' : method.value === 'cards' ? '뽑기' : method.value === 'wheel' ? '돌리기' : '레이스 시작';
     result.replaceChildren();
     w.el.querySelector('.tool-wheel-popup')?.remove();
@@ -837,7 +838,10 @@ function renderToolDraw(w) {
   }
   if (w.randomMode === 'cards') {
     const deck = toolElement('div', 'tool-card-deck');
-    deck.append(toolElement('div', 'tool-draw-card', '✦'));
+    const card = toolButton('', () => startToolDraw(w), 'tool-draw-card');
+    card.append(toolElement('span', 'tool-card-face', '✦'));
+    card.setAttribute('aria-label', '다음 카드 뽑기');
+    deck.append(card);
     w.randomStage.append(deck);
   } else if (w.randomMode === 'boxes') {
     const grid = toolElement('div', 'tool-box-grid');
@@ -856,7 +860,14 @@ function renderToolDraw(w) {
     canvas.setAttribute('aria-label', w.randomMode === 'wheel' ? '돌림판' : '핀볼 낙하 레이스');
     w.randomStage.append(canvas);
     w.randomCanvas = canvas;
-    if (w.randomMode === 'wheel') paintToolWheel(canvas, items, 0);else paintToolRace(canvas, [], makeToolPegs());
+    if (w.randomMode === 'wheel') {
+      canvas.setAttribute('role', 'button');
+      canvas.setAttribute('aria-label', '돌림판 돌리기');
+      canvas.tabIndex = 0;
+      canvas.onclick = () => startToolDraw(w);
+      canvas.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); startToolDraw(w); } };
+      paintToolWheel(canvas, items, 0);
+    } else paintToolRace(canvas, [], makeToolPegs());
   }
 }
 function finishToolResult(w, items) {
@@ -916,13 +927,14 @@ function startToolDraw(w) {
     const card = w.randomStage.querySelector('.tool-draw-card');
     const item = shuffledTools(items)[0];
     card.classList.remove('is-drawn');
-    card.textContent = '✦';
+    const face = card.querySelector('.tool-card-face');
+    face.textContent = '✦';
     let timer;
     const cancel = () => { clearTimeout(timer); w.randomBusy = false; };
     w.cancelAnimation = cancel;
     timer = setTimeout(() => {
       if (!w.el.isConnected) return cancel();
-      card.textContent = item.label;
+      face.textContent = item.label;
       card.title = item.label;
       card.style.setProperty('--candidate-length', Math.max(3, [...item.label].length));
       card.classList.add('is-drawn');

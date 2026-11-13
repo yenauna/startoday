@@ -1,4 +1,4 @@
-import { TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps, mergeRewardTitles, demoDB, shopBuyOps, shopRefundOps, shopUseOps, teacherGiftOps, teacherBalanceAdjustOps, shopFundGroupBuyOps, shopUseGroupBuyOps } from './core.js';
+import { TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps, mergeRewardTitles, demoDB, shopBuyOps, shopRefundOps, shopUseOps, teacherGiftOps, teacherBalanceAdjustOps, shopFundGroupBuyOps, shopUseGroupBuyOps, teacherReclaimOps } from './core.js';
 export class Store {
   constructor() {
     this.db = null;
@@ -346,7 +346,7 @@ export class Store {
           use: shopUseOps,
           gift: teacherGiftOps
         };
-        const ops = action === 'fund' ? shopFundGroupBuyOps(this.db, studentId, target, amount) : action === 'group_use' ? shopUseGroupBuyOps(this.db, target) : action === 'adjust' ? teacherBalanceAdjustOps(this.db, studentId, amount, memo) : makers[action]?.(this.db, studentId, target);
+        const ops = action === 'reclaim' ? teacherReclaimOps(this.db, studentId, target, amount === 1) : action === 'fund' ? shopFundGroupBuyOps(this.db, studentId, target, amount) : action === 'group_use' ? shopUseGroupBuyOps(this.db, target) : action === 'adjust' ? teacherBalanceAdjustOps(this.db, studentId, amount, memo) : makers[action]?.(this.db, studentId, target);
         if (!ops) throw Error('지원하지 않는 거래입니다.');
         await this.commitSnapshot(ops);
       }

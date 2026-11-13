@@ -1,0 +1,95 @@
+import assert from 'node:assert/strict';
+import http from 'node:http';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+const {chromium}=createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE||'playwright');
+const root=path.resolve(fileURLToPath(new URL('..',import.meta.url)));
+const server=http.createServer((req,res)=>{
+ const pathname=new URL(req.url,'http://localhost').pathname;
+ if(pathname==='/config.js'){res.setHeader('Content-Type','text/javascript');res.end('window.STARTODAY_CONFIG={};');return;}
+ const file=path.resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
+ if(!file.startsWith(root+path.sep)){res.writeHead(403).end();return;}
+ try{res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':file.endsWith('.png')?'image/png':file.endsWith('.svg')?'image/svg+xml':'text/html');res.end(readFileSync(file));}catch{res.writeHead(404).end();}
+});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+let browser;
+try {
+ browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+ const context=await browser.newContext({viewport:{width:1440,height:1080},hasTouch:true}),page=await context.newPage(),errors=[],answers=[];
+ page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>answers.shift()===false?d.dismiss():d.accept());
+ await context.route('https://cdn.jsdelivr.net/**',r=>r.abort());
+ await page.goto(`http://127.0.0.1:${server.address().port}`);
+ await page.getByRole('button',{name:'가상 명단으로 먼저 살펴보기',exact:true}).click();
+ const seed=await page.evaluate(async()=>{
+  const {store}=await import('/js/shared/state.js'),C=await import('/js/core.js');
+  const student=store.db.students[0],item={id:C.uid(),name:'터치 선물 쿠폰',price:0,stock:2,category:'검증'};
+  window.patch26Student=student.id;window.patch26Item=item.id;
+  await store.commit([{table:'shop_items',id:item.id,data:item},{table:'students',id:student.id,data:{...student,nickname:'반짝별',alias:'옛별명'}},{table:'attendance',id:'patch26-ex',data:{id:'patch26-ex',studentId:student.id,date:C.today(),excluded:true}}]);
+  (await import('/js/app.js')).navigate('과제');
+  return {start:C.addDays(C.today(),30),end:C.addDays(C.today(),31),balance:C.studentBalance(store.db,student.id)};
+ });
+ await page.getByRole('button',{name:'+ 장기과제',exact:true}).click();
+ assert.match(await page.locator('#modal .assignment-start-field').innerText(),/시작일/);
+ await page.locator('#modal [name=title]').fill('누적 리코더 3곡');
+ await page.locator('#modal [name=date]').fill(seed.start);await page.locator('#modal [name=questEndDate]').fill(seed.end);
+ await page.locator('#modal [name=questSubtasks]').fill('학교종\n아리랑\n작은별');
+ assert.equal(await page.locator('#modal [name=questGoal]').inputValue(),'3');assert.equal(await page.locator('#modal [name=questGoal]').isEditable(),false);
+ await page.locator('#modal [name=questTitle]').fill('연주의 달인');await page.locator('#modal button[type=submit]').click();
+ const card=page.locator('.long-assignment-card').filter({hasText:'누적 리코더 3곡'});
+ await card.waitFor();assert.equal(await card.locator('.quest-controls').count(),0);assert.match(await card.innerText(),/완료 0명/);
+ await card.getByRole('button',{name:'진행도/도장판 열기',exact:true}).click();
+ await page.locator('.quest-progress-card').first().getByRole('button',{name:'항목 도장판',exact:true}).click();
+ const toggle=label=>page.locator('.quest-subtask-toggle').filter({hasText:label});
+ await toggle('작은별').tap();await page.waitForFunction(()=>[...document.querySelectorAll('.quest-subtask-toggle')].find(el=>el.textContent.includes('작은별'))?.getAttribute('aria-pressed')==='true');
+ await toggle('학교종').tap();await toggle('아리랑').tap();
+ await page.waitForFunction(()=>document.querySelector('.quest-subtask-editor>p')?.textContent.includes('3/3'));
+ await toggle('학교종').tap();await page.waitForFunction(()=>document.querySelector('.quest-subtask-editor>p')?.textContent.includes('2/3'));
+ const stored=await page.evaluate(async()=>{const {store}=await import('/js/shared/state.js');const a=store.db.assignments.find(a=>a.title==='누적 리코더 3곡'),s=store.db.assignmentStates.find(s=>s.assignmentId===a.id&&s.studentId===window.patch26Student);return{a,s,rewards:store.db.students[0].rewardTitles};});
+ assert.deepEqual(stored.s.completedSubtasks,['아리랑','작은별']);assert.equal(stored.s.stamps,2);assert.ok(stored.rewards.some(t=>t.name==='연주의 달인'));
+ await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();
+ // Student projections keep the cumulative project visible before its start date.
+ await page.evaluate(async()=>{const {state}=await import('/js/shared/state.js');state.impersonatingStudentId=window.patch26Student;state.viewMode='student';(await import('/js/app.js')).render();});
+ const long=page.locator('.student-long-assignments');assert.match(await long.innerText(),/누적 리코더 3곡/);assert.match(await long.innerText(),/2\/3/);
+ assert.equal(await long.locator('.student-quest-subtasks .is-complete').count(),2);
+ const widths=await long.evaluate(el=>({long:el.getBoundingClientRect().width,main:el.parentElement.getBoundingClientRect().width}));assert.ok(Math.abs(widths.long-widths.main)<2);
+ await page.setViewportSize({width:390,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+ await page.screenshot({path:'/tmp/patch26-student.png',fullPage:false});
+ await page.getByRole('button',{name:'교사 화면으로 돌아가기',exact:true}).click();await page.setViewportSize({width:1440,height:1080});
+ await page.evaluate(async()=>{(await import('/js/app.js')).navigate('경제');});
+ const first=page.locator('.economy-assets-table tbody tr[data-economy-student]').first();await first.locator('td').first().tap();
+ assert.equal(await page.locator('#modal[open]').count(),0);assert.equal(await page.locator('.economy-student-drawer').count(),1);
+ await page.getByRole('button',{name:'터치 선물 쿠폰 선물하기',exact:true}).tap();
+ await page.waitForFunction(()=>[...document.querySelectorAll('.economy-student-drawer section:first-child li')].some(el=>el.textContent.includes('터치 선물 쿠폰')));
+ await page.getByRole('button',{name:'터치 선물 쿠폰 회수',exact:true}).tap();
+ await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.shop_items.find(i=>i.id===window.patch26Item).stock===2;});
+ await page.getByRole('button',{name:'터치 선물 쿠폰 선물하기',exact:true}).tap();
+ await page.waitForFunction(()=>!!document.querySelector('.economy-student-drawer section:first-child button'));
+ answers.push(true,false);await page.getByRole('button',{name:'터치 선물 쿠폰 회수',exact:true}).tap();
+ await page.waitForFunction(()=>!document.querySelector('.economy-student-drawer section:first-child button'));
+ let result=await page.evaluate(async()=>{const {store}=await import('/js/shared/state.js');const C=await import('/js/core.js');return{stock:store.db.shop_items.find(i=>i.id===window.patch26Item).stock,balance:C.studentBalance(store.db,window.patch26Student),reclaims:store.db.economy_tx.filter(t=>t.type==='회수').length};});
+ assert.equal(result.stock,1);assert.equal(result.balance,seed.balance);assert.equal(result.reclaims,2);
+ await page.getByRole('button',{name:'⊞ 카드형',exact:true}).click();assert.equal(await page.locator('.economy-student-card .economy-student-drawer').count(),1);
+ await page.getByRole('button',{name:'상점 관리',exact:true}).click();
+ const item=page.locator('.economy-item').filter({has:page.getByRole('heading',{name:'터치 선물 쿠폰',exact:true})});
+ await item.getByRole('button',{name:'🎁 선물하기',exact:true}).tap();assert.equal(await item.locator('.economy-student-gift-grid button').count(),20);
+ await item.locator('.economy-student-gift-grid button').nth(1).tap();
+ await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.shop_items.find(i=>i.id===window.patch26Item).stock===0;});
+ assert.equal(await item.locator('.economy-student-gift-grid button').first().isDisabled(),true);
+ await page.evaluate(async()=>{(await import('/js/app.js')).navigate('설정');});await page.getByRole('button',{name:'교실 화면',exact:true}).last().click();
+ assert.deepEqual(await page.locator('[name=nameDisplayMode] option').allTextContents(),['번호와 이름','번호만','이름 가림','별명']);
+ const name=await page.evaluate(async()=>{const {store}=await import('/js/shared/state.js');store.db.settings[0].nameDisplayMode='alias';return(await import('/js/tabs/classroom.js')).displayName(store.db.students[0]);});assert.equal(name,'반짝별');
+ await page.evaluate(async()=>{(await import('/js/app.js')).navigate('수업도구');});await page.getByRole('button',{name:'🎲 랜덤뽑기',exact:true}).click();
+ const tool=page.locator('[data-tool-type=random]');await tool.getByLabel('뽑기 대상').selectOption('custom');await tool.getByLabel('뽑기 후보',{exact:true}).fill('5. 박가나다,나래,가온');
+ await tool.getByLabel('뽑기 연출').selectOption('cards');assert.equal(await tool.getByRole('button',{name:'뽑기',exact:true}).count(),0);
+ const deck=tool.getByRole('button',{name:'다음 카드 뽑기',exact:true}),before=await deck.boundingBox(),stage=await tool.locator('.tool-random-stage').boundingBox();
+ assert.ok(Math.abs((before.x+before.width/2)-(stage.x+stage.width/2))<2);
+ await deck.tap();await page.waitForFunction(()=>document.querySelector('.tool-draw-card')?.classList.contains('is-drawn'));
+ const after=await deck.boundingBox();assert.equal(before.width,after.width);assert.equal(before.x,after.x);
+ await tool.getByRole('button',{name:'목록 리셋',exact:true}).click();await tool.getByLabel('뽑기 연출').selectOption('boxes');await tool.getByRole('button',{name:'전체 열기',exact:true}).click();await page.waitForFunction(()=>[...document.querySelectorAll('.tool-mystery-box')].every(el=>el.classList.contains('is-revealed')));
+ const box=tool.locator('.tool-mystery-box').filter({hasText:'5. 박가나다'});assert.equal(await box.evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+ await tool.getByRole('button',{name:'목록 리셋',exact:true}).click();await tool.getByLabel('뽑기 연출').selectOption('wheel');assert.equal(await tool.getByRole('button',{name:'돌리기',exact:true}).count(),0);
+ await tool.getByRole('button',{name:'돌림판 돌리기',exact:true}).tap();await tool.locator('.tool-wheel-popup').waitFor();
+ assert.deepEqual(errors,[]);console.log('PASS: cumulative checklist/date flexibility, compact teacher cards/wide student list, inline drawer gift/reclaim with/without stock, item student grids, nickname settings and direct card/wheel touch with stable card width');
+}finally{await browser?.close();await new Promise(r=>server.close(r));}

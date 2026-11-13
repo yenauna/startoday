@@ -261,8 +261,9 @@ export function initialDB() {
 }
 export const targeted = (a, s) => a.target === 'all' || a.target?.studentIds?.includes(s);
 export function occurs(a, d) {
-  if (a.deletedAt || d < a.date || a.endDate && d > a.endDate) return false;
+  if (a.deletedAt) return false;
   if (a.isQuest) return true;
+  if (d < a.date || a.endDate && d > a.endDate) return false;
   return a.repeat.type === 'none' ? d === a.date : a.repeat.type === 'daily' || a.repeat.weekdays?.includes(weekday(d));
 }
 export function assignmentStatus(db, a, d, s) {
@@ -592,9 +593,16 @@ export function validateBackup(x) {
   if (x.data.settings.length !== 1 || x.data.settings[0].id !== 'main') throw Error('설정 데이터가 올바르지 않습니다.');
   for (const r of x.data.records) if (!Array.isArray(r.studentIds) || !Array.isArray(r.areas) || !KINDS.includes(r.kind) || typeof r.text !== 'string' || typeof r.createdAt !== 'string') throw Error('기록 형식 오류');
   for (const a of x.data.assignments) if (!a.repeat || !['none', 'daily', 'weekly'].includes(a.repeat.type) || !a.date) throw Error('과제 형식 오류');
+  for (const assignment of x.data.assignments.filter(a => a.isQuest)) questGoal(assignment);
+  for (const state of x.data.assignmentStates) {
+    const assignment = x.data.assignments.find(a => a.id === state.assignmentId && a.isQuest);
+    if (assignment && questSubtasks(assignment).length && state.completedSubtasks !== undefined) {
+      if (!Array.isArray(state.completedSubtasks) || new Set(state.completedSubtasks).size !== state.completedSubtasks.length || state.completedSubtasks.some(item => !questSubtasks(assignment).includes(item)) || state.stamps !== state.completedSubtasks.length) throw Error('장기과제 완료 항목 형식 오류');
+    }
+  }
   const economyUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   for (const item of x.data.shop_items) if (!economyUuid.test(item.id) || typeof item.name !== 'string' || !item.name.trim() || !Number.isSafeInteger(item.price) || item.price < 0 || item.price > 1000000000 || !(item.stock === null || Number.isSafeInteger(item.stock) && item.stock >= 0 && item.stock <= 1000000000)) throw Error('상점 물품 형식 오류');
-  for (const tx of x.data.economy_tx) if (!economyUuid.test(tx.id) || !x.data.students.some(s => s.id === tx.studentId) || !['구매', '선물', '환불', '지급', '차감'].includes(tx.type) || !Number.isSafeInteger(tx.amount) || Math.abs(tx.amount) > 1000000000 || typeof tx.createdAt !== 'string' || ['구매', '선물'].includes(tx.type) && (!economyUuid.test(tx.itemId) || !['보유', '사용완료', '환불됨'].includes(tx.status)) || tx.type === '구매' && tx.amount > 0 || tx.type === '선물' && tx.amount !== 0 || ['환불', '지급'].includes(tx.type) && tx.amount < 0 || tx.type === '차감' && tx.amount >= 0) throw Error('경제 거래 형식 오류');
+  for (const tx of x.data.economy_tx) if (!economyUuid.test(tx.id) || !x.data.students.some(s => s.id === tx.studentId) || !['구매', '선물', '환불', '지급', '차감', '회수'].includes(tx.type) || !Number.isSafeInteger(tx.amount) || Math.abs(tx.amount) > 1000000000 || typeof tx.createdAt !== 'string' || ['구매', '선물'].includes(tx.type) && (!economyUuid.test(tx.itemId) || !['보유', '사용완료', '환불됨', '회수됨'].includes(tx.status)) || tx.type === '구매' && tx.amount > 0 || ['선물', '회수'].includes(tx.type) && tx.amount !== 0 || ['환불', '지급'].includes(tx.type) && tx.amount < 0 || tx.type === '차감' && tx.amount >= 0) throw Error('경제 거래 형식 오류');
   for (const item of x.data.shop_items.filter(i => i.isGroupBuy)) {
     if (!Number.isSafeInteger(item.groupGoal) || item.groupGoal < 1 || item.groupGoal > 1000000000 || !Number.isSafeInteger(item.groupCollected) || item.groupCollected < 0 || item.groupCollected > item.groupGoal || item.stock !== null || item.isFunded !== (item.groupCollected === item.groupGoal) || item.isUsed && !item.isFunded) throw Error('공동구매 형식 오류');
     if (x.data.group_buy_contribs.filter(c => c.itemId === item.id).reduce((sum, c) => sum + c.amount, 0) !== item.groupCollected) throw Error('공동구매 기여 합계 오류');
@@ -1339,35 +1347,54 @@ export function studentNicknameOps(database, id, nickname) {
 export function studentLabel(s, studentMode = false) {
   return s.name + (s.nickname ? studentMode ? ' "' + s.nickname + '"' : '(' + s.nickname + ')' : '');
 }
+export function questSubtasks(a) {
+  if (a.questSubtasks == null) return [];
+  if (!Array.isArray(a.questSubtasks) || a.questSubtasks.length > 999 || a.questSubtasks.some(value => typeof value !== 'string' || !value.trim() || value.length > 200) || new Set(a.questSubtasks).size !== a.questSubtasks.length) throw Error('세부 항목은 중복 없이 200자 이내, 최대 999개로 입력하세요.');
+  return [...a.questSubtasks];
+}
 export function questGoal(a) {
+  const subtasks = questSubtasks(a);
+  if (subtasks.length) return subtasks.length;
   const n = Number(a.questGoal ?? 10);
   if (!Number.isInteger(n) || n < 1 || n > 999) throw Error('장기과제 목표는 1~999의 정수로 입력하세요.');
   return n;
 }
 export function questProgress(database, a, studentId) {
   const state = database.assignmentStates.find(s => s.id === stateId(a.id, a.date, studentId)),
-    goal = questGoal(a),
-    stamps = Math.min(goal, Math.max(0, Number(state?.stamps) || 0));
-  return {
-    stamps,
-    goal,
-    status: stamps >= goal ? '완료' : '진행중'
-  };
+    goal = questGoal(a), subtasks = questSubtasks(a),
+    completedSubtasks = subtasks.length ? subtasks.filter(item => Array.isArray(state?.completedSubtasks) ? state.completedSubtasks.includes(item) : subtasks.indexOf(item) < (Number(state?.stamps) || 0)) : [],
+    stamps = subtasks.length ? completedSubtasks.length : Math.min(goal, Math.max(0, Number(state?.stamps) || 0));
+  return { stamps, goal, status: stamps >= goal ? '완료' : '진행중', questSubtasks: subtasks, completedSubtasks };
 }
-export function questStampOps(database, a, date, studentId, change, memo = null) {
+export function questSubtaskOps(database, a, date, studentId, item, checked) {
+  if (!questSubtasks(a).includes(item) || typeof checked !== 'boolean') throw Error('세부 항목을 확인하세요.');
+  const completed = new Set(questProgress(database, a, studentId).completedSubtasks);
+  if (checked) completed.add(item);else completed.delete(item);
+  return questStampOps(database, a, date, studentId, 0, null, [...completed]);
+}
+export function questStampOps(database, a, date, studentId, change, memo = null, completed = null) {
   validateTaskDate(date);
   validateTaskDate(a.date);
-  if (!a.isQuest || !occurs(a, date) || excluded(database, studentId, date) || !Number.isInteger(change)) throw Error('장기과제 대상과 날짜를 확인하세요.');
+  if (!a.isQuest || a.deletedAt || !Number.isInteger(change)) throw Error('장기과제를 확인하세요.');
   const student = activeStudents(database).find(s => s.id === studentId);
   if (!student || !targeted(a, studentId)) throw Error('장기과제 대상 학생을 확인하세요.');
-  const progress = questProgress(database, a, studentId),
-    stamps = Math.max(0, Math.min(progress.goal, progress.stamps + change)),
-    old = database.assignmentStates.find(s => s.id === stateId(a.id, a.date, studentId));
-  const ops = taskStateOps(database, {
-    ...a,
-    isQuest: false
-  }, a.date, studentId, stamps >= progress.goal ? '완료' : '진행중', memo ?? old?.memo ?? '');
+  const progress = questProgress(database, a, studentId), subtasks = questSubtasks(a);
+  let stamps = Math.max(0, Math.min(progress.goal, progress.stamps + change));
+  let completedSubtasks = [];
+  if (subtasks.length) {
+    const selected = new Set(completed ?? progress.completedSubtasks);
+    if ([...selected].some(item => !subtasks.includes(item))) throw Error('세부 항목을 확인하세요.');
+    if (completed === null) {
+      for (const item of subtasks) if (selected.size < stamps) selected.add(item);
+      for (const item of [...subtasks].reverse()) if (selected.size > stamps) selected.delete(item);
+    }
+    completedSubtasks = subtasks.filter(item => selected.has(item));
+    stamps = completedSubtasks.length;
+  }
+  const old = database.assignmentStates.find(s => s.id === stateId(a.id, a.date, studentId));
+  const ops = taskStateOps(database, { ...a, isQuest: false }, a.date, studentId, stamps >= progress.goal ? '완료' : '진행중', memo ?? old?.memo ?? '');
   ops[0].data.stamps = stamps;
+  if (subtasks.length) ops[0].data.completedSubtasks = completedSubtasks;
   const rewardRecord = ops.find(op => op.table === 'records' && op.data);
   if (rewardRecord) {
     const existing = database.records.find(r => r.autoRef === ops[0].id);
@@ -1375,17 +1402,9 @@ export function questStampOps(database, a, date, studentId, change, memo = null)
   }
   const title = String(a.questTitle || '').trim();
   if (stamps >= progress.goal && title && !studentRewardTitles(student).some(t => t.id === 'quest:' + a.id)) ops.push({
-    table: 'students',
-    id: studentId,
-    data: {
-      ...student,
-      rewardTitles: [...(student.rewardTitles || []), {
-        id: 'quest:' + a.id,
-        name: title,
-        assignmentId: a.id,
-        earnedAt: now()
-      }]
-    }
+    table: 'students', id: studentId, data: { ...student, rewardTitles: [...(student.rewardTitles || []), {
+      id: 'quest:' + a.id, name: title, assignmentId: a.id, earnedAt: now()
+    }] }
   });
   return ops;
 }
@@ -1577,6 +1596,16 @@ export function shopUseOps(database, studentId, txId) {
     ...tx,
     status: '사용완료'
   })];
+}
+export function teacherReclaimOps(database, studentId, txId, restoreStock = false) {
+  economyStudent(database, studentId);
+  const holding = studentHoldings(database, studentId).find(t => t.id === txId);
+  if (!holding) throw Error('보유 중인 물품만 회수할 수 있습니다.');
+  const item = database.shop_items.find(i => i.id === holding.itemId);
+  if (restoreStock && item?.stock !== null && item?.stock >= 1000000000) throw Error('재고 최대 수량을 초과합니다.');
+  return [economyUp('economy_tx', { ...holding, status: '회수됨' }),
+    ...(restoreStock && item && item.stock !== null ? [economyUp('shop_items', { ...item, stock: item.stock + 1 })] : []),
+    economyUp('economy_tx', { ...economyEntry(studentId, '회수', 0, { id: holding.itemId, name: holding.itemName, category: holding.itemCategory || item?.category || '기타' }, '교사 물품 회수'), originalTxId: holding.id, restoreStock: !!restoreStock })];
 }
 export function teacherBalanceAdjustOps(database, studentId, amount, memo = '') {
   economyStudent(database, studentId);

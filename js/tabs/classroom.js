@@ -9,7 +9,7 @@ import { openToolsOverlay, syncToolsVisibility } from './tools.js';
 import { timeSlots } from './timetable.js';
 export function displayName(s) {
   if (settings().nameDisplayMode === 'real') return `${s.no}. ${s.name}`;
-  if (settings().nameDisplayMode === 'alias') return s.alias || `별${s.no}`;
+  if (settings().nameDisplayMode === 'alias') return s.nickname || `별${s.no}`;
   if (settings().nameDisplayMode === 'masked') {
     const n = s.name;
     return s.no + '. ' + (n.length <= 2 ? n[0] + '●' : n[0] + '●'.repeat(n.length - 2) + n.at(-1));
