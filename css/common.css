@@ -1434,3 +1434,20 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .calendar .day .calendar-lesson .slot-main{display:flex;align-items:baseline;gap:4px;min-height:0;min-width:0;max-width:100%}
 .calendar .day .calendar-lesson .slot-period-row{flex:0 0 auto}.calendar .day .calendar-lesson .slot-subject-row{flex:1;min-width:0}
 .economy-gift-grid-panel{width:min(100%,520px);min-width:0}.economy-student-gift-grid{width:100%;min-width:0}.economy-gift-confirm{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+
+/* Idle breathing and a native, keyboard-accessible character touch target. */
+.student-home-village .student-avatar-stage .student-character-layers{appearance:none;cursor:pointer;touch-action:manipulation;transform-origin:bottom center;animation:st-character-breathe 3.2s ease-in-out infinite;background:transparent;border:0;border-radius:16px;margin:0;min-height:0;box-shadow:none;transition:none}
+.student-home-village .student-avatar-stage .student-character-layers:before{animation:st-character-shadow 3.2s ease-in-out infinite;transform-origin:center}
+.student-home-village .student-avatar-stage .student-character-layers:focus-visible{outline:3px solid #9a80c9;outline-offset:-3px}
+.student-home-village .student-avatar-stage .student-character-layers:hover{background:transparent;box-shadow:none}
+/* Reserve headroom for jump/stretch while retaining clipping for future theme layers. */
+.student-home-village .student-avatar-stage .student-character-scene{min-height:304px}
+.student-home-village .student-avatar-stage .student-character-layers.is-bouncing{animation:st-character-bounce 650ms ease-in-out both}
+.student-character-sparkle{position:absolute;top:8px;left:50%;z-index:3;font-size:22px;line-height:1;opacity:0;pointer-events:none;transform:translate(-50%,0)}
+.student-home-village .student-avatar-stage .is-bouncing .student-character-sparkle{animation:st-character-sparkle 650ms ease-out both}
+@keyframes st-character-breathe{0%,100%{transform:translateY(0) scaleY(1) scaleX(1)}50%{transform:translateY(-4px) scaleY(1.02) scaleX(.99)}}
+@keyframes st-character-shadow{0%,100%{transform:scale(1);opacity:.4}50%{transform:scale(.94);opacity:.32}}
+@keyframes st-character-bounce{0%{transform:translateY(0) scale(1,1)}15%{transform:translateY(2px) scale(1.08,.92)}45%{transform:translateY(-18px) scale(.94,1.08)}70%{transform:translateY(0) scale(1.05,.95)}85%{transform:translateY(-4px) scale(.98,1.02)}100%{transform:translateY(0) scale(1,1)}}
+@keyframes st-character-sparkle{0%{opacity:0;transform:translate(-50%,0) scale(.7)}25%{opacity:1}100%{opacity:0;transform:translate(-50%,-24px) scale(1.1)}}
+@media(max-width:640px){.student-home-village .student-avatar-stage .student-character-scene{min-height:284px}}
+@media(prefers-reduced-motion:reduce){.student-home-village .student-avatar-stage .student-character-layers,.student-home-village .student-avatar-stage .student-character-layers.is-bouncing,.student-home-village .student-avatar-stage .student-character-layers:before,.student-home-village .student-avatar-stage .is-bouncing .student-character-sparkle{animation:none;transform:none}.student-character-sparkle{display:none}}

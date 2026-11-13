@@ -199,7 +199,7 @@ try {
   assert.ok((await page.locator('.student-profile-name').innerText()).includes('이름이아주긴우리반가온'));
   assert.ok((await page.locator('.student-profile-card .kingdom-badge').innerText()).includes('든든한 수호자'));
   assert.equal(await page.locator('.student-character-equipment').count(), 1);
-  assert.equal(await page.locator('.student-profile-art').getAttribute('aria-hidden'), 'true');
+  assert.equal(await page.locator('.student-profile-art').getAttribute('aria-hidden'), null);
   assert.equal(await rootHome.locator(':scope > .student-card').count(), 6);
   assert.equal(await page.locator('.student-timetable-card .subject-title').count(), 2);
   assert.ok((await page.locator('.student-tasks-card').innerText()).includes(expected.long));
