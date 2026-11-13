@@ -37,7 +37,7 @@ test('별명은 한글 1~8자만 허용하고 프로필의 비밀번호·교실 
   assert.equal(C.studentLabel(d.students[0], true), '가온 "반짝별"');
   assert.equal(C.applyOps(d, C.studentNicknameOps(d, 's', null)).students[0].nickname, null);
 });
-test('장기 퀘스트는 날짜를 넘겨 이어지고 목표에서 한 번만 보상·별점을 지급', () => {
+test('장기과제는 날짜를 넘겨 이어지고 목표에서 한 번만 보상·별점을 지급', () => {
   let d = db(),
     a = d.assignments[0];
   for (let i = 1; i <= 3; i++) {

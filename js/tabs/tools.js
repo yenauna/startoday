@@ -750,7 +750,7 @@ function buildToolRandom(w) {
   sourceRow.append(source, privacy, replacement, count, toolButton('목록 리셋', () => refresh(true)));
   const method = document.createElement('select');
   method.setAttribute('aria-label', '뽑기 연출');
-  method.innerHTML = '<option value="boxes">📦 상자 열기</option><option value="wheel">🎡 돌림판(룰렛)</option><option value="race">🎳 장애물 낙하 레이스</option>';
+  method.innerHTML = '<option value="boxes">📦 상자 열기</option><option value="cards">✨ 카드 드로우 (한 명씩)</option><option value="wheel">🎡 돌림판(룰렛)</option><option value="race">🎳 장애물 낙하 레이스</option>';
   methodRow.append(method);
   const custom = toolElement('div', 'tool-custom-list'),
     input = document.createElement('textarea'),
@@ -810,7 +810,7 @@ function buildToolRandom(w) {
     privacy.hidden = source.value !== 'students';
     w.randomItems = source.value === 'students' ? toolCandidates(store.db.students, w.privateNames) : parseToolList(source.value === 'saved' ? toolSaved().lists[Number(saved.value)]?.text || '' : input.value);
     w.randomMode = method.value;
-    action.textContent = method.value === 'boxes' ? '전체 열기' : method.value === 'wheel' ? '돌리기' : '레이스 시작';
+    action.textContent = method.value === 'boxes' ? '전체 열기' : method.value === 'cards' ? '뽑기' : method.value === 'wheel' ? '돌리기' : '레이스 시작';
     result.replaceChildren();
     w.el.querySelector('.tool-wheel-popup')?.remove();
     toolNotice(w, '');
@@ -835,7 +835,11 @@ function renderToolDraw(w) {
     w.randomStage.append(toolElement('p', '', '후보가 없거나 모두 뽑았습니다. 목록을 입력하거나 리셋하세요.'));
     return;
   }
-  if (w.randomMode === 'boxes') {
+  if (w.randomMode === 'cards') {
+    const deck = toolElement('div', 'tool-card-deck');
+    deck.append(toolElement('div', 'tool-draw-card', '✦'));
+    w.randomStage.append(deck);
+  } else if (w.randomMode === 'boxes') {
     const grid = toolElement('div', 'tool-box-grid');
     for (const item of shuffledTools(items)) {
       const button = toolButton('?', () => revealToolBox(w, button, item), 'tool-mystery-box');
@@ -893,6 +897,8 @@ function revealToolBox(w, button, item) {
       return;
     }
     button.textContent = item.label;
+    button.title = item.label;
+    button.style.setProperty('--candidate-length', Math.max(3, [...item.label].length));
     button.classList.remove('tool-box-shake');
     button.classList.add('is-revealed');
     button.disabled = !w.replacement;
@@ -905,6 +911,27 @@ function startToolDraw(w) {
   if (w.randomBusy) return;
   const items = remainingTools(w.randomItems, w.drawn, w.replacement);
   if (!items.length) return toolNotice(w, '남은 후보가 없습니다. 목록을 리셋하세요.');
+  if (w.randomMode === 'cards') {
+    w.randomBusy = true;
+    const card = w.randomStage.querySelector('.tool-draw-card');
+    const item = shuffledTools(items)[0];
+    card.classList.remove('is-drawn');
+    card.textContent = '✦';
+    let timer;
+    const cancel = () => { clearTimeout(timer); w.randomBusy = false; };
+    w.cancelAnimation = cancel;
+    timer = setTimeout(() => {
+      if (!w.el.isConnected) return cancel();
+      card.textContent = item.label;
+      card.title = item.label;
+      card.style.setProperty('--candidate-length', Math.max(3, [...item.label].length));
+      card.classList.add('is-drawn');
+      finishToolResult(w, [item]);
+      w.randomBusy = false;
+      w.cancelAnimation = null;
+    }, 300);
+    return;
+  }
   if (w.randomMode === 'boxes') {
     w.randomBusy = true;
     const buttons = [...w.randomStage.querySelectorAll('button:not(:disabled)')];
@@ -925,6 +952,8 @@ function startToolDraw(w) {
         const item = items.find(i => i.id === b.dataset.candidateId);
         if (item) {
           b.textContent = item.label;
+          b.title = item.label;
+          b.style.setProperty('--candidate-length', Math.max(3, [...item.label].length));
           b.classList.add('is-revealed');
           b.classList.remove('tool-box-shake');
           b.disabled = !w.replacement;

@@ -102,7 +102,7 @@ try {
   await page.waitForFunction(() => document.querySelector('.student-profile-nickname>span')?.textContent === '반짝이는우주고래');
   assert.equal(await card.locator('.student-profile-nickname>span').innerText(), '반짝이는우주고래');
   await page.getByRole('button', {
-    name: '칭호 도감 ›',
+    name: '칭호도감 열기',
     exact: true
   }).click();
   await page.locator('#modal .kingdom-current [data-equipped-title="learning:1"]').waitFor();

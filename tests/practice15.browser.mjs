@@ -110,7 +110,7 @@ try {
   await page.locator('#modal button[type=submit]').click();
   assert.equal(await page.locator('.student-profile-nickname>span').textContent(), '반짝별');
   await page.getByRole('button', {
-    name: '칭호 도감 ›',
+    name: '칭호도감 열기',
     exact: true
   }).click();
   assert.equal(await page.locator('#modal .kingdom-domain').count(), 6);
@@ -173,11 +173,11 @@ try {
   await page.locator('#modal input[name=questGoal]').fill('3');
   await page.locator('#modal input[name=questTitle]').fill('책의 탐험가');
   await page.locator('#modal button[type=submit]').click();
-  const th = page.locator('.assignment-matrix thead th').filter({
+  const th = page.locator('.long-assignment-card').filter({
     hasText: '독서 원정'
   });
   assert.equal(await th.locator('.remaining-notdone').count(), 0);
-  await th.locator('.assignment-title').click();
+  await th.getByRole('button', { name: '관리', exact: true }).click();
   const student = page.locator('#modal .quest-progress-card').first();
   assert((await student.textContent()).includes('0/3'));
   for (let i = 1; i <= 3; i++) {
@@ -222,7 +222,7 @@ try {
   }).textContent()).includes('2/3'));
   assert.equal(await page.locator('.quest-stamp-board .is-stamped').count(), 2);
   await page.getByRole('button', {
-    name: '칭호 도감 ›',
+    name: '칭호도감 열기',
     exact: true
   }).click();
   assert((await page.locator('#modal [data-kingdom-domain=learning]').textContent()).includes('칭찬 45회 · 1/3단계'));

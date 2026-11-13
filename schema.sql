@@ -187,7 +187,7 @@ begin
  v:=op->'data';
  if jsonb_typeof(v)<>'object' or v->>'id' is distinct from op->>'id' then raise exception 'INVALID_DATA'; end if;
  if t='settings' and v ? 'allowRefund' and jsonb_typeof(v->'allowRefund')<>'boolean' then raise exception 'INVALID_REFUND_SETTING';end if;
- if t='settings' and v ? 'studentPraisePeriod' and (jsonb_typeof(v->'studentPraisePeriod') is distinct from 'string' or v->>'studentPraisePeriod' not in ('all','30d','7d','month')) then raise exception 'INVALID_STUDENT_PRAISE_PERIOD';end if;
+ if t='settings' and v ? 'studentPraisePeriod' and (jsonb_typeof(v->'studentPraisePeriod') is distinct from 'string' or v->>'studentPraisePeriod' not in ('all','30d','7d','month','recent3')) then raise exception 'INVALID_STUDENT_PRAISE_PERIOD';end if;
  if t='settings' and v ? 'titleGoal' and (jsonb_typeof(v->'titleGoal')<>'number' or (v->>'titleGoal')::numeric<>trunc((v->>'titleGoal')::numeric) or (v->>'titleGoal')::numeric not between 3 and 9999) then raise exception 'INVALID_TITLE_GOAL';end if;
  if t='students' then
   if v->>'nickname' is not null and v->>'nickname' !~ '^[가-힣]{1,8}$' then raise exception 'INVALID_NICKNAME';end if;
@@ -210,8 +210,8 @@ begin
  if t='records' then
  execute 'select data from public.startoday_records where class_id=$1 and id=$2' into old using c.id,op->>'id';
  -- 최초 시각은 덮어쓸 수 없고, 수정 시각은 서버 시각으로 남깁니다.
- if old is not null then v:=jsonb_set(v,'{createdAt}',old->'createdAt'); end if;
- if v->>'createdAt' is null then v:=jsonb_set(v,'{createdAt}',to_jsonb(stamp)); end if;
+ if nullif(old->>'createdAt','') is not null then v:=jsonb_set(v,'{createdAt}',old->'createdAt'); end if;
+ if nullif(v->>'createdAt','') is null then v:=jsonb_set(v,'{createdAt}',to_jsonb(stamp)); end if;
  v:=jsonb_set(v,'{updatedAt}',to_jsonb(stamp));
  if not(v->>'kind'=any(array['칭찬','지도','관찰','추가기록'])) or jsonb_typeof(v->'studentIds')<>'array' then raise exception 'INVALID_RECORD'; end if;
  end if;
@@ -333,7 +333,7 @@ begin
  left join public."startoday_assignmentStates" ast on ast.class_id=cid and ast.id=r.data->>'autoRef' and ast.data->>'studentId'=sid
  left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId'
  where (r.data->>'autoRef' is null or (a.id is not null and ast.data->>'status'='완료')) and r.class_id=cid and r.data->>'kind'='칭찬' and r.data->'studentIds' ? sid and r.data->>'date'>=praise_from and r.data->>'date'<=day
- order by r.data->>'date' desc,r.data->>'createdAt' desc) x;
+ order by r.data->>'date' desc,r.data->>'createdAt' desc,r.id desc limit case when config->>'studentPraisePeriod'='recent3' then 3 else null end) x;
  select coalesce(jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title','memo',coalesce(a.data->>'memo',''),'checkerName',coalesce((select concat(s.data->>'no','. ',s.data->>'name') from public.startoday_students s where s.class_id=cid and s.id=a.data->>'checkerStudentId' and s.data->>'deletedAt' is null),''),'date',due.date,'isQuest',coalesce(a.data->>'isQuest','false')='true','goal',coalesce((a.data->>'questGoal')::integer,10),'stamps',coalesce((st.data->>'stamps')::integer,0),'overdue',due.date<day,'status',case when exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=due.date and atd.data->>'excluded'='true') then '면제' else coalesce(st.data->>'status','진행중') end) order by due.date,a.data->>'title'),'[]'::jsonb) into tasks
  from public.startoday_assignments a
  cross join lateral (select to_char(value,'YYYY-MM-DD') as date from generate_series((a.data->>'date')::date,day::date,interval '1 day') value) due
@@ -348,7 +348,7 @@ begin
  from public.startoday_timetables t left join public.startoday_subject_rules rules on rules.class_id=cid and rules.data->>'code'=t.data->>'subjectCode'
  where t.class_id=cid and t.data->>'date'=day and (t.data->>'period')::integer between 1 and 6;
  select jsonb_build_object(
- 'assignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title','date',a.data->>'date','endDate',a.data->>'endDate','repeat',a.data->'repeat','isQuest',coalesce(a.data->>'isQuest','false')='true','questGoal',coalesce((a.data->>'questGoal')::integer,10),'memo',coalesce(a.data->>'memo',''),'checkerName',coalesce((select concat(s.data->>'no','. ',s.data->>'name') from public.startoday_students s where s.class_id=cid and s.id=a.data->>'checkerStudentId' and s.data->>'deletedAt' is null),''))) from public.startoday_assignments a where a.class_id=cid and a.data->>'deletedAt' is null and (a.data->'target'='"all"'::jsonb or a.data->'target'->'studentIds' ? sid)),'[]'::jsonb),
+ 'assignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title','date',a.data->>'date','endDate',a.data->>'endDate','repeat',a.data->'repeat','isQuest',coalesce(a.data->>'isQuest','false')='true','questGoal',coalesce((a.data->>'questGoal')::integer,10),'memo',coalesce(a.data->>'memo',''),'checkerName',coalesce((select concat(s.data->>'no','. ',s.data->>'name') from public.startoday_students s where s.class_id=cid and s.id=a.data->>'checkerStudentId' and s.data->>'deletedAt' is null),''))) from public.startoday_assignments a where a.class_id=cid and coalesce(a.data->>'isQuest','false')<>'true' and a.data->>'deletedAt' is null and (a.data->'target'='"all"'::jsonb or a.data->'target'->'studentIds' ? sid)),'[]'::jsonb),
  'states',coalesce((select jsonb_agg(jsonb_build_object('assignmentId',st.data->>'assignmentId','date',st.data->>'date','status',st.data->>'status','stamps',st.data->'stamps')) from public."startoday_assignmentStates" st where st.class_id=cid and st.data->>'studentId'=sid),'[]'::jsonb),
  'excludedDates',coalesce((select jsonb_agg(atd.data->>'date') from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'excluded'='true'),'[]'::jsonb),
  'events',coalesce((select jsonb_agg(jsonb_build_object('date',e.date,'title',e.title,'description',e.description,'period',e.period,'timeOfDay',e.time_of_day,'isDday',e.is_dday,'isImportant',e.is_important)) from (

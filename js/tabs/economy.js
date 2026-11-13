@@ -8,7 +8,7 @@ let economyTeacherTab = 'assets';
 // The whole card opens details; buttons keep their own action and keyboard semantics.
 document.addEventListener('click', event => {
   if (event.target.closest('button,input,a,select,textarea')) return;
-  event.target.closest('.group-buy-card')?.querySelector('.group-buy-detail-open')?.click();
+  event.target.closest('.group-buy-card,.individual-shop-card')?.querySelector('.group-buy-detail-open,.shop-item-detail-open')?.click();
 });
 export function economyMessage(error) {
   if (['PGRST202', '42883'].includes(error?.code)) return '경제 기능을 사용하려면 Supabase에서 최신 schema.sql을 실행해 주세요.';
@@ -50,22 +50,29 @@ function economyHistory(rows, teacher = false) {
 }
 export function economyView() {
   const data = db(),
-    list = students();
+    list = students().sort((a,b) => a.no - b.no);
   return `<div class="toolbar"><h2>경제</h2><span class="muted">별코인 · 별 점수 1점 = 10별코인</span></div><nav class="economy-subtabs" aria-label="경제 관리">${btn('자산 관리', () => {
     economyTeacherTab = 'assets';
     render();
   }, economyTeacherTab === 'assets' ? 'active' : '')}${btn('상점 관리', () => {
     economyTeacherTab = 'shop';
     render();
-  }, economyTeacherTab === 'shop' ? 'active' : '')}</nav>${economyTeacherTab === 'assets' ? `<section class="panel"><div class="table-wrap"><table><thead><tr><th>번호</th><th>이름</th><th>별명</th><th>현재 잔액</th><th>보유 아이템</th><th>관리</th></tr></thead><tbody>${list.map(s => `<tr><td>${esc(s.no)}</td><td>${esc(s.name)}</td><td>${esc(s.nickname || '')}</td><td>★ ${C.studentBalance(data, s.id)}</td><td>${C.studentHoldings(data, s.id).length}개</td><td>${btn('선물하기', () => economyGiftDialog(s))}${btn('지급/차감', () => economyAdjustDialog(s))}</td></tr>`).join('')}</tbody></table></div></section>` : `<section class="panel"><div class="toolbar">${btn('환불 허용: ' + (data.settings[0].allowRefund !== false ? '켜짐' : '꺼짐'), () => commit([up('settings', {
+  }, economyTeacherTab === 'shop' ? 'active' : '')}</nav>${economyTeacherTab === 'assets' ? economyAssetsView(data, list) : `<section class="panel"><div class="toolbar">${btn('환불 허용: ' + (data.settings[0].allowRefund !== false ? '켜짐' : '꺼짐'), () => commit([up('settings', {
     ...data.settings[0],
     allowRefund: data.settings[0].allowRefund === false
-  })]))}${btn('새 물품/쿠폰 등록', () => economyItemDialog())}</div>${economyGroupedItems((data.shop_items || []).filter(i => !i.deletedAt), i => (i.isGroupBuy ? btn('상세 보기', () => teacherGroupBuyDialog(i.id), 'group-buy-detail-open') + (i.isFunded && !i.isUsed ? btn('보상 사용 완료', () => teacherUseGroupBuy(i.id)) : '') : '') + btn('수정', () => economyItemDialog(i)) + btn('삭제', async () => {
+  })]))}${btn('물품 등록', () => economyItemDialog())}</div>${economyGroupedItems((data.shop_items || []).filter(i => !i.deletedAt), i => (i.isGroupBuy ? btn('상세 보기', () => teacherGroupBuyDialog(i.id), 'group-buy-detail-open') + (i.isFunded && !i.isUsed ? btn('보상 사용 완료', () => teacherUseGroupBuy(i.id)) : '') : '') + btn('수정', () => economyItemDialog(i)) + btn('삭제', async () => {
     if (confirm('상점에서 이 물품을 삭제할까요? 기존 구매 내역은 유지됩니다.')) await commit([up('shop_items', {
       ...i,
       deletedAt: C.now()
     })]);
   }))}</section>`}<section class="panel"><h3>최근 학급 경제 거래</h3>${economyHistory((data.economy_tx || []).slice(-100), true)}</section>`;
+}
+function economyAssetsView(data, list) {
+  let mode = 'list';
+  try { mode = localStorage.getItem('startoday_economy_view_mode') === 'cards' ? 'cards' : 'list'; } catch {}
+  const change = value => { try { localStorage.setItem('startoday_economy_view_mode', value); } catch {} render(); };
+  const actions = student => btn('지급/차감', () => economyAdjustDialog(student)) + btn('선물하기', () => economyGiftDialog(student));
+  return `<section class="panel economy-assets"><div class="toolbar"><h3>자산 관리</h3><div class="row economy-view-switch" role="group" aria-label="자산 보기 방식">${btn('⊞ 카드형', () => change('cards'), mode === 'cards' ? 'active' : '', `aria-pressed="${mode === 'cards'}"`)}${btn('☰ 엑셀 목록형', () => change('list'), mode === 'list' ? 'active' : '', `aria-pressed="${mode === 'list'}"`)}</div></div>${mode === 'cards' ? `<div class="economy-asset-grid">${list.map(student => `<article class="economy-student-card"><h3>${esc(student.no)}번 ${esc(student.name)}</h3><strong class="economy-asset-balance">★ ${C.studentBalance(data, student.id)}별코인</strong><p>보유 아이템 ${C.studentHoldings(data, student.id).length}개</p><div class="row">${actions(student)}</div></article>`).join('')}</div>` : `<div class="table-wrap"><table class="economy-assets-table"><thead><tr><th>번호</th><th>이름</th><th>별코인 잔액</th><th>보유 아이템 수</th><th>지급/차감 액션</th></tr></thead><tbody>${list.map(student => `<tr><td>${esc(student.no)}</td><td>${esc(student.name)}</td><td>★ ${C.studentBalance(data, student.id)}</td><td>${C.studentHoldings(data, student.id).length}개</td><td>${actions(student)}</td></tr>`).join('')}</tbody></table></div>`}</section>`;
 }
 function economyGroupedItems(items, actions) {
   const groups = new Map();
@@ -81,7 +88,7 @@ function economyItemCard(item, actions = '') {
   return `<article class="economy-item"><span class="badge">${esc(item.category)}</span><h3>${esc(item.name)}</h3><strong>★ ${esc(item.price)}별코인</strong><p>${item.stock === null ? '무한대' : item.stock === 0 ? '품절' : esc(item.stock) + '개 남음'}</p><div class="row">${actions}</div></article>`;
 }
 function economyItemDialog(item = null) {
-  const el = modal(item ? '물품/쿠폰 수정' : '새 물품/쿠폰 등록', input('카테고리', 'category', item?.category || '쿠폰') + input('이름', 'name', item?.name || '', 'text', 'required maxlength="100"') + textarea('설명', 'description', item?.description || '') + checkbox('공동구매 물품', 'isGroupBuy', !!item?.isGroupBuy) + `<div class="shop-price-field">${input('금액 (별코인)', 'price', item?.isGroupBuy ? item.groupGoal : item?.price ?? 0, 'number', 'required min="0" max="1000000000" step="1"')}</div>` + input('수량 (비워두면 무한대)', 'stock', item?.stock ?? '', 'number', 'min="0" max="1000000000" step="1"'), async f => {
+  const el = modal(item ? '물품/쿠폰 수정' : '물품 등록', input('카테고리', 'category', item?.category || '쿠폰') + input('이름', 'name', item?.name || '', 'text', 'required maxlength="100"') + textarea('설명', 'description', item?.description || '') + checkbox('공동구매 물품', 'isGroupBuy', !!item?.isGroupBuy) + `<div class="shop-price-field">${input('금액 (별코인)', 'price', item?.isGroupBuy ? item.groupGoal : item?.price ?? 0, 'number', 'required min="0" max="1000000000" step="1"')}</div>` + input('수량 (비워두면 무한대)', 'stock', item?.stock ?? '', 'number', 'min="0" max="1000000000" step="1"'), async f => {
     const price = Number(f.get('price')), isGroupBuy = f.has('isGroupBuy'),
       stock = isGroupBuy || !f.get('stock') ? null : Number(f.get('stock')),
       nameValue = String(f.get('name')).trim();
@@ -138,7 +145,7 @@ function villageShopView(data, category, changeCategory, act) {
     categories = ['전체', ...new Set(items.map(item => villageCategory(item.category)).filter(c => c !== '전체'))];
   const requested = villageCategory(category),
     selected = categories.includes(requested) ? requested : '전체';
-  return `<nav class="village-categories" aria-label="상품 카테고리">${categories.map(c => btn(esc(c), () => changeCategory(c), c === selected ? 'is-selected' : '', `aria-pressed="${c === selected}"`)).join('')}</nav><div class="economy-grid economy-shop-grid village-product-grid">${items.filter(item => selected === '전체' || villageCategory(item.category) === selected).map(item => item.isGroupBuy ? groupBuyStudentCard(item, data, act) : `<article class="economy-item village-product"><span class="village-product-plaque">${esc(villageCategory(item.category))}</span><h3>${esc(item.name)}</h3><div class="village-product-meta"><strong><span aria-hidden="true">★</span> ${esc(item.price)}</strong><small>${item.stock === null ? '무제한' : item.stock === 0 ? '품절' : esc(item.stock) + '개 남음'}</small></div>${btn(item.stock === 0 ? '품절' : data.balance < item.price ? '잔액 부족' : '구매하기', () => act('buy', item.id, item.name), 'village-buy', item.stock === 0 || data.balance < item.price ? 'disabled' : '')}</article>`).join('') || '<p class="village-empty">등록된 상품이 없습니다.</p>'}</div>`;
+  return `<nav class="village-categories" aria-label="상품 카테고리">${categories.map(c => btn(esc(c), () => changeCategory(c), c === selected ? 'is-selected' : '', `aria-pressed="${c === selected}"`)).join('')}</nav><div class="economy-grid economy-shop-grid village-product-grid">${items.filter(item => selected === '전체' || villageCategory(item.category) === selected).map(item => item.isGroupBuy ? groupBuyStudentCard(item, data, act) : `<article class="economy-item village-product individual-shop-card"><span class="village-product-plaque">${esc(villageCategory(item.category))}</span><h3>${btn(esc(item.name), () => studentItemDetail(item.id, act), 'shop-item-detail-open')}</h3><div class="village-product-meta"><strong><span aria-hidden="true">★</span> ${esc(item.price)}</strong><small>${item.stock === null ? '무제한' : item.stock === 0 ? '품절' : esc(item.stock) + '개 남음'}</small></div>${btn(item.stock === 0 ? '품절' : data.balance < item.price ? '잔액 부족' : '구매하기', () => act('buy', item.id, item.name), 'village-buy', item.stock === 0 || data.balance < item.price ? 'disabled' : '')}</article>`).join('') || '<p class="village-empty">등록된 상품이 없습니다.</p>'}</div>`;
 }
 function villageEconomyFrame(title, balance, navigation, content) {
   return `<section class="village-shop" aria-label="${esc(title)}"><div class="village-stone-arch" aria-hidden="true"><svg viewBox="0 0 600 80" preserveAspectRatio="none"><path d="M12 73Q50 14 144 14H456Q550 14 588 73" class="village-arch-shadow"/><path d="M12 70Q50 11 144 11H456Q550 11 588 70" class="village-arch-stones"/></svg></div><div class="village-interior"><div class="village-awning" aria-hidden="true">${Array.from({
@@ -215,4 +222,13 @@ function drawGroupBuyDialog() {
     await config.fund(amount);
   } : null, '기여하기');
   if (focused) document.querySelector('#modal [name=amount]')?.focus({ preventScroll: true });
+}
+
+function studentItemDetail(itemId, act) {
+  const id = state.impersonatingStudentId || state.studentUser?.id;
+  const data = state.impersonatingStudentId ? C.studentEconomySnapshot(db(), id) : state.studentSnapshot?.economy;
+  const item = data?.items?.find(i => i.id === itemId && !i.isGroupBuy);
+  if (!item) return toast('판매 중인 물품이 아닙니다.');
+  const disabled = item.stock === 0 || data.balance < item.price;
+  modal(item.name, `<div class="shop-item-detail"><p>${esc(item.description || '등록된 설명이 없습니다.')}</p><dl><dt>가격</dt><dd>${esc(item.price)}별코인</dd><dt>내 잔액</dt><dd>${esc(data.balance)}별코인</dd><dt>재고</dt><dd>${item.stock === null ? '무제한' : esc(item.stock) + '개'}</dd></dl>${btn(item.stock === 0 ? '품절' : data.balance < item.price ? '잔액 부족' : '구매하기', async () => { await act('buy', item.id, item.name); closeModal(); }, 'primary', disabled ? 'disabled' : '')}</div>`);
 }

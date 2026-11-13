@@ -30,7 +30,7 @@ try{
  assert.match(await page.locator('.group-buy-ranking li').first().innerText(),/1등 가온 \(30별\)/);
  assert.equal(await page.locator('#modal [name=amount]').count(),0);
  await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();
- await page.getByRole('button',{name:'새 물품/쿠폰 등록',exact:true}).click();
+ await page.getByRole('button',{name:'물품 등록',exact:true}).click();
  await page.locator('#modal [name=name]').fill('학급 영화 감상');
  await page.locator('#modal [name=description]').fill('친구들과 함께 영화를 봐요.');
  await page.locator('#modal [name=isGroupBuy]').check();

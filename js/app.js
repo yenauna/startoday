@@ -10,7 +10,7 @@ import { dashboard } from './tabs/dashboard.js';
 import { recordsView } from './tabs/records.js';
 import { routinesView } from './tabs/routines.js';
 import { seatsView } from './tabs/seats.js';
-import { settingsView } from './tabs/settings.js';
+import { settingsView, refreshRosterNicknames } from './tabs/settings.js';
 import { studentsView } from './tabs/students.js';
 import { bindTimetableDrag, calendarView } from './tabs/timetable.js';
 import { classroom } from './tabs/classroom.js';
@@ -88,6 +88,7 @@ window.addEventListener('startoday-sync', () => {
     state.studentSnapshot = studentSnapshot(db(), student);
     state.studentUser = state.studentSnapshot.student;
   }
+  if (state.tab === '설정' && refreshRosterNicknames()) return;
   render();
 });
 window.addEventListener('startoday-auth', () => {

@@ -57,7 +57,7 @@ try {
   await page.getByRole('button',{name:'경제',exact:true}).click();
   await page.getByRole('button',{name:'상점 관리',exact:true}).click();
   assert.equal(await page.locator('.economy-item').count(),7);
-  await page.getByRole('button',{name:'새 물품/쿠폰 등록',exact:true}).click();
+  await page.getByRole('button',{name:'물품 등록',exact:true}).click();
   await page.locator('#modal [name=name]').fill('검증 쿠폰');
   await page.locator('#modal [name=price]').fill('10');
   await page.locator('#modal [name=stock]').fill('2');

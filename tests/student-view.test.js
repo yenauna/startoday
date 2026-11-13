@@ -342,3 +342,15 @@ test('클라우드 공동구매 기여는 본인 인증·금액 RPC로 보내고
  assert.equal(calls.at(-1).method,'startoday_student_login');
  assert.equal(f.state.studentSnapshot.economy.items[0].contributors[0].amount,10);
 });
+
+test('recent3 편지함은 최신 칭찬 3건만 반환하고 장기과제는 달력에서 분리',()=>{
+ const f=fixture(),date=C.today();f.source.settings[0].studentPraisePeriod='recent3';
+ f.source.records=Array.from({length:5},(_,i)=>({id:'r'+i,kind:'칭찬',studentIds:['one'],date,text:'칭찬 '+i,areas:['학습'],createdAt:`${date}T0${i}:00:00Z`}));
+ f.source.assignments=[{id:'long',title:'장기과제만',date,repeat:{type:'none'},target:'all',isQuest:true,questGoal:10,questTitle:'꾸준한 탐험가'}];
+ const snapshot=f.context.studentSnapshot(f.source,f.source.students[0]);
+ assert.deepEqual(Array.from(snapshot.praise,r=>r.text),['칭찬 4','칭찬 3','칭찬 2']);
+ assert.equal(snapshot.tasks.find(t=>t.id==='long').isQuest,true);
+ assert.equal(snapshot.calendar.assignments.length,0);
+ const items=f.context.studentCalendarItems({assignments:f.source.assignments},date);
+ assert.equal(items.length,0);
+});

@@ -1338,3 +1338,36 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .group-buy-ranking .is-me{background:#e6f0ff;color:#244d82;font-weight:750}
 .group-buy-quick{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
 .group-buy-quick button{min-height:40px}
+
+/* Compact economy roster and persistent view switch. */
+.economy-assets .toolbar{margin:0 0 8px}.economy-assets .toolbar h3{margin:0}
+.economy-assets-table{width:100%;font-size:12px;border-collapse:collapse}
+.economy-assets-table th,.economy-assets-table td{padding:6px 8px;line-height:1.15;white-space:nowrap}
+.economy-assets-table td button{min-height:16px;line-height:14px;padding:0 6px;margin:0 4px 0 0;font-size:11px;border-radius:6px;box-shadow:none}
+.economy-view-switch button[aria-pressed=true]{background:#e7e0f7;border-color:#aa98d2}
+.economy-asset-grid,.long-assignment-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px}
+.economy-student-card,.long-assignment-card{padding:16px;border:1px solid #e4dfef;border-radius:16px;background:#fff;box-shadow:0 3px 12px #30234f0a;min-width:0}
+.economy-student-card h3{margin:0 0 12px}.economy-asset-balance{font-size:20px;color:#4e426f}
+.long-assignment-card ul{list-style:none;padding:0;margin-bottom:0}.long-assignment-card li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;padding:8px 0;border-bottom:1px solid #eeebf4}
+.student-long-assignments .student-task{margin-top:10px}.student-long-assignments h2{font-size:20px}
+.student-long-assignments .quest-stamp-board{flex-basis:100%}
+.shop-item-detail-open{padding:0;border:0;background:transparent;box-shadow:none;font:inherit;font-weight:inherit;white-space:normal;color:inherit;text-align:inherit}
+.shop-item-detail p{white-space:pre-wrap;overflow-wrap:anywhere}.shop-item-detail dl{display:grid;grid-template-columns:auto 1fr;gap:8px}.shop-item-detail dd{margin:0;text-align:right}
+.record-created-time{font-size:11px;color:#69758a;white-space:nowrap}
+.tool-box-grid .tool-mystery-box{min-width:0;width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:clamp(10px,calc(110px / var(--candidate-length,4)),28px);border-radius:18px;background:linear-gradient(140deg,#fffdf6,#eee8ff);border-color:#d8cdec;box-shadow:0 5px 15px #77619a24}
+.tool-box-grid .tool-mystery-box:before{content:'✦';color:#d5ae4e}
+.tool-card-deck{display:grid;place-items:center;padding:24px;min-height:240px}
+.tool-draw-card{display:grid;place-items:center;width:min(100%,300px);height:210px;min-width:0;padding:20px;border:2px solid #d8c8eb;border-radius:24px;background:linear-gradient(135deg,#fff9e8,#eee7ff);box-shadow:-8px 6px 0 #e3dbf1,-16px 12px 0 #efebf6,0 12px 30px #5d497a25;font-size:clamp(12px,calc(260px / var(--candidate-length,4)),48px);font-weight:800;color:#51416e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tool-draw-card.is-drawn{display:block;text-align:center;line-height:166px;animation:tool-card-arrive .3s ease-out}
+@keyframes tool-card-arrive{from{transform:translateX(-30px) rotate(-8deg);opacity:.2}to{transform:translateX(0);opacity:1}}
+@media(prefers-reduced-motion:reduce){.tool-draw-card.is-drawn{animation:none}}
+@media(min-width:1000px){
+ body:has(.economy-assets-table) .shell>.notice{padding:5px 10px;margin:4px 0;font-size:11px}
+ body:has(.economy-assets-table) #main>.toolbar{margin-bottom:4px}
+ body:has(.economy-assets-table) #main>.toolbar h2{margin:0}
+ body:has(.economy-assets-table) #main>.economy-subtabs{margin:4px 0}
+ body:has(.economy-assets-table) .economy-assets{padding:10px}
+ body:has(.economy-assets-table) .economy-view-switch button{min-height:28px;padding:3px 8px;font-size:12px}
+ body:has(.economy-assets-table) .sticky-navigation .tabs{margin-top:0;margin-bottom:8px}
+ body:has(.economy-assets-table) .sticky-navigation .tabs button{padding-top:6px;padding-bottom:6px}
+}

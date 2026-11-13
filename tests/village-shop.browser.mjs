@@ -287,7 +287,7 @@ try {
   }).click();
   assert.equal(await page.locator('.village-shop').count(), 0);
   assert.equal(await page.getByRole('button', {
-    name: '새 물품/쿠폰 등록'
+    name: '물품 등록'
   }).count(), 1);
   assert.deepEqual(errors, []);
   console.log('PASS: themed student shop and holdings,  1/2/3 and auto-fill desktop columns, long name, unlimited/sold-out/insufficient balance, legacy/custom categories, live purchase/holdings and unchanged home/teacher management');

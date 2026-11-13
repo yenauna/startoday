@@ -5,5 +5,5 @@ export function kingdomCards(counts, equipped, onEquip = null, config = {}, stud
     const id = d.id + ':' + (i + 1),
       unlocked = d.count >= d.thresholds[i];
     return `<li class="${unlocked ? 'is-unlocked' : 'is-locked'}"><span>${unlocked ? '✨' : '🔒'} ${esc(name)} <small>${d.thresholds[i]}회</small></span>${unlocked && onEquip ? btn(equipped === id ? '장착 중' : '대표 칭호로 장착', () => onEquip(id), equipped === id ? 'kingdom-equipped' : '', `data-equip-title="${id}" ${equipped === id ? 'disabled' : ''}`) : ''}</li>`;
-  }).join('')}</ol></section>`).join('')}</div>${C.studentRewardTitles(student).length ? `<section class="quest-reward-collection"><h3>🏅 퀘스트 보상 칭호</h3>${C.studentRewardTitles(student).map(t => `<div>${esc(t.name)} ${onEquip ? btn(equipped === t.id ? '장착 중' : '대표 칭호로 장착', () => onEquip(t.id), '', `data-equip-title="${esc(t.id)}" ${equipped === t.id ? 'disabled' : ''}`) : ''}</div>`).join('')}</section>` : ''}`;
+  }).join('')}</ol></section>`).join('')}</div>${C.studentRewardTitles(student).length ? `<section class="quest-reward-collection"><h3>🏅 장기과제 보상 칭호</h3>${C.studentRewardTitles(student).map(t => `<div>${esc(t.name)} ${onEquip ? btn(equipped === t.id ? '장착 중' : '대표 칭호로 장착', () => onEquip(t.id), '', `data-equip-title="${esc(t.id)}" ${equipped === t.id ? 'disabled' : ''}`) : ''}</div>`).join('')}</section>` : ''}`;
 }

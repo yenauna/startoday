@@ -19,7 +19,7 @@ d.records.push({id:'private',date,kind:'지도',studentIds:['one'],text:'PRIVATE
 d.shop_items=[{id:C.uid(),category:'수학',name:'면제',price:10,stock:2},{id:C.uid(),category:'글쓰기',name:'도움권',price:0,stock:null}];
 await commit(C.TABLES.flatMap(table=>d[table].map(data=>({table,id:data.id,data}))));
 let student=await login();assert.equal(student.praise.length,65);assert.equal(student.score.total,64);const titles=student.titleCounts;
-for(const [period,count]of [['all',65],['30d',30],['7d',7],['month',Number(date.slice(-2))]]){
+for(const [period,count]of [['all',65],['recent3',3],['30d',30],['7d',7],['month',Number(date.slice(-2))]]){
  await role(true);const s=await snap();await commit([{table:'settings',id:'main',data:{...s.data.settings[0],studentPraisePeriod:period}}]);student=await login();assert.equal(student.praise.length,count);assert.equal(student.score.total,64);assert.deepEqual(student.titleCounts,titles);assert.equal(student.economy.balance,640);assert.ok(student.praise.every(r=>r.kind==='칭찬'&&r.date>=C.studentPraiseRange({studentPraisePeriod:period},date).from&&r.date<=date));assert.ok(!JSON.stringify(student.praise).includes('PRIVATE_'));assert.ok(!JSON.stringify(student.praise).includes('OTHER_PERSON'));assert.ok(!JSON.stringify(student.praise).includes('FUTURE_PRAISE'));
 }
 await role(true);const s=await snap();for(const value of ['wrong',null,['all']])await assert.rejects(()=>commit([{table:'settings',id:'main',data:{...s.data.settings[0],studentPraisePeriod:value}}]),/INVALID_STUDENT_PRAISE_PERIOD/);
@@ -29,4 +29,15 @@ await role(true);let current=await snap();await commit([{table:'shop_items',id:d
 const refund=await studentAction('refund',purchase.id);assert.equal(refund.snapshot.economy.balance,640);assert.equal(refund.snapshot.economy.transactions.find(t=>t.type==='환불').itemCategory,'수학');
 await role(true);await pg.query('select public.startoday_economy_action($1,$2,$3,$4,$5,$6)',[cid,'one','gift',d.shop_items[1].id,0,'']);current=await snap();let gift=current.data.economy_tx.find(t=>t.type==='선물');assert.equal(gift.itemCategory,'글쓰기');delete gift.itemCategory;await commit([{table:'economy_tx',id:gift.id,data:gift},{table:'shop_items',id:d.shop_items[1].id,data:{...current.data.shop_items.find(i=>i.id===d.shop_items[1].id),deletedAt:C.now()}}]);student=await login();assert.equal(student.economy.transactions.find(t=>t.id===gift.id).itemCategory,'글쓰기');
 await role(true);await pg.query('delete from public.startoday_shop_items where id=$1',[d.shop_items[1].id]);student=await login();assert.equal(student.economy.transactions.find(t=>t.id===gift.id).itemCategory,'기타');
+// Patch 25: long assignments remain playable but never enter the calendar projection.
+await role(true);
+const long={id:'long-25',title:'장기과제 분리',date,repeat:{type:'none'},target:'all',isQuest:true,questGoal:3,questTitle:'꾸준한 탐험가'};
+await commit([{table:'assignments',id:long.id,data:long}]);
+student=await login();assert.ok(student.tasks.some(t=>t.id===long.id));assert.ok(!student.calendar.assignments.some(a=>a.id===long.id));
+const blankRecord={id:'record-time-25',date,kind:'관찰',studentIds:['one'],text:'최초 시각',areas:['학습'],createdAt:''};
+await commit([{table:'records',id:blankRecord.id,data:blankRecord}]);
+let timed=(await snap()).data.records.find(r=>r.id===blankRecord.id);assert.ok(Number.isFinite(Date.parse(timed.createdAt)));
+await commit([{table:'records',id:blankRecord.id,data:{...timed,createdAt:'',text:'수정'}}]);
+assert.equal((await snap()).data.records.find(r=>r.id===blankRecord.id).createdAt,timed.createdAt);
+console.log('PASS: SQL recent3, long assignment calendar separation and nonempty immutable creation timestamp');
 await pg.close();console.log('PASS: SQL praise windows/all>50/privacy/unchanged scores, enum validation and purchase/gift/refund category snapshots + legacy fallback');

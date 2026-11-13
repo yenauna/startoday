@@ -99,7 +99,7 @@ try {
   assert.equal(await page.locator('.student-stars').count(), 0);
   assert.equal(await page.locator('.student-profile-card .kingdom-title-button').count(), 1);
   assert.equal(await page.getByRole('button', {
-    name: '칭호 도감 ›',
+    name: '칭호도감 열기',
     exact: true
   }).count(), 1);
   assert.equal(await page.locator('.student-profile-card .student-profile-edit').count(), 1);
@@ -126,7 +126,7 @@ try {
   });
   assert.equal(await page.evaluate(() => scrollY), 0);
   await page.getByRole('button', {
-    name: '칭호 도감 ›',
+    name: '칭호도감 열기',
     exact: true
   }).click();
   assert.ok(!(await page.locator('#modal').innerText()).includes('키워드가 아닌'));

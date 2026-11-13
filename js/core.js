@@ -190,7 +190,7 @@ export function classStatisticsSummary(database, date = today()) {
 }
 export function studentCalendarData(database, id) {
   return {
-    assignments: database.assignments.filter(a => !a.deletedAt && targeted(a, id)).map(a => ({
+    assignments: database.assignments.filter(a => !a.deletedAt && !a.isQuest && targeted(a, id)).map(a => ({
       id: a.id,
       title: a.title,
       date: a.date,
@@ -307,7 +307,7 @@ export function pending(db, s, d) {
 }
 export function taskStateOps(db, a, d, s, status, memo = '') {
   validateTaskDate(d);
-  if (a.isQuest) throw Error('장기 퀘스트는 스탬프로 체크하세요.');
+  if (a.isQuest) throw Error('장기과제는 스탬프로 체크하세요.');
   if (!STATUSES.includes(status)) throw Error('올바르지 않은 과제 상태입니다.');
   if (!db.assignments.some(x => x.id === a.id) || !db.students.some(x => x.id === s) || !targeted(a, s)) throw Error('과제 대상 학생을 확인하세요.');
   const id = stateId(a.id, d, s),
@@ -364,6 +364,7 @@ export function applyOps(db, ops) {
     } else {
       if (op.data.id !== op.id) throw Error('데이터 ID가 일치하지 않습니다.');
       const data = structuredClone(op.data);
+      if (op.table === 'records') data.createdAt = (i >= 0 && list[i].createdAt) || data.createdAt || now();
       if (op.table === 'students' && i >= 0 && Array.isArray(list[i].rewardTitles)) data.rewardTitles = mergeRewardTitles(list[i].rewardTitles, data.rewardTitles);
       if (i >= 0) list[i] = data;else list.push(data);
     }
@@ -1315,7 +1316,7 @@ export function kingdomBadge(student, counts, config = {}) {
   return `<span class="kingdom-badge" data-equipped-title="${esc(t.id || 'resident')}">${t.icon} ${esc(t.name)}</span>`;
 }
 export function kingdomSummary(counts, config = {}, student = null) {
-  return `<div class="kingdom-teacher-summary">${kingdomCatalog(counts, config).map(d => `<div><strong>${d.icon} ${esc(d.label)} · 칭찬 ${d.count}회</strong><span>${d.unlocked.map(t => esc(t.name)).join(' / ') || '아직 획득한 칭호가 없어요'}</span></div>`).join('')}${studentRewardTitles(student).map(t => `<div>🏅 ${esc(t.name)} · 퀘스트 보상</div>`).join('')}</div>`;
+  return `<div class="kingdom-teacher-summary">${kingdomCatalog(counts, config).map(d => `<div><strong>${d.icon} ${esc(d.label)} · 칭찬 ${d.count}회</strong><span>${d.unlocked.map(t => esc(t.name)).join(' / ') || '아직 획득한 칭호가 없어요'}</span></div>`).join('')}${studentRewardTitles(student).map(t => `<div>🏅 ${esc(t.name)} · 장기과제 보상</div>`).join('')}</div>`;
 }
 export function validateStudentNickname(value) {
   if (typeof value !== 'string' || !/^[가-힣]{1,8}$/.test(value)) throw Error('별명은 공백 없이 완성된 한글 1~8자로 입력하세요. 영문·숫자·특수문자는 사용할 수 없습니다.');
@@ -1340,7 +1341,7 @@ export function studentLabel(s, studentMode = false) {
 }
 export function questGoal(a) {
   const n = Number(a.questGoal ?? 10);
-  if (!Number.isInteger(n) || n < 1 || n > 999) throw Error('퀘스트 목표는 1~999의 정수로 입력하세요.');
+  if (!Number.isInteger(n) || n < 1 || n > 999) throw Error('장기과제 목표는 1~999의 정수로 입력하세요.');
   return n;
 }
 export function questProgress(database, a, studentId) {
@@ -1356,9 +1357,9 @@ export function questProgress(database, a, studentId) {
 export function questStampOps(database, a, date, studentId, change, memo = null) {
   validateTaskDate(date);
   validateTaskDate(a.date);
-  if (!a.isQuest || !occurs(a, date) || excluded(database, studentId, date) || !Number.isInteger(change)) throw Error('퀘스트 대상과 날짜를 확인하세요.');
+  if (!a.isQuest || !occurs(a, date) || excluded(database, studentId, date) || !Number.isInteger(change)) throw Error('장기과제 대상과 날짜를 확인하세요.');
   const student = activeStudents(database).find(s => s.id === studentId);
-  if (!student || !targeted(a, studentId)) throw Error('퀘스트 대상 학생을 확인하세요.');
+  if (!student || !targeted(a, studentId)) throw Error('장기과제 대상 학생을 확인하세요.');
   const progress = questProgress(database, a, studentId),
     stamps = Math.max(0, Math.min(progress.goal, progress.stamps + change)),
     old = database.assignmentStates.find(s => s.id === stateId(a.id, a.date, studentId));
@@ -1771,8 +1772,9 @@ export function demoDB() {
 
 // The visibility window affects praise letters only, never scores or earned titles.
 export function studentPraiseRange(config = {}, date = today()) {
-  const period = ['all', '30d', '7d', 'month'].includes(config.studentPraisePeriod) ? config.studentPraisePeriod : 'all';
+  const period = ['all', '30d', '7d', 'month', 'recent3'].includes(config.studentPraisePeriod) ? config.studentPraisePeriod : 'all';
   return {
+    ...(period === 'recent3' ? { limit: 3 } : {}),
     from: period === '30d' ? addDays(date, -29) : period === '7d' ? addDays(date, -6) : period === 'month' ? date.slice(0, 8) + '01' : '',
     to: date
   };

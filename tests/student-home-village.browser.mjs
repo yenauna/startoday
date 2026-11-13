@@ -200,7 +200,7 @@ try {
   assert.ok((await page.locator('.student-profile-card .kingdom-badge').innerText()).includes('든든한 수호자'));
   assert.equal(await page.locator('.student-character-equipment').count(), 1);
   assert.equal(await page.locator('.student-profile-art').getAttribute('aria-hidden'), 'true');
-  assert.equal(await rootHome.locator(':scope > .student-card').count(), 5);
+  assert.equal(await rootHome.locator(':scope > .student-card').count(), 6);
   assert.equal(await page.locator('.student-timetable-card .subject-title').count(), 2);
   assert.ok((await page.locator('.student-tasks-card').innerText()).includes(expected.long));
   assert.ok((await page.locator('.student-tasks-card').innerText()).includes('면제'));
@@ -254,7 +254,7 @@ try {
   await page.locator('#modal button[type=submit]').click();
   await page.waitForFunction(() => document.querySelector('.student-profile-nickname>span')?.textContent === '우주고래');
   await page.getByRole('button', {
-    name: '칭호 도감 ›',
+    name: '칭호도감 열기',
     exact: true
   }).click();
   await page.locator('#modal .kingdom-current [data-equipped-title="quest:visual"]').waitFor();

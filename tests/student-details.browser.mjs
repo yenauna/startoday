@@ -164,8 +164,8 @@ try {
   });
   const setting = page.locator('#settings-form [name=studentPraisePeriod]');
   assert.equal(await setting.inputValue(), 'all');
-  assert.deepEqual(await setting.locator('option').evaluateAll(rows => rows.map(r => r.value)), ['all', '30d', '7d', 'month']);
-  for (const [period, count] of [['30d', 30], ['7d', 7], ['month', expected.month], ['all', 65]]) {
+  assert.deepEqual(await setting.locator('option').evaluateAll(rows => rows.map(r => r.value)), ['all', '30d', '7d', 'month', 'recent3']);
+  for (const [period, count] of [['recent3', 3], ['30d', 30], ['7d', 7], ['month', expected.month], ['all', 65]]) {
     await setting.selectOption(period);
     await page.locator('#settings-form .settings-save').click();
     await page.waitForFunction(async period => (await import('/js/shared/state.js')).store.db.settings[0].studentPraisePeriod === period, period);

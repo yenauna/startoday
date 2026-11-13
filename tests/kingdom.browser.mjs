@@ -159,7 +159,7 @@ try {
   }).click();
   assert.equal(await page.locator('.student-shell [data-equipped-title=resident]').count(), 1);
   await page.getByRole('button', {
-    name: '칭호 도감 ›',
+    name: '칭호도감 열기',
     exact: true
   }).click();
   assert.equal(await page.locator('#modal .kingdom-domain').count(), 6);
@@ -213,7 +213,7 @@ try {
   await page.locator('.student-shell').waitFor();
   assert.equal(await page.locator('.student-shell [data-equipped-title="jobs:3"]').count(), 1);
   await page.getByRole('button', {
-    name: '칭호 도감 ›',
+    name: '칭호도감 열기',
     exact: true
   }).click();
   await page.locator('[data-equip-title="learning:1"]').click();
