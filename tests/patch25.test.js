@@ -20,7 +20,7 @@ test('기록 저장은 최초 시각을 보존하고 빈 시각을 보정',()=>{
  assert.ok(context.newRecord({createdAt:''}).createdAt);
  assert.equal(context.newRecord({createdAt:stamp}).createdAt,stamp);
  const html=context.recordCard({id:'record',date:'2026-11-13',studentIds:['one'],areas:[],kind:'칭찬',text:'잘했어요',createdAt:stamp},false);
- assert.ok(html.includes('작성 14:32'));assert.ok(html.includes('datetime="'+stamp+'"'));
+ assert.ok(html.includes('작성 11.13.(금) 14:32'));assert.ok(html.includes('datetime="'+stamp+'"'));
 });
 test('장기과제 달력 데이터 분리 및 recent3 범위는 기간 제한 없이 3개',()=>{
  const db=C.initialDB();db.students=[{id:'one',name:'가온'}];

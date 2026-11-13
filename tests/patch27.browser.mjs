@@ -32,7 +32,7 @@ try{
  });
  const card=id=>page.locator('.long-assignment-card').filter({hasText:'과제 '+id});
  await card('card').getByRole('button',{name:'삭제',exact:true}).tap();await card('card').waitFor({state:'detached'});
- await card('modal').getByRole('button',{name:'진행도/도장판 열기',exact:true}).click();await page.locator('#modal').getByRole('button',{name:'삭제',exact:true}).click();await card('modal').waitFor({state:'detached'});
+ await card('modal').getByRole('button',{name:'진행도/도장판',exact:true}).click();await page.locator('#modal').getByRole('button',{name:'삭제',exact:true}).click();await card('modal').waitFor({state:'detached'});
  await card('editor').getByRole('button',{name:'수정',exact:true}).click();await page.locator('#modal .dialog-foot').getByRole('button',{name:'삭제',exact:true}).click();await card('editor').waitFor({state:'detached'});
  assert.equal(confirmations.filter(s=>s==='이 장기과제를 삭제할까요? 학생들의 스탬프 기록도 함께 삭제됩니다.').length,3);
  const cleaned=await page.evaluate(async()=>{const {store}=await import('/js/shared/state.js');return{states:store.db.assignmentStates.filter(s=>['p27-card','p27-modal','p27-editor'].includes(s.assignmentId)).length,rewards:store.db.students[0].rewardTitles.filter(t=>t.name.startsWith('보존 칭호')).length};});assert.equal(cleaned.states,0);assert.equal(cleaned.rewards,3);
@@ -57,7 +57,7 @@ try{
  await page.evaluate(async()=>{const {store,state}=await import('/js/shared/state.js');state.impersonatingStudentId=window.p27s;state.viewMode='student';(await import('/js/app.js')).render();});
  const compact=page.locator('.student-long-card').filter({hasText:'과제 compact'});assert.equal(await compact.locator('small').count(),0);assert.equal(await compact.getAttribute('open'),null);assert.equal(await compact.locator('.quest-stamp-board').isVisible(),false);
  await compact.locator('summary').tap();assert.equal(await compact.locator('.quest-stamp-board').isVisible(),true);await compact.locator('summary').tap();assert.equal(await compact.locator('.student-quest-subtasks').isVisible(),false);
- const deadline=page.locator('.student-long-card').filter({hasText:'과제 deadline'});assert.match(await deadline.locator('summary').innerText(),/마감일 .*년 .*월 .*일/);assert.match(await deadline.locator('summary').innerText(),/확인 : .* 학생/);
+ const deadline=page.locator('.student-long-card').filter({hasText:'과제 deadline'});assert.match(await deadline.locator('summary').innerText(),/마감일 .*년 .*월 .*일/);assert.match(await deadline.locator('summary').innerText(),/확인 : 나래/);
  await page.getByRole('button',{name:'교사 화면으로 돌아가기',exact:true}).click();await page.evaluate(async()=>{(await import('/js/app.js')).navigate('경제');});await page.getByRole('button',{name:'상점 관리',exact:true}).click();
  const item=page.locator('.economy-item').filter({has:page.getByRole('heading',{name:'안전 선물 쿠폰',exact:true})});await item.getByRole('button',{name:'🎁 선물하기',exact:true}).tap();
  const choose=item.getByRole('button',{name:'1. 가온 선택',exact:true});await choose.tap();assert.equal(await choose.getAttribute('aria-pressed'),'true');

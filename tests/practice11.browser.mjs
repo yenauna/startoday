@@ -242,9 +242,7 @@ try {
     name: '과제',
     exact: true
   }).click();
-  await page.locator('.assignment-title').filter({
-    hasText: '오늘 과제'
-  }).click();
+  await page.locator('[data-assignment-id="today"][data-assignment-date]').first().click();
   assert.equal(await page.locator('#modal .assignment-progress-item').count(), 20);
   const card = page.locator('#modal .assignment-progress-item').first();
   assert.equal(await card.locator('.assignment-progress-status').textContent(), '진행중');
@@ -337,9 +335,8 @@ try {
     }]);
     render();
   });
-  await page.locator('.assignment-matrix thead th').filter({
-    hasText: '헤더 일괄'
-  }).getByRole('button', {
+  await page.locator('[data-assignment-id="header-bulk"][data-assignment-date]').first().click();
+  await page.locator('#modal').getByRole('button', {
     name: '남은 진행중 전체 안함',
     exact: true
   }).click();
@@ -349,6 +346,7 @@ try {
     } = await import('/js/shared/state.js');
     return store.db.assignmentStates.filter(s => s.assignmentId === 'header-bulk' && s.status === '안함').length === 20;
   });
+  await page.locator('#modal .dialog-head').getByRole('button', {name:'닫기',exact:true}).click();
   // Modal cards stay multiple columns in a phone viewport, long press opens details.
   await page.setViewportSize({
     width: 390,
@@ -380,7 +378,9 @@ try {
   assert.equal(await page.locator('.student-task.is-overdue').filter({
     hasText: '밀린 과제'
   }).count(), 1);
-  assert(!(await page.locator('.student-shell').textContent()).includes('PRIVATE_TEACHER'));
+  // Since patch 27, lesson memos are public on the lesson day.
+  assert((await page.locator('.student-timetable-card').textContent()).includes('PRIVATE_TEACHER'));
+  assert(!(await page.locator('.student-calendar-card').textContent()).includes('PRIVATE_TEACHER'));
   const letter = page.locator('.student-praise').filter({
     hasText: '친구를 도와줌'
   });

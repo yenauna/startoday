@@ -1461,3 +1461,23 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-home-village .student-avatar-stage .student-character-layers:focus{outline:none}
 .student-home-village .student-avatar-stage .student-character-layers:focus-visible{outline:3px solid #9a80c9;outline-offset:-3px}
 .student-home-village .student-avatar-stage .student-character-layers.is-pointer-focused:focus-visible{outline:none}
+
+/* 31차: compact long assignments and immediate dashboard status controls. */
+.long-assignment-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:10px}
+.long-assignment-card{padding:12px 14px}
+.long-assignment-heading{font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.long-assignment-heading>span{font-size:12px;color:var(--st-gray-text)}
+.long-assignment-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.long-assignment-count{font-size:13px;font-weight:700;white-space:nowrap}
+.long-assignment-actions{display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.long-assignment-actions button{min-height:27px;padding:3px 10px;font-size:12px;white-space:nowrap;border-radius:12px;box-shadow:none}
+.long-assignment-actions .record-edit{background:#fff;color:#111827;border:1px solid #cbd5e1}
+.long-assignment-actions .record-delete{background:#e2e8f0;color:#334155;border:1px solid #cbd5e1}
+.quest-progress-card.is-complete{background:var(--st-blue-bg);color:var(--st-blue-text);border-color:#93c5fd}
+.quest-subtask-toggle small,.student-quest-subtasks small{display:inline-block;font-size:12px;opacity:.8}
+.task-quick-status{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.task-quick-status .task-quick-button{min-width:0;min-height:44px;padding:8px 4px;font-size:14px;white-space:nowrap;box-shadow:none}
+.task-quick-status .task-status-complete{background:var(--st-blue-bg);color:var(--st-blue-text)}
+.task-quick-status .task-status-notdone{background:var(--st-rose-bg);color:var(--st-rose-text)}
+.task-quick-status .task-status-pending{background:var(--st-gray-bg);color:var(--st-gray-text)}
+@media(max-width:390px){.task-quick-status{gap:3px}.task-quick-status .task-quick-button{font-size:12px;padding:8px 2px}.long-assignment-actions button{padding:3px 6px}}

@@ -50,7 +50,7 @@ try {
  assert.equal(await longCard.count(),1);assert.match(await longCard.innerText(),/꾸준한 탐험가/);
  assert.equal(await page.locator('.assignment-calendar [data-assignment-id]').filter({hasText:'25차 독서 도전'}).count(),0);
  assert.equal(await page.locator('.assignment-matrix').filter({hasText:'25차 독서 도전'}).count(),0);
- await longCard.getByRole('button',{name:'진행도/도장판 열기',exact:true}).click();
+ await longCard.getByRole('button',{name:'진행도/도장판',exact:true}).click();
  await page.locator('#modal .quest-progress-card').first().getByRole('button',{name:'+ 도장',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('#modal .quest-progress-card strong + .quest-controls strong')?.textContent.includes('2/3'));
  await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();

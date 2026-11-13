@@ -6,7 +6,7 @@ import { commit, db, settings, students, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
 import { $, badge, bindLater, btn, empty, esc, toast, input, select, textarea, multiple, run, registerUndo } from '../shared/ui.js';
 import { modal, closeModal } from '../components/modal.js';
-import { taskStateEditor } from './assignments.js';
+import { taskQuickStatus } from './assignments.js';
 import { newRecord } from './records.js';
 import { setRoutine } from './routines.js';
 import { studentDetail } from './students.js';
@@ -64,7 +64,7 @@ export function studentCard(s) {
   return `<article role="button" tabindex="0" data-student-id="${esc(s.id)}" aria-pressed="${state.selected.includes(s.id)}" data-action="${id}" class="student ${isUnfinished(s.id, state.date) ? 'unfinished' : ''} ${missing.length ? 'has-pending' : ''} ${state.selected.includes(s.id) ? 'selected' : ''} ${ex ? 'excluded' : ''}"><div class="student-head"><strong>${esc(s.no)}. ${esc(C.studentLabel(s))}</strong>${btn('⋯', () => studentDetail(s.id), '', 'aria-label="' + esc(s.name) + ' 상세 보기"')}${ex ? badge('제외') : ''}</div><div class="student-kingdom">${C.kingdomBadge(s, titleCounts, C.kingdomConfig(db()))}${titleCount ? btn('획득 ' + titleCount + '개', () => modal(esc(s.name) + ' · 획득한 칭호', kingdomCards(titleCounts, s.equippedTitle, null, C.kingdomConfig(db()), s)), 'kingdom-earned-open') : ''}</div><div class="score" aria-label="누적 별 점수 ${score.total}"><span class="score-star" aria-hidden="true">★</span><strong class="score-total">${score.total}</strong> <small>${C.areaNames(db(), true).filter(a => score.areas[a]).map(a => `<span class="area-score">${esc(C.areaName(a))} ${score.areas[a]}</span>`).join(' ') || ''}</small></div><div class="pending-tasks">${missing.slice(0, 2).map(({
     assignment: a,
     date: d
-  }) => btn(esc(a.title), () => taskStateEditor(a, d, s.id), 'task ' + (d < state.date ? 'overdue' : ''))).join('')}${missing.length > 2 ? btn('+ ' + (missing.length - 2) + '개', () => studentDetail(s.id), 'task pending-more') : ''}</div>${routines.length ? `<div class="routine-indicator"><div class="routine-names">${routines.map(r => btn(esc(r.title), () => completeRoutineWithUndo(r, state.date, s), 'routine-task')).join('')}</div></div>` : ''}</article>`;
+  }) => btn(esc(a.title), () => taskQuickStatus(a, d, s.id), 'task ' + (d < state.date ? 'overdue' : ''))).join('')}${missing.length > 2 ? btn('+ ' + (missing.length - 2) + '개', () => studentDetail(s.id), 'task pending-more') : ''}</div>${routines.length ? `<div class="routine-indicator"><div class="routine-names">${routines.map(r => btn(esc(r.title), () => completeRoutineWithUndo(r, state.date, s), 'routine-task')).join('')}</div></div>` : ''}</article>`;
 }
 const checkDrafts = new Map();
 const recordKinds = [['칭찬', '칭찬', 'praise'], ['관찰', '기록', 'note'], ['추가기록', '추가기록', 'extra'], ['지도', '조언', 'advice']];

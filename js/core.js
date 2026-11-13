@@ -934,6 +934,12 @@ export function formatDate(value) {
   if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) return '';
   return date.replaceAll('-', '.') + '.(' + '일월화수목금토'[parsed.getUTCDay()] + ')';
 }
+export function formatShortDate(value, weekdayInParens = true) {
+  if (!formatDate(value)) return '';
+  const [year, month, day] = value.slice(0, 10).split('-');
+  const weekday = '일월화수목금토'[new Date(`${year}-${month}-${day}T12:00:00Z`).getUTCDay()];
+  return `${Number(month)}.${Number(day)}.${weekdayInParens ? `(${weekday})` : ` ${weekday}`}`;
+}
 export function formatTimestamp(value) {
   if (!value) return '';
   const date = new Date(value);
@@ -1378,7 +1384,8 @@ export function questProgress(database, a, studentId) {
     goal = questGoal(a), subtasks = questSubtasks(a),
     completedSubtasks = subtasks.length ? subtasks.filter(item => Array.isArray(state?.completedSubtasks) ? state.completedSubtasks.includes(item) : subtasks.indexOf(item) < (Number(state?.stamps) || 0)) : [],
     stamps = subtasks.length ? completedSubtasks.length : Math.min(goal, Math.max(0, Number(state?.stamps) || 0));
-  return { stamps, goal, status: stamps >= goal ? '완료' : '진행중', questSubtasks: subtasks, completedSubtasks };
+  const completedSubtaskDates = Object.fromEntries(completedSubtasks.filter(item => isTaskDate(state?.completedSubtaskDates?.[item])).map(item => [item, state.completedSubtaskDates[item]]));
+  return { stamps, goal, status: stamps >= goal ? '완료' : '진행중', questSubtasks: subtasks, completedSubtasks, completedSubtaskDates };
 }
 export function questSubtaskOps(database, a, date, studentId, item, checked) {
   if (!questSubtasks(a).includes(item) || typeof checked !== 'boolean') throw Error('세부 항목을 확인하세요.');
@@ -1408,7 +1415,11 @@ export function questStampOps(database, a, date, studentId, change, memo = null,
   const old = database.assignmentStates.find(s => s.id === stateId(a.id, a.date, studentId));
   const ops = taskStateOps(database, { ...a, isQuest: false }, a.date, studentId, stamps >= progress.goal ? '완료' : '진행중', memo ?? old?.memo ?? '');
   ops[0].data.stamps = stamps;
-  if (subtasks.length) ops[0].data.completedSubtasks = completedSubtasks;
+  if (subtasks.length) {
+    ops[0].data.completedSubtasks = completedSubtasks;
+    // Keep known completion dates, date only new checks; unchecked entries lose their date.
+    ops[0].data.completedSubtaskDates = Object.fromEntries(completedSubtasks.filter(item => progress.completedSubtaskDates[item] || !progress.completedSubtasks.includes(item)).map(item => [item, progress.completedSubtaskDates[item] || date]));
+  }
   const rewardRecord = ops.find(op => op.table === 'records' && op.data);
   if (rewardRecord) {
     const existing = database.records.find(r => r.autoRef === ops[0].id);

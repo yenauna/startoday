@@ -23,15 +23,17 @@ try{
  const expected=await page.evaluate(async()=>{
   const {store,state}=await import('/js/shared/state.js'),C=await import('/js/core.js');
   const examples=[['same','2026-11-13','2026-11-13T11:35:00Z'],['backdate','2026-11-10','2026-11-13T11:35:00Z'],['midnight','2026-11-13','2026-11-12T15:05:00Z'],['year','2026-12-31','2026-12-31T15:05:00Z']];
-  await store.commit(examples.map(([id,date,createdAt])=>({table:'records',id:'patch30-'+id,data:{id:'patch30-'+id,date,createdAt,studentIds:[store.db.students[0].id],kind:'관찰',areas:[],text:'30차 '+id}})));
+  await store.commit(examples.map(([id,date,createdAt])=>({table:'records',id:'patch30-'+id,data:{id:'patch30-'+id,date,createdAt,studentIds:[store.db.students[0].id],updatedAt:'2026-11-13T11:40:00Z',kind:'관찰',areas:[],text:'30차 '+id}})));
   state.recordFilters={from:'2025-01-01',to:'2027-12-31',student:'',kind:'',area:'',q:'30차'};
   (await import('/js/app.js')).navigate('기록');
   return Object.fromEntries(examples.map(([id,date,createdAt])=>[id,{tooltip:'최초 작성 '+C.formatTimestamp(createdAt),createdAt}]));
  });
- for(const [id,label] of [['same','작성 20:35'],['backdate','작성 11.13. 20:35'],['midnight','작성 00:05'],['year','작성 1.1. 00:05']]){
+ for(const [id,label] of [['same','작성 11.13.(금) 20:35'],['backdate','작성 11.13.(금) 20:35'],['midnight','작성 11.13.(금) 00:05'],['year','작성 1.1.(금) 00:05']]){
   const time=page.locator(`[data-record-id="patch30-${id}"] .record-created-time`);
   assert.equal(await time.innerText(),label);assert.equal(await time.getAttribute('title'),expected[id].tooltip);assert.equal(await time.getAttribute('datetime'),expected[id].createdAt);
  }
+ assert.equal(await page.locator('[data-record-id="patch30-same"] .record-updated-time').innerText(),'수정 11.13.(금) 20:40');
+ assert.equal(await page.locator('[data-record-id="patch30-year"] .record-updated-time').count(),0);
  await page.setViewportSize({width:390,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
  await page.screenshot({path:'/tmp/patch30-records.png',fullPage:false});assert.deepEqual(errors,[]);
  console.log('PASS: actual record cards distinguish same-day/backdated/UTC-midnight/year-boundary creation dates with full tooltips, original timestamps and mobile width');

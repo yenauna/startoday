@@ -206,4 +206,23 @@ const invalidState={id:C.stateId(quest.id,quest.date,'s1'),assignmentId:quest.id
 await commit([{table:'assignments',id:quest.id,remove:true},{table:'assignmentStates',id:invalidState.id,remove:true}]);await pg.exec('set role anon');assert.equal((await titleSet('quest:'+quest.id)).snapshot.student.equippedTitle,'quest:'+quest.id);assert.equal((await nicknameSet(null)).snapshot.student.nickname,null);
 await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);const rollbackQuest={...quest,id:'rollback-quest',date:day,questGoal:1,questTitle:'롤백 보상'};await commit([{table:'assignments',id:rollbackQuest.id,data:rollbackQuest}]);snap=await snapshot();revision=Number(snap.revision);const failedAward=[...C.questStampOps(snap.data,rollbackQuest,day,'s1',1),{table:'records',id:'bad-award',data:{id:'bad-award',date:day,kind:'invalid',studentIds:['s1'],text:'rollback'}}];await assert.rejects(commit(failedAward),/INVALID_RECORD/);snap=await snapshot();assert(!snap.data.assignmentStates.some(s=>s.assignmentId===rollbackQuest.id));assert(!snap.data.students.find(s=>s.id==='s1').rewardTitles.some(t=>t.id==='quest:'+rollbackQuest.id));
 console.log('PASS: 한글 별명 본인 인증/초기비밀번호/입력 검증, 퀘스트 누적 스탬프·실제 완료일·보상 영구 보존, 또래 우회/미획득 보상 차단');
+// Completion dates remain ordinary JSONB state fields, without new tables or columns.
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
+const datedQuest={...quest,id:'dated-quest',questGoal:2,questSubtasks:['나비야','작은별']};
+await commit([{table:'assignments',id:datedQuest.id,data:datedQuest}]);snap=await snapshot();revision=Number(snap.revision);
+await commit(C.questSubtaskOps(snap.data,datedQuest,day,'s1','나비야',true));snap=await snapshot();revision=Number(snap.revision);
+assert.deepEqual(snap.data.assignmentStates.find(s=>s.assignmentId===datedQuest.id).completedSubtaskDates,{'나비야':day});
+await commit(C.questSubtaskOps(snap.data,datedQuest,C.addDays(day,1),'s1','작은별',true));snap=await snapshot();revision=Number(snap.revision);
+assert.deepEqual(C.questProgress(snap.data,datedQuest,'s1').completedSubtaskDates,{'나비야':day,'작은별':C.addDays(day,1)});
+await commit(C.questSubtaskOps(snap.data,datedQuest,C.addDays(day,2),'s1','나비야',false));snap=await snapshot();revision=Number(snap.revision);
+assert.deepEqual(C.questProgress(snap.data,datedQuest,'s1').completedSubtaskDates,{'작은별':C.addDays(day,1)});
+await pg.exec('set role anon');
+const datedStudentView=await schoolLogin('새암호123');
+assert.deepEqual(datedStudentView.tasks.find(t=>t.id===datedQuest.id).completedSubtaskDates,{'작은별':C.addDays(day,1)});
+assert(!datedStudentView.tasks.some(t=>t.id===datedQuest.id&&t.completedSubtaskDates['나비야']));
+// Other students cannot receive this student's progress or completion dates.
+await pg.exec('reset role');
+const otherStudentView=(await pg.query('select public.startoday_student_payload($1,$2) as data',[classId,'s2'])).rows[0].data;
+assert(!otherStudentView.tasks.some(t=>t.id===datedQuest.id));
+console.log('PASS: 장기과제 항목별 완료일 JSONB 저장·보존·해제 및 학생 응답·타학생 격리');
 await pg.close();

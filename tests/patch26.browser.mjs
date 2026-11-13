@@ -38,8 +38,8 @@ try {
  assert.equal(await page.locator('#modal [name=questGoal]').inputValue(),'3');assert.equal(await page.locator('#modal [name=questGoal]').isEditable(),false);
  await page.locator('#modal [name=questTitle]').fill('연주의 달인');await page.locator('#modal button[type=submit]').click();
  const card=page.locator('.long-assignment-card').filter({hasText:'누적 리코더 3곡'});
- await card.waitFor();assert.equal(await card.locator('.quest-controls').count(),0);assert.match(await card.innerText(),/완료 0명/);
- await card.getByRole('button',{name:'진행도/도장판 열기',exact:true}).click();
+ await card.waitFor();assert.equal(await card.locator('.quest-controls').count(),0);assert.match(await card.innerText(),/0\/20/);
+ await card.getByRole('button',{name:'진행도/도장판',exact:true}).click();
  await page.locator('.quest-progress-card').first().getByRole('button',{name:'항목 도장판',exact:true}).click();
  const toggle=label=>page.locator('.quest-subtask-toggle').filter({hasText:label});
  await toggle('작은별').tap();await page.waitForFunction(()=>[...document.querySelectorAll('.quest-subtask-toggle')].find(el=>el.textContent.includes('작은별'))?.getAttribute('aria-pressed')==='true');

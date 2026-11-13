@@ -185,7 +185,8 @@ try {
     await store.commit(ops);
     navigate('과제');
   });
-  await page.locator('.assignment-matrix .remaining-notdone').click();
+  await page.locator('[data-assignment-id="legacy-task"][data-assignment-date]').first().click();
+  await page.locator('#modal .remaining-notdone').click();
   await page.waitForFunction(async () => {
     const {
       store
