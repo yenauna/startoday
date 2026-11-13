@@ -40,6 +40,17 @@ try{
   return{y:matrix.m42,x:matrix.m11,sy:matrix.m22,headroom:image.top-stage.top,spark:getComputedStyle(el.querySelector('.student-character-sparkle')).animationName};
  });
  assert.ok(Math.abs(jumped.y+18)<.1);assert.ok(Math.abs(jumped.x-.94)<.001);assert.ok(Math.abs(jumped.sy-1.08)<.001);assert.ok(jumped.headroom>=0);assert.equal(jumped.spark,'st-character-sparkle');
+ const sparkle=await character.evaluate(el=>{
+  const spark=el.querySelector('.student-character-sparkle'),animation=spark.getAnimations()[0];
+  animation.pause();animation.currentTime=0;
+  const start=new DOMMatrix(getComputedStyle(spark).transform),style=getComputedStyle(spark);
+  const top=parseFloat(style.top)/el.clientHeight,right=parseFloat(style.right)/el.clientWidth;
+  animation.currentTime=650;const end=new DOMMatrix(getComputedStyle(spark).transform);
+  return{top,right,startX:start.m41,startY:start.m42,startScale:Math.hypot(start.m11,start.m12),startAngle:Math.atan2(start.m12,start.m11)*180/Math.PI,endX:end.m41,endY:end.m42,endScale:Math.hypot(end.m11,end.m12),endAngle:Math.atan2(end.m12,end.m11)*180/Math.PI};
+ });
+ assert.ok(Math.abs(sparkle.top-.14)<.01&&Math.abs(sparkle.right-.18)<.01);
+ assert.equal(sparkle.startX,0);assert.equal(sparkle.startY,0);assert.ok(Math.abs(sparkle.startScale-.6)<.001);assert.ok(Math.abs(sparkle.startAngle+10)<.01);
+ assert.equal(sparkle.endX,12);assert.equal(sparkle.endY,-24);assert.ok(Math.abs(sparkle.endScale-1.1)<.001);assert.ok(Math.abs(sparkle.endAngle-15)<.01);
  await page.waitForFunction(()=>!document.querySelector('.student-character-layers').classList.contains('is-bouncing'));
  assert.equal(await character.evaluate(el=>getComputedStyle(el).animationName),'st-character-breathe');
  for(const key of ['Enter','Space']){

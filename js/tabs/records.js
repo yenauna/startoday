@@ -156,8 +156,12 @@ export function recordEditor(seed = {}, existing = false) {
 }
 function recordCreatedTime(r) {
   if (!r.createdAt || !Number.isFinite(new Date(r.createdAt).getTime())) return '';
-  const time = new Date(r.createdAt).toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
-  return `<time class="record-created-time" datetime="${esc(r.createdAt)}" title="최초 작성 ${esc(C.formatTimestamp(r.createdAt))}">작성 ${esc(time)}</time>`;
+  const instant = new Date(r.createdAt);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(instant).map(part => [part.type, part.value]));
+  const createdDate = `${parts.year}-${parts.month}-${parts.day}`;
+  const time = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(instant);
+  const prefix = createdDate === r.date ? '' : `${Number(parts.month)}.${Number(parts.day)}. `;
+  return `<time class="record-created-time" datetime="${esc(r.createdAt)}" title="최초 작성 ${esc(C.formatTimestamp(r.createdAt))}">작성 ${esc(prefix + time)}</time>`;
 }
 export function recordCard(r, controls = true, detail = false) {
   return `<article data-record-id="${esc(r.id)}" class="record ${recordDeletions.has(r.id) ? 'is-deleting' : ''} ${detail ? 'detail-record' : ''} ${r.kind === '칭찬' ? 'praise' : r.kind === '지도' ? 'advice' : r.kind === '관찰' ? 'observation' : ''} ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><div class="record-head"><div class="row record-meta"><strong>${esc(r.studentIds.map(name).join(', '))}</strong>${['칭찬', '지도'].includes(r.kind) ? '' : badge(C.recordLabel(r))}<small>${esc(C.formatDate(r.date))}${C.recordPeriod(r.period) ? ' ' + esc(C.recordPeriod(r.period)) : ''}</small>${recordCreatedTime(r)}${r.kind === '추가기록' ? badge(r.printIncluded ? '인쇄 포함' : '비공개') : ''}${r.notified ? badge('가정 통보') : ''}</div>${controls ? `<div class="row record-controls">${r.autoRef ? btn('수정', () => {
