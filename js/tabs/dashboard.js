@@ -47,10 +47,10 @@ export function dashboard() {
 }
 export function isUnfinished(id, d) {
   if (C.excluded(db(), id, d)) return false;
-  return C.pending(db(), id, d).length > 0 || C.pendingRoutines(db(), id, d).length > 0;
+  return C.dashboardPending(db(), id, d).length > 0 || C.pendingRoutines(db(), id, d).length > 0;
 }
 export function studentCard(s) {
-  const missing = C.pending(db(), s.id, state.date),
+  const missing = C.dashboardPending(db(), s.id, state.date),
     ex = C.excluded(db(), s.id, state.date),
     score = C.cumulativeScores(db(), s.id, state.date),
     routines = C.pendingRoutines(db(), s.id, state.date),

@@ -75,6 +75,7 @@ try {
  const item=page.locator('.economy-item').filter({has:page.getByRole('heading',{name:'터치 선물 쿠폰',exact:true})});
  await item.getByRole('button',{name:'🎁 선물하기',exact:true}).tap();assert.equal(await item.locator('.economy-student-gift-grid button').count(),20);
  await item.locator('.economy-student-gift-grid button').nth(1).tap();
+ await item.locator('.economy-gift-confirm').tap();
  await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.shop_items.find(i=>i.id===window.patch26Item).stock===0;});
  assert.equal(await item.locator('.economy-student-gift-grid button').first().isDisabled(),true);
  await page.evaluate(async()=>{(await import('/js/app.js')).navigate('설정');});await page.getByRole('button',{name:'교실 화면',exact:true}).last().click();

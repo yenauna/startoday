@@ -2,10 +2,10 @@ import * as C from '../core.js';
 import { render } from '../app.js';
 import { state, store } from '../shared/state.js';
 import { commit, db, students, name, up } from '../shared/data.js';
-import { btn, esc, input, select, textarea, toast, checkbox } from '../shared/ui.js';
+import { btn, esc, input, select, textarea, toast, checkbox, undoToast } from '../shared/ui.js';
 import { modal, closeModal } from '../components/modal.js';
 let economyTeacherTab = 'assets';
-let openEconomyStudentId = null, openGiftItemId = null, economyDrawerScope = '', economyInlineBusy = false;
+let openEconomyStudentId = null, openGiftItemId = null, economyDrawerScope = '', economyInlineBusy = false, selectedGiftStudentId = null;
 // The whole card opens details; buttons keep their own action and keyboard semantics.
 document.addEventListener('click', event => {
   if (event.target.closest('button,input,a,select,textarea')) return;
@@ -19,6 +19,7 @@ export function economyMessage(error) {
   return Object.entries({
     INSUFFICIENT_BALANCE: '잔액이 부족합니다.',
     SOLD_OUT: '품절된 물품입니다.',
+    GIFT_UNDO_EXPIRED: '선물 취소 가능 시간(5초)이 지났습니다.',
     STOCK_LIMIT: '재고 최대 수량을 초과합니다.',
     REFUNDS_DISABLED: '환불이 허용되지 않습니다.',
     INVALID_HOLDING: '이미 사용하거나 환불한 물품입니다.',
@@ -31,10 +32,10 @@ export function economyMessage(error) {
 }
 async function economyTeacherAction(action, id, target = null, amount = 0, memo = '') {
   try {
-    await store.economyAction(action, id, target, amount, memo);
+    const transactionId = await store.economyAction(action, id, target, amount, memo);
     closeModal();
     render();
-    toast('처리했습니다.');
+    if (action === 'gift') showGiftUndo(transactionId, id);else toast('처리했습니다.');
   } catch (error) {
     toast(economyMessage(error));
   }
@@ -54,7 +55,7 @@ function economyHistory(rows, teacher = false) {
 }
 export function economyView() {
   const scope = store.mode + ':' + store.classId + ':' + (store.user?.id || '');
-  if (scope !== economyDrawerScope) { economyDrawerScope = scope; openEconomyStudentId = null; openGiftItemId = null; }
+  if (scope !== economyDrawerScope) { economyDrawerScope = scope; openEconomyStudentId = null; openGiftItemId = null; selectedGiftStudentId = null; }
   const data = db(),
     list = students().sort((a,b) => a.no - b.no);
   return `<div class="toolbar"><h2>경제</h2><span class="muted">별코인 · 별 점수 1점 = 10별코인</span></div><nav class="economy-subtabs" aria-label="경제 관리">${btn('자산 관리', () => {
@@ -66,7 +67,7 @@ export function economyView() {
   }, economyTeacherTab === 'shop' ? 'active' : '')}</nav>${economyTeacherTab === 'assets' ? economyAssetsView(data, list) : `<section class="panel"><div class="toolbar">${btn('환불 허용: ' + (data.settings[0].allowRefund !== false ? '켜짐' : '꺼짐'), () => commit([up('settings', {
     ...data.settings[0],
     allowRefund: data.settings[0].allowRefund === false
-  })]))}${btn('물품 등록', () => economyItemDialog())}</div>${economyGroupedItems((data.shop_items || []).filter(i => !i.deletedAt), i => (!i.isGroupBuy ? btn('🎁 선물하기', () => { openGiftItemId = openGiftItemId === i.id ? null : i.id; render(); }, 'economy-item-gift-toggle', `aria-expanded="${openGiftItemId === i.id}"`) : '') + (i.isGroupBuy ? btn('상세 보기', () => teacherGroupBuyDialog(i.id), 'group-buy-detail-open') + (i.isFunded && !i.isUsed ? btn('보상 사용 완료', () => teacherUseGroupBuy(i.id)) : '') : '') + btn('수정', () => economyItemDialog(i)) + btn('삭제', async () => {
+  })]))}${btn('물품 등록', () => economyItemDialog())}</div>${economyGroupedItems((data.shop_items || []).filter(i => !i.deletedAt), i => (!i.isGroupBuy ? btn('🎁 선물하기', () => { openGiftItemId = openGiftItemId === i.id ? null : i.id; selectedGiftStudentId = null; render(); }, 'economy-item-gift-toggle', `aria-expanded="${openGiftItemId === i.id}"`) : '') + (i.isGroupBuy ? btn('상세 보기', () => teacherGroupBuyDialog(i.id), 'group-buy-detail-open') + (i.isFunded && !i.isUsed ? btn('보상 사용 완료', () => teacherUseGroupBuy(i.id)) : '') : '') + btn('수정', () => economyItemDialog(i)) + btn('삭제', async () => {
     if (confirm('상점에서 이 물품을 삭제할까요? 기존 구매 내역은 유지됩니다.')) await commit([up('shop_items', {
       ...i,
       deletedAt: C.now()
@@ -247,9 +248,10 @@ async function economyInlineAction(action, studentId, target, amount = 0) {
   if (economyInlineBusy) return;
   economyInlineBusy = true;
   try {
-    await store.economyAction(action, studentId, target, amount);
+    const transactionId = await store.economyAction(action, studentId, target, amount);
+    if (action === 'gift') selectedGiftStudentId = null;
     render();
-    toast(name(studentId) + (action === 'gift' ? ' · 선물했습니다.' : ' · 물품을 회수했습니다.'));
+    if (action === 'gift') showGiftUndo(transactionId, studentId);else toast(name(studentId) + ' · 물품을 회수했습니다.');
   } catch (error) { toast(economyMessage(error)); }
   finally { economyInlineBusy = false; }
 }
@@ -266,5 +268,15 @@ function economyStudentDrawer(student) {
 }
 function economyItemGiftGrid(item) {
   if (item.isGroupBuy || openGiftItemId !== item.id) return '';
-  return `<section class="economy-gift-grid-panel"><h4>선물할 학생 번호를 누르세요</h4><div class="economy-student-gift-grid">${students().map(student => btn(esc(student.no), () => economyInlineAction('gift', student.id, item.id), '', `aria-label="${esc(student.no)}번 ${esc(student.name)}에게 선물하기" title="${esc(student.name)}" ${item.stock === 0 ? 'disabled' : ''}`)).join('')}</div></section>`;
+  const selected = students().find(student => student.id === selectedGiftStudentId);
+  return `<section class="economy-gift-grid-panel"><h4>선물할 학생을 선택하세요</h4><div class="economy-student-gift-grid">${students().map(student => btn(esc(student.no) + '. ' + esc(student.name), () => { selectedGiftStudentId = student.id; render(); }, selectedGiftStudentId === student.id ? 'is-selected' : '', `aria-label="${esc(student.no)}. ${esc(student.name)} 선택" aria-pressed="${selectedGiftStudentId === student.id}" ${item.stock === 0 ? 'disabled' : ''}`)).join('')}</div>${btn(selected ? '선택한 학생(' + esc(selected.no) + '. ' + esc(selected.name) + ')에게 선물하기' : '선물할 학생을 선택하세요', () => selected && economyInlineAction('gift', selected.id, item.id), 'primary economy-gift-confirm', !selected || item.stock === 0 ? 'disabled' : '')}</section>`;
+}
+function showGiftUndo(transactionId, studentId) {
+  const scope = store.mode + ':' + store.classId + ':' + (store.user?.id || '');
+  if (!transactionId) return toast('선물했습니다.');
+  undoToast(name(studentId) + ' · 선물했습니다.', async () => {
+    await store.economyAction('undo_gift', studentId, transactionId);
+    render();
+    toast('선물을 취소했습니다.');
+  }, () => scope === store.mode + ':' + store.classId + ':' + (store.user?.id || '') && db()?.economy_tx.some(tx => tx.id === transactionId && tx.type === '선물' && tx.status === '보유'), '선물 취소');
 }

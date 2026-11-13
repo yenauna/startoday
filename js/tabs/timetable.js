@@ -34,19 +34,21 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
     const memo = slot?.publicMemo ?? slot?.memo ?? '';
     const privateMemo = !calendar && audience === 'teacher' ? slot?.privateMemo || '' : '';
     const subject = slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '';
-    const publicNotes = [...new Set([...events.map(event => event.title + (event.description && event.description.trim() !== memo.trim() ? ' · ' + event.description : '')), memo].filter(Boolean))].join('\n');
+    const publicNotes = audience === 'classroom' ? [...new Set([...events.map(event => event.title + (event.description && event.description.trim() !== memo.trim() ? ' · ' + event.description : '')), memo].filter(Boolean))].join('\n') : memo;
     const importantNotes = events.filter(event => event.isImportant !== false).map(event => event.title).join(' · ');
     const time = settings().periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i];
-    const content = `<div class="slot-period-row"><span class="slot-time">${p}교시</span><small class="slot-clock">${esc(time || '')}</small></div>${subject || publicNotes ? `<div class="slot-subject-row">${subject ? `<strong class="subject-title">${esc(subject)}</strong>` : ''}${publicNotes ? `<span class="slot-public-memo">${esc(publicNotes)}</span>` : ''}</div>` : ''}${calendar && importantNotes ? `<span class="slot-important-memo">${esc(importantNotes)}</span>` : ''}${privateMemo ? `<div class="slot-private-memo">🔒 ${esc(privateMemo)}</div>` : ''}`;
+    const content = `<div class="slot-period-row"><span class="slot-time">${p}교시</span><small class="slot-clock">${esc(time || '')}</small></div>${subject || publicNotes ? `<div class="slot-subject-row">${subject ? `<strong class="subject-title">${esc(subject)}</strong>` : ''}${publicNotes ? `<span class="slot-public-memo">${esc(publicNotes)}</span>` : ''}</div>` : ''}${audience === 'classroom' && calendar && importantNotes ? `<span class="slot-important-memo">${esc(importantNotes)}</span>` : ''}${privateMemo ? `<div class="slot-private-memo">📌 ${esc(privateMemo)}</div>` : ''}`;
     if (audience === 'classroom') return `<div class="slot${slot ? ' subject-color subject-stripe' : ''}" style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}">${content}</div>`;
-    return btn(content, () => {
+    const main = btn(content, () => {
       if (state.dragSlot) {
         const from = state.dragSlot;
         state.dragSlot = null;
         return swapSlots(from, `${d}:${p}`);
       }
       dayEditor(d, '시간표', p);
-    }, 'slot' + (calendar ? ' calendar-lesson' : '') + (slot ? ' subject-color subject-stripe' : ''), `style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}" title="${esc(slot?.subjectCode || '')}" draggable="${!!slot}" data-drag="${d}:${p}" data-drop="${d}:${p}"`);
+    }, 'slot-main');
+    const eventLinks = events.map(event => event.id && db().events.some(row => row.id === event.id) ? btn(esc(event.title) + (event.description ? `<small>${esc(event.description)}</small>` : ''), () => dayEditor(d, '일정', null, event), 'slot-event-link timeline-event' + (event.isImportant !== false ? ' is-important' + (calendar ? ' slot-important-memo' : '') : ' is-ordinary')) : `<span class="slot-event-label">${esc(event.title)}</span>`).join('');
+    return `<div class="slot${calendar ? ' calendar-lesson' : ''}${slot ? ' subject-color subject-stripe' : ''}" style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}" title="${esc(slot?.subjectCode || '')}" draggable="${!!slot}" data-drag="${d}:${p}" data-drop="${d}:${p}">${main}${eventLinks ? `<div class="slot-event-links">${eventLinks}</div>` : ''}</div>`;
   });
   return C.dayTimeline(db(), d).map(part => part.type === 'lesson' ? lessonSlots[part.period - 1] : part.events.length && (!calendar || state.calendarFilters.events) ? `<div class="timeline-slot timeline-${part.period}" data-timeline-period="${part.period}"><strong>${{
     0: '아침',
@@ -170,7 +172,7 @@ export function timetableEditor(d, p) {
   }, 'memo-clear', `aria-label="${label} 내용 지우기"`)}</span><textarea name="${key}">${esc(value)}</textarea></label>`;
   const memoScope = () => `${store.mode}:${store.classId}:${state.viewMode}`;
   const save = async (subjectCode, form) => {
-    if (!subjectCode) throw Error('과목 버튼을 선택하세요.');
+    subjectCode = subjectCode || db().timetables.find(t => t.date === d && t.period === p)?.subjectCode || '';
     const old = db().timetables.find(t => t.date === d && t.period === p);
     const publicMemo = form.get('publicMemo') || '';
     const scope = memoScope(),
@@ -203,7 +205,7 @@ export function timetableEditor(d, p) {
     }, () => scope === memoScope());
   };
   const choices = subjects => subjects.map(subject => btn(esc(subject.code), () => save(subject.code, new FormData($('#modal-form'))), 'subject-color subject-stripe subject-choice' + (subject.code === slot?.subjectCode ? ' selected' : ''), `style="${C.subjectColorStyle(subject)}" aria-pressed="${subject.code === slot?.subjectCode}"`)).join('');
-  modal(`${C.formatDate(d)} · ${p}교시 시간표`, `${C.gradeSubjectCodes(settings().grade).length ? `<div class="subject-grid">${choices(regular)}</div>` : '<p class="muted">설정-기본정보에서 학년을 설정하면 과목이 보입니다.</p>'}<details class="project-subjects" ${special.some(subject => subject.code === slot?.subjectCode) ? 'open' : ''}><summary>+ 특별·프로젝트 수업 ▾</summary><div class="subject-grid">${choices(special) || '<p class="muted">설정-과목·전담에서 특별 과목을 추가하세요.</p>'}</div></details><p class="muted">과목 버튼을 누르면 바로 저장됩니다.</p>${memoField('수업 메모 (공개)', 'publicMemo', slot?.publicMemo ?? slot?.memo ?? '')}${memoField('교사 전용 메모 (비공개)', 'privateMemo', slot?.privateMemo || '')}${slot ? btn('이 교시 비우기', async () => {
+  modal(`${C.formatDate(d)} · ${p}교시 시간표`, `${C.gradeSubjectCodes(settings().grade).length ? `<div class="subject-grid">${choices(regular)}</div>` : '<p class="muted">설정-기본정보에서 학년을 설정하면 과목이 보입니다.</p>'}<details class="project-subjects" ${special.some(subject => subject.code === slot?.subjectCode) ? 'open' : ''}><summary>+ 특별·프로젝트 수업 ▾</summary><div class="subject-grid">${choices(special) || '<p class="muted">설정-과목·전담에서 특별 과목을 추가하세요.</p>'}</div></details><p class="muted">과목 버튼을 누르면 바로 저장됩니다.</p>${memoField('수업 메모 (공개)', 'publicMemo', slot?.publicMemo ?? slot?.memo ?? '')}${memoField('당일 공개 메모 (수업 당일에만 학생 공개)', 'privateMemo', slot?.privateMemo || '')}<p class="muted">수업 전 학생 달력에는 표시되지 않으며, 수업 당일 학생 시간표에만 노출됩니다.</p>${slotEventEditorList(d,p)}${slot ? btn('이 교시 비우기', async () => {
     if (confirm('이 교시를 비울까요?')) {
       await commit([{
         table: 'timetables',
@@ -212,7 +214,12 @@ export function timetableEditor(d, p) {
       }]);
       closeModal();
     }
-  }, 'danger') : ''}`, f => save(slot?.subjectCode, f));
+  }, 'danger') : ''}`, f => save(slot?.subjectCode, f), '메모 저장', btn('메모 지우기', () => {
+    const form = $('#modal-form');
+    form.elements.publicMemo.value = ''; form.elements.privateMemo.value = '';
+    cleared.add('publicMemo'); cleared.add('privateMemo');
+    return save(slot?.subjectCode, new FormData(form));
+  }, 'danger'));
 }
 export async function swapSlots(from, to) {
   if (from === to) return;
@@ -331,4 +338,13 @@ export function bindTimetableDrag() {
     el.onpointerup = () => clearTimeout(el._touchTimer);
     el.onpointercancel = () => clearTimeout(el._touchTimer);
   });
+}
+
+function slotEventEditorList(date, period) {
+  const events = db().events.filter(event => event.date === date && C.eventTimePeriod(event) === period);
+  return `<section class="slot-linked-events"><h3>이 교시의 일정</h3>${events.map(event => `<div class="slot-linked-event"><span>${esc(event.title)}</span>${btn('수정', () => dayEditor(date, '일정', null, event), '', `aria-label="${esc(event.title)} 수정"`)}${btn('삭제', async () => {
+    if (!confirm('일정을 삭제할까요?')) return;
+    await commit([{ table: 'events', id: event.id, remove: true }]);
+    timetableEditor(date, period);
+  }, 'danger', `aria-label="${esc(event.title)} 삭제"`)}</div>`).join('') || '<p class="muted">등록된 일정이 없습니다.</p>'}</section>`;
 }

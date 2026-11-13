@@ -91,7 +91,7 @@ export function triggerToastUndo(event) {
   }
   return false;
 }
-export function undoToast(message, undo, available = () => true) {
+export function undoToast(message, undo, available = () => true, actionLabel = '실행취소') {
   const root = document.createElement('div'),
     label = document.createElement('span'),
     button = document.createElement('button');
@@ -121,7 +121,7 @@ export function undoToast(message, undo, available = () => true) {
   unregister = registerUndo(button, () => performance.now() < deadline && available());
   const tick = () => {
     if (performance.now() >= deadline || !available() || state.locked || state.viewMode === 'student') return close();
-    button.textContent = `↩ 실행취소 (${Math.ceil((deadline - performance.now()) / 1000)}초)`;
+    button.textContent = `↩ ${actionLabel} (${Math.ceil((deadline - performance.now()) / 1000)}초)`;
   };
   tick();
   timer = setInterval(tick, 100);

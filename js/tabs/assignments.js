@@ -80,7 +80,7 @@ export function assignmentEditor(a = null, d = state.date) {
     const questOps = next.isQuest ? students().filter(s => C.targeted(next, s.id) && scratch.assignmentStates.some(st => st.assignmentId === next.id && st.studentId === s.id)).flatMap(s => C.questStampOps(scratch, next, state.date, s.id, 0)) : [];
     await commit([up('assignments', next), ...rewardOps, ...questOps]);
     closeModal();
-  });
+  }, '저장', r.isQuest && db().assignments.some(item => item.id === r.id) ? btn('삭제', () => deleteLongAssignment(r), 'danger') : '');
   setupTarget();
   const questForm = $('#modal-form');
   const updateQuest = () => {
@@ -131,7 +131,7 @@ function longAssignmentsPanel(assignments) {
   return `<section class="panel long-assignments-panel"><div class="toolbar"><h3>장기과제</h3>${btn('+ 장기과제', () => assignmentEditor({ id: C.uid(), title: '', date: C.today(), repeat: { type: 'none' }, target: 'all', isQuest: true, questGoal: 10, questTitle: '', createdAt: C.now() }))}</div><div class="long-assignment-grid">${assignments.map(a => {
     const targets = students().filter(s => C.targeted(a,s.id));
     const complete = targets.filter(s => C.questProgress(db(),a,s.id).status === '완료').length;
-    return `<article class="long-assignment-card"><h4>${esc(a.title)}</h4><p class="long-assignment-period">${esc(C.formatDate(a.date))} ~ ${a.endDate ? esc(C.formatDate(a.endDate)) : '무기한'}</p><p>목표 ${C.questGoal(a)}회 · 보상 칭호 ${esc(a.questTitle || '')}</p><p>완료 ${complete}명 · 진행 ${targets.length-complete}명</p><div class="row">${btn('진행도/도장판 열기', () => assignmentActions(a, state.date))}${btn('수정', () => assignmentEditor(a))}</div></article>`;
+    return `<article class="long-assignment-card"><h4>${esc(a.title)}</h4><p class="long-assignment-period">${esc(C.formatDate(a.date))} ~ ${a.endDate ? esc(C.formatDate(a.endDate)) : '무기한'}</p><p>목표 ${C.questGoal(a)}회 · 보상 칭호 ${esc(a.questTitle || '')}</p><p>완료 ${complete}명 · 진행 ${targets.length-complete}명</p><div class="row">${btn('진행도/도장판 열기', () => assignmentActions(a, state.date))}${btn('수정', () => assignmentEditor(a))}${btn('삭제', () => deleteAssignment(a), 'danger')}</div></article>`;
   }).join('') || '<p class="muted">등록된 장기과제가 없습니다.</p>'}</div></section>`;
 }
 export function taskStateEditor(a, d, s, afterSave = null) {
@@ -153,6 +153,7 @@ export function taskStateEditor(a, d, s, afterSave = null) {
   });
 }
 export function deleteAssignment(a, cutoffDate = state.date) {
+  if (a.isQuest) return deleteLongAssignment(a);
   modal('과제 삭제 / 반복 중단', `<p>${esc(a.title)}</p>${select('처리 방식', 'mode', [['future', C.formatDate(cutoffDate) + '부터 앞으로만 중단 · 이전 상태/기록 보존'], ['all', '과제와 모든 상태·자동 기록을 삭제']], 'future')}`, async f => {
     if (!confirm('선택한 방식으로 처리할까요?')) return;
     const all = f.get('mode') === 'all';
@@ -339,7 +340,7 @@ function assignmentActions(a, date, scrollPosition = null) {
     date,
     deletedAt: null,
     endDate: null
-  }))}${btn('삭제/중단', () => deleteAssignment(a, date), 'danger')}</div>${assignmentProgress(a, date)}`);
+  }))}${btn(a.isQuest ? '삭제' : '삭제/중단', () => deleteAssignment(a, date), 'danger')}</div>${assignmentProgress(a, date)}`);
   restoreAssignmentProgressScroll(scrollPosition);
 }
 function assignmentProgress(a, date) {
@@ -440,4 +441,10 @@ function questSubtaskDialog(a, date, studentId, afterSave) {
       });
     }, 'quest-subtask-toggle' + (checked ? ' is-complete' : ''), `aria-pressed="${checked}"`);
   }).join('')}</div>${afterSave ? btn('진행도로 돌아가기', afterSave) : ''}</section>`);
+}
+
+async function deleteLongAssignment(a) {
+  if (!confirm('이 장기과제를 삭제할까요? 학생들의 스탬프 기록도 함께 삭제됩니다.')) return;
+  await commit(C.deleteLongAssignmentOps(db(), a.id));
+  closeModal();
 }

@@ -992,7 +992,7 @@ function paintToolWheel(canvas, items, rotation) {
     c.moveTo(center, center);
     c.arc(center, center, radius, angle, angle + step);
     c.closePath();
-    c.fillStyle = `hsl(${i * 137.5 % 360} 58% 86%)`;
+    c.fillStyle = ['#FFE3E8','#E3EAFE','#E0F4EB','#FFF1CF','#EDE2FA','#DBF0F8'][i % 6];
     c.fill();
     c.strokeStyle = '#fff';
     c.stroke();
@@ -1009,15 +1009,22 @@ function paintToolWheel(canvas, items, rotation) {
   c.moveTo(302, 4);
   c.lineTo(338, 4);
   c.lineTo(320, 38);
-  c.fillStyle = '#D99B21';
+  c.fillStyle = '#DCA94E';
   c.fill();
+  c.strokeStyle = '#9C7332';
+  c.lineWidth = 2;
+  c.stroke();
   c.beginPath();
   c.arc(center, center, 30, 0, Math.PI * 2);
-  c.fillStyle = '#F5CB6C';
+  c.fillStyle = '#FFF4D6';
   c.fill();
-  c.strokeStyle = '#fff5cf';
+  c.strokeStyle = '#D8B467';
   c.lineWidth = 4;
   c.stroke();
+  c.fillStyle = '#BA8A31';
+  c.textAlign = 'center';
+  c.font = 'bold 28px sans-serif';
+  c.fillText('✦', center, center + 10);
 }
 function runToolWheel(w, items) {
   w.randomBusy = true;

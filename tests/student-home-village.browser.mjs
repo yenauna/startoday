@@ -101,7 +101,7 @@ try {
         period: p,
         subjectCode: p === 1 ? '국어' : '과학',
         publicMemo: '[준비물] 공책과 필통\n모둠과 함께 활동해요',
-        privateMemo: '비공개 교사 메모는 보이지 않아야 함'
+        privateMemo: '수업 당일에만 공개되는 안내'
       }
     });
     const long = '아주 긴 과제 이름도 끝까지 읽을 수 있도록 친구들과 함께 준비물을 정리하고 오늘 배운 내용을 공책에 기록하기';
@@ -208,7 +208,8 @@ try {
     exact: false
   }).count()) >= 4, true);
   assert.ok(!(await rootHome.innerText()).includes('비공개 조언'));
-  assert.ok(!(await rootHome.innerText()).includes('비공개 교사 메모'));
+  assert.ok((await rootHome.innerText()).includes('수업 당일에만 공개되는 안내'));
+  assert.ok(!(await page.locator('.student-calendar-detail').innerText()).includes('수업 당일에만 공개되는 안내'));
   const day = await page.evaluate(() => window.homeDay),
     today = page.locator(`[data-calendar-date="${day}"]`);
   assert.equal(await today.evaluate(el => el.classList.contains('is-today')), true);

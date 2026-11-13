@@ -42,11 +42,11 @@ create table if not exists public.startoday_shop_items (
 );
 create table if not exists public.startoday_economy_tx (
  id uuid primary key default gen_random_uuid(),owner_id uuid not null references auth.users(id),class_id uuid not null references public.startoday_classes(id),student_id text not null,
- data jsonb not null check(data ?& array['id','studentId','type','amount','createdAt'] and jsonb_typeof(data)='object' and data->>'id'=id::text and data->>'studentId'=student_id and data->>'type' in ('구매','환불','선물','지급','차감','회수') and jsonb_typeof(data->'amount')='number' and abs((data->>'amount')::numeric)<=1000000000 and (data->>'amount')::numeric=trunc((data->>'amount')::numeric)),created_at timestamptz not null default now(),updated_at timestamptz not null default now(),unique(class_id,id)
+ data jsonb not null check(data ?& array['id','studentId','type','amount','createdAt'] and jsonb_typeof(data)='object' and data->>'id'=id::text and data->>'studentId'=student_id and data->>'type' in ('구매','환불','선물','지급','차감','회수','선물취소') and jsonb_typeof(data->'amount')='number' and abs((data->>'amount')::numeric)<=1000000000 and (data->>'amount')::numeric=trunc((data->>'amount')::numeric)),created_at timestamptz not null default now(),updated_at timestamptz not null default now(),unique(class_id,id)
 );
 -- Extend the existing ledger without rewriting historical transactions.
 alter table public.startoday_economy_tx drop constraint if exists startoday_economy_tx_data_check;
-alter table public.startoday_economy_tx add constraint startoday_economy_tx_data_check check(data ?& array['id','studentId','type','amount','createdAt'] and jsonb_typeof(data)='object' and data->>'id'=id::text and data->>'studentId'=student_id and data->>'type' in ('구매','환불','선물','지급','차감','회수') and jsonb_typeof(data->'amount')='number' and abs((data->>'amount')::numeric)<=1000000000 and (data->>'amount')::numeric=trunc((data->>'amount')::numeric));
+alter table public.startoday_economy_tx add constraint startoday_economy_tx_data_check check(data ?& array['id','studentId','type','amount','createdAt'] and jsonb_typeof(data)='object' and data->>'id'=id::text and data->>'studentId'=student_id and data->>'type' in ('구매','환불','선물','지급','차감','회수','선물취소') and jsonb_typeof(data->'amount')='number' and abs((data->>'amount')::numeric)<=1000000000 and (data->>'amount')::numeric=trunc((data->>'amount')::numeric));
 do $$ declare t text;begin
  foreach t in array array['shop_items','economy_tx'] loop
  execute format('alter table public.%I enable row level security','startoday_'||t);
@@ -357,7 +357,7 @@ begin
  select coalesce(jsonb_agg(jsonb_build_object('id',r.id,'title',r.data->>'title','status',case when r.data->'exceptions'->day->>'exempt'='true' or exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=day and atd.data->>'excluded'='true') then '면제' else coalesce(st.data->>'status','진행중') end) order by coalesce((r.data->>'sortOrder')::numeric,0)),'[]'::jsonb) into routines
  from public.startoday_routines r left join public."startoday_routineStates" st on st.class_id=cid and st.id=r.id||':'||day||':'||sid
  where r.class_id=cid and r.data->>'deletedAt' is null and (r.data->'target'='"all"'::jsonb or r.data->'target'->'studentIds' ? sid);
- select coalesce(jsonb_agg(jsonb_build_object('period',t.data->'period','periodTime',config->'periodTimes'->>((t.data->>'period')::integer-1),'subject',t.data->>'subjectCode','publicMemo',coalesce(t.data->>'publicMemo',t.data->>'memo',''),'color',rules.data->>'color','accentColor',rules.data->>'accentColor','colorSource',rules.data->>'colorSource','defaultColorValue',rules.data->>'defaultColorValue','location',coalesce(nullif(t.data->>'locationOverride',''),rules.data->>'location','')) order by (t.data->>'period')::integer),'[]'::jsonb) into timetable
+ select coalesce(jsonb_agg(jsonb_build_object('period',t.data->'period','periodTime',config->'periodTimes'->>((t.data->>'period')::integer-1),'subject',t.data->>'subjectCode','publicMemo',coalesce(t.data->>'publicMemo',t.data->>'memo',''),'privateMemo',case when t.data->>'date'=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD') then coalesce(t.data->>'privateMemo','') else '' end,'color',rules.data->>'color','accentColor',rules.data->>'accentColor','colorSource',rules.data->>'colorSource','defaultColorValue',rules.data->>'defaultColorValue','location',coalesce(nullif(t.data->>'locationOverride',''),rules.data->>'location','')) order by (t.data->>'period')::integer),'[]'::jsonb) into timetable
  from public.startoday_timetables t left join public.startoday_subject_rules rules on rules.class_id=cid and rules.data->>'code'=t.data->>'subjectCode'
  where t.class_id=cid and t.data->>'date'=day and (t.data->>'period')::integer between 1 and 6;
  select jsonb_build_object(
@@ -657,6 +657,18 @@ begin
    update public.startoday_economy_tx set data=jsonb_set(data,'{status}','"사용완료"'),updated_at=now() where id=holding.id;
    txid:=holding.id;
   end if;
+ elsif action='undo_gift' then
+  if auth.uid() is distinct from c.owner_id then raise exception 'FORBIDDEN';end if;
+  select * into holding from public.startoday_economy_tx where class_id=cid and id=target and student_id=sid and data->>'status'='보유' and data->>'type'='선물' for update;
+  if holding.id is null then raise exception 'INVALID_HOLDING';end if;
+  if clock_timestamp()>=holding.created_at+interval '5 seconds' or clock_timestamp()<holding.created_at then raise exception 'GIFT_UNDO_EXPIRED';end if;
+  select * into item from public.startoday_shop_items where class_id=cid and id=(holding.data->>'itemId')::uuid for update;
+  if item.data->'stock'<>'null'::jsonb then
+   if (item.data->>'stock')::integer>=1000000000 then raise exception 'STOCK_LIMIT';end if;
+   update public.startoday_shop_items set data=jsonb_set(data,'{stock}',to_jsonb((data->>'stock')::integer+1)),updated_at=now() where id=item.id;
+  end if;
+  update public.startoday_economy_tx set data=jsonb_set(data,'{status}','"취소됨"'),updated_at=now() where id=holding.id;
+  v:=jsonb_build_object('id',txid,'studentId',sid,'type','선물취소','amount',0,'itemId',holding.data->>'itemId','itemName',holding.data->>'itemName','itemCategory',coalesce(holding.data->>'itemCategory','기타'),'originalTxId',holding.id,'status',null,'memo','5초 내 선물 취소','createdAt',stamp);
  elsif action='reclaim' then
   if auth.uid() is distinct from c.owner_id then raise exception 'FORBIDDEN';end if;
   if amount not in (0,1) or amount is null then raise exception 'INVALID_AMOUNT';end if;
@@ -675,7 +687,7 @@ begin
   if amount is null or amount=0 or abs(amount::bigint)>1000000000 then raise exception 'INVALID_AMOUNT';end if;
   v:=jsonb_build_object('id',txid,'studentId',sid,'type',case when amount>0 then '지급' else '차감' end,'amount',amount,'status',null,'memo',left(coalesce(memo,''),2000),'createdAt',stamp);
  else raise exception 'INVALID_ACTION';end if;
- if v is not null then insert into public.startoday_economy_tx(id,owner_id,class_id,student_id,data) values(txid,c.owner_id,cid,sid,v);end if;
+ if v is not null then insert into public.startoday_economy_tx(id,owner_id,class_id,student_id,data,created_at) values(txid,c.owner_id,cid,sid,v,clock_timestamp());end if;
  update public.startoday_classes set revision=revision+1 where id=cid returning revision into rev;
  insert into public.startoday_audit(owner_id,class_id,revision,table_name,row_id,operation) values(c.owner_id,cid,rev,'economy_tx',txid::text,action);
  if item.id is not null then insert into public.startoday_audit(owner_id,class_id,revision,table_name,row_id,operation) values(c.owner_id,cid,rev,'shop_items',item.id::text,'stock_'||action);end if;
@@ -687,10 +699,11 @@ begin
 end $$;
 revoke all on function public.startoday_economy_mutate(uuid,text,text,uuid,integer,text) from public,anon,authenticated;
 create or replace function public.startoday_economy_action(p_class_id uuid,p_student text,p_action text,p_target uuid default null,p_amount integer default 0,p_memo text default '') returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare rev bigint;
 begin
  if auth.uid() is null or not exists(select 1 from public.startoday_classes where id=p_class_id and owner_id=auth.uid()) then raise exception 'FORBIDDEN';end if;
- perform public.startoday_economy_mutate(p_class_id,p_student,p_action,p_target,p_amount,p_memo);
- return public.startoday_snapshot();
+ rev:=public.startoday_economy_mutate(p_class_id,p_student,p_action,p_target,p_amount,p_memo);
+ return public.startoday_snapshot()||jsonb_build_object('transactionId',(select row_id from public.startoday_audit where class_id=p_class_id and revision=rev and table_name='economy_tx' and operation=p_action order by id desc limit 1));
 end $$;
 revoke all on function public.startoday_economy_action(uuid,text,text,uuid,integer,text) from public,anon;
 grant execute on function public.startoday_economy_action(uuid,text,text,uuid,integer,text) to authenticated;

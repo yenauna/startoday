@@ -286,6 +286,20 @@ export function scores(db, s, a, b) {
     records
   };
 }
+export function dashboardPending(database, studentId, date) {
+  return pending(database, studentId, date).filter(item => !item.assignment.isQuest);
+}
+export function deleteLongAssignmentOps(database, id) {
+  const assignment = database.assignments.find(a => a.id === id && a.isQuest && !a.deletedAt);
+  if (!assignment) throw Error('장기과제를 확인하세요.');
+  const states = database.assignmentStates.filter(s => s.assignmentId === id), keys = new Set(states.map(s => s.id));
+  return [{ table: 'assignments', id, data: { ...assignment, deletedAt: now() } },
+    ...states.map(s => ({ table: 'assignmentStates', id: s.id, remove: true })),
+    ...database.records.filter(r => keys.has(r.autoRef)).map(r => ({ table: 'records', id: r.id, remove: true }))];
+}
+export function sameDayMemo(slot, date) {
+  return date === today() ? String(slot?.privateMemo || '') : '';
+}
 export function pending(db, s, d) {
   const out = [];
   for (const a of db.assignments.filter(a => targeted(a, s) && !a.deletedAt && a.date <= d && (!a.endDate || a.endDate >= a.date))) {
@@ -602,7 +616,7 @@ export function validateBackup(x) {
   }
   const economyUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   for (const item of x.data.shop_items) if (!economyUuid.test(item.id) || typeof item.name !== 'string' || !item.name.trim() || !Number.isSafeInteger(item.price) || item.price < 0 || item.price > 1000000000 || !(item.stock === null || Number.isSafeInteger(item.stock) && item.stock >= 0 && item.stock <= 1000000000)) throw Error('상점 물품 형식 오류');
-  for (const tx of x.data.economy_tx) if (!economyUuid.test(tx.id) || !x.data.students.some(s => s.id === tx.studentId) || !['구매', '선물', '환불', '지급', '차감', '회수'].includes(tx.type) || !Number.isSafeInteger(tx.amount) || Math.abs(tx.amount) > 1000000000 || typeof tx.createdAt !== 'string' || ['구매', '선물'].includes(tx.type) && (!economyUuid.test(tx.itemId) || !['보유', '사용완료', '환불됨', '회수됨'].includes(tx.status)) || tx.type === '구매' && tx.amount > 0 || ['선물', '회수'].includes(tx.type) && tx.amount !== 0 || ['환불', '지급'].includes(tx.type) && tx.amount < 0 || tx.type === '차감' && tx.amount >= 0) throw Error('경제 거래 형식 오류');
+  for (const tx of x.data.economy_tx) if (!economyUuid.test(tx.id) || !x.data.students.some(s => s.id === tx.studentId) || !['구매', '선물', '환불', '지급', '차감', '회수', '선물취소'].includes(tx.type) || !Number.isSafeInteger(tx.amount) || Math.abs(tx.amount) > 1000000000 || typeof tx.createdAt !== 'string' || ['구매', '선물'].includes(tx.type) && (!economyUuid.test(tx.itemId) || !['보유', '사용완료', '환불됨', '회수됨', '취소됨'].includes(tx.status)) || tx.type === '구매' && tx.amount > 0 || ['선물', '회수', '선물취소'].includes(tx.type) && tx.amount !== 0 || ['환불', '지급'].includes(tx.type) && tx.amount < 0 || tx.type === '차감' && tx.amount >= 0) throw Error('경제 거래 형식 오류');
   for (const item of x.data.shop_items.filter(i => i.isGroupBuy)) {
     if (!Number.isSafeInteger(item.groupGoal) || item.groupGoal < 1 || item.groupGoal > 1000000000 || !Number.isSafeInteger(item.groupCollected) || item.groupCollected < 0 || item.groupCollected > item.groupGoal || item.stock !== null || item.isFunded !== (item.groupCollected === item.groupGoal) || item.isUsed && !item.isFunded) throw Error('공동구매 형식 오류');
     if (x.data.group_buy_contribs.filter(c => c.itemId === item.id).reduce((sum, c) => sum + c.amount, 0) !== item.groupCollected) throw Error('공동구매 기여 합계 오류');
@@ -1606,6 +1620,18 @@ export function teacherReclaimOps(database, studentId, txId, restoreStock = fals
   return [economyUp('economy_tx', { ...holding, status: '회수됨' }),
     ...(restoreStock && item && item.stock !== null ? [economyUp('shop_items', { ...item, stock: item.stock + 1 })] : []),
     economyUp('economy_tx', { ...economyEntry(studentId, '회수', 0, { id: holding.itemId, name: holding.itemName, category: holding.itemCategory || item?.category || '기타' }, '교사 물품 회수'), originalTxId: holding.id, restoreStock: !!restoreStock })];
+}
+export function teacherUndoGiftOps(database, studentId, txId, instant = Date.now()) {
+  economyStudent(database, studentId);
+  const gift = studentHoldings(database, studentId).find(t => t.id === txId && t.type === '선물');
+  if (!gift) throw Error('아직 보유 중인 선물만 취소할 수 있습니다.');
+  const age = instant - Date.parse(gift.createdAt);
+  if (!Number.isFinite(age) || age < 0 || age >= 5000) throw Error('선물 취소 가능 시간(5초)이 지났습니다.');
+  const item = database.shop_items.find(i => i.id === gift.itemId);
+  if (item && item.stock !== null && item.stock >= 1000000000) throw Error('재고 최대 수량을 초과합니다.');
+  return [economyUp('economy_tx', { ...gift, status: '취소됨' }),
+    ...(item && item.stock !== null ? [economyUp('shop_items', { ...item, stock: item.stock + 1 })] : []),
+    economyUp('economy_tx', { ...economyEntry(studentId, '선물취소', 0, { id: gift.itemId, name: gift.itemName, category: gift.itemCategory || item?.category || '기타' }, '5초 내 선물 취소'), originalTxId: gift.id })];
 }
 export function teacherBalanceAdjustOps(database, studentId, amount, memo = '') {
   economyStudent(database, studentId);

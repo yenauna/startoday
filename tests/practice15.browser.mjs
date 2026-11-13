@@ -108,6 +108,7 @@ try {
   assert.equal(await page.locator('#modal input[name=nickname]').inputValue(), '별');
   await page.locator('#modal input[name=nickname]').fill('반짝별');
   await page.locator('#modal button[type=submit]').click();
+  await page.waitForFunction(() => document.querySelector('.student-profile-nickname>span')?.textContent === '반짝별');
   assert.equal(await page.locator('.student-profile-nickname>span').textContent(), '반짝별');
   await page.getByRole('button', {
     name: '칭호도감 열기',
@@ -150,6 +151,7 @@ try {
     name: '칭호 목표 저장',
     exact: true
   }).click();
+  await page.waitForFunction(async () => (await import('/js/shared/state.js')).store.db.settings[0].titleGoal === 30);
   assert.equal(await page.evaluate(async () => {
     const {
       store
@@ -217,7 +219,7 @@ try {
     } = await import('/js/shared/state.js');
     previewStudent(store.db.students[0].id);
   });
-  assert((await page.locator('.student-task').filter({
+  assert((await page.locator('.student-long-card').filter({
     hasText: '독서 원정'
   }).textContent()).includes('2/3'));
   assert.equal(await page.locator('.quest-stamp-board .is-stamped').count(), 2);
