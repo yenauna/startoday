@@ -1451,3 +1451,13 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 @keyframes st-character-sparkle{0%{opacity:0;transform:translate(-50%,0) scale(.7)}25%{opacity:1}100%{opacity:0;transform:translate(-50%,-24px) scale(1.1)}}
 @media(max-width:640px){.student-home-village .student-avatar-stage .student-character-scene{min-height:284px}}
 @media(prefers-reduced-motion:reduce){.student-home-village .student-avatar-stage .student-character-layers,.student-home-village .student-avatar-stage .student-character-layers.is-bouncing,.student-home-village .student-avatar-stage .student-character-layers:before,.student-home-village .student-avatar-stage .is-bouncing .student-character-sparkle{animation:none;transform:none}.student-character-sparkle{display:none}}
+
+/* Touch/click animation must not select the character or create image drag ghosts. */
+.student-home-village .student-avatar-stage,
+.student-home-village .student-avatar-stage .student-character-layers,
+.student-home-village .student-avatar-stage .student-profile-image,
+.student-home-village .student-avatar-stage .student-character-sparkle{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.student-home-village .student-avatar-stage .student-profile-image{-webkit-user-drag:none;user-drag:none}
+.student-home-village .student-avatar-stage .student-character-layers:focus{outline:none}
+.student-home-village .student-avatar-stage .student-character-layers:focus-visible{outline:3px solid #9a80c9;outline-offset:-3px}
+.student-home-village .student-avatar-stage .student-character-layers.is-pointer-focused:focus-visible{outline:none}

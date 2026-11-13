@@ -55,6 +55,25 @@ try{
  assert.equal(await character.evaluate(el=>getComputedStyle(el).animationName),'none');assert.equal(await character.evaluate(el=>getComputedStyle(el,'::before').animationName),'none');
  await tapCharacter();assert.equal(await character.evaluate(el=>getComputedStyle(el).animationName),'none');assert.equal(await character.locator('.student-character-sparkle').isVisible(),false);
  await page.waitForFunction(()=>!document.querySelector('.student-character-layers').classList.contains('is-bouncing'));
+ // Repeated pointer input must not select art, start native image drag, or show a mouse focus ring.
+ const selectionStyles=await page.locator('.student-avatar-stage,.student-character-layers,.student-profile-image,.student-character-sparkle').evaluateAll(nodes=>nodes.map(el=>({select:getComputedStyle(el).userSelect,tap:getComputedStyle(el).webkitTapHighlightColor})));
+ assert.ok(selectionStyles.every(style=>style.select==='none'&&style.tap==='rgba(0, 0, 0, 0)'));
+ assert.equal(await character.locator('img').getAttribute('draggable'),'false');
+ assert.equal(await character.locator('img').evaluate(el=>el.draggable),false);
+ assert.equal(await character.locator('img').evaluate(el=>getComputedStyle(el).webkitUserDrag),'none');
+ await character.evaluate(el=>el.scrollIntoView({block:'center',behavior:'instant'}));
+ let box=await character.boundingBox();await page.mouse.click(box.x+box.width/2,box.y+box.height/2,{clickCount:3});
+ assert.equal(await page.evaluate(()=>getSelection().toString()),'');
+ assert.equal(await character.evaluate(el=>getComputedStyle(el).outlineStyle),'none');
+ await page.evaluate(()=>{window.avatarDragStarts=0;document.addEventListener('dragstart',event=>{if(event.target.matches('.student-profile-image'))window.avatarDragStarts++;});});
+ const image=await character.locator('img').boundingBox();
+ await page.mouse.move(image.x+image.width/2,image.y+image.height/2);await page.mouse.down();await page.mouse.move(image.x+image.width/2+70,image.y+image.height/2-35,{steps:8});await page.mouse.up();
+ assert.equal(await page.evaluate(()=>window.avatarDragStarts),0);assert.equal(await page.evaluate(()=>getSelection().toString()),'');
+ await page.waitForFunction(()=>!document.querySelector('.student-character-layers').classList.contains('is-bouncing'));
+ await page.getByRole('button',{name:'별명 설정',exact:true}).focus();await page.keyboard.press('Tab');
+ assert.equal(await character.evaluate(el=>document.activeElement===el),true);
+ assert.equal(await character.evaluate(el=>getComputedStyle(el).outlineStyle),'solid');
+ assert.equal(await character.evaluate(el=>getComputedStyle(el).outlineWidth),'3px');
  assert.equal(await page.evaluate(async()=>JSON.stringify((await import('/js/shared/state.js')).store.db)),before);
  await page.emulateMedia({reducedMotion:'no-preference'});await tapCharacter();
  // Navigating away during a bounce must leave no timer errors or duplicate sparkles on return.
@@ -62,5 +81,5 @@ try{
  assert.equal(await page.locator('.student-character-sparkle').count(),1);
  assert.equal(await character.evaluate(el=>el.classList.contains('is-bouncing')),false);
  await page.screenshot({path:'/tmp/patch28-profile.png',fullPage:false});
- assert.deepEqual(errors,[]);console.log('PASS: exact idle/bounce transforms, linked shadow, sparkle, 650ms cleanup/restart, native touch/Enter/Space, jump headroom, responsive widths, reduced motion and no data mutation/navigation timer errors');
+ assert.deepEqual(errors,[]);console.log('PASS: selection/tap highlight/image drag blocked, mouse ring hidden/keyboard ring retained, exact idle/bounce transforms, linked shadow, sparkle, 650ms cleanup/restart, native touch/Enter/Space, jump headroom, responsive widths, reduced motion and no data mutation/navigation timer errors');
 }finally{await browser?.close();await new Promise(r=>server.close(r));}

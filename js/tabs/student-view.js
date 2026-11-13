@@ -302,7 +302,7 @@ export function renderStudentShell() {
   }, studentEconomyAct);
   const titleButton = () => btn(C.kingdomBadge(data.student, data.titleCounts, data.titleConfig), openKingdomCodex, 'kingdom-title-button', 'aria-label="칭호도감 열기"');
   const profileAreas = Object.fromEntries(C.areaScoreEntries(data.score.areas || {}));
-  const profileCard = `<section class="student-card student-growth student-profile-card" aria-label="내 프로필"><div class="student-profile-main"><div class="student-profile-header"><div class="student-profile-info"><small class="student-profile-class">${esc(data.className)}</small><div class="student-profile-identity"><h1 class="student-profile-name">${esc(student.no)}번 ${esc(student.name)}</h1><div class="student-profile-nickname"><span>${esc(data.student.nickname || '별명 설정')}</span>${btn('✎', studentNicknameDialog, 'student-nickname-open student-profile-edit', 'aria-label="별명 설정" title="별명 설정"')}</div></div></div><div class="student-profile-score"><span class="student-profile-star" aria-hidden="true">★</span><h2>내가 모은 별 <strong>${esc(data.score.total)}<span>개</span></strong></h2></div></div><div class="student-avatar-stage student-profile-art"><div class="student-character-scene"><div class="student-avatar-background" data-character-slot="background"></div><div class="student-avatar-objects" data-character-slot="objects"></div>${btn(`<img src="${STUDENT_PROFILE_IMAGE}" alt="" class="student-profile-image"><span class="student-character-equipment" data-character-slot="equipment" aria-hidden="true"></span><span class="student-character-sparkle" aria-hidden="true">✨</span>`, bounceStudentCharacter, 'student-character-layers', 'aria-label="캐릭터 점프" title="눌러서 캐릭터와 인사해요"')}</div></div><div class="student-profile-controls">${titleButton()}</div><div class="student-profile-areas" aria-label="영역별 별 개수">${C.KINGDOM_DOMAINS.map(domain => {
+  const profileCard = `<section class="student-card student-growth student-profile-card" aria-label="내 프로필"><div class="student-profile-main"><div class="student-profile-header"><div class="student-profile-info"><small class="student-profile-class">${esc(data.className)}</small><div class="student-profile-identity"><h1 class="student-profile-name">${esc(student.no)}번 ${esc(student.name)}</h1><div class="student-profile-nickname"><span>${esc(data.student.nickname || '별명 설정')}</span>${btn('✎', studentNicknameDialog, 'student-nickname-open student-profile-edit', 'aria-label="별명 설정" title="별명 설정"')}</div></div></div><div class="student-profile-score"><span class="student-profile-star" aria-hidden="true">★</span><h2>내가 모은 별 <strong>${esc(data.score.total)}<span>개</span></strong></h2></div></div><div class="student-avatar-stage student-profile-art"><div class="student-character-scene"><div class="student-avatar-background" data-character-slot="background"></div><div class="student-avatar-objects" data-character-slot="objects"></div>${btn(`<img src="${STUDENT_PROFILE_IMAGE}" alt="" class="student-profile-image" draggable="false"><span class="student-character-equipment" data-character-slot="equipment" aria-hidden="true"></span><span class="student-character-sparkle" aria-hidden="true">✨</span>`, bounceStudentCharacter, 'student-character-layers', 'aria-label="캐릭터 점프" title="눌러서 캐릭터와 인사해요"')}</div></div><div class="student-profile-controls">${titleButton()}</div><div class="student-profile-areas" aria-label="영역별 별 개수">${C.KINGDOM_DOMAINS.map(domain => {
     const label = data.titleConfig?.labels?.[domain.id] || domain.label;
     return `<div><span>${esc(label)}</span><strong>${esc(profileAreas[label] || 0)}</strong></div>`;
   }).join('')}</div></div></section>`;
@@ -725,3 +725,13 @@ function bounceStudentCharacter(event) {
   character.classList.add('is-bouncing');
   setTimeout(() => character.classList.remove('is-bouncing'), 650);
 }
+
+// Some browsers keep :focus-visible when an already keyboard-focused button is touched.
+// Mark pointer focus explicitly, then restore the existing ring on keyboard navigation.
+document.addEventListener?.('pointerdown', event => {
+  event.target.closest?.('.student-avatar-stage .student-character-layers')?.classList.add('is-pointer-focused');
+});
+document.addEventListener?.('keydown', event => {
+  if (event.key === 'Tab') document.querySelectorAll?.('.student-avatar-stage .is-pointer-focused')?.forEach(character => character.classList.remove('is-pointer-focused'));
+  else event.target.closest?.('.student-avatar-stage .student-character-layers')?.classList.remove('is-pointer-focused');
+});
