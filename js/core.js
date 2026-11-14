@@ -1850,14 +1850,26 @@ export function studentPraiseRange(config = {}, date = today()) {
 
 // Trusted catalogue IDs and paths; never accept client-supplied prices or image URLs.
 export const AVATAR_CATALOG = [
-  {id:'star-hat',name:'별빛 왕관',category:'머리',price:10,image:'assets/avatar/star-hat.svg'},
-  {id:'star-cape',name:'별빛 망토',category:'옷',price:20,image:'assets/avatar/star-cape.svg'},
-  {id:'star-aura',name:'반짝별 효과',category:'효과',price:15,image:'assets/avatar/star-aura.svg'},
-  {id:'star-sky',name:'별빛 하늘',category:'배경',price:25,image:'assets/avatar/star-sky.svg'}
+  {
+    "id": "hair_1",
+    "name": "동글 밤톨머리",
+    "category": "머리",
+    "price": 10,
+    "image": "assets/avatar/hair_1.png",
+    "description": "둥근 실루엣과 도톰한 앞머리"
+  },
+  {
+    "id": "outfit_1",
+    "name": "첫걸음 교복 · 바지",
+    "category": "옷",
+    "price": 10,
+    "image": "assets/avatar/outfit_1.png",
+    "description": "흰 셔츠와 베이지 니트 조끼, 갈색 바지"
+  }
 ];
 export function avatarSnapshot(student) {
-  const owned = AVATAR_CATALOG.filter(item => student.avatarOwned?.includes(item.id)).map(item=>item.id);
-  const equipped = Object.fromEntries(AVATAR_CATALOG.filter(item => owned.includes(item.id) && student.avatarEquipped?.[item.category] === item.id).map(item=>[item.category,item.id]));
+  const owned = AVATAR_CATALOG.filter(item => Array.isArray(student?.avatarOwned) && student.avatarOwned.includes(item.id)).map(item=>item.id);
+  const equipped = Object.fromEntries(AVATAR_CATALOG.filter(item => owned.includes(item.id) && student?.avatarEquipped?.[item.category] === item.id).map(item=>[item.category,item.id]));
   return {catalog:AVATAR_CATALOG.map(item=>({...item})),owned,equipped};
 }
 export function avatarOps(database, studentId, itemId, action) {

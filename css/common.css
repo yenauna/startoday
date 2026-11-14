@@ -1245,7 +1245,6 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 @media(min-width:761px){.student-home-village .student-calendar-card:before{content:'';grid-column:1 / -1;grid-row:2;height:1px;background:#ccb37f;pointer-events:none}}
 
 /* Character and its lilac backdrop remain independent from profile/account data. */
-.student-home-village .student-character-layers:before{content:'';grid-area:1 / 1;align-self:end;justify-self:center;width:100%;height:78%;border-radius:50%;background:#ece7f8;opacity:.65;transform:rotate(-7deg);pointer-events:none}
 .student-home-village .student-character-layers .student-profile-image{position:relative;z-index:1;justify-self:center;max-height:260px;object-fit:contain}
 .student-home-village .student-character-equipment{z-index:2}
 
@@ -1300,7 +1299,6 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-avatar-background{z-index:0}.student-avatar-objects{z-index:1}
 .student-home-village .student-avatar-stage .student-character-scene:before{content:'';grid-area:scene;align-self:center;justify-self:center;width:78%;max-width:370px;height:68%;border-radius:50%;background:#ece7fb;transform:rotate(-12deg);pointer-events:none;z-index:0}
 .student-home-village .student-avatar-stage .student-character-layers{position:relative;grid-area:scene;align-self:end;justify-self:center;width:min(60%,240px);padding:0 0 8px;z-index:2}
-.student-home-village .student-avatar-stage .student-character-layers:before{height:12px;width:74%;background:#b8b0cc;opacity:.4;transform:none}
 .student-home-village .student-avatar-stage .student-profile-image{height:250px;max-height:250px;width:100%;object-fit:contain}
 .student-profile-controls{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
 .student-home-village .student-profile-controls .kingdom-title-button{align-self:center;margin:0;padding:0;min-height:34px}
@@ -1437,7 +1435,6 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 
 /* Idle breathing and a native, keyboard-accessible character touch target. */
 .student-home-village .student-avatar-stage .student-character-layers{appearance:none;cursor:pointer;touch-action:manipulation;transform-origin:bottom center;animation:st-character-breathe 3.2s ease-in-out infinite;background:transparent;border:0;border-radius:16px;margin:0;min-height:0;box-shadow:none;transition:none}
-.student-home-village .student-avatar-stage .student-character-layers:before{animation:st-character-shadow 3.2s ease-in-out infinite;transform-origin:center}
 .student-home-village .student-avatar-stage .student-character-layers:focus-visible{outline:3px solid #9a80c9;outline-offset:-3px}
 .student-home-village .student-avatar-stage .student-character-layers:hover{background:transparent;box-shadow:none}
 /* Reserve headroom for jump/stretch while retaining clipping for future theme layers. */
@@ -1445,14 +1442,13 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-home-village .student-avatar-stage .student-character-layers.is-bouncing{animation:st-character-bounce 900ms ease-in-out both}
 .student-character-greeting{position:absolute;top:7%;right:-42px;z-index:4;padding:7px 10px;border:1px solid #d6c8f0;border-radius:16px 16px 16px 4px;background:#fffdf7;color:#584575;box-shadow:0 3px 10px #65517e18;font-size:12px;font-weight:700;line-height:1.4;white-space:nowrap;opacity:0;pointer-events:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 .student-home-village .student-avatar-stage .is-bouncing .student-character-greeting{animation:st-character-greeting 900ms ease-out both}
-.student-home-village .student-avatar-stage .student-character-layers.is-bouncing:before{animation:st-character-greeting-shadow 900ms ease-in-out both}
 @keyframes st-character-breathe{0%,100%{transform:translateY(0) rotate(0) scale(1)}25%{transform:translateY(-2.5px) rotate(-1.2deg) scale(.992,1.013)}50%{transform:translateY(-5px) rotate(0) scale(.985,1.025)}75%{transform:translateY(-2.5px) rotate(1.2deg) scale(.992,1.013)}}
 @keyframes st-character-shadow{0%,100%{transform:scale(1);opacity:.4}25%,75%{transform:scale(.96);opacity:.35}50%{transform:scale(.91);opacity:.29}}
 @keyframes st-character-bounce{0%,100%{transform:translateY(0) rotate(0) scale(1)}12%{transform:translateY(2px) rotate(0) scale(1.06,.93)}35%{transform:translateY(-16px) rotate(-6deg) scale(1)}58%{transform:translateY(1px) rotate(2deg) scale(1.04,.95)}75%{transform:translateY(-8px) rotate(5deg) scale(1)}88%{transform:translateY(0) rotate(-1deg) scale(1.02,.98)}}
 @keyframes st-character-greeting{0%{opacity:0;transform:translate(-3px,5px) scale(.7) rotate(-4deg)}22%,70%{opacity:1;transform:translate(3px,-8px) scale(1) rotate(0)}100%{opacity:0;transform:translate(8px,-16px) scale(.96) rotate(3deg)}}
 @keyframes st-character-greeting-shadow{0%,100%{transform:scale(1);opacity:.4}12%,58%,88%{transform:scale(1.04);opacity:.43}35%{transform:scale(.85);opacity:.26}75%{transform:scale(.92);opacity:.31}}
 @media(max-width:640px){.student-home-village .student-avatar-stage .student-character-scene{min-height:284px}.student-character-greeting{right:-20px;font-size:11px;padding:6px 8px}}
-@media(prefers-reduced-motion:reduce){.student-home-village .student-avatar-stage .student-character-layers,.student-home-village .student-avatar-stage .student-character-layers.is-bouncing,.student-home-village .student-avatar-stage .student-character-layers:before,.student-home-village .student-avatar-stage .student-character-layers.is-bouncing:before,.student-home-village .student-avatar-stage .is-bouncing .student-character-greeting{animation:none;transform:none}.student-character-greeting{display:none}}
+@media(prefers-reduced-motion:reduce){.student-home-village .student-avatar-stage .student-character-layers,.student-home-village .student-avatar-stage .student-character-layers.is-bouncing,.student-home-village .student-avatar-stage .student-character-shadow,.student-home-village .student-avatar-stage .is-bouncing .student-character-greeting{animation:none;transform:none}.student-character-greeting{display:none}}
 
 /* Touch/click animation must not select the character or create image drag ghosts. */
 .student-home-village .student-avatar-stage,
@@ -1519,3 +1515,11 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .slot-memos>.slot-public-memo,.slot-memos>.slot-same-day-memo,.slot-memos>.slot-teacher-memo,.slot-memos>.slot-event-link{flex:none;min-height:0}
 .student-timetable-card .slot-memos>*,.registered-schedule .slot-memos>*{background:transparent;border:0;border-radius:0;color:var(--st-text);padding:0;font-size:13px;line-height:1.45}
 .student-home-village .student-profile-score{grid-template-columns:max-content minmax(0,max-content);justify-content:end}
+
+/* The floor shadow is a sibling of the animated character, never part of its transform. */
+.student-character-shadow{position:absolute;left:50%;bottom:4px;translate:-50% 0;width:min(44.4%,178px);height:12px;border-radius:50%;background:#b8b0cc;opacity:.4;z-index:1;pointer-events:none;transform-origin:center;animation:st-character-shadow 3.2s ease-in-out infinite}
+.student-character-scene.is-bouncing>.student-character-shadow{animation:st-character-greeting-shadow 900ms ease-in-out both}
+.student-character-layers:has(.avatar-layer-옷)>.student-profile-image{clip-path:inset(0 0 51% 0)}
+.student-character-equipment>.avatar-layer-옷{transform:scale(1.25,.9);transform-origin:center bottom}
+.avatar-item p{font-size:12px;color:#69758a;margin:0;line-height:1.4}
+@media(prefers-reduced-motion:reduce){.student-character-shadow,.student-character-scene.is-bouncing>.student-character-shadow{animation:none;transform:none}}

@@ -20,12 +20,12 @@ try{
  const context=await browser.newContext({viewport:{width:1280,height:1000},hasTouch:true}),page=await context.newPage(),errors=[];
  page.on('pageerror',e=>errors.push(e.message));await context.route('https://cdn.jsdelivr.net/**',r=>r.abort());
  await page.goto(`http://127.0.0.1:${server.address().port}`);await page.getByRole('button',{name:'가상 명단으로 먼저 살펴보기',exact:true}).click();
- const before=await page.evaluate(async()=>{const {store,state}=await import('/js/shared/state.js');store.db.students[0].avatarOwned=['star-hat'];store.db.students[0].avatarEquipped={'머리':'star-hat'};state.impersonatingStudentId=store.db.students[0].id;state.viewMode='student';(await import('/js/app.js')).render();return JSON.stringify(store.db);});
+ const before=await page.evaluate(async()=>{const {store,state}=await import('/js/shared/state.js');store.db.students[0].avatarOwned=['hair_1'];store.db.students[0].avatarEquipped={'머리':'hair_1'};state.impersonatingStudentId=store.db.students[0].id;state.viewMode='student';(await import('/js/app.js')).render();return JSON.stringify(store.db);});
  const character=page.getByRole('button',{name:'캐릭터 인사',exact:true});await character.waitFor();
  // A breathing target never becomes geometrically stable; send actual touchscreen input.
  const tapCharacter=async()=>{await character.evaluate(el=>el.scrollIntoView({block:'center',behavior:'instant'}));const box=await character.boundingBox();await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2);};
  assert.equal(await character.evaluate(el=>el.closest('[aria-hidden=true]')),null);
- let css=await character.evaluate(el=>({name:getComputedStyle(el).animationName,duration:getComputedStyle(el).animationDuration,origin:getComputedStyle(el).transformOrigin,shadow:getComputedStyle(el,'::before').animationName,cursor:getComputedStyle(el).cursor}));
+ let css=await character.evaluate(el=>({name:getComputedStyle(el).animationName,duration:getComputedStyle(el).animationDuration,origin:getComputedStyle(el).transformOrigin,shadow:getComputedStyle(el.closest('.student-character-scene').querySelector('.student-character-shadow')).animationName,cursor:getComputedStyle(el).cursor}));
  assert.equal(css.name,'st-character-breathe');assert.equal(css.duration,'3.2s');assert.equal(css.shadow,'st-character-shadow');assert.equal(css.cursor,'pointer');
  const idle=await character.evaluate(el=>{
   const animation=el.getAnimations().find(a=>a.animationName==='st-character-breathe');animation.pause();
@@ -40,10 +40,11 @@ try{
   const sample=time=>{animation.currentTime=time;const m=new DOMMatrix(getComputedStyle(el).transform);return{y:m.m42,angle:Math.atan2(m.m12,m.m11)*180/Math.PI};};
   const first=sample(315),image=el.querySelector('img').getBoundingClientRect(),stage=el.closest('.student-character-scene').getBoundingClientRect(),second=sample(675);
   const bubble=el.querySelector('.student-character-greeting'),a=bubble.getAnimations()[0];a.pause();a.currentTime=300;
-  const shadow=el.getAnimations({subtree:true}).find(a=>a.animationName==='st-character-greeting-shadow');shadow.pause();shadow.currentTime=315;const shadowStyle=getComputedStyle(el,'::before'),shadowScale=new DOMMatrix(shadowStyle.transform).m11,shadowOpacity=Number(shadowStyle.opacity);
-  return{first,second,shadowScale,shadowOpacity,headroom:image.top-stage.top,bubble:getComputedStyle(bubble).animationName,duration:getComputedStyle(el).animationDuration,gear:el.querySelector('.student-character-equipment img').closest('.student-character-layers')===el};
+  const shadowElement=el.closest('.student-character-scene').querySelector('.student-character-shadow');const shadow=shadowElement.getAnimations().find(a=>a.animationName==='st-character-greeting-shadow');shadow.pause();shadow.currentTime=315;const shadowStyle=getComputedStyle(shadowElement),shadowScale=new DOMMatrix(shadowStyle.transform).m11,shadowOpacity=Number(shadowStyle.opacity);
+  const centers=[0,108,315,522,675,900].map(time=>{animation.currentTime=time;shadow.currentTime=time;const r=shadowElement.getBoundingClientRect();return r.top+r.height/2;});
+  return{centers,outside:shadowElement.parentElement===el.parentElement&&!el.contains(shadowElement),pseudo:getComputedStyle(el,'::before').content,vertical:new DOMMatrix(getComputedStyle(shadowElement).transform).m42,first,second,shadowScale,shadowOpacity,headroom:image.top-stage.top,bubble:getComputedStyle(bubble).animationName,duration:getComputedStyle(el).animationDuration,gear:el.querySelector('.student-character-equipment img').closest('.student-character-layers')===el};
  });
- assert.ok(Math.abs(jumped.first.y+16)<.1);assert.ok(Math.abs(jumped.first.angle+6)<.01);assert.ok(Math.abs(jumped.second.y+8)<.1);assert.ok(Math.abs(jumped.second.angle-5)<.01);assert.ok(jumped.headroom>=0);assert.equal(jumped.bubble,'st-character-greeting');assert.equal(jumped.duration,'0.9s');assert.equal(jumped.gear,true);assert.ok(Math.abs(jumped.shadowScale-.85)<.001);assert.ok(Math.abs(jumped.shadowOpacity-.26)<.001);
+ assert.ok(Math.abs(jumped.first.y+16)<.1);assert.ok(Math.abs(jumped.first.angle+6)<.01);assert.ok(Math.abs(jumped.second.y+8)<.1);assert.ok(Math.abs(jumped.second.angle-5)<.01);assert.ok(jumped.headroom>=0);assert.equal(jumped.bubble,'st-character-greeting');assert.equal(jumped.duration,'0.9s');assert.equal(jumped.gear,true);assert.ok(Math.abs(jumped.shadowScale-.85)<.001);assert.ok(Math.abs(jumped.shadowOpacity-.26)<.001);assert.equal(jumped.outside,true);assert.equal(jumped.pseudo,'none');assert.equal(jumped.vertical,0);assert.ok(Math.max(...jumped.centers)-Math.min(...jumped.centers)<.05);
  // Clicking during the running animation creates a new animation and resets its clock.
  const restart=await character.evaluate(el=>{
   const previous=el.getAnimations().find(a=>a.animationName==='st-character-bounce');el.click();
@@ -68,7 +69,7 @@ try{
   await page.waitForFunction(()=>!document.querySelector('.student-character-layers').classList.contains('is-bouncing'));
  }
  await page.emulateMedia({reducedMotion:'reduce'});
- assert.equal(await character.evaluate(el=>getComputedStyle(el).animationName),'none');assert.equal(await character.evaluate(el=>getComputedStyle(el,'::before').animationName),'none');
+ assert.equal(await character.evaluate(el=>getComputedStyle(el).animationName),'none');assert.equal(await character.evaluate(el=>getComputedStyle(el.closest('.student-character-scene').querySelector('.student-character-shadow')).animationName),'none');
  await tapCharacter();assert.equal(await character.evaluate(el=>getComputedStyle(el).animationName),'none');assert.equal(await character.locator('.student-character-greeting').isVisible(),false);
  await page.waitForFunction(()=>!document.querySelector('.student-character-layers').classList.contains('is-bouncing'));
  // Repeated pointer input must not select art, start native image drag, or show a mouse focus ring.

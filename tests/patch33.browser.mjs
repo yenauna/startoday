@@ -36,19 +36,19 @@ try {
  const studentMemo=page.locator('.student-timetable-card .slot-memos').first();assert((await studentMemo.innerText()).includes('PUBLIC33'));assert((await studentMemo.innerText()).includes('SAME33'));assert(!/[📢🔒📌]/u.test(await studentMemo.innerText()));const memoStyles=await studentMemo.evaluate(e=>[...e.children].slice(0,2).map(el=>{const s=getComputedStyle(el),b=el.getBoundingClientRect();return {font:s.fontSize,color:s.color,bg:s.backgroundColor,border:s.borderTopWidth,h:b.height};}));assert.deepEqual(memoStyles[0],memoStyles[1]);assert(memoStyles[0].h<30);assert(!(await page.locator('.student-shell').innerText()).includes('SECRET33'));
  await page.evaluate(()=>window.scrollTo(0,400));await page.evaluate(async()=>(await import('/js/app.js')).render());assert.equal(await page.evaluate(()=>scrollY),400);
  await page.getByRole('button',{name:'아바타 옷장',exact:true}).click();assert.equal(await page.evaluate(()=>scrollY),0);
- for(const [category,id] of [['머리','star-hat'],['옷','star-cape'],['효과','star-aura'],['배경','star-sky']]){
+ for(const [category,id] of [['머리','hair_1'],['옷','outfit_1']]){
   await page.getByRole('button',{name:'옷 가게',exact:true}).click();await page.getByRole('button',{name:category,exact:true}).click();
   await page.locator(`[data-avatar-id="${id}"]`).getByRole('button',{name:'구매',exact:true}).click();await page.locator(`[data-avatar-id="${id}"]`).getByRole('button',{name:'장착',exact:true}).waitFor();
   await page.locator(`[data-avatar-id="${id}"]`).getByRole('button',{name:'장착',exact:true}).click();await page.locator(`.student-character-scene [data-avatar-item="${id}"]`).waitFor();
  }
- const balance=await page.evaluate(async id=>{const {store}=await import('/js/shared/state.js');return (await import('/js/core.js')).studentBalance(store.db,id);},seed.s);assert.equal(balance,seed.balance-70);
- await page.locator('[data-avatar-id=star-hat]').getByRole('button',{name:'장착 해제',exact:true}).click();await page.locator('.student-character-scene [data-avatar-item=star-hat]').waitFor({state:'detached'});
- await page.locator('[data-avatar-id=star-hat]').getByRole('button',{name:'장착',exact:true}).click();await page.locator('.student-character-scene [data-avatar-item=star-hat]').waitFor();
- await page.getByRole('button',{name:'별빛 교실',exact:true}).click();assert.equal(await page.locator('.student-character-scene [data-avatar-item]').count(),4);assert.equal(await page.evaluate(()=>scrollY),0);
+ const balance=await page.evaluate(async id=>{const {store}=await import('/js/shared/state.js');return (await import('/js/core.js')).studentBalance(store.db,id);},seed.s);assert.equal(balance,seed.balance-20);
+ await page.locator('[data-avatar-id=hair_1]').getByRole('button',{name:'장착 해제',exact:true}).click();await page.locator('.student-character-scene [data-avatar-item=hair_1]').waitFor({state:'detached'});
+ await page.locator('[data-avatar-id=hair_1]').getByRole('button',{name:'장착',exact:true}).click();await page.locator('.student-character-scene [data-avatar-item=hair_1]').waitFor();
+ await page.getByRole('button',{name:'별빛 교실',exact:true}).click();assert.equal(await page.locator('.student-character-scene [data-avatar-item]').count(),2);assert.equal(await page.evaluate(()=>scrollY),0);
  for(const width of [360,390,768,1280]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);}
  await page.screenshot({path:'/tmp/patch33-avatar.png'});
  assert.equal(await page.locator('.student-character-scene img').evaluateAll(imgs=>imgs.every(img=>img.complete&&img.naturalWidth>0)),true);
  await page.getByRole('button',{name:'교사 화면으로 돌아가기',exact:true}).click();await page.evaluate(async()=>{(await import('/js/app.js')).navigate('경제');});
  const history=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'최근 학급 경제 거래',exact:true})});assert.deepEqual(await history.locator('th').allTextContents(),['일시','학생','종류','내용']);
- assert.deepEqual(errors,[]);console.log('PASS: identical date fonts, right-side memo groups and teacher/student icon boundaries, entry/section scroll top with same-section retention, all four avatar purchases/equips/layers/unequip/balance, responsive loaded assets, four-column teacher ledger');
+ assert.deepEqual(errors,[]);console.log('PASS: identical date fonts, right-side memo groups and teacher/student icon boundaries, entry/section scroll top with same-section retention, both avatar purchases/equips/layers/unequip/balance, responsive loaded assets, four-column teacher ledger');
 }finally{await browser?.close();await new Promise(r=>server.close(r));}

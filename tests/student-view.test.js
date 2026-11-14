@@ -67,7 +67,7 @@ function fixture() {
     }
   };
   store.commit = async ops => {
-    store.db = C.applyOps(store.db, ops);
+    store.db = C.applyOps(store.db, typeof ops==='function' ? ops(store.db) : ops);
   };
   vm.createContext(context);
   vm.runInContext(readFileSync(new URL('../js/tabs/student-view.js', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '').replaceAll('export ', ''), context);
@@ -360,11 +360,30 @@ test('클라우드 아바타 구매·장착은 학생 인증 RPC로만 처리하
  f.store.mode='none';f.store.db=null;f.store.signalChange=()=>{};f.store.commit=()=>{throw Error('teacher commit forbidden');};
  f.store.client={rpc:async(method,args)=>{
   requests.push({method,args});if(method==='startoday_student_login')return {data:{...snapshot,mustChangePassword:false}};
-  assert.equal(args.p_password,'푸른바람7');assert.equal(args.p_item_id,'star-hat');
-  return {data:{classId:'c',revision:3,snapshot:{...snapshot,avatar:{...snapshot.avatar,owned:['star-hat'],equipped:method==='startoday_avatar_equip'?{'머리':'star-hat'}:{}}}}};
+  assert.equal(args.p_password,'푸른바람7');assert.equal(args.p_item_id,'hair_1');
+  return {data:{classId:'c',revision:3,snapshot:{...snapshot,avatar:{...snapshot.avatar,owned:['hair_1'],equipped:method==='startoday_avatar_equip'?{'머리':'hair_1'}:{}}}}};
  }};
  f.context.studentLoginDialog();await f.dialog.submit(new Map([['schoolName','체험초등학교'],['grade','5'],['classGroup','1'],['no','1'],['password','푸른바람7']]));
- await f.context.studentAvatarAct('buy','star-hat');assert.deepEqual(f.state.studentSnapshot.avatar.owned,['star-hat']);
- await f.context.studentAvatarAct('equip','star-hat');assert.equal(f.state.studentSnapshot.avatar.equipped['머리'],'star-hat');
+ await f.context.studentAvatarAct('buy','hair_1');assert.deepEqual(f.state.studentSnapshot.avatar.owned,['hair_1']);
+ await f.context.studentAvatarAct('equip','hair_1');assert.equal(f.state.studentSnapshot.avatar.equipped['머리'],'hair_1');
  assert.deepEqual(requests.map(r=>r.method),['startoday_student_login','startoday_avatar_buy','startoday_avatar_equip']);assert.equal(f.store.db,null);
+});
+
+
+test('아바타 응답의 null·누락 소유 필드와 빈 카테고리는 안전하게 표시',()=>{
+ const f=fixture(),data=f.context.studentSnapshot(f.source,f.source.students[0]);
+ for(const owned of [null,undefined,{},'bad'])for(const equipped of [null,undefined,{}]){
+  const sample={...data,avatar:{owned,equipped},economy:null};
+  assert.doesNotThrow(()=>f.context.studentAvatarView(sample));
+ }
+ vm.runInContext("avatarTab='shop';avatarCategory='효과'",f.context);
+ assert(f.context.studentAvatarView(data).includes('아직 준비 중'));
+});
+test('클라우드 아바타 RPC 실패 후 저장 잠금이 풀리고 다시 구매 가능',async()=>{
+ const f=fixture(),snapshot=f.context.studentSnapshot(f.source,f.source.students[0]);let fail=true;
+ f.store.mode='none';f.store.db=null;f.store.signalChange=()=>{};
+ f.store.client={rpc:async method=>method==='startoday_student_login'?{data:{...snapshot,mustChangePassword:false}}:fail?{error:{code:'PGRST202',message:'not found'}}:{data:{classId:'c',revision:1,snapshot:{...snapshot,avatar:{...snapshot.avatar,owned:['hair_1']}}}}};
+ f.context.studentLoginDialog();await f.dialog.submit(new Map([['schoolName','체험초등학교'],['grade','5'],['classGroup','1'],['no','1'],['password','푸른바람7']]));
+ await assert.rejects(f.context.studentAvatarAct('buy','hair_1'),/최신 schema.sql/);
+ fail=false;await f.context.studentAvatarAct('buy','hair_1');assert.deepEqual(f.state.studentSnapshot.avatar.owned,['hair_1']);
 });

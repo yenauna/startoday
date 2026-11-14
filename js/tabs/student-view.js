@@ -23,25 +23,31 @@ let avatarTab = 'closet', avatarCategory = '머리', avatarSaving = false;
 export function studentViewScrollKey() {
   return [state.impersonatingStudentId || state.studentUser?.id || 'login', studentSection, studentEconomyTab, studentEconomyCategory, avatarTab, avatarCategory].join(':');
 }
+function avatarViewState(data) {
+  return C.avatarSnapshot({avatarOwned:data.avatar?.owned,avatarEquipped:data.avatar?.equipped});
+}
 function avatarLayer(data, category) {
-  const item = C.AVATAR_CATALOG.find(item => item.category === category && data.avatar?.owned?.includes(item.id) && data.avatar?.equipped?.[category] === item.id);
+  const avatar = avatarViewState(data);
+  const item = C.AVATAR_CATALOG.find(item => item.category === category && avatar.owned.includes(item.id) && avatar.equipped[category] === item.id);
   return item ? `<img src="${esc(item.image)}" class="avatar-layer avatar-layer-${category}" alt="" draggable="false" data-avatar-item="${esc(item.id)}">` : '';
 }
 function studentAvatarScene(data) {
-  return `<div class="student-character-scene"><div class="student-avatar-background" data-character-slot="background">${avatarLayer(data,'배경')}</div><div class="student-avatar-objects" data-character-slot="objects"></div>${btn(`<img src="${STUDENT_PROFILE_IMAGE}" alt="" class="student-profile-image" draggable="false"><span class="student-character-equipment" data-character-slot="equipment" aria-hidden="true">${['옷','머리','효과'].map(category=>avatarLayer(data,category)).join('')}</span><span class="student-character-greeting" aria-hidden="true"></span>`, bounceStudentCharacter, 'student-character-layers', 'aria-label="캐릭터 인사" title="눌러서 캐릭터와 인사해요"')}</div>`;
+  return `<div class="student-character-scene"><div class="student-avatar-background" data-character-slot="background">${avatarLayer(data,'배경')}</div><div class="student-avatar-objects" data-character-slot="objects"></div><span class="student-character-shadow" aria-hidden="true"></span>${btn(`<img src="${STUDENT_PROFILE_IMAGE}" alt="" class="student-profile-image" draggable="false"><span class="student-character-equipment" data-character-slot="equipment" aria-hidden="true">${['옷','머리','효과'].map(category=>avatarLayer(data,category)).join('')}</span><span class="student-character-greeting" aria-hidden="true"></span>`, bounceStudentCharacter, 'student-character-layers', 'aria-label="캐릭터 인사" title="눌러서 캐릭터와 인사해요"')}</div>`;
 }
 function studentAvatarView(data) {
-  const avatar=data.avatar || {owned:[],equipped:{}};
+  const avatar=avatarViewState(data);
+  const balance=Number.isFinite(data.economy?.balance)?data.economy.balance:0;
   const list=C.AVATAR_CATALOG.filter(item=>avatarTab==='closet' ? avatar.owned.includes(item.id) : item.category===avatarCategory);
-  return `<main class="student-avatar-manager student-home-village"><h1>아바타</h1><p>내 별코인 ★ ${esc(data.economy.balance)}</p><div class="student-avatar-stage">${studentAvatarScene(data)}</div><nav class="economy-subtabs">${[['closet','내 옷장'],['shop','옷 가게']].map(([tab,label])=>btn(label,()=>{avatarTab=tab;render();},avatarTab===tab?'active':'')).join('')}</nav>${avatarTab==='shop'?`<nav class="economy-subtabs">${['머리','옷','효과','배경'].map(category=>btn(category,()=>{avatarCategory=category;render();},avatarCategory===category?'active':'')).join('')}</nav>`:''}<div class="avatar-catalog">${list.map(item=>{
-    const owned=avatar.owned.includes(item.id),equipped=avatar.equipped[item.category]===item.id;
-    return `<article class="avatar-item" data-avatar-id="${esc(item.id)}"><img src="${esc(item.image)}" alt="${esc(item.name)}" draggable="false"><h3>${esc(item.name)}</h3><small>${esc(item.category)} · ${item.price}별코인</small>${btn(avatarTab==='closet'?(equipped?'장착 해제':'장착'):(owned?'보유 중':'구매'),()=>studentAvatarAct(avatarTab==='closet'?'equip':'buy',item.id),'',avatarSaving || avatarTab==='shop'&&(owned || data.economy.balance<item.price)?'disabled':'')}</article>`;
-  }).join('') || '<p class="muted">옷 가게에서 나만의 아이템을 골라 보세요.</p>'}</div></main>`;
+  return `<main class="student-avatar-manager student-home-village"><h1>아바타</h1><p>내 별코인 ★ ${esc(balance)}</p><div class="student-avatar-stage">${studentAvatarScene(data)}</div><nav class="economy-subtabs">${[['closet','내 옷장'],['shop','옷 가게']].map(([tab,label])=>btn(label,()=>{avatarTab=tab;render();},avatarTab===tab?'active':'')).join('')}</nav>${avatarTab==='shop'?`<nav class="economy-subtabs">${['머리','옷','효과','배경'].map(category=>btn(category,()=>{avatarCategory=category;render();},avatarCategory===category?'active':'')).join('')}</nav>`:''}<div class="avatar-catalog">${list.map(item=>{
+    const owned=avatar.owned.includes(item.id),equipped=avatar.equipped[item.category]===item.id,action=avatarTab==='closet'?'equip':'buy';
+    return `<article class="avatar-item" data-avatar-id="${esc(item.id)}"><img src="${esc(item.image)}" alt="${esc(item.name)}" draggable="false"><h3>${esc(item.name)}</h3><small>${esc(item.category)} · ${item.price}별코인</small><p>${esc(item.description || '')}</p>${btn(avatarTab==='closet'?(equipped?'장착 해제':'장착'):(owned?'보유 중':'구매'),()=>studentAvatarAct(action,item.id),'',avatarSaving || avatarTab==='shop'&&(owned || balance<item.price)?'disabled':'')}</article>`;
+  }).join('') || `<p class="muted">${avatarTab==='closet'?'옷 가게에서 나만의 아이템을 골라 보세요.':'이 카테고리는 아직 준비 중이에요.'}</p>`}</div></main>`;
 }
 async function studentAvatarAct(action,itemId) {
   if (avatarSaving) return;
   const id=state.impersonatingStudentId || state.studentUser?.id,credentials=checkerCredentials,preview=!!state.impersonatingStudentId;
   avatarSaving=true;
+  let rendered=false;
   try {
     if (preview || ['demo','local'].includes(store.mode)) {
       if (!preview) {
@@ -49,20 +55,24 @@ async function studentAvatarAct(action,itemId) {
         const student=credentials&&localStudentMatch(credentials.identity),info=student&&studentPasswordInfo(student,store.db.settings[0]);
         if(student?.id!==id||!info||info.mustChangePassword||info.password!==credentials.password)throw Error('다시 로그인해 주세요.');
       }
-      await store.commit(C.avatarOps(store.db,id,itemId,action));
+      await store.commit(latest=>C.avatarOps(latest,id,itemId,action));
       if (!preview && credentials===checkerCredentials && id===state.studentUser?.id) state.studentSnapshot=studentSnapshot(store.db,store.db.students.find(s=>s.id===id));
     } else {
       if (!credentials || !store.client) throw Error('다시 로그인해 주세요.');
       const {data,error}=await store.client.rpc('startoday_avatar_'+action,{...studentRpcIdentity(credentials.identity),p_password:credentials.password,p_item_id:itemId});
-      if(error)throw Error(economyMessage(error));
+      if(error)throw Error(['PGRST202','42883'].includes(error.code)?'아바타 기능을 사용하려면 Supabase에서 최신 schema.sql을 실행해 주세요.':economyMessage(error));
       if(credentials!==checkerCredentials||id!==state.studentUser?.id)return;
       if(!data?.snapshot?.student)throw Error('아바타 정보를 확인하지 못했습니다.');
       state.studentSnapshot=data.snapshot;store.signalChange('cloud',data.classId,data.revision);
     }
+    if(id!==(state.impersonatingStudentId || state.studentUser?.id))return;
     if(action==='buy')avatarTab='closet';
     avatarSaving=false;
-    render();toast(action==='buy'?'옷장에 담았어요.':'장착 상태를 저장했어요.');
-  } finally {avatarSaving=false;}
+    render();rendered=true;toast(action==='buy'?'옷장에 담았어요.':'장착 상태를 저장했어요.');
+  } finally {
+    avatarSaving=false;
+    if(!rendered && studentSection==='avatar' && id===(state.impersonatingStudentId || state.studentUser?.id))render();
+  }
 }
 
 // Only this allow-listed projection crosses into the student shell. Never pass
@@ -774,14 +784,18 @@ function bounceStudentCharacter(event) {
   const character = event.target.closest?.('.student-avatar-stage .student-character-layers');
   if (!character) return;
   clearTimeout(studentGreetingTimers.get(character));
+  const scene = character.closest?.('.student-character-scene');
   character.classList.remove('is-bouncing');
+  scene?.classList.remove('is-bouncing');
   const greeting = character.querySelector('.student-character-greeting');
   if (greeting) greeting.textContent = STUDENT_GREETINGS[Math.floor(Math.random() * STUDENT_GREETINGS.length)];
   // Restart both the character and bubble immediately, including during an active greeting.
   void character.offsetWidth;
   character.classList.add('is-bouncing');
+  scene?.classList.add('is-bouncing');
   studentGreetingTimers.set(character, setTimeout(() => {
     character.classList.remove('is-bouncing');
+    scene?.classList.remove('is-bouncing');
     if (greeting) greeting.textContent = '';
     studentGreetingTimers.delete(character);
   }, 900));

@@ -248,6 +248,7 @@ export class Store {
     const scope = this.mode + ':' + this.classId;
     const save = async () => {
       if (scope !== this.mode + ':' + this.classId) throw Error('화면이 변경되었습니다.');
+      if (this.syncLoading) await this.syncLoading;
       const saved = localStorage.getItem('startoday-demo-v1');
       if (saved) this.db = normalizeDB(JSON.parse(saved));
       return this.commitSnapshot(ops);
@@ -260,6 +261,8 @@ export class Store {
     if (this.busy) throw Error('저장 중입니다. 잠시 후 다시 시도하세요.');
     this.busy = true;
     try {
+      // Factory operations must use the latest snapshot while the save lock is held.
+      if (typeof ops === 'function') ops = ops(this.db);
       const next = applyOps(this.db, ops);
       if (this.mode === 'demo' || this.mode === 'local') {
         if (ops.some(op => op.table === 'students' && !op.remove)) {
