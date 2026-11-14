@@ -17,6 +17,9 @@ export function economyMessage(error) {
   if (['PGRST202', '42883'].includes(error?.code)) return '경제 기능을 사용하려면 Supabase에서 최신 schema.sql을 실행해 주세요.';
   const text = error?.message || '';
   return Object.entries({
+    AVATAR_ALREADY_OWNED: '이미 보유한 아이템입니다.',
+    AVATAR_NOT_OWNED: '보유한 아이템만 장착할 수 있습니다.',
+    INVALID_AVATAR_ITEM: '아바타 아이템을 확인하세요.',
     INSUFFICIENT_BALANCE: '잔액이 부족합니다.',
     SOLD_OUT: '품절된 물품입니다.',
     GIFT_UNDO_EXPIRED: '선물 취소 가능 시간(5초)이 지났습니다.',
@@ -51,7 +54,8 @@ function economyDate(value) {
   }));
 }
 function economyHistory(rows, teacher = false) {
-  return `<div class="table-wrap"><table><thead><tr><th>일시</th>${teacher ? '<th>학생</th>' : ''}<th>종류</th><th>내용</th><th>별코인</th><th>상태</th></tr></thead><tbody>${[...rows].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).map(t => `<tr><td>${esc(economyDate(t.createdAt))}</td>${teacher ? `<td>${esc(name(t.studentId))}</td>` : ''}<td>${esc(t.type)}</td><td>${esc(t.itemName || t.memo || '')}</td><td>${t.amount > 0 ? '+' : ''}${esc(t.amount)}</td><td>${esc(t.status || '')}</td></tr>`).join('')}</tbody></table></div>`;
+  const content = t => ['지급','차감'].includes(t.type) ? `${t.memo ? t.memo + ' (' : ''}${t.amount > 0 ? '+' : ''}${t.amount}${t.memo ? ')' : ''}` : t.itemName || t.memo || '';
+  return `<div class="table-wrap"><table><thead><tr><th>일시</th>${teacher ? '<th>학생</th>' : ''}<th>종류</th><th>내용</th>${teacher ? '' : '<th>별코인</th><th>상태</th>'}</tr></thead><tbody>${[...rows].sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).map(t=>`<tr><td>${esc(economyDate(t.createdAt))}</td>${teacher ? `<td>${esc(name(t.studentId))}</td>` : ''}<td>${esc(t.type)}</td><td>${esc(teacher ? content(t) : t.itemName || t.memo || '')}</td>${teacher ? '' : `<td>${t.amount > 0 ? '+' : ''}${esc(t.amount)}</td><td>${esc(t.status || '')}</td>`}</tr>`).join('')}</tbody></table></div>`;
 }
 export function economyView() {
   const scope = store.mode + ':' + store.classId + ':' + (store.user?.id || '');

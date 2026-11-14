@@ -19,6 +19,52 @@ let studentEconomyTab = 'assets',
   studentEconomyScope = '',
   studentEconomySaving = false;
 
+let avatarTab = 'closet', avatarCategory = '머리', avatarSaving = false;
+export function studentViewScrollKey() {
+  return [state.impersonatingStudentId || state.studentUser?.id || 'login', studentSection, studentEconomyTab, studentEconomyCategory, avatarTab, avatarCategory].join(':');
+}
+function avatarLayer(data, category) {
+  const item = C.AVATAR_CATALOG.find(item => item.category === category && data.avatar?.owned?.includes(item.id) && data.avatar?.equipped?.[category] === item.id);
+  return item ? `<img src="${esc(item.image)}" class="avatar-layer avatar-layer-${category}" alt="" draggable="false" data-avatar-item="${esc(item.id)}">` : '';
+}
+function studentAvatarScene(data) {
+  return `<div class="student-character-scene"><div class="student-avatar-background" data-character-slot="background">${avatarLayer(data,'배경')}</div><div class="student-avatar-objects" data-character-slot="objects"></div>${btn(`<img src="${STUDENT_PROFILE_IMAGE}" alt="" class="student-profile-image" draggable="false"><span class="student-character-equipment" data-character-slot="equipment" aria-hidden="true">${['옷','머리','효과'].map(category=>avatarLayer(data,category)).join('')}</span><span class="student-character-sparkle" aria-hidden="true">✨</span>`, bounceStudentCharacter, 'student-character-layers', 'aria-label="캐릭터 점프" title="눌러서 캐릭터와 인사해요"')}</div>`;
+}
+function studentAvatarView(data) {
+  const avatar=data.avatar || {owned:[],equipped:{}};
+  const list=C.AVATAR_CATALOG.filter(item=>avatarTab==='closet' ? avatar.owned.includes(item.id) : item.category===avatarCategory);
+  return `<main class="student-avatar-manager student-home-village"><h1>아바타</h1><p>내 별코인 ★ ${esc(data.economy.balance)}</p><div class="student-avatar-stage">${studentAvatarScene(data)}</div><nav class="economy-subtabs">${[['closet','내 옷장'],['shop','옷 가게']].map(([tab,label])=>btn(label,()=>{avatarTab=tab;render();},avatarTab===tab?'active':'')).join('')}</nav>${avatarTab==='shop'?`<nav class="economy-subtabs">${['머리','옷','효과','배경'].map(category=>btn(category,()=>{avatarCategory=category;render();},avatarCategory===category?'active':'')).join('')}</nav>`:''}<div class="avatar-catalog">${list.map(item=>{
+    const owned=avatar.owned.includes(item.id),equipped=avatar.equipped[item.category]===item.id;
+    return `<article class="avatar-item" data-avatar-id="${esc(item.id)}"><img src="${esc(item.image)}" alt="${esc(item.name)}" draggable="false"><h3>${esc(item.name)}</h3><small>${esc(item.category)} · ${item.price}별코인</small>${btn(avatarTab==='closet'?(equipped?'장착 해제':'장착'):(owned?'보유 중':'구매'),()=>studentAvatarAct(avatarTab==='closet'?'equip':'buy',item.id),'',avatarSaving || avatarTab==='shop'&&(owned || data.economy.balance<item.price)?'disabled':'')}</article>`;
+  }).join('') || '<p class="muted">옷 가게에서 나만의 아이템을 골라 보세요.</p>'}</div></main>`;
+}
+async function studentAvatarAct(action,itemId) {
+  if (avatarSaving) return;
+  const id=state.impersonatingStudentId || state.studentUser?.id,credentials=checkerCredentials,preview=!!state.impersonatingStudentId;
+  avatarSaving=true;
+  try {
+    if (preview || ['demo','local'].includes(store.mode)) {
+      if (!preview) {
+        const raw=localStorage.getItem('startoday-demo-v1');if(raw)store.db=C.normalizeDB(JSON.parse(raw));
+        const student=credentials&&localStudentMatch(credentials.identity),info=student&&studentPasswordInfo(student,store.db.settings[0]);
+        if(student?.id!==id||!info||info.mustChangePassword||info.password!==credentials.password)throw Error('다시 로그인해 주세요.');
+      }
+      await store.commit(C.avatarOps(store.db,id,itemId,action));
+      if (!preview && credentials===checkerCredentials && id===state.studentUser?.id) state.studentSnapshot=studentSnapshot(store.db,store.db.students.find(s=>s.id===id));
+    } else {
+      if (!credentials || !store.client) throw Error('다시 로그인해 주세요.');
+      const {data,error}=await store.client.rpc('startoday_avatar_'+action,{...studentRpcIdentity(credentials.identity),p_password:credentials.password,p_item_id:itemId});
+      if(error)throw Error(economyMessage(error));
+      if(credentials!==checkerCredentials||id!==state.studentUser?.id)return;
+      if(!data?.snapshot?.student)throw Error('아바타 정보를 확인하지 못했습니다.');
+      state.studentSnapshot=data.snapshot;store.signalChange('cloud',data.classId,data.revision);
+    }
+    if(action==='buy')avatarTab='closet';
+    avatarSaving=false;
+    render();toast(action==='buy'?'옷장에 담았어요.':'장착 상태를 저장했어요.');
+  } finally {avatarSaving=false;}
+}
+
 // Only this allow-listed projection crosses into the student shell. Never pass
 // teacher records, private state memos, credentials or the class snapshot to its markup.
 export function studentSnapshot(source, student, date = C.today()) {
@@ -40,6 +86,7 @@ export function studentSnapshot(source, student, date = C.today()) {
       equippedTitle: student.equippedTitle || null
     },
     economy: C.studentEconomySnapshot(source, student.id),
+    avatar: C.avatarSnapshot(student),
     schoolName: source.settings[0]?.schoolName || '',
     className: source.settings[0]?.className || '우리반',
     date,
@@ -285,6 +332,7 @@ export function renderStudentShell() {
     studentSection = 'home';
     studentEconomyTab = 'assets';
     studentEconomyCategory = '전체';
+    avatarTab = 'closet';avatarCategory = '머리';
   }
   const economyNavigation = `<nav class="economy-subtabs">${btn('별빛 교실', () => {
     studentSection = 'home';
@@ -302,7 +350,7 @@ export function renderStudentShell() {
   }, studentEconomyAct);
   const titleButton = () => btn(C.kingdomBadge(data.student, data.titleCounts, data.titleConfig), openKingdomCodex, 'kingdom-title-button', 'aria-label="칭호도감 열기"');
   const profileAreas = Object.fromEntries(C.areaScoreEntries(data.score.areas || {}));
-  const profileCard = `<section class="student-card student-growth student-profile-card" aria-label="내 프로필"><div class="student-profile-main"><div class="student-profile-header"><div class="student-profile-info"><small class="student-profile-class">${esc(data.className)}</small><div class="student-profile-identity"><h1 class="student-profile-name">${esc(student.no)}번 ${esc(student.name)}</h1><div class="student-profile-nickname"><span>${esc(data.student.nickname || '별명 설정')}</span>${btn('✎', studentNicknameDialog, 'student-nickname-open student-profile-edit', 'aria-label="별명 설정" title="별명 설정"')}</div></div></div><div class="student-profile-score"><span class="student-profile-star" aria-hidden="true">★</span><h2>내가 모은 별 <strong>${esc(data.score.total)}<span>개</span></strong></h2></div></div><div class="student-avatar-stage student-profile-art"><div class="student-character-scene"><div class="student-avatar-background" data-character-slot="background"></div><div class="student-avatar-objects" data-character-slot="objects"></div>${btn(`<img src="${STUDENT_PROFILE_IMAGE}" alt="" class="student-profile-image" draggable="false"><span class="student-character-equipment" data-character-slot="equipment" aria-hidden="true"></span><span class="student-character-sparkle" aria-hidden="true">✨</span>`, bounceStudentCharacter, 'student-character-layers', 'aria-label="캐릭터 점프" title="눌러서 캐릭터와 인사해요"')}</div></div><div class="student-profile-controls">${titleButton()}</div><div class="student-profile-areas" aria-label="영역별 별 개수">${C.KINGDOM_DOMAINS.map(domain => {
+  const profileCard = `<section class="student-card student-growth student-profile-card" aria-label="내 프로필"><div class="student-profile-main"><div class="student-profile-header"><div class="student-profile-info"><small class="student-profile-class">${esc(data.className)}</small><div class="student-profile-identity"><h1 class="student-profile-name">${esc(student.no)}번 ${esc(student.name)}</h1><div class="student-profile-nickname"><span>${esc(data.student.nickname || '별명 설정')}</span>${btn('✎', studentNicknameDialog, 'student-nickname-open student-profile-edit', 'aria-label="별명 설정" title="별명 설정"')}</div></div></div><div class="student-profile-score"><span class="student-profile-star" aria-hidden="true">★</span><h2>내가 모은 별 <strong>${esc(data.score.total)}<span>개</span></strong></h2>${btn('👕',()=>{studentSection='avatar';render();},'student-wardrobe-open','aria-label="아바타 옷장"')}</div></div><div class="student-avatar-stage student-profile-art">${studentAvatarScene(data)}</div><div class="student-profile-controls">${titleButton()}</div><div class="student-profile-areas" aria-label="영역별 별 개수">${C.KINGDOM_DOMAINS.map(domain => {
     const label = data.titleConfig?.labels?.[domain.id] || domain.label;
     return `<div><span>${esc(label)}</span><strong>${esc(profileAreas[label] || 0)}</strong></div>`;
   }).join('')}</div></div></section>`;
@@ -310,7 +358,7 @@ export function renderStudentShell() {
     const done = ['완료', '늦게완료', '면제'].includes(task.status);
     return `${routine ? `<button type="button" class="student-task student-routine-toggle ${done ? 'is-complete' : 'is-pending'}" data-routine-id="${esc(task.id || '')}" ${task.status === '면제' || !task.id ? 'disabled' : ''} aria-pressed="${done}">` : `<div class="student-task ${task.overdue ? 'is-overdue ' : ''}${done ? 'is-complete' : 'is-pending'}">`}<div><strong class="${routine ? 'student-routine-title' : ''}">${esc(task.title)}</strong>${task.isQuest && task.startDate ? `<small>${esc(C.formatDate(task.startDate))} ~ ${task.endDate ? esc(C.formatDate(task.endDate)) : '무기한'}</small>` : task.date ? `<small>${esc(C.formatDate(task.date))}</small>` : ''}${!routine && task.memo ? `<p class="assignment-public-memo">${esc(task.memo)}</p>` : ''}${!routine ? `<small class="assignment-checker">🔍 확인 : ${checkerLabel(task.checkerName)}</small>` : ''}</div><span>${task.isQuest ? `${task.status === '면제' ? '면제 · ' : ''}🏅 ${task.stamps}/${task.goal}` : (done ? '✓ ' : '') + esc(task.status)}</span>${task.isQuest ? questStampBoard(task.stamps, task.goal) + studentQuestSubtasks(task) : ''}${routine ? '</button>' : '</div>'}`;
   }).join('') || '<p class="muted">오늘 할 일이 없습니다.</p>';
-  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<div class="student-home-topbar"><header class="student-header"><strong class="student-site-name"><span class="student-brand-star" aria-hidden="true">★</span>오늘의 별</strong><small class="student-header-class">${esc(data.schoolName || recentStudentSchool().name || '')} ${esc(data.className)}</small>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header>${economyNavigation}</div>${studentSection === 'economy' ? `<main class="student-economy">${economyContent()}</main>` : `<main class="student-dashboard student-home-village">${profileCard}<section class="student-card student-timetable-card"><h2 class="student-home-sign">오늘의 일정</h2><div class="student-today-events">${studentTodayEvents(data)}</div>${studentDaySchedule(data)}</section><section class="student-card student-tasks-card"><h2 class="student-home-sign">오늘의 과제 &amp; 루틴</h2><h3 class="student-section-heading">오늘의 과제</h3>${taskList(data.tasks.filter(task => !task.isQuest))}<h3 class="student-section-heading">매일 루틴</h3>${taskList(data.routines, true)}${(data.checkingAssignments || []).map(a => btn('🔍 내가 확인할 친구 과제: ' + esc(a.title), () => openCheckerChecklist(a.id), 'peer-checker-card')).join('')}</section><section class="student-card student-long-assignments"><h2>📜 장기과제</h2>${studentLongAssignments(data.tasks.filter(task => task.isQuest))}</section><section class="student-card student-calendar-card"><h2>과제·일정 달력</h2>${studentCalendarView(data, student.id)}</section><section class="student-card student-praise-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><div class="record-content-line">${C.recordAreas(r).map(area => `<span class="badge">${esc(area)}</span>`).join('')}<span class="body">${esc(r.text)}</span></div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main>`}</div>`;
+  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<div class="student-home-topbar"><header class="student-header"><strong class="student-site-name"><span class="student-brand-star" aria-hidden="true">★</span>오늘의 별</strong><small class="student-header-class">${esc(data.schoolName || recentStudentSchool().name || '')} ${esc(data.className)}</small>${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView)}</header>${economyNavigation}</div>${studentSection === 'avatar' ? studentAvatarView(data) : studentSection === 'economy' ? `<main class="student-economy">${economyContent()}</main>` : `<main class="student-dashboard student-home-village">${profileCard}<section class="student-card student-timetable-card"><h2 class="student-home-sign">오늘의 일정</h2><div class="student-today-events">${studentTodayEvents(data)}</div>${studentDaySchedule(data)}</section><section class="student-card student-tasks-card"><h2 class="student-home-sign">오늘의 과제 &amp; 루틴</h2><h3 class="student-section-heading">오늘의 과제</h3>${taskList(data.tasks.filter(task => !task.isQuest))}<h3 class="student-section-heading">매일 루틴</h3>${taskList(data.routines, true)}${(data.checkingAssignments || []).map(a => btn('🔍 내가 확인할 친구 과제: ' + esc(a.title), () => openCheckerChecklist(a.id), 'peer-checker-card')).join('')}</section><section class="student-card student-long-assignments"><h2>📜 장기과제</h2>${studentLongAssignments(data.tasks.filter(task => task.isQuest))}</section><section class="student-card student-calendar-card"><h2>과제·일정 달력</h2>${studentCalendarView(data, student.id)}</section><section class="student-card student-praise-card"><h2>선생님의 칭찬 편지함</h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><div class="record-content-line">${C.recordAreas(r).map(area => `<span class="badge">${esc(area)}</span>`).join('')}<span class="body">${esc(r.text)}</span></div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main>`}</div>`;
 }
 let studentCalendarScope = '',
   studentCalendarDate = '',
@@ -531,7 +579,7 @@ function studentDaySchedule(data) {
       accentColor: t.accentColor,
       colorSource: t.colorSource,
       defaultColorValue: t.defaultColorValue
-    })}"><div class="slot-period-row"><span class="slot-time">${esc(t.period)}교시</span><small class="slot-clock">${esc(t.periodTime || C.DEFAULT_PERIOD_TIMES[t.period - 1] || '')}</small></div><div class="slot-subject-row"><strong class="subject-title">${esc(t.subject)}</strong>${data.date === C.today() && t.publicMemo ? `<span class="slot-public-memo">${esc(t.publicMemo)}</span>` : ''}${C.sameDayMemo(t, data.date) ? `<span class="slot-same-day-memo">${esc(C.sameDayMemo(t, data.date))}</span>` : ''}${events.map(e => `<span class="slot-public-memo">${esc(e.title)}${e.description ? ' ' + esc(e.description) : ''}</span>`).join('')}</div></div>`;
+    })}"><div class="slot-period-row"><span class="slot-time">${esc(t.period)}교시</span><small class="slot-clock">${esc(t.periodTime || C.DEFAULT_PERIOD_TIMES[t.period - 1] || '')}</small></div><div class="slot-subject-row"><strong class="subject-title">${esc(t.subject)}</strong><div class="slot-memos">${data.date === C.today() && t.publicMemo ? `<span class="slot-public-memo">${esc(t.publicMemo)}</span>` : ''}${C.sameDayMemo(t, data.date) ? `<span class="slot-same-day-memo">${esc(C.sameDayMemo(t, data.date))}</span>` : ''}${events.map(e => `<span class="slot-public-memo">${esc(e.title)}${e.description ? ' ' + esc(e.description) : ''}</span>`).join('')}</div></div></div>`;
   }).join('') || '<p class="muted">오늘 등록된 수업이 없습니다.</p>';
 }
 let studentTitleSaving = false;

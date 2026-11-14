@@ -81,7 +81,7 @@ try{
  await page.mouse.move(image.x+image.width/2,image.y+image.height/2);await page.mouse.down();await page.mouse.move(image.x+image.width/2+70,image.y+image.height/2-35,{steps:8});await page.mouse.up();
  assert.equal(await page.evaluate(()=>window.avatarDragStarts),0);assert.equal(await page.evaluate(()=>getSelection().toString()),'');
  await page.waitForFunction(()=>!document.querySelector('.student-character-layers').classList.contains('is-bouncing'));
- await page.getByRole('button',{name:'별명 설정',exact:true}).focus();await page.keyboard.press('Tab');
+ await page.getByRole('button',{name:'아바타 옷장',exact:true}).focus();await page.keyboard.press('Tab');
  assert.equal(await character.evaluate(el=>document.activeElement===el),true);
  assert.equal(await character.evaluate(el=>getComputedStyle(el).outlineStyle),'solid');
  assert.equal(await character.evaluate(el=>getComputedStyle(el).outlineWidth),'3px');

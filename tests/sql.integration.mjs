@@ -240,4 +240,33 @@ for(const [i,date] of memoDays.entries()){
 }
 assert(!JSON.stringify(memoView.calendar).includes('SAME_DAY32'));
 console.log('PASS: 교사 메모3 저장, 학생 당일 메모1·2, 학생 달력 과거·오늘·미래 메모1 전용, 메모2·3 비노출');
+// Avatar RPCs authenticate the student and use only the server catalogue/prices.
+await pg.exec('set role authenticated');await asUser(owner);
+await pg.query('select public.startoday_economy_action($1,$2,$3,null,$4,$5)',[classId,'s1','adjust',1000,'아바타 검증']);
+await pg.exec('set role anon');
+const avatarCall=async(action,item,password='새암호123')=>(await pg.query(`select public.startoday_avatar_${action}($1,$2,$3,$4,$5,$6) as data`,['NEIS001','5','오',1,password,item])).rows[0].data;
+const avatarBefore=(await schoolLogin('새암호123')).economy.balance;
+assert.equal(await avatarCall('buy','star-hat','틀린암호123'),null);
+await assert.rejects(avatarCall('equip','star-hat'),/AVATAR_NOT_OWNED/);
+await assert.rejects(avatarCall('buy','not-a-catalog-item'),/INVALID_AVATAR_ITEM/);
+let avatarResult=await avatarCall('buy','star-hat');assert.equal(avatarResult.snapshot.economy.balance,avatarBefore-10);assert.deepEqual(avatarResult.snapshot.avatar.owned,['star-hat']);assert.deepEqual(avatarResult.snapshot.avatar.catalog,C.AVATAR_CATALOG);
+await assert.rejects(avatarCall('buy','star-hat'),/AVATAR_ALREADY_OWNED/);
+avatarResult=await avatarCall('equip','star-hat');assert.equal(avatarResult.snapshot.avatar.equipped['머리'],'star-hat');
+avatarResult=await avatarCall('equip','star-hat');assert.deepEqual(avatarResult.snapshot.avatar.equipped,{});
+await assert.rejects(pg.query('select public.startoday_avatar_mutate($1,$2,$3,$4)',[classId,'s2','star-hat','buy']),/permission denied/);
+await pg.exec('reset role');assert.deepEqual((await pg.query('select public.startoday_student_payload($1,$2) as data',[classId,'s2'])).rows[0].data.avatar.owned,[]);
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
+const useItem={id:C.uid(),name:'33차 사용 쿠폰',category:'특별',price:0,stock:3};await commit([{table:'shop_items',id:useItem.id,data:useItem}]);
+const giftResult=(await pg.query('select public.startoday_economy_action($1,$2,$3,$4,0,$5) as data',[classId,'s1','gift',useItem.id,''])).rows[0].data;
+const giftId=giftResult.transactionId;
+const usedResult=(await pg.query('select public.startoday_economy_action($1,$2,$3,$4,0,$5) as data',[classId,'s1','use',giftId,''])).rows[0].data;
+const used=usedResult.data.economy_tx.find(t=>t.type==='사용'&&t.originalTxId===giftId);assert(used);assert.notEqual(used.id,giftId);assert.equal(used.amount,0);assert.equal(used.itemName,useItem.name);assert.equal(used.itemCategory,'특별');assert.equal(usedResult.data.economy_tx.find(t=>t.id===giftId).status,'사용완료');
+await assert.rejects(pg.query('select public.startoday_economy_action($1,$2,$3,$4,0,$5)',[classId,'s1','use',giftId,'']),/INVALID_HOLDING/);
+snap=await snapshot();revision=Number(snap.revision);
+const ownedStudent=snap.data.students.find(s=>s.id==='s1');
+await commit([{table:'students',id:'s1',data:{...ownedStudent,avatarOwned:[]}}]);snap=await snapshot();assert(snap.data.students.find(s=>s.id==='s1').avatarOwned.includes('star-hat'));
+await pg.exec('reset role');const remaining=(await pg.query('select public.startoday_coin_balance($1,$2) as amount',[classId,'s1'])).rows[0].amount;
+await pg.exec('set role authenticated');await asUser(owner);if(Number(remaining)!==0)await pg.query('select public.startoday_economy_action($1,$2,$3,null,$4,$5)',[classId,'s1','adjust',-Number(remaining),'잔액 부족 검증']);
+await pg.exec('set role anon');await assert.rejects(avatarCall('buy','star-cape'),/INSUFFICIENT_BALANCE/);assert.deepEqual((await schoolLogin('새암호123')).avatar.owned,['star-hat']);
+console.log('PASS: 아바타 인증·카탈로그·가격·소유권·중복구매·장착해제·타학생 격리·교사 수정 보존, 별도 사용 거래 및 중복 차단');
 await pg.close();

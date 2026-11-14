@@ -29,27 +29,21 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
       info = periodInfo(slot),
       events = C.calendarEvents(db()).filter(e => e.date === d && e.period === p);
     if (registeredOnly && !slot && !events.length) return '';
-    const detail = !calendar || state.calendarFilters.detail;
-    const teacher = info.teacher ? info.teacher.replace(/선생님$/, '') + '선생님' : '';
     const memo = slot?.publicMemo ?? slot?.memo ?? '';
     const privateMemo = audience === 'teacher' ? slot?.privateMemo || '' : C.sameDayMemo(slot, d);
     const teacherMemo = audience === 'teacher' ? slot?.teacherMemo || '' : '';
     const subject = slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '';
-    const publicNotes = audience === 'classroom' ? [...new Set([...events.map(event => event.title + (event.description && event.description.trim() !== memo.trim() ? ' · ' + event.description : '')), memo].filter(Boolean))].join('\n') : memo;
-    const importantNotes = events.filter(event => event.isImportant !== false).map(event => event.title).join(' · ');
     const time = settings().periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i];
-    const content = `<div class="slot-period-row"><span class="slot-time">${p}교시</span><small class="slot-clock">${esc(time || '')}</small></div>${subject || publicNotes ? `<div class="slot-subject-row">${subject ? `<strong class="subject-title">${esc(subject)}</strong>` : ''}${publicNotes ? `<span class="slot-public-memo">${esc(publicNotes)}</span>` : ''}</div>` : ''}${audience === 'classroom' && calendar && importantNotes ? `<span class="slot-important-memo">${esc(importantNotes)}</span>` : ''}${privateMemo ? `<div class="slot-private-memo">📌 ${esc(privateMemo)}</div>` : ''}${teacherMemo ? `<div class="slot-teacher-memo">🔒 ${esc(teacherMemo)}</div>` : ''}`;
-    if (audience === 'classroom') return `<div class="slot${slot ? ' subject-color subject-stripe' : ''}" style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}">${content}</div>`;
-    const main = btn(content, () => {
-      if (state.dragSlot) {
-        const from = state.dragSlot;
-        state.dragSlot = null;
-        return swapSlots(from, `${d}:${p}`);
-      }
-      dayEditor(d, '시간표', p);
-    }, 'slot-main');
-    const eventLinks = events.map(event => event.id && db().events.some(row => row.id === event.id) ? btn(esc(event.title) + (event.description ? `<small>${esc(event.description)}</small>` : ''), () => dayEditor(d, '일정', null, event), 'slot-event-link timeline-event' + (event.isImportant !== false ? ' is-important' + (calendar ? ' slot-important-memo' : '') : ' is-ordinary')) : `<span class="slot-event-label">${esc(event.title)}</span>`).join('');
-    return `<div class="slot${calendar ? ' calendar-lesson' : ''}${slot ? ' subject-color subject-stripe' : ''}" style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}" title="${esc(slot?.subjectCode || '')}" draggable="${!!slot}" data-drag="${d}:${p}" data-drop="${d}:${p}">${main}${eventLinks ? `<div class="slot-event-links">${eventLinks}</div>` : ''}</div>`;
+    const periodRow = `<div class="slot-period-row"><span class="slot-time">${p}교시</span><small class="slot-clock">${esc(time || '')}</small></div>`;
+    const subjectTitle = subject ? `<strong class="subject-title">${esc(subject)}</strong>` : '';
+    const memoHtml = `${memo ? `<span class="slot-public-memo">${audience === 'teacher' ? '📢 ' : ''}${esc(memo)}</span>` : ''}${privateMemo ? `<span class="slot-same-day-memo">${esc(privateMemo)}</span>` : ''}${teacherMemo ? `<span class="slot-teacher-memo">🔒 ${esc(teacherMemo)}</span>` : ''}`;
+    if (audience === 'classroom') return `<div class="slot${slot ? ' subject-color subject-stripe' : ''}" style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}">${periodRow}<div class="slot-subject-row">${subjectTitle}<div class="slot-memos">${memoHtml}${events.map(event=>`<span class="slot-public-memo">${esc(event.title)}${event.description ? ' '+esc(event.description) : ''}</span>`).join('')}</div></div></div>`;
+    const main = btn(periodRow + subjectTitle, () => {
+      if (state.dragSlot) { const from=state.dragSlot;state.dragSlot=null;return swapSlots(from, `${d}:${p}`); }
+      dayEditor(d,'시간표',p);
+    },'slot-main');
+    const eventLinks = events.map(event => event.id && db().events.some(row=>row.id===event.id) ? btn(esc(event.title)+(event.description ? `<small>${esc(event.description)}</small>` : ''),()=>dayEditor(d,'일정',null,event),'slot-event-link timeline-event'+(event.isImportant!==false?' is-important':' is-ordinary')) : `<span class="slot-event-label">${esc(event.title)}</span>`).join('');
+    return `<div class="slot${calendar ? ' calendar-lesson' : ''}${slot ? ' subject-color subject-stripe' : ''}" style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}" title="${esc(slot?.subjectCode || '')}" draggable="${!!slot}" data-drag="${d}:${p}" data-drop="${d}:${p}"><div class="slot-subject-row">${main}<div class="slot-memos">${memoHtml}${eventLinks}</div></div></div>`;
   });
   return C.dayTimeline(db(), d).map(part => part.type === 'lesson' ? lessonSlots[part.period - 1] : part.events.length && (!calendar || state.calendarFilters.events) ? `<div class="timeline-slot timeline-${part.period}" data-timeline-period="${part.period}"><strong>${{
     0: '아침',

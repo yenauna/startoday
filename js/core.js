@@ -382,6 +382,10 @@ export function applyOps(db, ops) {
       const data = structuredClone(op.data);
       if (op.table === 'records') data.createdAt = (i >= 0 && list[i].createdAt) || data.createdAt || now();
       if (op.table === 'students' && i >= 0 && Array.isArray(list[i].rewardTitles)) data.rewardTitles = mergeRewardTitles(list[i].rewardTitles, data.rewardTitles);
+      if (op.table === 'students' && i >= 0 && Array.isArray(list[i].avatarOwned)) {
+        data.avatarOwned = [...new Set([...list[i].avatarOwned, ...(Array.isArray(data.avatarOwned) ? data.avatarOwned : [])])];
+        data.avatarEquipped ??= list[i].avatarEquipped || {};
+      }
       if (i >= 0) list[i] = data;else list.push(data);
     }
   }
@@ -617,7 +621,7 @@ export function validateBackup(x) {
   }
   const economyUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   for (const item of x.data.shop_items) if (!economyUuid.test(item.id) || typeof item.name !== 'string' || !item.name.trim() || !Number.isSafeInteger(item.price) || item.price < 0 || item.price > 1000000000 || !(item.stock === null || Number.isSafeInteger(item.stock) && item.stock >= 0 && item.stock <= 1000000000)) throw Error('상점 물품 형식 오류');
-  for (const tx of x.data.economy_tx) if (!economyUuid.test(tx.id) || !x.data.students.some(s => s.id === tx.studentId) || !['구매', '선물', '환불', '지급', '차감', '회수', '선물취소'].includes(tx.type) || !Number.isSafeInteger(tx.amount) || Math.abs(tx.amount) > 1000000000 || typeof tx.createdAt !== 'string' || ['구매', '선물'].includes(tx.type) && (!economyUuid.test(tx.itemId) || !['보유', '사용완료', '환불됨', '회수됨', '취소됨'].includes(tx.status)) || tx.type === '구매' && tx.amount > 0 || ['선물', '회수', '선물취소'].includes(tx.type) && tx.amount !== 0 || ['환불', '지급'].includes(tx.type) && tx.amount < 0 || tx.type === '차감' && tx.amount >= 0) throw Error('경제 거래 형식 오류');
+  for (const tx of x.data.economy_tx) if (!economyUuid.test(tx.id) || !x.data.students.some(s => s.id === tx.studentId) || !['구매', '선물', '환불', '지급', '차감', '회수', '선물취소', '사용', '아바타구매'].includes(tx.type) || !Number.isSafeInteger(tx.amount) || Math.abs(tx.amount) > 1000000000 || typeof tx.createdAt !== 'string' || ['구매', '선물'].includes(tx.type) && (!economyUuid.test(tx.itemId) || !['보유', '사용완료', '환불됨', '회수됨', '취소됨'].includes(tx.status)) || tx.type === '구매' && tx.amount > 0 || ['선물', '회수', '선물취소', '사용'].includes(tx.type) && tx.amount !== 0 || ['환불', '지급'].includes(tx.type) && tx.amount < 0 || tx.type === '차감' && tx.amount >= 0) throw Error('경제 거래 형식 오류');
   for (const item of x.data.shop_items.filter(i => i.isGroupBuy)) {
     if (!Number.isSafeInteger(item.groupGoal) || item.groupGoal < 1 || item.groupGoal > 1000000000 || !Number.isSafeInteger(item.groupCollected) || item.groupCollected < 0 || item.groupCollected > item.groupGoal || item.stock !== null || item.isFunded !== (item.groupCollected === item.groupGoal) || item.isUsed && !item.isFunded) throw Error('공동구매 형식 오류');
     if (x.data.group_buy_contribs.filter(c => c.itemId === item.id).reduce((sum, c) => sum + c.amount, 0) !== item.groupCollected) throw Error('공동구매 기여 합계 오류');
@@ -1618,7 +1622,7 @@ export function shopUseOps(database, studentId, txId) {
   return [economyUp('economy_tx', {
     ...tx,
     status: '사용완료'
-  })];
+  }), economyUp('economy_tx', { ...economyEntry(studentId, '사용', 0, {id:tx.itemId,name:tx.itemName,category:tx.itemCategory}), originalTxId: tx.id })];
 }
 export function teacherReclaimOps(database, studentId, txId, restoreStock = false) {
   economyStudent(database, studentId);
@@ -1842,4 +1846,31 @@ export function studentPraiseRange(config = {}, date = today()) {
     from: period === '30d' ? addDays(date, -29) : period === '7d' ? addDays(date, -6) : period === 'month' ? date.slice(0, 8) + '01' : '',
     to: date
   };
+}
+
+// Trusted catalogue IDs and paths; never accept client-supplied prices or image URLs.
+export const AVATAR_CATALOG = [
+  {id:'star-hat',name:'별빛 왕관',category:'머리',price:10,image:'assets/avatar/star-hat.svg'},
+  {id:'star-cape',name:'별빛 망토',category:'옷',price:20,image:'assets/avatar/star-cape.svg'},
+  {id:'star-aura',name:'반짝별 효과',category:'효과',price:15,image:'assets/avatar/star-aura.svg'},
+  {id:'star-sky',name:'별빛 하늘',category:'배경',price:25,image:'assets/avatar/star-sky.svg'}
+];
+export function avatarSnapshot(student) {
+  const owned = AVATAR_CATALOG.filter(item => student.avatarOwned?.includes(item.id)).map(item=>item.id);
+  const equipped = Object.fromEntries(AVATAR_CATALOG.filter(item => owned.includes(item.id) && student.avatarEquipped?.[item.category] === item.id).map(item=>[item.category,item.id]));
+  return {catalog:AVATAR_CATALOG.map(item=>({...item})),owned,equipped};
+}
+export function avatarOps(database, studentId, itemId, action) {
+  economyStudent(database, studentId);
+  const student=database.students.find(s=>s.id===studentId), item=AVATAR_CATALOG.find(item=>item.id===itemId), avatar=avatarSnapshot(student);
+  if (!item || !['buy','equip'].includes(action)) throw Error('아바타 아이템을 확인하세요.');
+  if (action === 'buy') {
+    if (avatar.owned.includes(itemId)) throw Error('이미 보유한 아이템입니다.');
+    if (studentBalance(database,studentId)<item.price) throw Error('잔액이 부족합니다.');
+    return [economyUp('students',{...student,avatarOwned:[...avatar.owned,itemId],avatarEquipped:avatar.equipped}),economyUp('economy_tx',economyEntry(studentId,'아바타구매',-item.price,{id:item.id,name:item.name,category:item.category}))];
+  }
+  if (!avatar.owned.includes(itemId)) throw Error('보유한 아이템만 장착할 수 있습니다.');
+  const equipped={...avatar.equipped};
+  if (equipped[item.category]===itemId) delete equipped[item.category];else equipped[item.category]=itemId;
+  return [economyUp('students',{...student,avatarOwned:avatar.owned,avatarEquipped:equipped})];
 }

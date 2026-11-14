@@ -15,7 +15,7 @@ import { studentsView } from './tabs/students.js';
 import { bindTimetableDrag, calendarView } from './tabs/timetable.js';
 import { classroom } from './tabs/classroom.js';
 import { toolsView, syncToolsVisibility } from './tabs/tools.js';
-import { renderStudentShell, studentSnapshot } from './tabs/student-view.js';
+import { renderStudentShell, studentSnapshot, studentViewScrollKey } from './tabs/student-view.js';
 const teacherTabs = ['대시보드', '기록', '시간표·일정', '과제', '루틴', '경제', '통계', '수업도구', '자리', '설정'];
 export function navigate(tab) {
   state.tab = tab === '학생' ? '통계' : tab;
@@ -42,6 +42,7 @@ window.addEventListener('hashchange', () => {
   render();
 });
 readTabHash();
+let lastStudentScrollKey = null;
 export function render() {
   syncToolsVisibility();
   if (state.studentPasswordPending || state.viewMode === 'student' || state.studentUser || state.impersonatingStudentId) {
@@ -52,9 +53,12 @@ export function render() {
     const scrollY = window.scrollY;
     $('#app').innerHTML = renderStudentShell();
     syncGroupBuyDialog();
-    window.scrollTo?.(0, scrollY);
+    const key = studentViewScrollKey();
+    window.scrollTo?.(0, key === lastStudentScrollKey ? scrollY : 0);
+    lastStudentScrollKey = key;
     return;
   }
+  lastStudentScrollKey = null;
   if (state.locked) return;
   document.querySelector('.print-root')?.remove();
   document.body.classList.remove('report-open');

@@ -26,6 +26,8 @@ js='(()=>{\nconst C=(()=>{\n'+core+'\nreturn {'+','.join(names)+'};\n})();\n'+st
 # Include the default student character in the standalone file as well.
 character='data:image/png;base64,'+base64.b64encode((root/'assets/character-default.png').read_bytes()).decode()
 js=js.replace("'assets/character-default.png'", repr(character))
+for avatar_file in (root/'assets/avatar').glob('*.svg'):
+    js=js.replace('assets/avatar/'+avatar_file.name, 'data:image/svg+xml;base64,'+base64.b64encode(avatar_file.read_bytes()).decode())
 html=(root/'index.html').read_text()
 # Keep the small repeating shop decorations available in the file-open demo.
 def inline_style(match):
