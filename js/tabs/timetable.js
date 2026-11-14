@@ -32,12 +32,13 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
     const detail = !calendar || state.calendarFilters.detail;
     const teacher = info.teacher ? info.teacher.replace(/선생님$/, '') + '선생님' : '';
     const memo = slot?.publicMemo ?? slot?.memo ?? '';
-    const privateMemo = !calendar && audience === 'teacher' ? slot?.privateMemo || '' : '';
+    const privateMemo = audience === 'teacher' ? slot?.privateMemo || '' : C.sameDayMemo(slot, d);
+    const teacherMemo = audience === 'teacher' ? slot?.teacherMemo || '' : '';
     const subject = slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '';
     const publicNotes = audience === 'classroom' ? [...new Set([...events.map(event => event.title + (event.description && event.description.trim() !== memo.trim() ? ' · ' + event.description : '')), memo].filter(Boolean))].join('\n') : memo;
     const importantNotes = events.filter(event => event.isImportant !== false).map(event => event.title).join(' · ');
     const time = settings().periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i];
-    const content = `<div class="slot-period-row"><span class="slot-time">${p}교시</span><small class="slot-clock">${esc(time || '')}</small></div>${subject || publicNotes ? `<div class="slot-subject-row">${subject ? `<strong class="subject-title">${esc(subject)}</strong>` : ''}${publicNotes ? `<span class="slot-public-memo">${esc(publicNotes)}</span>` : ''}</div>` : ''}${audience === 'classroom' && calendar && importantNotes ? `<span class="slot-important-memo">${esc(importantNotes)}</span>` : ''}${privateMemo ? `<div class="slot-private-memo">📌 ${esc(privateMemo)}</div>` : ''}`;
+    const content = `<div class="slot-period-row"><span class="slot-time">${p}교시</span><small class="slot-clock">${esc(time || '')}</small></div>${subject || publicNotes ? `<div class="slot-subject-row">${subject ? `<strong class="subject-title">${esc(subject)}</strong>` : ''}${publicNotes ? `<span class="slot-public-memo">${esc(publicNotes)}</span>` : ''}</div>` : ''}${audience === 'classroom' && calendar && importantNotes ? `<span class="slot-important-memo">${esc(importantNotes)}</span>` : ''}${privateMemo ? `<div class="slot-private-memo">📌 ${esc(privateMemo)}</div>` : ''}${teacherMemo ? `<div class="slot-teacher-memo">🔒 ${esc(teacherMemo)}</div>` : ''}`;
     if (audience === 'classroom') return `<div class="slot${slot ? ' subject-color subject-stripe' : ''}" style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}">${content}</div>`;
     const main = btn(content, () => {
       if (state.dragSlot) {
@@ -176,7 +177,7 @@ export function timetableEditor(d, p) {
     const old = db().timetables.find(t => t.date === d && t.period === p);
     const publicMemo = form.get('publicMemo') || '';
     const scope = memoScope(),
-      fields = [...cleared].filter(key => !form.get(key) && (key === 'publicMemo' ? old?.publicMemo ?? old?.memo : old?.privateMemo));
+      fields = [...cleared].filter(key => !form.get(key) && (key === 'publicMemo' ? old?.publicMemo ?? old?.memo : old?.[key]));
     await commit([up('timetables', {
       ...old,
       id: old?.id || `${d}-${p}`,
@@ -187,6 +188,7 @@ export function timetableEditor(d, p) {
       memo: publicMemo,
       publicMemo,
       privateMemo: form.get('privateMemo') || '',
+      teacherMemo: form.get('teacherMemo') || '',
       updatedAt: C.now()
     })]);
     closeModal();
@@ -198,14 +200,14 @@ export function timetableEditor(d, p) {
         updatedAt: C.now()
       };
       for (const key of fields) {
-        next[key] = key === 'publicMemo' ? old.publicMemo ?? old.memo ?? '' : old.privateMemo || '';
+        next[key] = key === 'publicMemo' ? old.publicMemo ?? old.memo ?? '' : old[key] || '';
         if (key === 'publicMemo') next.memo = next.publicMemo;
       }
       await commit([up('timetables', next)]);
     }, () => scope === memoScope());
   };
   const choices = subjects => subjects.map(subject => btn(esc(subject.code), () => save(subject.code, new FormData($('#modal-form'))), 'subject-color subject-stripe subject-choice' + (subject.code === slot?.subjectCode ? ' selected' : ''), `style="${C.subjectColorStyle(subject)}" aria-pressed="${subject.code === slot?.subjectCode}"`)).join('');
-  modal(`${C.formatDate(d)} · ${p}교시 시간표`, `${C.gradeSubjectCodes(settings().grade).length ? `<div class="subject-grid">${choices(regular)}</div>` : '<p class="muted">설정-기본정보에서 학년을 설정하면 과목이 보입니다.</p>'}<details class="project-subjects" ${special.some(subject => subject.code === slot?.subjectCode) ? 'open' : ''}><summary>+ 특별·프로젝트 수업 ▾</summary><div class="subject-grid">${choices(special) || '<p class="muted">설정-과목·전담에서 특별 과목을 추가하세요.</p>'}</div></details><p class="muted">과목 버튼을 누르면 바로 저장됩니다.</p>${memoField('수업 메모 (공개)', 'publicMemo', slot?.publicMemo ?? slot?.memo ?? '')}${memoField('당일 공개 메모 (수업 당일에만 학생 공개)', 'privateMemo', slot?.privateMemo || '')}<p class="muted">수업 전 학생 달력에는 표시되지 않으며, 수업 당일 학생 시간표에만 노출됩니다.</p>${slotEventEditorList(d,p)}${slot ? btn('이 교시 비우기', async () => {
+  modal(`${C.formatDate(d)} · ${p}교시 시간표`, `${C.gradeSubjectCodes(settings().grade).length ? `<div class="subject-grid">${choices(regular)}</div>` : '<p class="muted">설정-기본정보에서 학년을 설정하면 과목이 보입니다.</p>'}<details class="project-subjects" ${special.some(subject => subject.code === slot?.subjectCode) ? 'open' : ''}><summary>+ 특별·프로젝트 수업 ▾</summary><div class="subject-grid">${choices(special) || '<p class="muted">설정-과목·전담에서 특별 과목을 추가하세요.</p>'}</div></details><p class="muted">과목 버튼을 누르면 바로 저장됩니다.</p>${memoField('메모1 : 학생 달력에도 기록되어 언제든 학생들이 볼 수 있음', 'publicMemo', slot?.publicMemo ?? slot?.memo ?? '')}${memoField("메모2 : 학생들은 당일 '오늘의 일정'과 교실화면에서만 볼 수 있음", 'privateMemo', slot?.privateMemo || '')}${memoField('메모3 : 교사만 볼 수 있음', 'teacherMemo', slot?.teacherMemo || '')}${slotEventEditorList(d,p)}${slot ? btn('이 교시 비우기', async () => {
     if (confirm('이 교시를 비울까요?')) {
       await commit([{
         table: 'timetables',
@@ -216,8 +218,7 @@ export function timetableEditor(d, p) {
     }
   }, 'danger') : ''}`, f => save(slot?.subjectCode, f), '메모 저장', btn('메모 지우기', () => {
     const form = $('#modal-form');
-    form.elements.publicMemo.value = ''; form.elements.privateMemo.value = '';
-    cleared.add('publicMemo'); cleared.add('privateMemo');
+    for (const key of ['publicMemo', 'privateMemo', 'teacherMemo']) { form.elements[key].value = ''; cleared.add(key); }
     return save(slot?.subjectCode, new FormData(form));
   }, 'danger'));
 }

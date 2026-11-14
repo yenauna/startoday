@@ -28,11 +28,11 @@ try{
   (await import('/js/app.js')).navigate('기록');
   return Object.fromEntries(examples.map(([id,date,createdAt])=>[id,{tooltip:'최초 작성 '+C.formatTimestamp(createdAt),createdAt}]));
  });
- for(const [id,label] of [['same','작성 11.13.(금) 20:35'],['backdate','작성 11.13.(금) 20:35'],['midnight','작성 11.13.(금) 00:05'],['year','작성 1.1.(금) 00:05']]){
+ for(const [id,label] of [['same','작성 26.11.13.(금) 20:35'],['backdate','작성 26.11.13.(금) 20:35'],['midnight','작성 26.11.13.(금) 00:05'],['year','작성 27.01.01.(금) 00:05']]){
   const time=page.locator(`[data-record-id="patch30-${id}"] .record-created-time`);
   assert.equal(await time.innerText(),label);assert.equal(await time.getAttribute('title'),expected[id].tooltip);assert.equal(await time.getAttribute('datetime'),expected[id].createdAt);
  }
- assert.equal(await page.locator('[data-record-id="patch30-same"] .record-updated-time').innerText(),'수정 11.13.(금) 20:40');
+ assert.equal(await page.locator('[data-record-id="patch30-same"] .record-updated-time').innerText(),'수정 26.11.13.(금) 20:40');
  assert.equal(await page.locator('[data-record-id="patch30-year"] .record-updated-time').count(),0);
  await page.setViewportSize({width:390,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
  await page.screenshot({path:'/tmp/patch30-records.png',fullPage:false});assert.deepEqual(errors,[]);

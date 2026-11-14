@@ -31,7 +31,7 @@ try {
  });
  assert.equal(await page.locator('.assignment-matrix').count(),0);
  const card=page.locator('.long-assignment-card').filter({hasText:'31차 리코더'}),unlimited=page.locator('.long-assignment-card').filter({hasText:'31차 무기한'});
- assert.match(await card.innerText(),/보상 : 연주가/);assert.match(await card.innerText(),/마감 : 11.20.\(금\)/);assert.equal(await card.locator('.long-assignment-count').innerText(),'0/1');
+ assert.match(await card.innerText(),/보상 : 연주가/);assert.match(await card.innerText(),/마감 : 26.11.20.\(금\)/);assert.equal(await card.locator('.long-assignment-count').innerText(),'0/1');
  assert.equal(await unlimited.locator('.long-assignment-deadline').count(),0);assert.equal(await unlimited.locator('.long-assignment-period').count(),0);
  const size=await card.locator('.record-edit').evaluate(e=>({h:e.getBoundingClientRect().height,font:getComputedStyle(e).fontSize}));assert.equal(size.font,'12px');assert(size.h<=29);
  await card.getByRole('button',{name:'진행도/도장판',exact:true}).click();assert.match(await page.locator('.assignment-checker').innerText(),/확인 : 선생님/);
@@ -39,7 +39,7 @@ try {
  await page.locator('.quest-subtask-toggle').filter({hasText:'나비야'}).click();
  await page.waitForFunction(()=>document.querySelector('.quest-subtask-toggle.is-complete small'));
  const expected=await page.evaluate(async date=>(await import('/js/core.js')).formatShortDate(date,false),seed.date);
- assert.match(await page.locator('.quest-subtask-toggle.is-complete').innerText(),new RegExp(expected.replaceAll('.','\\.')));
+ assert((await page.locator('.quest-subtask-toggle.is-complete').innerText()).includes(expected));
  await page.locator('.quest-subtask-toggle').filter({hasText:'작은별'}).click();await page.getByRole('button',{name:'진행도로 돌아가기',exact:true}).click();
  assert.equal(await page.locator('.quest-progress-card.is-complete').count(),1);
  const color=await page.locator('.quest-progress-card.is-complete').evaluate(e=>({bg:getComputedStyle(e).backgroundColor,blue:getComputedStyle(document.documentElement).getPropertyValue('--st-blue-bg').trim()}));assert.notEqual(color.bg,'rgb(255, 255, 255)');

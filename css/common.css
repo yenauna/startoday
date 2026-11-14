@@ -668,8 +668,8 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .slot-heading { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; min-width:0; width:100%; }
 .slot-heading .slot-time,.slot-heading .subject-title { font-weight:700; }
 .slot-clock { margin-left:auto; white-space:nowrap; }
-.slot-public-memo,.slot-private-memo { white-space:pre-line; overflow-wrap:anywhere; color:var(--st-text); font-size:13px; line-height:1.45; }
-.slot-private-memo { padding-top:4px; border-top:1px solid var(--st-line); }
+.slot-public-memo,.slot-private-memo,.slot-teacher-memo { white-space:pre-line; overflow-wrap:anywhere; color:var(--st-text); font-size:13px; line-height:1.45; }
+.slot-private-memo,.slot-teacher-memo { padding-top:4px; border-top:1px solid var(--st-line); }
 .day .slot-public-memo { font-size:11px; }
 .project-subjects { margin:12px 0; }
 .project-subjects summary { cursor:pointer; padding:8px 0; }
@@ -1267,7 +1267,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 @media(max-width:640px){
  .assignment-progress-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
  .assignment-progress-item{padding:8px 4px;font-size:12px}
- .day .calendar-lesson .slot-public-memo{display:none}
+ .day .calendar-lesson .slot-public-memo{font-size:10px}
  .day .calendar-lesson .slot-important-memo{display:block;grid-column:1/-1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px}
  .calendar .event.is-ordinary{display:none}
  .calendar .event.is-important{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

@@ -43,7 +43,7 @@ try{
  await page.locator('.day.today .slot-event-link').filter({hasText:'교시 일정 원본'}).click();
  await page.locator('#modal [name=title]').fill('교시 일정 수정');await page.locator('#modal button[type=submit]').click();
  await page.evaluate(async()=>{(await import('/js/tabs/timetable.js')).timetableEditor((await import('/js/core.js')).today(),1);});
- assert.match(await page.locator('#modal').innerText(),/당일 공개 메모/);assert.equal(await page.locator('.slot-linked-event').count(),1);
+ assert.match(await page.locator('#modal').innerText(),/메모2 :/);assert.equal(await page.locator('.slot-linked-event').count(),1);
  await page.locator('#modal [name=publicMemo]').fill('메모만 수정');await page.locator('#modal [name=privateMemo]').fill('당일 수정 안내');await page.getByRole('button',{name:'메모 저장',exact:true}).click();
  await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.timetables.find(t=>t.id==='p27-slot').privateMemo==='당일 수정 안내';});
  await page.evaluate(async()=>{(await import('/js/tabs/timetable.js')).timetableEditor((await import('/js/core.js')).today(),1);});
@@ -57,7 +57,7 @@ try{
  await page.evaluate(async()=>{const {store,state}=await import('/js/shared/state.js');state.impersonatingStudentId=window.p27s;state.viewMode='student';(await import('/js/app.js')).render();});
  const compact=page.locator('.student-long-card').filter({hasText:'과제 compact'});assert.equal(await compact.locator('small').count(),0);assert.equal(await compact.getAttribute('open'),null);assert.equal(await compact.locator('.quest-stamp-board').isVisible(),false);
  await compact.locator('summary').tap();assert.equal(await compact.locator('.quest-stamp-board').isVisible(),true);await compact.locator('summary').tap();assert.equal(await compact.locator('.student-quest-subtasks').isVisible(),false);
- const deadline=page.locator('.student-long-card').filter({hasText:'과제 deadline'});assert.match(await deadline.locator('summary').innerText(),/마감일 .*년 .*월 .*일/);assert.match(await deadline.locator('summary').innerText(),/확인 : 나래/);
+ const deadline=page.locator('.student-long-card').filter({hasText:'과제 deadline'});assert.match(await deadline.locator('summary').innerText(),/마감일 \d{2}\.\d{2}\.\d{2}\.\([일월화수목금토]\)/);assert.match(await deadline.locator('summary').innerText(),/확인 : 나래/);
  await page.getByRole('button',{name:'교사 화면으로 돌아가기',exact:true}).click();await page.evaluate(async()=>{(await import('/js/app.js')).navigate('경제');});await page.getByRole('button',{name:'상점 관리',exact:true}).click();
  const item=page.locator('.economy-item').filter({has:page.getByRole('heading',{name:'안전 선물 쿠폰',exact:true})});await item.getByRole('button',{name:'🎁 선물하기',exact:true}).tap();
  const choose=item.getByRole('button',{name:'1. 가온 선택',exact:true});await choose.tap();assert.equal(await choose.getAttribute('aria-pressed'),'true');

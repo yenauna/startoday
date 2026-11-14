@@ -80,7 +80,7 @@ export function studentSnapshot(source, student, date = C.today()) {
         periodTime: source.settings[0]?.periodTimes?.[t.period - 1] || C.DEFAULT_PERIOD_TIMES[t.period - 1],
         subject: t.subjectCode,
         location: t.locationOverride || rule?.location || '',
-        publicMemo: t.publicMemo ?? t.memo ?? '',
+        publicMemo: date === C.today() ? t.publicMemo ?? t.memo ?? '' : '',
         privateMemo: C.sameDayMemo(t, date),
         color: rule?.color,
         accentColor: rule?.accentColor,
@@ -331,7 +331,8 @@ export function studentCalendarItems(calendar, date) {
     kind: 'event'
   }));
   const order = (a, b) => a.title.localeCompare(b.title, 'ko') || (a.status || a.description || '').localeCompare(b.status || b.description || '', 'ko');
-  return [...events.sort(order), ...tasks.sort(order)];
+  const lessons = (calendar.timetables || []).filter(slot => slot.date === date && slot.publicMemo).sort((a, b) => a.period - b.period).map(slot => ({ title: `${slot.period}교시 ${slot.subject || ''}`, description: slot.publicMemo, kind: 'lesson' }));
+  return [...lessons, ...events.sort(order), ...tasks.sort(order)];
 }
 function studentCalendarView(data, id) {
   if (!data.calendar) return '<p class="muted">달력 정보를 아직 불러오지 못했어요. 선생님께 알려주세요.</p>';
@@ -530,7 +531,7 @@ function studentDaySchedule(data) {
       accentColor: t.accentColor,
       colorSource: t.colorSource,
       defaultColorValue: t.defaultColorValue
-    })}"><div class="slot-period-row"><span class="slot-time">${esc(t.period)}교시</span><small class="slot-clock">${esc(t.periodTime || C.DEFAULT_PERIOD_TIMES[t.period - 1] || '')}</small></div><div class="slot-subject-row"><strong class="subject-title">${esc(t.subject)}</strong>${t.publicMemo ? `<span class="slot-public-memo">${esc(t.publicMemo)}</span>` : ''}${C.sameDayMemo(t, data.date) ? `<span class="slot-same-day-memo">${esc(C.sameDayMemo(t, data.date))}</span>` : ''}${events.map(e => `<span class="slot-public-memo">${esc(e.title)}${e.description ? ' ' + esc(e.description) : ''}</span>`).join('')}</div></div>`;
+    })}"><div class="slot-period-row"><span class="slot-time">${esc(t.period)}교시</span><small class="slot-clock">${esc(t.periodTime || C.DEFAULT_PERIOD_TIMES[t.period - 1] || '')}</small></div><div class="slot-subject-row"><strong class="subject-title">${esc(t.subject)}</strong>${data.date === C.today() && t.publicMemo ? `<span class="slot-public-memo">${esc(t.publicMemo)}</span>` : ''}${C.sameDayMemo(t, data.date) ? `<span class="slot-same-day-memo">${esc(C.sameDayMemo(t, data.date))}</span>` : ''}${events.map(e => `<span class="slot-public-memo">${esc(e.title)}${e.description ? ' ' + esc(e.description) : ''}</span>`).join('')}</div></div>`;
   }).join('') || '<p class="muted">오늘 등록된 수업이 없습니다.</p>';
 }
 let studentTitleSaving = false;
@@ -712,11 +713,11 @@ async function studentEconomyAct(action, target, label, amount = 0) {
 
 function studentQuestSubtasks(task) {
   if (!task.questSubtasks?.length) return '';
-  return `<ul class="student-quest-subtasks">${task.questSubtasks.map(item => `<li class="${task.completedSubtasks?.includes(item) ? 'is-complete' : ''}"><span aria-hidden="true">${task.completedSubtasks?.includes(item) ? '✅' : '○'}</span> ${esc(item)}${task.completedSubtasks?.includes(item) && task.completedSubtaskDates?.[item] ? ` <small>(${esc(C.formatShortDate(task.completedSubtaskDates[item], false))})</small>` : ''}</li>`).join('')}</ul>`;
+  return `<ul class="student-quest-subtasks">${task.questSubtasks.map(item => `<li class="${task.completedSubtasks?.includes(item) ? 'is-complete' : ''}"><span aria-hidden="true">${task.completedSubtasks?.includes(item) ? '✅' : '○'}</span> ${esc(item)}${task.completedSubtasks?.includes(item) && task.completedSubtaskDates?.[item] ? ` <small>(${esc(C.formatShortDate(task.completedSubtaskDates[item]))})</small>` : ''}</li>`).join('')}</ul>`;
 }
 
 function studentLongAssignments(tasks) {
-  return tasks.map(task => `<details class="student-long-card"><summary><span class="student-long-title-row"><strong>${esc(task.title)}</strong><span>🏅 ${esc(task.stamps)}/${esc(task.goal)}</span></span>${task.endDate ? `<small class="student-long-deadline">마감일 ${esc(task.endDate.split('-')[0])}년 ${Number(task.endDate.split('-')[1])}월 ${Number(task.endDate.split('-')[2])}일</small>` : ''}${task.checkerName ? `<small class="student-long-checker">확인 : ${checkerLabel(task.checkerName)}</small>` : ''}</summary><div class="student-long-expanded">${questStampBoard(task.stamps, task.goal)}${studentQuestSubtasks(task)}</div></details>`).join('') || '<p class="muted">진행 중인 장기과제가 없습니다.</p>';
+  return tasks.map(task => `<details class="student-long-card"><summary><span class="student-long-title-row"><strong>${esc(task.title)}</strong><span>🏅 ${esc(task.stamps)}/${esc(task.goal)}</span></span>${task.endDate ? `<small class="student-long-deadline">마감일 ${esc(C.formatDate(task.endDate))}</small>` : ''}${task.checkerName ? `<small class="student-long-checker">확인 : ${checkerLabel(task.checkerName)}</small>` : ''}</summary><div class="student-long-expanded">${questStampBoard(task.stamps, task.goal)}${studentQuestSubtasks(task)}</div></details>`).join('') || '<p class="muted">진행 중인 장기과제가 없습니다.</p>';
 }
 
 function bounceStudentCharacter(event) {

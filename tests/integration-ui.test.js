@@ -43,14 +43,14 @@ test('기존 자유 배치는 명단 추가·수정 시 보존하고 신규 학�
   assert.equal(new Set(next.students.map(s => s.seat.row + ':' + s.seat.col)).size, 16);
 });
 test('날짜 표기와 사건 제목은 저장 원문을 바꾸지 않고 요일을 계산', () => {
-  assert.equal(C.formatDate('2026-11-07'), '2026.11.07.(토)');
+  assert.equal(C.formatDate('2026-11-07'), '26.11.07.(토)');
   assert.equal(C.formatDate('2026-02-30'), '');
-  assert.equal(C.formatTimestamp('2026-11-06T23:30:00Z'), '2026.11.07.(토) 08:30');
+  assert.equal(C.formatTimestamp('2026-11-06T23:30:00Z'), '26.11.07.(토) 08:30');
   const db = roster(2);
   db.students[0].name = '김가온';
   db.students[1].name = '박지우';
   db.students[1].no = 3;
-  assert.equal(C.incidentTitle(db, ['s1', 's0'], '2026-11-07'), '1김가온 3박지우 2026.11.07.(토)');
+  assert.equal(C.incidentTitle(db, ['s1', 's0'], '2026-11-07'), '1김가온 3박지우 26.11.07.(토)');
 });
 test('학생 표는 전체 순점수·칭찬·조언과 이번 달 변화, 제외일을 일관되게 계산', () => {
   const db = roster(1);

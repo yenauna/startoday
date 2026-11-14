@@ -444,7 +444,7 @@ function questSubtaskDialog(a, date, studentId, afterSave) {
   const p = C.questProgress(db(), latest, studentId);
   modal(name(studentId) + ' · ' + latest.title, `<section class="quest-subtask-editor"><p>🏅 ${p.stamps}/${p.goal} · 원하는 항목을 자유롭게 체크하거나 해제하세요.</p><div class="quest-subtask-buttons">${p.questSubtasks.map(item => {
     const checked = p.completedSubtasks.includes(item);
-    return btn((checked ? '✅ ' : '○ ') + esc(item) + (checked && p.completedSubtaskDates[item] ? ` <small>(${esc(C.formatShortDate(p.completedSubtaskDates[item], false))})</small>` : ''), async () => {
+    return btn((checked ? '✅ ' : '○ ') + esc(item) + (checked && p.completedSubtaskDates[item] ? ` <small>(${esc(C.formatShortDate(p.completedSubtaskDates[item]))})</small>` : ''), async () => {
       const scope = assignmentScope();
       await persistAssignment(async () => {
         if (scope !== assignmentScope()) return;

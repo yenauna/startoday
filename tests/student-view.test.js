@@ -282,7 +282,7 @@ test('학생 달력은 본인 과제 상태와 공개 일정만 표시하고 당
  f.source.assignmentStates=[{assignmentId:'own',studentId:'one',date,status:'완료',memo:'PRIVATE_STATUS'}];f.source.events=[{id:'event',date,title:'공개 일정',description:'운동장\n모이기',privateMemo:'PRIVATE_EVENT'}];
  f.source.timetables=[{date,period:1,subjectCode:'국어',publicMemo:'준비물\n태블릿',privateMemo:'당일 수업 안내'}];
  const data=f.context.studentSnapshot(f.source,f.source.students[0],date),json=JSON.stringify(data);assert.equal(data.timetable[0].publicMemo,'준비물\n태블릿');assert.equal(data.timetable[0].privateMemo,'당일 수업 안내');assert(!JSON.stringify(data.calendar).includes('당일 수업 안내'));assert(!json.includes('PRIVATE_'));assert(!json.includes('OTHER_TASK_SECRET'));
- const items=f.context.studentCalendarItems(data.calendar,date);assert.equal(items.length,2);assert.equal(items.find(item=>item.kind==='task').status,'완료');assert.equal(f.context.studentCalendarItems(data.calendar,C.addDays(date,1)).length,0);
+ const items=f.context.studentCalendarItems(data.calendar,date);assert.equal(items.length,3);assert.equal(items.find(item=>item.kind==='task').status,'완료');assert.equal(f.context.studentCalendarItems(data.calendar,C.addDays(date,1)).length,0);
 });
 
 test('학생 일정은 종일 행사와 D-day를 포함하고 확인자 전용 카드는 지정 학생만 노출',()=>{

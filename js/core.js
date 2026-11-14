@@ -206,6 +206,7 @@ export function studentCalendarData(database, id) {
       status: s.status,
       stamps: s.stamps
     })),
+    timetables: database.timetables.filter(t => t.period >= 1 && t.period <= 6).map(t => ({ date: t.date, period: t.period, subject: t.subjectCode || '', publicMemo: t.publicMemo ?? t.memo ?? '' })),
     excludedDates: database.attendance.filter(row => row.studentId === id && row.excluded).map(row => row.date),
     events: calendarEvents(database).map(e => ({
       date: e.date,
@@ -932,13 +933,10 @@ export function formatDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return '';
   const parsed = new Date(date + 'T12:00:00Z');
   if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) return '';
-  return date.replaceAll('-', '.') + '.(' + '일월화수목금토'[parsed.getUTCDay()] + ')';
+  return date.slice(2).replaceAll('-', '.') + '.(' + '일월화수목금토'[parsed.getUTCDay()] + ')';
 }
-export function formatShortDate(value, weekdayInParens = true) {
-  if (!formatDate(value)) return '';
-  const [year, month, day] = value.slice(0, 10).split('-');
-  const weekday = '일월화수목금토'[new Date(`${year}-${month}-${day}T12:00:00Z`).getUTCDay()];
-  return `${Number(month)}.${Number(day)}.${weekdayInParens ? `(${weekday})` : ` ${weekday}`}`;
+export function formatShortDate(value) {
+  return formatDate(value);
 }
 export function formatTimestamp(value) {
   if (!value) return '';

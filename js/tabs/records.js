@@ -158,10 +158,10 @@ function recordCreatedTime(r) {
   const created = new Date(r.createdAt), updated = new Date(r.updatedAt);
   if (!r.createdAt || !Number.isFinite(created.getTime())) return '';
   const format = instant => {
-    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', weekday: 'short' }).formatToParts(instant).map(part => [part.type, part.value]));
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: '2-digit', month: '2-digit', day: '2-digit' }).formatToParts(instant).map(part => [part.type, part.value]));
     const weekday = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', weekday: 'short' }).format(instant);
     const time = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(instant);
-    return `${Number(parts.month)}.${Number(parts.day)}.(${weekday}) ${time}`;
+    return `${parts.year}.${parts.month}.${parts.day}.(${weekday}) ${time}`;
   };
   const modified = r.updatedAt && Number.isFinite(updated.getTime()) && updated - created >= 60000;
   return `<time class="record-created-time" datetime="${esc(r.createdAt)}" title="최초 작성 ${esc(C.formatTimestamp(r.createdAt))}">작성 ${esc(format(created))}</time>${modified ? ` / <time class="record-updated-time" datetime="${esc(r.updatedAt)}" title="최근 수정 ${esc(C.formatTimestamp(r.updatedAt))}">수정 ${esc(format(updated))}</time>` : ''}`;

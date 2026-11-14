@@ -225,4 +225,19 @@ await pg.exec('reset role');
 const otherStudentView=(await pg.query('select public.startoday_student_payload($1,$2) as data',[classId,'s2'])).rows[0].data;
 assert(!otherStudentView.tasks.some(t=>t.id===datedQuest.id));
 console.log('PASS: 장기과제 항목별 완료일 JSONB 저장·보존·해제 및 학생 응답·타학생 격리');
+// Three memo scopes: only memo1 is ever present in the student calendar.
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
+const memoDays=[C.addDays(day,-1),day,C.addDays(day,1)];
+await commit(memoDays.map((date,i)=>({table:'timetables',id:'memo32-'+i,data:{id:'memo32-'+i,date,period:3,subjectCode:'국어',memo:'LEGACY32',publicMemo:'PUBLIC32-'+i,privateMemo:'SAME_DAY32-'+i,teacherMemo:'TEACHER32-'+i}})));
+snap=await snapshot();revision=Number(snap.revision);assert.equal(snap.data.timetables.find(t=>t.id==='memo32-1').teacherMemo,'TEACHER32-1');
+await pg.exec('set role anon');const memoView=await schoolLogin('새암호123');
+assert(!JSON.stringify(memoView).includes('TEACHER32'));
+assert.equal(memoView.timetable.find(t=>t.period===3).privateMemo,'SAME_DAY32-1');
+assert.equal(memoView.timetable.find(t=>t.period===3).publicMemo,'PUBLIC32-1');
+for(const [i,date] of memoDays.entries()){
+ const slot=memoView.calendar.timetables.find(t=>t.date===date&&t.period===3);assert.equal(slot.publicMemo,'PUBLIC32-'+i);
+ assert.deepEqual(Object.keys(slot).sort(),['date','period','publicMemo','subject']);
+}
+assert(!JSON.stringify(memoView.calendar).includes('SAME_DAY32'));
+console.log('PASS: 교사 메모3 저장, 학생 당일 메모1·2, 학생 달력 과거·오늘·미래 메모1 전용, 메모2·3 비노출');
 await pg.close();

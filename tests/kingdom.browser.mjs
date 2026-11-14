@@ -143,13 +143,8 @@ try {
   await page.locator('#modal input[name=areas][value=알바]').check();
   await page.locator('#modal button[type=submit]').click();
   const teacherCard = page.locator('article.student').first();
-  await teacherCard.locator('.kingdom-earned-open').click();
-  assert.equal(await page.locator('#modal .kingdom-domain').count(), 6);
-  assert.equal(await page.locator('#modal [data-equip-title]').count(), 0);
-  await page.locator('#modal .dialog-head').getByRole('button', {
-    name: '닫기',
-    exact: true
-  }).click();
+  assert.equal(await teacherCard.locator('.kingdom-earned-open').count(), 0);
+  assert((await teacherCard.locator('.student-kingdom').textContent()).trim().length > 0);
   await teacherCard.locator('.student-head button').click();
   assert((await page.locator('.student-kingdom-detail').textContent()).includes('통찰의 현자') === false);
   assert((await page.locator('.student-kingdom-detail').textContent()).includes('길드의 대들보'));
