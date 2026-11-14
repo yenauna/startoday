@@ -44,5 +44,13 @@ try {
  await page.getByRole('button',{name:'내 옷장',exact:true}).click();for(const id of ['hair_1','outfit_1']){await page.locator(`[data-avatar-id=${id}]`).getByRole('button',{name:'장착',exact:true}).click();await page.locator(`.student-character-scene [data-avatar-item=${id}]`).waitFor();}
  const layerTransforms=await page.locator('.student-character-equipment img').evaluateAll(es=>es.map(e=>({id:e.dataset.avatarItem,transform:getComputedStyle(e).transform,x:new DOMMatrix(getComputedStyle(e).transform).m11,y:new DOMMatrix(getComputedStyle(e).transform).m22})));
  assert.equal(layerTransforms.find(e=>e.id==='hair_1').transform,'none');const outfit=layerTransforms.find(e=>e.id==='outfit_1');
- assert.equal(outfit.x,1.25);assert.equal(outfit.y,.9);assert.deepEqual(errors,[]);console.log('PASS: original full-canvas PNGs unchanged; closet/shop cropped thumbnails fill >80% height; exact category scales, 108px clipping, two compact mobile cards and unchanged equipped layer transforms');
+ assert.equal(outfit.x,1);assert.equal(outfit.y,1);
+ const neck=await page.locator('.student-character-layers').evaluate(async el=>{
+  const base=el.querySelector('.student-profile-image'),outfit=el.querySelector('[data-avatar-item=outfit_1]');await Promise.all([base.decode(),outfit.decode()]);
+  const clip=getComputedStyle(base).clipPath,canvas=document.createElement('canvas');canvas.width=485;canvas.height=866;const ctx=canvas.getContext('2d');ctx.save();ctx.beginPath();ctx.rect(0,0,485,866*.53);ctx.clip();ctx.drawImage(base,0,0,485,866);ctx.restore();ctx.drawImage(outfit,0,0,485,866);
+  const pixels=ctx.getImageData(242,Math.floor(866*.4),1,Math.ceil(866*.2)).data;let transparent=0;for(let i=3;i<pixels.length;i+=4)if(pixels[i]<32)transparent++;
+  return{clip,transparent};
+ });assert.equal(neck.clip,'inset(0px 0px 47%)');assert.equal(neck.transparent,0);
+ await page.locator('.student-character-layers').screenshot({path:'/tmp/neck-outfit.png',animations:'disabled'});
+ assert.deepEqual(errors,[]);console.log('PASS: original full-canvas PNGs unchanged; closet/shop cropped thumbnails fill >80% height; exact category scales, 108px clipping, two compact mobile cards and unchanged equipped layer transforms');
 }finally{await browser?.close();await new Promise(r=>server.close(r));}

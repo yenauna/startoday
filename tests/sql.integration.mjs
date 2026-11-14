@@ -10,6 +10,12 @@ await pg.exec(`create role anon;create role authenticated;create schema auth;cre
 const schema=await readFile(new URL('../schema.sql',import.meta.url),'utf8');
 // Start with the pre-areas schema, then migrate a populated class in place.
 await pg.exec(schema.replaceAll(",'areas'",''));
+// Legacy table-level checks must not keep rejecting the new avatar purchase type.
+await pg.exec("alter table public.startoday_economy_tx add constraint startoday_economy_tx_check check(data->>'type' in ('구매','환불','선물','지급','차감'))");
+await pg.exec(schema.replaceAll(",'areas'",''));
+assert.equal((await pg.query("select count(*)::int as n from pg_constraint where conrelid='public.startoday_economy_tx'::regclass and conname='startoday_economy_tx_check'")).rows[0].n,0);
+assert.equal((await pg.query("select count(*)::int as n from pg_constraint where conrelid='public.startoday_economy_tx'::regclass and conname='startoday_economy_tx_data_check'")).rows[0].n,1);
+
 const owner='00000000-0000-0000-0000-000000000001',other='00000000-0000-0000-0000-000000000002';
 await pg.query('insert into auth.users(id) values($1),($2)',[owner,other]);
 await pg.exec('set role authenticated');

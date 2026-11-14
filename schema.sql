@@ -45,6 +45,7 @@ create table if not exists public.startoday_economy_tx (
  data jsonb not null check(data ?& array['id','studentId','type','amount','createdAt'] and jsonb_typeof(data)='object' and data->>'id'=id::text and data->>'studentId'=student_id and data->>'type' in ('구매','환불','선물','지급','차감','회수','선물취소','사용','아바타구매') and jsonb_typeof(data->'amount')='number' and abs((data->>'amount')::numeric)<=1000000000 and (data->>'amount')::numeric=trunc((data->>'amount')::numeric)),created_at timestamptz not null default now(),updated_at timestamptz not null default now(),unique(class_id,id)
 );
 -- Extend the existing ledger without rewriting historical transactions.
+alter table public.startoday_economy_tx drop constraint if exists startoday_economy_tx_check;
 alter table public.startoday_economy_tx drop constraint if exists startoday_economy_tx_data_check;
 alter table public.startoday_economy_tx add constraint startoday_economy_tx_data_check check(data ?& array['id','studentId','type','amount','createdAt'] and jsonb_typeof(data)='object' and data->>'id'=id::text and data->>'studentId'=student_id and data->>'type' in ('구매','환불','선물','지급','차감','회수','선물취소','사용','아바타구매') and jsonb_typeof(data->'amount')='number' and abs((data->>'amount')::numeric)<=1000000000 and (data->>'amount')::numeric=trunc((data->>'amount')::numeric));
 do $$ declare t text;begin

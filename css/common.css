@@ -1526,7 +1526,6 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 /* The floor shadow is a sibling of the animated character, never part of its transform. */
 .student-character-shadow{position:absolute;left:50%;bottom:4px;translate:-50% 0;width:min(44.4%,178px);height:12px;border-radius:50%;background:#b8b0cc;opacity:.4;z-index:1;pointer-events:none;transform-origin:center;animation:st-character-shadow 3.2s ease-in-out infinite}
 .student-character-scene.is-bouncing>.student-character-shadow{animation:st-character-greeting-shadow 900ms ease-in-out both}
-.student-character-layers:has(.avatar-layer-옷)>.student-profile-image{clip-path:inset(0 0 51% 0)}
-.student-character-equipment>.avatar-layer-옷{transform:scale(1.25,.9);transform-origin:center bottom}
+.student-character-layers:has(.avatar-layer-옷)>.student-profile-image{clip-path:inset(0 0 47% 0)}
 .avatar-item p{font-size:12px;color:#69758a;margin:0;line-height:1.4}
 @media(prefers-reduced-motion:reduce){.student-character-shadow,.student-character-scene.is-bouncing>.student-character-shadow{animation:none;transform:none}}
