@@ -1503,9 +1503,16 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .avatar-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
 .student-avatar-background .avatar-layer{object-fit:cover;border-radius:28px}
 .student-character-equipment{position:absolute;inset:0;pointer-events:none}
-.avatar-catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-top:16px}
-.avatar-item{background:#fff;border:1px solid #e2daef;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px;align-items:center;text-align:center}
-.avatar-item>img{width:100%;height:120px;object-fit:contain;background:#f4f0fc;border-radius:12px}.avatar-item h3{font-size:15px;margin:0}
+.avatar-catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(140px,100%),1fr));gap:10px;margin-top:12px}
+.avatar-item{background:#fff;border:1px solid #e2daef;border-radius:14px;padding:8px;display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center;min-width:0}
+.avatar-item-thumb{width:100%;height:108px;overflow:hidden;border-radius:12px;background:#f4f0fc;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.avatar-item-thumb img{width:100%;height:100%;object-fit:contain}
+.avatar-item[data-avatar-category="머리"] .avatar-item-thumb img{transform:scale(2.15);transform-origin:center 8%}
+.avatar-item[data-avatar-category="옷"] .avatar-item-thumb img{transform:scale(1.65);transform-origin:center 88%}
+.avatar-item[data-avatar-category="배경"] .avatar-item-thumb img{object-fit:cover}
+.avatar-item h3{font-size:14px;line-height:1.35;margin:0;overflow-wrap:anywhere}
+.avatar-item>button{margin-top:auto;min-height:36px;padding:6px 10px;font-size:12px}
+@media(max-width:640px){.avatar-catalog{gap:8px}.avatar-item{padding:7px;gap:5px}.avatar-item h3{font-size:13px}}
 .student-home-village .student-profile-score{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 7px}
 .student-home-village .student-profile-score .student-wardrobe-open{grid-column:2;grid-row:2;justify-self:end}
 .student-avatar-manager.student-home-village{display:block}
