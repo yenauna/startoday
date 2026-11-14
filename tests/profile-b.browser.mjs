@@ -122,6 +122,9 @@ try {
       height: 1000
     });
     const layout = await card.evaluate(el => {
+      // Check the resting layout; idle sway intentionally moves the visual center.
+      const idle = el.querySelector('.student-character-layers').getAnimations().find(a=>a.animationName==='st-character-breathe');
+      if (idle) { idle.pause();idle.currentTime=0; }
       const stage = el.querySelector('.student-avatar-stage').getBoundingClientRect(),
         main = el.querySelector('.student-profile-main').getBoundingClientRect(),
         image = el.querySelector('img').getBoundingClientRect(),

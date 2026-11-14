@@ -28,7 +28,7 @@ function avatarLayer(data, category) {
   return item ? `<img src="${esc(item.image)}" class="avatar-layer avatar-layer-${category}" alt="" draggable="false" data-avatar-item="${esc(item.id)}">` : '';
 }
 function studentAvatarScene(data) {
-  return `<div class="student-character-scene"><div class="student-avatar-background" data-character-slot="background">${avatarLayer(data,'배경')}</div><div class="student-avatar-objects" data-character-slot="objects"></div>${btn(`<img src="${STUDENT_PROFILE_IMAGE}" alt="" class="student-profile-image" draggable="false"><span class="student-character-equipment" data-character-slot="equipment" aria-hidden="true">${['옷','머리','효과'].map(category=>avatarLayer(data,category)).join('')}</span><span class="student-character-sparkle" aria-hidden="true">✨</span>`, bounceStudentCharacter, 'student-character-layers', 'aria-label="캐릭터 점프" title="눌러서 캐릭터와 인사해요"')}</div>`;
+  return `<div class="student-character-scene"><div class="student-avatar-background" data-character-slot="background">${avatarLayer(data,'배경')}</div><div class="student-avatar-objects" data-character-slot="objects"></div>${btn(`<img src="${STUDENT_PROFILE_IMAGE}" alt="" class="student-profile-image" draggable="false"><span class="student-character-equipment" data-character-slot="equipment" aria-hidden="true">${['옷','머리','효과'].map(category=>avatarLayer(data,category)).join('')}</span><span class="student-character-greeting" aria-hidden="true"></span>`, bounceStudentCharacter, 'student-character-layers', 'aria-label="캐릭터 인사" title="눌러서 캐릭터와 인사해요"')}</div>`;
 }
 function studentAvatarView(data) {
   const avatar=data.avatar || {owned:[],equipped:{}};
@@ -768,11 +768,23 @@ function studentLongAssignments(tasks) {
   return tasks.map(task => `<details class="student-long-card"><summary><span class="student-long-title-row"><strong>${esc(task.title)}</strong><span>🏅 ${esc(task.stamps)}/${esc(task.goal)}</span></span>${task.endDate ? `<small class="student-long-deadline">마감일 ${esc(C.formatDate(task.endDate))}</small>` : ''}${task.checkerName ? `<small class="student-long-checker">확인 : ${checkerLabel(task.checkerName)}</small>` : ''}</summary><div class="student-long-expanded">${questStampBoard(task.stamps, task.goal)}${studentQuestSubtasks(task)}</div></details>`).join('') || '<p class="muted">진행 중인 장기과제가 없습니다.</p>';
 }
 
+const STUDENT_GREETINGS = ['👋 안녕!', '✨ 반가워!', '🌟 오늘도 화이팅!', '😊 좋은 하루!'];
+const studentGreetingTimers = new WeakMap();
 function bounceStudentCharacter(event) {
   const character = event.target.closest?.('.student-avatar-stage .student-character-layers');
-  if (!character || character.classList.contains('is-bouncing')) return;
+  if (!character) return;
+  clearTimeout(studentGreetingTimers.get(character));
+  character.classList.remove('is-bouncing');
+  const greeting = character.querySelector('.student-character-greeting');
+  if (greeting) greeting.textContent = STUDENT_GREETINGS[Math.floor(Math.random() * STUDENT_GREETINGS.length)];
+  // Restart both the character and bubble immediately, including during an active greeting.
+  void character.offsetWidth;
   character.classList.add('is-bouncing');
-  setTimeout(() => character.classList.remove('is-bouncing'), 650);
+  studentGreetingTimers.set(character, setTimeout(() => {
+    character.classList.remove('is-bouncing');
+    if (greeting) greeting.textContent = '';
+    studentGreetingTimers.delete(character);
+  }, 900));
 }
 
 // Some browsers keep :focus-visible when an already keyboard-focused button is touched.

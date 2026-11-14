@@ -42,8 +42,8 @@ try {
   await page.locator(`[data-avatar-id="${id}"]`).getByRole('button',{name:'장착',exact:true}).click();await page.locator(`.student-character-scene [data-avatar-item="${id}"]`).waitFor();
  }
  const balance=await page.evaluate(async id=>{const {store}=await import('/js/shared/state.js');return (await import('/js/core.js')).studentBalance(store.db,id);},seed.s);assert.equal(balance,seed.balance-70);
- await page.locator('[data-avatar-id=star-hat]').getByRole('button',{name:'장착 해제',exact:true}).click();assert.equal(await page.locator('.student-character-scene [data-avatar-item=star-hat]').count(),0);
- await page.locator('[data-avatar-id=star-hat]').getByRole('button',{name:'장착',exact:true}).click();
+ await page.locator('[data-avatar-id=star-hat]').getByRole('button',{name:'장착 해제',exact:true}).click();await page.locator('.student-character-scene [data-avatar-item=star-hat]').waitFor({state:'detached'});
+ await page.locator('[data-avatar-id=star-hat]').getByRole('button',{name:'장착',exact:true}).click();await page.locator('.student-character-scene [data-avatar-item=star-hat]').waitFor();
  await page.getByRole('button',{name:'별빛 교실',exact:true}).click();assert.equal(await page.locator('.student-character-scene [data-avatar-item]').count(),4);assert.equal(await page.evaluate(()=>scrollY),0);
  for(const width of [360,390,768,1280]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);}
  await page.screenshot({path:'/tmp/patch33-avatar.png'});

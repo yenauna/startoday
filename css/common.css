@@ -1442,21 +1442,23 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-home-village .student-avatar-stage .student-character-layers:hover{background:transparent;box-shadow:none}
 /* Reserve headroom for jump/stretch while retaining clipping for future theme layers. */
 .student-home-village .student-avatar-stage .student-character-scene{min-height:304px}
-.student-home-village .student-avatar-stage .student-character-layers.is-bouncing{animation:st-character-bounce 650ms ease-in-out both}
-.student-character-sparkle{position:absolute;top:14%;left:auto;right:18%;z-index:3;font-size:22px;line-height:1;opacity:0;pointer-events:none;transform:translate(0,0)}
-.student-home-village .student-avatar-stage .is-bouncing .student-character-sparkle{animation:st-character-sparkle 650ms ease-out both}
-@keyframes st-character-breathe{0%,100%{transform:translateY(0) scaleY(1) scaleX(1)}50%{transform:translateY(-4px) scaleY(1.02) scaleX(.99)}}
-@keyframes st-character-shadow{0%,100%{transform:scale(1);opacity:.4}50%{transform:scale(.94);opacity:.32}}
-@keyframes st-character-bounce{0%{transform:translateY(0) scale(1,1)}15%{transform:translateY(2px) scale(1.08,.92)}45%{transform:translateY(-18px) scale(.94,1.08)}70%{transform:translateY(0) scale(1.05,.95)}85%{transform:translateY(-4px) scale(.98,1.02)}100%{transform:translateY(0) scale(1,1)}}
-@keyframes st-character-sparkle{0%{opacity:0;transform:translate(0,0) scale(.6) rotate(-10deg)}30%{opacity:1}100%{opacity:0;transform:translate(12px,-24px) scale(1.1) rotate(15deg)}}
-@media(max-width:640px){.student-home-village .student-avatar-stage .student-character-scene{min-height:284px}}
-@media(prefers-reduced-motion:reduce){.student-home-village .student-avatar-stage .student-character-layers,.student-home-village .student-avatar-stage .student-character-layers.is-bouncing,.student-home-village .student-avatar-stage .student-character-layers:before,.student-home-village .student-avatar-stage .is-bouncing .student-character-sparkle{animation:none;transform:none}.student-character-sparkle{display:none}}
+.student-home-village .student-avatar-stage .student-character-layers.is-bouncing{animation:st-character-bounce 900ms ease-in-out both}
+.student-character-greeting{position:absolute;top:7%;right:-42px;z-index:4;padding:7px 10px;border:1px solid #d6c8f0;border-radius:16px 16px 16px 4px;background:#fffdf7;color:#584575;box-shadow:0 3px 10px #65517e18;font-size:12px;font-weight:700;line-height:1.4;white-space:nowrap;opacity:0;pointer-events:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.student-home-village .student-avatar-stage .is-bouncing .student-character-greeting{animation:st-character-greeting 900ms ease-out both}
+.student-home-village .student-avatar-stage .student-character-layers.is-bouncing:before{animation:st-character-greeting-shadow 900ms ease-in-out both}
+@keyframes st-character-breathe{0%,100%{transform:translateY(0) rotate(0) scale(1)}25%{transform:translateY(-2.5px) rotate(-1.2deg) scale(.992,1.013)}50%{transform:translateY(-5px) rotate(0) scale(.985,1.025)}75%{transform:translateY(-2.5px) rotate(1.2deg) scale(.992,1.013)}}
+@keyframes st-character-shadow{0%,100%{transform:scale(1);opacity:.4}25%,75%{transform:scale(.96);opacity:.35}50%{transform:scale(.91);opacity:.29}}
+@keyframes st-character-bounce{0%,100%{transform:translateY(0) rotate(0) scale(1)}12%{transform:translateY(2px) rotate(0) scale(1.06,.93)}35%{transform:translateY(-16px) rotate(-6deg) scale(1)}58%{transform:translateY(1px) rotate(2deg) scale(1.04,.95)}75%{transform:translateY(-8px) rotate(5deg) scale(1)}88%{transform:translateY(0) rotate(-1deg) scale(1.02,.98)}}
+@keyframes st-character-greeting{0%{opacity:0;transform:translate(-3px,5px) scale(.7) rotate(-4deg)}22%,70%{opacity:1;transform:translate(3px,-8px) scale(1) rotate(0)}100%{opacity:0;transform:translate(8px,-16px) scale(.96) rotate(3deg)}}
+@keyframes st-character-greeting-shadow{0%,100%{transform:scale(1);opacity:.4}12%,58%,88%{transform:scale(1.04);opacity:.43}35%{transform:scale(.85);opacity:.26}75%{transform:scale(.92);opacity:.31}}
+@media(max-width:640px){.student-home-village .student-avatar-stage .student-character-scene{min-height:284px}.student-character-greeting{right:-20px;font-size:11px;padding:6px 8px}}
+@media(prefers-reduced-motion:reduce){.student-home-village .student-avatar-stage .student-character-layers,.student-home-village .student-avatar-stage .student-character-layers.is-bouncing,.student-home-village .student-avatar-stage .student-character-layers:before,.student-home-village .student-avatar-stage .student-character-layers.is-bouncing:before,.student-home-village .student-avatar-stage .is-bouncing .student-character-greeting{animation:none;transform:none}.student-character-greeting{display:none}}
 
 /* Touch/click animation must not select the character or create image drag ghosts. */
 .student-home-village .student-avatar-stage,
 .student-home-village .student-avatar-stage .student-character-layers,
 .student-home-village .student-avatar-stage .student-profile-image,
-.student-home-village .student-avatar-stage .student-character-sparkle{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.student-home-village .student-avatar-stage .student-character-greeting{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 .student-home-village .student-avatar-stage .student-profile-image{-webkit-user-drag:none;user-drag:none}
 .student-home-village .student-avatar-stage .student-character-layers:focus{outline:none}
 .student-home-village .student-avatar-stage .student-character-layers:focus-visible{outline:3px solid #9a80c9;outline-offset:-3px}
