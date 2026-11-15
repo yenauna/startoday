@@ -296,4 +296,20 @@ for(const period of ['all','7d','14d','30d','month']){
 }
 await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);await assert.rejects(commit([{table:'settings',id:'main',data:{...periodSettings,pointPeriod:'invalid'}}]),/INVALID_POINT_PERIOD/);
 console.log('PASS: 포인트 5개 집계 기간 로컬·SQL·학생 지갑 일치, 오래된 거래 유지, 누적 별·칭호 불변 및 설정 검증');
+// Survey ownership, atomic submission and student payload privacy.
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
+const surveyOps=C.surveyStartOps(snap.data,'마음 지도 1차');await commit(surveyOps);const surveyId=surveyOps[0].id;
+await assert.rejects(commit(C.surveyStartOps({...snap.data,surveys:[]},'동시 시작')),/unique|duplicate/i);
+const surveyDB=(await snapshot()).data;
+const placements=surveyDB.students.filter(s=>s.id!=='s1'&&!s.deletedAt).map(s=>({targetId:s.id,x:83.4567,y:10.125,reason:'교사만 보는 이유'}));
+async function submitSurvey(points=placements,sid=surveyId,password='새암호123'){return(await pg.query('select public.startoday_student_survey_submit($1,$2,$3,$4,$5,$6,$7::jsonb) as data',['NEIS001','5','오',1,password,sid,JSON.stringify(points)])).rows[0].data;}
+await pg.exec('set role anon');await assert.rejects(submitSurvey(placements,surveyId,'wrong'),/STUDENT_AUTH_REQUIRED/);
+await assert.rejects(pg.query('select * from public.startoday_survey_responses'),/permission denied/);
+const beforeSurvey=await schoolLogin('새암호123');assert.equal(beforeSurvey.survey.id,surveyId);assert.equal(beforeSurvey.survey.submitted,false);
+for(const bad of [[],[placements[0],placements[0]],placements.map((p,i)=>i? p:{...p,x:101}),placements.map((p,i)=>i? p:{...p,targetId:'s1'}),placements.map((p,i)=>i? p:{...p,targetId:'other-class'})])await assert.rejects(submitSurvey(bad),/INVALID_PLACEMENTS/);
+const submitted=await submitSurvey();assert.equal(submitted.snapshot.survey.submitted,true);assert(!JSON.stringify(submitted).includes('교사만 보는 이유'));assert(!('survey_responses' in submitted.snapshot));await assert.rejects(submitSurvey(),/SURVEY_ALREADY_SUBMITTED/);
+await pg.exec('set role authenticated');await asUser(other);assert.equal((await pg.query('select * from public.startoday_survey_responses')).rows.length,0);await assert.rejects(pg.query('select public.startoday_commit($1,0,$2::jsonb)',[classId,JSON.stringify(C.surveyCloseOps(surveyDB,surveyId))]),/FORBIDDEN/);
+await asUser(owner);snap=await snapshot();revision=Number(snap.revision);const response=snap.data.survey_responses[0];assert.equal(response.placements[0].x,83.4567);assert.equal(response.placements[0].reason,'교사만 보는 이유');await commit([{table:'survey_responses',id:response.id,data:response}]);await commit([{table:'surveys',id:surveyId,remove:true},{table:'surveys',id:surveyId,data:snap.data.surveys.find(s=>s.id===surveyId)},{table:'survey_responses',id:response.id,remove:true},{table:'survey_responses',id:response.id,data:response}]);assert.equal((await snapshot()).data.survey_responses.length,1);
+await commit(C.surveyCloseOps(snap.data,surveyId));await pg.exec('set role anon');assert.equal((await schoolLogin('새암호123')).survey,null);await assert.rejects(submitSurvey(),/SURVEY_CLOSED/);
+console.log('PASS: 설문 회차/RLS, 잘못된 인증·대상·좌표·누락 차단, 1회 제출, 소수 좌표/이유 보존, 학생 결과 비노출, 교사 전용 조회 및 마감');
 await pg.close();

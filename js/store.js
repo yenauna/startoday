@@ -1,5 +1,9 @@
-import { TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps, mergeRewardTitles, demoDB, shopBuyOps, shopRefundOps, shopUseOps, teacherGiftOps, teacherBalanceAdjustOps, shopFundGroupBuyOps, shopUseGroupBuyOps, teacherReclaimOps, teacherUndoGiftOps } from './core.js';
+import { surveySubmitOps, TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps, mergeRewardTitles, demoDB, shopBuyOps, shopRefundOps, shopUseOps, teacherGiftOps, teacherBalanceAdjustOps, shopFundGroupBuyOps, shopUseGroupBuyOps, teacherReclaimOps, teacherUndoGiftOps } from './core.js';
 export class Store {
+  async submitLocalSurvey(studentId,surveyId,placements){
+    if(!['demo','local'].includes(this.mode))throw Error('로컬 모드가 아닙니다.');
+    return this.commit(()=>{const saved=JSON.parse(localStorage.getItem('startoday-demo-v1')||'null');if(saved)this.db=normalizeDB(saved);return surveySubmitOps(this.db,studentId,surveyId,placements);});
+  }
   constructor() {
     this.db = null;
     this.client = null;
@@ -290,6 +294,7 @@ export class Store {
         p_ops: ops
       });
       if (error) {
+        if (ops.some(op=>['surveys','survey_responses'].includes(op.table))&&error.message.includes('INVALID_TABLE_OR_ID'))throw Error('설문을 저장하려면 최신 schema.sql을 먼저 적용하세요.');
         if (ops.some(op => op.table === 'areas') && error.message.includes('INVALID_TABLE_OR_ID')) {
           throw Error('분야 종류를 저장하려면 Supabase SQL Editor에서 최신 schema.sql을 먼저 실행하세요.');
         }

@@ -1,3 +1,4 @@
+import {teacherSurveys} from './surveys.js';
 import { render } from '../app.js';
 import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
@@ -8,7 +9,7 @@ import { taskStateEditor } from './assignments.js';
 import { recordCard, recordEditor } from './records.js';
 import { validateKoreanPassword } from '../shared/student-auth.js';
 import { previewStudent } from './student-view.js';
-let studentSort = 'number';
+let studentSort = 'number', statisticsSection='scores';
 let studentRangeScope = '',
   studentRange = null,
   studentMonth = '';
@@ -24,6 +25,8 @@ function selectStudentSemester(term) {
   render();
 }
 export function studentsView() {
+  const navigation=`<nav class="row statistics-subtabs">${btn('학생 통계',()=>{statisticsSection='scores';render();},statisticsSection==='scores'?'primary':'')}${btn('우리반 마음 지도',()=>{statisticsSection='surveys';render();},statisticsSection==='surveys'?'primary':'')}</nav>`;
+  if(statisticsSection==='surveys')return navigation+teacherSurveys();
   const today = C.today(),
     scope = `${store.mode}:${store.classId}:${settings().academicYear}`;
   if (scope !== studentRangeScope || !studentRange) {
@@ -46,7 +49,7 @@ export function studentsView() {
   });
   rows.sort((a, b) => (studentSort === 'stars' ? b.score.total - a.score.total : studentSort === 'attention' ? b.attention - a.attention : 0) || a.student.no - b.student.no);
   const change = n => `<span class="score-change ${n > 0 ? 'positive' : n < 0 ? 'negative' : 'neutral'}">(${n > 0 ? '+' : ''}${n})</span>`;
-  return `<div class="toolbar"><div><h2>통계</h2><small>누적 별 개수 · 선택 기간 변화 ${esc(C.formatDate(range.from))} ~ ${esc(C.formatDate(range.to))}</small></div><div class="row">${btn('행발 문장 변환기', () => behaviorConverter(null, range.from, range.to))}${btn('학생 선택 / 전체 내보내기', () => reportDialog(null, range.from, range.to))}</div></div><div class="statistics-summary" aria-label="이번 달 학급 요약"><span class="badge tone-yellow">이번 달 별 ${summary.total}개</span><span class="badge tone-praise">칭찬 ${summary.praise} : 조언 ${summary.advice} · 칭찬 ${summary.praisePercent}%</span><span class="badge tone-mint">칭찬 영역 TOP 1 · ${summary.topArea ? esc(summary.topArea) + ' ' + summary.topCount + '건' : '아직 없음'}</span></div><div class="statistics-sort row">${[['number', '번호순'], ['stars', '별 개수 많은 순'], ['attention', '관심 필요(조언·미완료 많은 순)']].map(([key, label]) => btn(label, () => {
+  return navigation+`<div class="toolbar"><div><h2>통계</h2><small>누적 별 개수 · 선택 기간 변화 ${esc(C.formatDate(range.from))} ~ ${esc(C.formatDate(range.to))}</small></div><div class="row">${btn('행발 문장 변환기', () => behaviorConverter(null, range.from, range.to))}${btn('학생 선택 / 전체 내보내기', () => reportDialog(null, range.from, range.to))}</div></div><div class="statistics-summary" aria-label="이번 달 학급 요약"><span class="badge tone-yellow">이번 달 별 ${summary.total}개</span><span class="badge tone-praise">칭찬 ${summary.praise} : 조언 ${summary.advice} · 칭찬 ${summary.praisePercent}%</span><span class="badge tone-mint">칭찬 영역 TOP 1 · ${summary.topArea ? esc(summary.topArea) + ' ' + summary.topCount + '건' : '아직 없음'}</span></div><div class="statistics-sort row">${[['number', '번호순'], ['stars', '별 개수 많은 순'], ['attention', '관심 필요(조언·미완료 많은 순)']].map(([key, label]) => btn(label, () => {
     studentSort = key;
     render();
   }, studentSort === key ? 'primary' : '', `aria-pressed="${studentSort === key}" title="${key === 'attention' ? '누적 조언 + 현재 미완료 과제·루틴 수' : label}"`)).join('')}</div><div class="student-period-controls row"><input type="month" id="student-month" aria-label="학생 조회 월" value="${esc(studentMonth)}">${btn('이번 달', () => {

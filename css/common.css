@@ -1619,3 +1619,16 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
  .economy-grid:not(.village-product-grid)>article .row{flex-wrap:wrap}
  .economy-assets-table .economy-asset-actions button{margin:0}
 }
+
+.statistics-subtabs{margin-bottom:14px;flex-wrap:wrap}.survey-rounds{flex-wrap:wrap;margin:12px 0}
+.survey-analysis-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px}
+.survey-analysis-card{padding:12px;border:1px solid var(--line);border-radius:12px;min-width:0;overflow-wrap:anywhere;background:white;margin:6px 0}
+.survey-analysis-card p{font-size:13px;margin:6px 0}.student-survey-main{width:100%;min-width:0}.student-survey{max-width:850px;margin:0 auto}
+.survey-peer-list{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}.survey-peer-list button{min-height:40px;touch-action:none}
+.survey-board{position:relative;width:calc(100% - 36px);margin:12px 18px;aspect-ratio:1.3;max-height:60dvh;background:linear-gradient(90deg,transparent calc(50% - 1px),#8e93ad 50%,transparent calc(50% + 1px)),linear-gradient(transparent calc(50% - 1px),#8e93ad 50%,transparent calc(50% + 1px)),conic-gradient(from 0deg at 50% 50%,#e4f5e7 0 25%,#f9ede5 25% 50%,#f7e6ef 50% 75%,#e9edf9 75% 100%);border:1px solid #bcc5d9;border-radius:14px;touch-action:manipulation;overflow:visible}
+.survey-quadrant{position:absolute;font-size:11px;color:#667085;pointer-events:none}.survey-quadrant.q1{left:8px;top:8px}.survey-quadrant.q2{right:8px;top:8px}.survey-quadrant.q3{left:8px;bottom:8px}.survey-quadrant.q4{right:8px;bottom:8px}
+.survey-board .survey-board-chip{position:absolute;transform:translate(-50%,-50%);min-height:34px;padding:4px 8px;max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;touch-action:none;z-index:2;background:white;border:1px solid #b1b9d6;font-size:12px;transition:none}
+.survey-board .survey-board-chip.is-selected{z-index:3;outline:2px solid #566bc2;background:#e9edff}.survey-axis-top{text-align:center;font-size:13px}.survey-axis-bottom{display:flex;justify-content:space-between;font-size:12px}.survey-reason{display:block;margin:12px 0}.survey-reason textarea{width:100%;min-height:72px}.student-survey>.row{margin-top:12px}.student-survey-main button{user-select:none}
+@media(max-width:640px){.student-survey{padding:12px}.survey-board{aspect-ratio:1}.survey-board .survey-board-chip{font-size:11px;max-width:65px;min-height:36px}.survey-quadrant{font-size:10px}.survey-teacher .toolbar{flex-wrap:wrap}}
+
+[data-survey-peer]{cursor:grab}.survey-peer-list .is-dragging,.survey-board .is-dragging{position:relative;z-index:10;pointer-events:auto;cursor:grabbing;box-shadow:0 6px 16px #304a3680}.survey-board .is-dragging{position:absolute}
