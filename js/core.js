@@ -1916,9 +1916,8 @@ export function behaviorSummary(database, studentId, from, to) {
 export function behaviorDraft(summary) {
   if(!summary.records.length&&!summary.assignments.total&&!summary.routines.total)return '선택한 기간의 관찰 근거가 부족하여 구체적인 학교생활 모습을 확인할 추가 기록이 필요함.';
   const sentences=[],strength=[...summary.areas].sort((a,b)=>b.praise-a.praise).find(a=>a.praise>0);
-  if(strength)sentences.push(`${strength.area} 영역에서 긍정적인 모습을 보이며 ${strength.praise}건의 칭찬 기록이 확인됨.`);
-  const evidence=summary.records.filter(r=>r.kind==='칭찬'&&r.text).slice(-2);
-  if(!evidence.length){const record=summary.records.find(r=>r.text&&r.kind!=='조언');if(record)evidence.push(record);}
+  if(strength)sentences.push(`${strength.area} 분야에서 ${strength.praise}건의 칭찬 기록이 확인되며 긍정적인 모습을 보임.`);
+  const evidence=strength?summary.records.filter(r=>r.kind==='칭찬'&&r.areas?.includes(strength.area)&&r.text?.trim()).slice(-2):[];
   if(evidence.length)sentences.push(evidence.map(r=>`“${r.text.trim()}”`).join(', ')+' 등의 구체적인 학교생활 모습이 기록됨.');
   for(const [key,label] of [['assignments','과제'],['routines','루틴']]){const m=summary[key];if(m.total)sentences.push(`${label} ${m.total}회 중 ${m.done}회를 이행함(이행률 ${m.rate}%).`);}
   const advice=summary.records.filter(r=>r.kind==='조언');

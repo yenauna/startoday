@@ -54,8 +54,8 @@
 .lockscreen .classroom-score .score-star { color:#F59E0B; font-size:19px; }
 .lockscreen .classroom-score .score-total { color:#0F172A; font-size:18px; font-weight:700; }
 .lockscreen .pending-tasks { flex:0 0 auto; display:grid; gap:4px; min-height:0; overflow:hidden; margin:3px 0 0; }
-.lockscreen .classroom-student .pending-tasks .task { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; background:#fff; border:1px solid #fecdd3; color:#be123c; font-size:13px; line-height:1.3; border-radius:12px; padding:4px 10px; max-width:100%; min-height:24px; white-space:normal; overflow:hidden; text-overflow:clip; overflow-wrap:anywhere; }
-.lockscreen .classroom-student .pending-tasks .task.overdue { color:#e11d48!important; font-weight:600; }
+.lockscreen .classroom-student .pending-tasks .task { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; background:#fff; border:1px solid var(--st-incomplete-border); color:var(--st-incomplete-text); font-size:13px; line-height:1.3; border-radius:12px; padding:4px 10px; max-width:100%; min-height:24px; white-space:normal; overflow:hidden; text-overflow:clip; overflow-wrap:anywhere; }
+.lockscreen .classroom-student .pending-tasks .task.overdue { color:var(--st-incomplete-text)!important; font-weight:600; }
 .lockscreen .routine-indicator { flex:0 1 auto; min-height:0; overflow:hidden; margin-top:4px; }
 .lockscreen .routine-names { display:flex; flex-wrap:wrap; gap:4px; margin:0; }
 .lockscreen .routine-task { background:var(--st-gray-bg); color:var(--st-gray-text); font-size:12px; border-radius:12px; padding:4px 10px; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

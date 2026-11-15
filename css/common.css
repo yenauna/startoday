@@ -157,9 +157,16 @@ a{color:#334155}
   --st-lavender-text: #65538c;
   --st-peach-bg: #faebdd;
   --st-peach-text: #8a5939;
-  --st-pending-bg: #f8e2e5;
-  --st-pending-highlight: #fbecef;
-  --st-pending-shade: #f4dce1;
+  --st-selected-bg: var(--st-blue-bg);
+  --st-selected-text: var(--st-blue-text);
+  --st-selected-border: var(--st-blue-text);
+  --st-selected-ring: rgba(54,92,133,.22);
+  --st-incomplete-bg: var(--st-rose-bg);
+  --st-incomplete-text: var(--st-rose-text);
+  --st-incomplete-border: #dfbbc9;
+  --st-pending-bg: var(--st-incomplete-bg);
+  --st-pending-highlight: var(--st-incomplete-bg);
+  --st-pending-shade: var(--st-incomplete-bg);
   --st-radius-card: 20px;
   --st-radius-student: 18px;
   --st-radius-input: 16px;
@@ -372,7 +379,7 @@ header.top { flex-wrap:nowrap; gap:8px; min-height:52px; height:auto; padding:7p
 header.top>.row { flex-wrap:nowrap; flex:0 0 auto; gap:6px; }
 header.top .brand-home { min-width:0; gap:8px; }
 header.top .brand-home small { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; }
-.sticky-navigation .tabs button.active { background:#0F172A; color:#FBBF24; border-bottom-color:transparent; box-shadow:none; }
+.sticky-navigation .tabs button.active { background:var(--st-selected-bg); color:var(--st-selected-text); border-bottom-color:transparent; box-shadow:none; }
 .quick-wrap.quick-composer-card.selection-composer { position:fixed; top:0; left:0; right:0; z-index:120; margin:0; padding:12px max(12px,calc((100vw - 1720px)/2)); max-height:75vh; max-height:75dvh; overflow:auto; border-radius:0 0 20px 20px; background:#fcfcfe; }
 .selection-composer-head { display:flex; align-items:flex-start; gap:12px; }
 .selection-dismiss { flex:0 0 auto; }
@@ -511,7 +518,7 @@ header.top .header-more-menu button:hover { background:var(--st-gray-bg); }
 .record-delete-toast button { flex-shrink:0; margin-left:auto; font-size:12px; min-height:32px; padding:6px 10px; background:var(--st-blue-bg); color:var(--st-blue-text); }
 body:has(.lockscreen) .record-delete-toasts { display:none; }
 body:has(.routine-undo) .record-delete-toasts { bottom:120px; }
-.assignment-calendar-task.has-incomplete { background:#fee2e2; color:#be123c; border:1px solid #fecdd3; }
+.assignment-calendar-task.has-incomplete { background:var(--st-incomplete-bg); color:var(--st-incomplete-text); border:1px solid var(--st-incomplete-border); }
 .calendar-task { white-space:normal; overflow-wrap:anywhere; text-overflow:clip; overflow:visible; }
 @media(max-width:768px){
   .calendar,.calendar.week { min-width:0; width:100%; }
@@ -734,7 +741,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 
 /* Compact student work cards, with a neutral completed state. */
 .student-tasks-card .student-task,.student-calendar-detail .student-task.is-pending,.student-calendar-detail .student-task.is-complete { border:1px solid var(--st-line); border-radius:12px; padding:9px 10px; margin:5px 0; }
-.student-tasks-card .student-task.is-pending,.student-calendar-detail .student-task.is-pending { background:var(--badge-advice-bg,#FEF2F2); border-color:#fecdd3; }
+.student-tasks-card .student-task.is-pending,.student-calendar-detail .student-task.is-pending { background:var(--st-incomplete-bg); color:var(--st-incomplete-text); border-color:var(--st-incomplete-border); }
 .student-tasks-card .student-task.is-complete,.student-calendar-detail .student-task.is-complete { background:#fff; color:var(--st-text); }
 .student-routine-toggle { width:100%; text-align:left; box-shadow:none; font:inherit; }
 .student-section-heading { border-bottom:1px solid var(--st-line); padding-bottom:7px; margin:16px 0 8px; font-size:15px; }
@@ -1047,7 +1054,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .village-shop .village-wallet>span{color:#be8521;flex-shrink:0}
 .village-shop .village-categories{display:flex;flex-wrap:nowrap;gap:3px;min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;padding:4px;margin:0 0 14px;border:1px solid #c8af8d;border-radius:10px;background:#fff9ed;box-shadow:0 2px 3px #6b5a3e12;scrollbar-width:thin;scrollbar-color:#abbb9d transparent}
 .village-shop .village-categories button{flex:1 0 auto;min-height:32px;padding:5px 9px;border:1px solid transparent;border-radius:7px;box-shadow:none;background:transparent;color:#34413b;font-size:12px;line-height:1.3;white-space:nowrap}
-.village-shop .village-categories button.is-selected{background:#647e60;border-color:#536d4f;color:#fffdf1;box-shadow:inset 0 1px 0 #a6b69b}
+.village-shop .village-categories button.is-selected{background:#647e60;border-color:#536d4f;color:#fffdf1;box-shadow:inset 0 1px 0 var(--st-selected-ring)}
 .village-shop .village-categories button:hover:not(.is-selected){background:#e9eddf}
 .village-shop .village-categories button:focus-visible,.village-shop .village-buy:focus-visible{outline:3px solid #365c85;outline-offset:2px}
 .village-shop .village-product-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--v-shop-gap);min-width:0}
@@ -1252,7 +1259,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-home-topbar .student-header{flex:1;flex-wrap:wrap;border:0;padding-right:0}
 .student-header-class{color:#56634c;overflow-wrap:anywhere}
 .student-home-topbar .economy-subtabs button{border:1px solid #ad925c;background:#f7f1df;color:#415643;border-radius:12px 12px 4px 4px}
-.student-home-topbar .economy-subtabs .active{background:#d7e0cb;border-color:#8f7847;color:#304a36;box-shadow:inset 0 -3px #ad925c}
+.student-home-topbar .economy-subtabs .active{background:#d7e0cb;border-color:#8f7847;color:#304a36;box-shadow:inset 0 -3px var(--st-selected-border)}
 .economy-category .economy-shop-grid{grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr))}
 .calendar .day .slot.calendar-lesson{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:baseline;gap:4px}
 .calendar-lesson .slot-clock{display:none}
@@ -1632,3 +1639,16 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 @media(max-width:640px){.student-survey{padding:12px}.survey-board{aspect-ratio:1}.survey-board .survey-board-chip{font-size:11px;max-width:65px;min-height:36px}.survey-quadrant{font-size:10px}.survey-teacher .toolbar{flex-wrap:wrap}}
 
 [data-survey-peer]{cursor:grab}.survey-peer-list .is-dragging,.survey-board .is-dragging{position:relative;z-index:10;pointer-events:auto;cursor:grabbing;box-shadow:0 6px 16px #304a3680}.survey-board .is-dragging{position:absolute}
+
+/* Shared semantic states: selection and unfinished work use one palette. */
+.tabs button.active,.statistics-sort button[aria-pressed=true],.statistics-subtabs .primary,.survey-rounds .primary,.quick-areas .area-chip.selected,.selected-students button,.routine-day.selected,.free-seats .seat-cell.selected,.assignment-calendar .assignment-day.selected-day,.student-calendar-day.selected,.student-home-village .student-calendar-day.selected,.period-card.selected,.village-shop .village-categories button.is-selected,.economy-student-gift-grid .is-selected,.survey-board .survey-board-chip.is-selected,.economy-assets .economy-view-switch button[aria-pressed=true],.student-home-topbar .economy-subtabs button.active,.settings-sidebar button.active,.student-choice-chip input:checked+span{
+ background:var(--st-selected-bg);color:var(--st-selected-text);border-color:var(--st-selected-border);outline-color:var(--st-selected-border)
+}
+.calendar-task.has-incomplete,.student-calendar-pill.has-incomplete{background:var(--st-incomplete-bg);color:var(--st-incomplete-text);border-color:var(--st-incomplete-border)}
+.assignment-calendar-count{display:none}
+@media(max-width:640px){
+ .assignment-calendar .assignment-calendar-task{display:none}
+ .assignment-calendar .assignment-calendar-count{display:flex;align-items:center;justify-content:center;width:100%;min-width:0;min-height:28px;margin-top:4px;padding:3px 0;font-size:11px;line-height:1.3;background:var(--st-selected-bg);color:var(--st-selected-text);border-radius:8px;white-space:nowrap}
+}
+
+@media(max-width:640px){.assignment-calendar .assignment-calendar-count.has-incomplete{background:var(--st-incomplete-bg);color:var(--st-incomplete-text);border-color:var(--st-incomplete-border)}}
