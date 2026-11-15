@@ -280,4 +280,20 @@ await pg.exec('reset role');const remaining=(await pg.query('select public.start
 await pg.exec('set role authenticated');await asUser(owner);if(Number(remaining)!==0)await pg.query('select public.startoday_economy_action($1,$2,$3,null,$4,$5)',[classId,'s1','adjust',-Number(remaining),'잔액 부족 검증']);
 await pg.exec('set role anon');await assert.rejects(avatarCall('buy','outfit_1'),/INSUFFICIENT_BALANCE/);assert.deepEqual((await schoolLogin('새암호123')).avatar.owned,['hair_1']);
 console.log('PASS: 아바타 인증·카탈로그·가격·소유권·중복구매·장착해제·타학생 격리·교사 수정 보존, 별도 사용 거래 및 중복 차단');
+// Point period affects only the praise/advice conversion, never ledger history or titles.
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
+const periodStudent={id:'point-period-s',no:99,name:'기간검증'},periodSettings={...snap.data.settings[0]},periodArea=C.areaNames(snap.data,true)[0];
+await commit([{table:'students',id:periodStudent.id,data:periodStudent},...Array.from({length:45},(_,i)=>{const r={id:'period-p-'+i,date:C.addDays(day,-i),kind:'칭찬',studentIds:[periodStudent.id],areas:[periodArea],text:'기간 검증'};return{table:'records',id:r.id,data:r};}),{table:'records',id:'period-advice',data:{id:'period-advice',date:day,kind:'지도',studentIds:[periodStudent.id],areas:[periodArea],text:'기간 차감'}}]);
+snap=await snapshot();revision=Number(snap.revision);const oldLedger=C.teacherBalanceAdjustOps(snap.data,periodStudent.id,-15,'오래된 거래');oldLedger[0].data.createdAt='2000-01-01T00:00:00Z';await commit(oldLedger);
+let originalTitleCounts;
+for(const period of ['all','7d','14d','30d','month']){
+ await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);await commit([{table:'settings',id:'main',data:{...periodSettings,pointPeriod:period}}]);
+ await pg.exec('reset role');const d=(await snapshot()).data,view=(await pg.query('select public.startoday_student_payload($1,$2) as data',[classId,periodStudent.id])).rows[0].data;
+ const sqlBalance=Number((await pg.query('select public.startoday_coin_balance($1,$2) as amount',[classId,periodStudent.id])).rows[0].amount);
+ assert.equal(sqlBalance,C.studentBalance(d,periodStudent.id,day));assert.equal(view.economy.balance,sqlBalance);assert.equal(C.scores(d,periodStudent.id,'',day).total,44);
+ const start=(await pg.query('select public.startoday_point_period_start($1,$2::date) as day',[classId,day])).rows[0].day;assert.equal(start,C.pointPeriodStart({pointPeriod:period},day));
+ if(originalTitleCounts)assert.deepEqual(view.titleCounts,originalTitleCounts);else originalTitleCounts=view.titleCounts;
+}
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);await assert.rejects(commit([{table:'settings',id:'main',data:{...periodSettings,pointPeriod:'invalid'}}]),/INVALID_POINT_PERIOD/);
+console.log('PASS: 포인트 5개 집계 기간 로컬·SQL·학생 지갑 일치, 오래된 거래 유지, 누적 별·칭호 불변 및 설정 검증');
 await pg.close();

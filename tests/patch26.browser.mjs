@@ -78,7 +78,7 @@ try {
  await item.locator('.economy-gift-confirm').tap();
  await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.shop_items.find(i=>i.id===window.patch26Item).stock===0;});
  assert.equal(await item.locator('.economy-student-gift-grid button').first().isDisabled(),true);
- await page.evaluate(async()=>{(await import('/js/app.js')).navigate('설정');});await page.getByRole('button',{name:'교실 화면',exact:true}).last().click();
+ await page.evaluate(async()=>{(await import('/js/app.js')).navigate('설정');});await page.getByRole('button',{name:'교실화면',exact:true}).last().click();
  assert.deepEqual(await page.locator('[name=nameDisplayMode] option').allTextContents(),['번호와 이름','번호만','이름 가림','별명']);
  const name=await page.evaluate(async()=>{const {store}=await import('/js/shared/state.js');store.db.settings[0].nameDisplayMode='alias';return(await import('/js/tabs/classroom.js')).displayName(store.db.students[0]);});assert.equal(name,'반짝별');
  await page.evaluate(async()=>{(await import('/js/app.js')).navigate('수업도구');});await page.getByRole('button',{name:'🎲 랜덤뽑기',exact:true}).click();

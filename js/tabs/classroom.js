@@ -20,7 +20,7 @@ let classroomInteractionCleanup;
 const dismissedCountdowns = new Set();
 export function classroom() {
   classroomInteractionCleanup?.();
-  document.title = '교실 화면 · 오늘의 별';
+  document.title = '교실화면 · 오늘의 별';
   classroomResizeObserver?.disconnect();
   document.querySelector('.print-root')?.remove();
   document.body.classList.remove('report-open');
@@ -45,13 +45,7 @@ export function classroom() {
       classroom();
       return;
     }
-    if ($('#class-clock')) $('#class-clock').textContent = new Date().toLocaleTimeString('ko-KR', {
-      hour12: true,
-      hour: 'numeric',
-      minute: '2-digit',
-      second: '2-digit',
-      timeZone: 'Asia/Seoul'
-    });
+    if ($('#class-clock')) $('#class-clock').textContent = C.formatTime(new Date(), true);
     updateClassroomCountdown();
   };
   tick();
@@ -64,7 +58,7 @@ export function classroom() {
   const exit = $('#lock-exit');
   const unlock = async () => {
     if (settings().classroomPinHash) {
-      const pin = prompt('교실 화면 해제 비밀번호');
+      const pin = prompt('교실화면 해제 비밀번호');
       if (pin === null || (await hashPin(pin)) !== settings().classroomPinHash) {
         toast('비밀번호를 확인하세요.');
         return;
@@ -128,13 +122,7 @@ function updateClassroomCountdown() {
     document.querySelector('.lockscreen')?.append(overlay);
   }
   overlay.dataset.key = next.key;
-  const clock = new Date().toLocaleTimeString('ko-KR', {
-    timeZone: 'Asia/Seoul',
-    hour12: true,
-    hour: 'numeric',
-    minute: '2-digit',
-    second: '2-digit'
-  }).replace(/(\d+):(\d+):(\d+)/, '$1시 $2분 $3초');
+  const clock = C.formatTime(new Date());
   const remaining = next.remaining >= 60 ? `${Math.floor(next.remaining / 60)}분 ${next.remaining % 60}초 남음` : `${next.remaining}초 남음`;
   overlay.innerHTML = `<time class="countdown-clock">${esc(clock)}</time><strong class="countdown-remaining">${remaining}</strong><div class="countdown-lesson">[${next.period}교시] ${esc(next.subject)}${next.location ? ' (' + esc(next.location) + ')' : ''}</div>${next.memo ? `<p class="countdown-memo">${esc(next.memo)}</p>` : ''}<small>화면을 누르면 알림이 닫힙니다.</small>`;
 }
@@ -143,7 +131,7 @@ function classroomStudent(student, date) {
     tasks = excluded ? [] : C.pending(db(), student.id, date),
     routines = excluded ? [] : C.pendingRoutines(db(), student.id, date);
   const pending = tasks.length + routines.length > 0;
-  return `<article class="student classroom-student ${pending ? 'unfinished has-pending' : ''} ${excluded ? 'excluded' : ''}" aria-label="${esc(displayName(student))}"><div class="classroom-student-top"><div class="student-head"><strong class="classroom-student-name">${settings().nameDisplayMode === 'real' ? `<span class="classroom-label-number">${esc(student.no)}.</span> <span class="classroom-label-name">${esc(student.name)}</span>` : esc(displayName(student))}</strong></div>${settings().classroomShowScores ? `<div class="score classroom-score"><span class="score-star" aria-hidden="true">★</span><strong class="score-total">${C.cumulativeScores(db(), student.id, date).total}</strong></div>` : ''}</div><div class="pending-tasks">${tasks.map(({
+  return `<article class="student classroom-student ${pending ? 'unfinished has-pending' : ''} ${excluded ? 'excluded' : ''}" aria-label="${esc(displayName(student))}"><div class="classroom-student-top"><div class="student-head"><strong class="classroom-student-name">${settings().nameDisplayMode === 'real' ? `<span class="classroom-label-number">${esc(student.no)}.</span> <span class="classroom-label-name">${esc(student.name)}</span>` : esc(displayName(student))}</strong></div>${settings().classroomShowScores ? `<div class="score classroom-score"><span class="score-star" aria-hidden="true">★</span><strong class="score-total">별 ${C.cumulativeScores(db(), student.id, date).total}개</strong></div>` : ''}</div><div class="pending-tasks">${tasks.map(({
     assignment: a,
     date: d
   }) => `<span class="task ${d < date ? 'overdue' : ''}" title="${esc(a.title)}">${esc(a.title)}</span>`).join('')}</div>${routines.length ? `<div class="routine-indicator"><div class="routine-names">${routines.map(r => `<span class="routine-task" title="${esc(r.title)}">${esc(r.title)}</span>`).join('')}</div></div>` : ''}${excluded ? '<small class="classroom-complete">제외</small>' : !pending ? '<small class="classroom-complete">오늘 할 일 완료</small>' : ''}</article>`;

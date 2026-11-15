@@ -54,7 +54,7 @@ function fixture() {
   return d;
 }
 const apply = (d, ops) => C.applyOps(d, ops);
-test('별코인: 칭찬-지도 점수와 독립 거래 원장을 합산', () => {
+test('포인트: 칭찬-지도 점수와 독립 거래 원장을 합산', () => {
   let d = fixture();
   assert.equal(C.studentBalance(d, 's'), 10);
   d = apply(d, C.teacherBalanceAdjustOps(d, 's', 20, '지원'));

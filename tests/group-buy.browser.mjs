@@ -25,9 +25,9 @@ try{
  await page.goto(url);await page.getByRole('button',{name:'가상 명단으로 먼저 살펴보기',exact:true}).click();
  await page.getByRole('button',{name:'경제',exact:true}).click();await page.getByRole('button',{name:'상점 관리',exact:true}).click();
  const group=page.locator('.group-buy-card').filter({hasText:'금요일 보드게임 파티'});
- assert.match(await group.innerText(),/현재 65 \/ 목표 100별 \(65%\)/);
+ assert.match(await group.innerText(),/현재 65 \/ 목표 100포인트 \(65%\)/);
  await group.locator('.group-buy-progress-text').click();
- assert.match(await page.locator('.group-buy-ranking li').first().innerText(),/1등 가온 \(30별\)/);
+ assert.match(await page.locator('.group-buy-ranking li').first().innerText(),/1등 가온 \(30포인트\)/);
  assert.equal(await page.locator('#modal [name=amount]').count(),0);
  await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();
  await page.getByRole('button',{name:'물품 등록',exact:true}).click();
@@ -41,32 +41,32 @@ try{
  await movie.getByRole('button',{name:'수정',exact:true}).click();
  assert.equal(await page.locator('#modal [name=isGroupBuy]').isChecked(),true);
  await page.locator('#modal [name=price]').fill('250');await page.locator('#modal button[type=submit]').click();
- await page.waitForFunction(()=>[...document.querySelectorAll('.group-buy-card')].some(el=>el.textContent.includes('학급 영화 감상')&&el.textContent.includes('목표 250별')));
- assert.match(await movie.innerText(),/목표 250별/);
+ await page.waitForFunction(()=>[...document.querySelectorAll('.group-buy-card')].some(el=>el.textContent.includes('학급 영화 감상')&&el.textContent.includes('목표 250포인트')));
+ assert.match(await movie.innerText(),/목표 250포인트/);
  // Open the same local class in two windows and keep the first student's details open.
  async function preview(p,index){await p.evaluate(async index=>{const {store,state}=await import('/js/shared/state.js');state.impersonatingStudentId=store.db.students[index].id;state.viewMode='student';(await import('/js/app.js')).render();},index);await p.getByRole('button',{name:'경제',exact:true}).click();await p.getByRole('button',{name:'상점',exact:true}).click();}
  await preview(page,0);
  const initialBalance=await page.evaluate(async()=>{const {store}=await import('/js/shared/state.js');return (await import('/js/core.js')).studentBalance(store.db,store.db.students[0].id);});
  await group.getByRole('button',{name:'함께 모으기(기부)',exact:true}).click();
- assert.match(await page.locator('.group-buy-ranking .is-me').innerText(),/가온 \(30별\).*나의 기여/);
+ assert.match(await page.locator('.group-buy-ranking .is-me').innerText(),/가온 \(30포인트\).*나의 기여/);
  for(const width of [360,390,768,1280]){
   await page.setViewportSize({width,height:1000});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
   assert.equal(await page.locator('#modal').evaluate(el=>el.scrollWidth>el.clientWidth+1),false);
  }
  await page.setViewportSize({width:390,height:1000});
- await page.locator('#modal [name=amount]').fill('0');await page.getByRole('button',{name:'+1별',exact:true}).click();assert.equal(await page.locator('#modal [name=amount]').inputValue(),'1');
- await page.getByRole('button',{name:'+5별',exact:true}).click();assert.equal(await page.locator('#modal [name=amount]').inputValue(),'6');
- await page.getByRole('button',{name:'+10별',exact:true}).click();assert.equal(await page.locator('#modal [name=amount]').inputValue(),'16');
+ await page.locator('#modal [name=amount]').fill('0');await page.getByRole('button',{name:'+1포인트',exact:true}).click();assert.equal(await page.locator('#modal [name=amount]').inputValue(),'1');
+ await page.getByRole('button',{name:'+5포인트',exact:true}).click();assert.equal(await page.locator('#modal [name=amount]').inputValue(),'6');
+ await page.getByRole('button',{name:'+10포인트',exact:true}).click();assert.equal(await page.locator('#modal [name=amount]').inputValue(),'16');
  await page.getByRole('button',{name:'전액',exact:true}).click();assert.equal(await page.locator('#modal [name=amount]').inputValue(),'35');
  await page.locator('#modal [name=amount]').fill('10');await page.getByRole('button',{name:'기여하기',exact:true}).click();
- await page.waitForFunction(()=>document.querySelector('.group-buy-ranking .is-me')?.textContent.includes('(40별)'));
- assert.equal(await page.locator('.village-wallet').getAttribute('aria-label'),`내 지갑 ${initialBalance-10}별코인`);
+ await page.waitForFunction(()=>document.querySelector('.group-buy-ranking .is-me')?.textContent.includes('(40포인트)'));
+ assert.equal(await page.locator('.village-wallet').getAttribute('aria-label'),`내 지갑 ${initialBalance-10}포인트`);
  const second=await context.newPage();await second.goto(url);await second.getByRole('button',{name:'가상 명단으로 먼저 살펴보기',exact:true}).click();await preview(second,1);
  await second.locator('.group-buy-card').filter({hasText:'금요일 보드게임 파티'}).getByRole('button',{name:'함께 모으기(기부)',exact:true}).click();
  await second.locator('#modal [name=amount]').fill('10');await second.getByRole('button',{name:'기여하기',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('#modal .group-buy-progress-text')?.textContent.includes('현재 85'));
- assert.match(await page.locator('.group-buy-ranking li').nth(1).innerText(),/나래 \(35별\)/);
+ assert.match(await page.locator('.group-buy-ranking li').nth(1).innerText(),/나래 \(35포인트\)/);
  await page.screenshot({path:'/tmp/group-buy-390.png',fullPage:false});
  // Exceeding the remaining goal within the wallet is automatically capped to 15.
  await page.locator('#modal [name=amount]').fill('30');await page.getByRole('button',{name:'기여하기',exact:true}).click();
@@ -104,7 +104,7 @@ try{
  await page.getByRole('button',{name:'경제',exact:true}).click();await page.getByRole('button',{name:'상점',exact:true}).click();
  await page.locator('.group-buy-card').filter({hasText:'학급 영화 감상'}).getByRole('button',{name:'함께 모으기(기부)',exact:true}).click();
  await page.locator('#modal [name=amount]').fill('3');await page.getByRole('button',{name:'기여하기',exact:true}).click();
- await page.waitForFunction(()=>document.querySelector('#modal .group-buy-ranking .is-me')?.textContent.includes('(3별)'));
+ await page.waitForFunction(()=>document.querySelector('#modal .group-buy-ranking .is-me')?.textContent.includes('(3포인트)'));
  assert.equal(await page.evaluate(async()=>(await import('/js/shared/state.js')).state.impersonatingStudentId),null);
  assert.deepEqual(errors,[]);
  console.log('PASS: group-buy teacher registration/edit/use, full-card details, mobile layouts, quick amounts, cumulative ranks, live cross-window updates, exact wallet debit/goal cap, disabled completion and persistence');

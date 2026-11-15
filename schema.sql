@@ -191,6 +191,7 @@ begin
  v:=op->'data';
  if jsonb_typeof(v)<>'object' or v->>'id' is distinct from op->>'id' then raise exception 'INVALID_DATA'; end if;
  if t='settings' and v ? 'allowRefund' and jsonb_typeof(v->'allowRefund')<>'boolean' then raise exception 'INVALID_REFUND_SETTING';end if;
+ if t='settings' and v ? 'pointPeriod' and (jsonb_typeof(v->'pointPeriod') is distinct from 'string' or v->>'pointPeriod' not in ('all','7d','14d','30d','month')) then raise exception 'INVALID_POINT_PERIOD';end if;
  if t='settings' and v ? 'studentPraisePeriod' and (jsonb_typeof(v->'studentPraisePeriod') is distinct from 'string' or v->>'studentPraisePeriod' not in ('all','30d','7d','month','recent3')) then raise exception 'INVALID_STUDENT_PRAISE_PERIOD';end if;
  if t='settings' and v ? 'titleGoal' and (jsonb_typeof(v->'titleGoal')<>'number' or (v->>'titleGoal')::numeric<>trunc((v->>'titleGoal')::numeric) or (v->>'titleGoal')::numeric not between 3 and 9999) then raise exception 'INVALID_TITLE_GOAL';end if;
  if t='students' then
@@ -315,8 +316,13 @@ revoke all on function public.startoday_kingdom_counts(uuid,text) from public,an
 
 -- Payload helper is private: initial-password users never receive a snapshot.
 -- Private numeric aggregation; advice text never leaves this helper.
+create or replace function public.startoday_point_period_start(cid uuid,p_day date default (now() at time zone 'Asia/Seoul')::date) returns text language sql stable security definer set search_path=public,pg_temp as $$
+ select coalesce((select case data->>'pointPeriod'
+ when '7d' then to_char(p_day-6,'YYYY-MM-DD') when '14d' then to_char(p_day-13,'YYYY-MM-DD') when '30d' then to_char(p_day-29,'YYYY-MM-DD') when 'month' then to_char(date_trunc('month',p_day),'YYYY-MM-DD') else '' end from public.startoday_settings where class_id=cid and id='main'),'')
+$$;
+revoke all on function public.startoday_point_period_start(uuid,date) from public,anon,authenticated;
 create or replace function public.startoday_coin_balance(cid uuid,sid text) returns bigint language sql stable security definer set search_path=public,pg_temp as $$
- select coalesce((select sum(case when r.data->>'autoRef' is not null then case when a.data->>'noStar'='true' then 0 when ast.data->>'status'='완료' then 1 when ast.data->>'status'='안함' then -1 else 0 end else case r.data->>'kind' when '칭찬' then 1 when '지도' then -1 else 0 end end)*10 from public.startoday_records r left join public."startoday_assignmentStates" ast on ast.class_id=cid and ast.id=r.data->>'autoRef' and ast.data->>'studentId'=sid left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId' where r.class_id=cid and r.data->'studentIds' ? sid and r.data->>'date'<=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD') and not exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=r.data->>'date' and atd.data->>'excluded'='true')),0)+coalesce((select sum((data->>'amount')::bigint) from public.startoday_economy_tx where class_id=cid and student_id=sid),0)
+ select coalesce((select sum(case when r.data->>'autoRef' is not null then case when a.data->>'noStar'='true' then 0 when ast.data->>'status'='완료' then 1 when ast.data->>'status'='안함' then -1 else 0 end else case r.data->>'kind' when '칭찬' then 1 when '지도' then -1 else 0 end end)*10 from public.startoday_records r left join public."startoday_assignmentStates" ast on ast.class_id=cid and ast.id=r.data->>'autoRef' and ast.data->>'studentId'=sid left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId' where r.class_id=cid and r.data->'studentIds' ? sid and r.data->>'date'>=public.startoday_point_period_start(cid) and r.data->>'date'<=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD') and not exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=r.data->>'date' and atd.data->>'excluded'='true')),0)+coalesce((select sum((data->>'amount')::bigint) from public.startoday_economy_tx where class_id=cid and student_id=sid),0)
 $$;
 create or replace function public.startoday_economy_payload(cid uuid,sid text) returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
  select jsonb_build_object('studentId',sid,'balance',public.startoday_coin_balance(cid,sid),'allowRefund',coalesce((select data->>'allowRefund' from public.startoday_settings where class_id=cid and id='main'),'true')<>'false',

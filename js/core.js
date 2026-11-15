@@ -236,6 +236,7 @@ export function initialDB() {
     academicYear: 2026,
     allowRefund: true,
     studentPraisePeriod: 'all',
+    pointPeriod: 'all',
     schoolName: '',
     timetableDisplay: {
       showTeacher: true,
@@ -680,6 +681,7 @@ export function areaNames(db, includeDeleted = false) {
 export function normalizeDB(db) {
   db.shop_items ??= [];
   db.economy_tx ??= [];
+  if(db.settings?.[0])db.settings[0].pointPeriod=POINT_PERIODS.includes(db.settings[0].pointPeriod)?db.settings[0].pointPeriod:'all';
   db.group_buy_contribs ??= [];
   if (db.settings?.[0]) db.settings[0].allowRefund ??= true;
   delete db.tags;
@@ -862,7 +864,7 @@ export function recordLabel(record) {
   return record.kind === '추가기록' && record.extraType ? record.extraType : {
     지도: '조언',
     관찰: '기록',
-    추가기록: '추가 기록'
+    추가기록: '추가기록'
   }[record.kind] || record.kind;
 }
 
@@ -942,23 +944,23 @@ export function formatDate(value) {
 export function formatShortDate(value) {
   return formatDate(value);
 }
+export function formatTime(value = new Date(), seconds = false) {
+  const instant = new Date(value);
+  if (!Number.isFinite(instant.getTime())) return '';
+  return new Intl.DateTimeFormat('ko-KR', {timeZone:'Asia/Seoul',hour12:true,hour:'numeric',minute:'2-digit',...(seconds ? {second:'2-digit'} : {})}).format(instant);
+}
+export function formatTimeRange(value) {
+  return String(value || '').replace(/\b([01]?\d|2[0-3]):([0-5]\d)\b/g, (_, h, m) => `${Number(h) < 12 ? '오전' : '오후'} ${Number(h) % 12 || 12}:${m}`);
+}
 export function formatTimestamp(value) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return '';
-  const day = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).format(date);
-  const time = date.toLocaleTimeString('ko-KR', {
-    timeZone: 'Asia/Seoul',
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-  return formatDate(day) + ' ' + time;
+  if (!value || !Number.isFinite(new Date(value).getTime())) return '';
+  const day = new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
+  return formatDate(day) + ' ' + formatTime(value);
+}
+export const POINT_PERIODS = ['all','7d','14d','30d','month'];
+export function pointPeriodStart(config = {}, date = today()) {
+  const period = POINT_PERIODS.includes(config?.pointPeriod) ? config.pointPeriod : 'all';
+  return period === 'all' ? '' : period === 'month' ? date.slice(0,7)+'-01' : addDays(date, -(Number(period.slice(0,-1))-1));
 }
 export function incidentTitle(db, ids, date) {
   const selected = new Set(ids);
@@ -1541,7 +1543,7 @@ export function mergeRewardTitles(existing = [], incoming = []) {
 
 // The coin ledger is separate from praise/advice records and never changes star scores.
 export function studentBalance(database, studentId, date = today()) {
-  return scores(database, studentId, '', date).total * 10 + (database.economy_tx || []).filter(t => t.studentId === studentId).reduce((n, t) => n + t.amount, 0);
+  return scores(database, studentId, pointPeriodStart(database.settings[0], date), date).total * 10 + (database.economy_tx || []).filter(t => t.studentId === studentId).reduce((n, t) => n + t.amount, 0);
 }
 export function studentHoldings(database, studentId) {
   return (database.economy_tx || []).filter(t => t.studentId === studentId && t.status === '보유' && ['구매', '선물'].includes(t.type));

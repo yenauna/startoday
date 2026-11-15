@@ -475,8 +475,8 @@ header.top .header-more-menu button:hover { background:var(--st-gray-bg); }
 .settings-content [hidden],.header-more-menu[hidden] { display:none!important; }
 @media(max-width:700px) {
   .settings-layout { grid-template-columns:minmax(0,1fr); gap:14px; }
-  .settings-sidebar { position:static; flex-direction:row; overflow-x:auto; padding:4px 0 8px; }
-  .settings-sidebar button { flex-shrink:0; white-space:nowrap; }
+  .settings-sidebar { position:static; flex-direction:row; flex-wrap:wrap; overflow:visible; padding:4px 0 8px; }
+  .settings-sidebar button { flex:0 1 auto; white-space:normal; min-height:36px; }
   .routine-undo { bottom:24px; right:16px; gap:8px; padding:10px 12px; flex-wrap:wrap; }
 }
 
@@ -1341,7 +1341,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .economy-assets .toolbar{margin:0 0 8px}.economy-assets .toolbar h3{margin:0}
 .economy-assets-table{width:100%;font-size:12px;border-collapse:collapse}
 .economy-assets-table th,.economy-assets-table td{padding:6px 8px;line-height:1.15;white-space:nowrap}
-.economy-assets-table td button{min-height:16px;line-height:14px;padding:0 6px;margin:0 4px 0 0;font-size:11px;border-radius:6px;box-shadow:none}
+.economy-assets-table td button{min-height:40px;line-height:1.25;padding:6px 8px;margin:0 4px 0 0;font-size:11px;border-radius:6px;box-shadow:none}
 .economy-view-switch button[aria-pressed=true]{background:#e7e0f7;border-color:#aa98d2}
 .economy-asset-grid,.long-assignment-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px}
 .economy-student-card,.long-assignment-card{padding:16px;border:1px solid #e4dfef;border-radius:16px;background:#fff;box-shadow:0 3px 12px #30234f0a;min-width:0}
@@ -1391,7 +1391,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .economy-student-drawer section{min-width:0}.economy-student-drawer h4{margin:0 0 8px}.economy-student-drawer ul{list-style:none;padding:0;margin:0;max-height:320px;overflow:auto}
 .economy-student-drawer li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #e6e0ef;overflow-wrap:anywhere}
 .economy-student-drawer li>span{min-width:0}.economy-student-drawer button{flex:none;font-size:12px;min-height:32px;padding:4px 8px}
-.economy-assets-table .economy-drawer-row>td{white-space:normal}.economy-assets-table .economy-student-drawer button{min-height:30px}
+.economy-assets-table .economy-drawer-row>td{white-space:normal}.economy-assets-table .economy-student-drawer button{min-height:40px}
 .economy-gift-grid-panel{margin-top:12px;border-top:1px solid #e2dcea;padding-top:12px}.economy-gift-grid-panel h4{font-size:13px;margin:0 0 8px}
 .economy-student-gift-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(40px,1fr));gap:6px}.economy-student-gift-grid button{min-height:40px;padding:5px;background:#f0eafa}
 @keyframes economy-drawer-open{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
@@ -1529,3 +1529,19 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-character-layers:has(.avatar-layer-옷)>.student-profile-image{clip-path:inset(0 0 47% 0)}
 .avatar-item p{font-size:12px;color:#69758a;margin:0;line-height:1.4}
 @media(prefers-reduced-motion:reduce){.student-character-shadow,.student-character-scene.is-bouncing>.student-character-shadow{animation:none;transform:none}}
+
+/* Shared responsive hierarchy and compact calendar count presentation. */
+.economy-drawer-toggle{min-height:40px}
+.record .record-meta>strong{font-size:17px;font-weight:750;line-height:1.4}
+.record .record-content-line>.body{font-size:14px;line-height:1.6}
+.student-calendar-count{display:none}
+.slot-clock{white-space:normal;line-height:1.35}
+@media(max-width:640px){
+ .student-calendar-day .student-calendar-pill{display:none}
+ .student-calendar-count{display:inline-flex;justify-content:center;align-items:center;font-size:12px;line-height:1.4;padding:2px 4px;background:#e6eefe;border-radius:8px;max-width:100%;white-space:nowrap}
+ .student-calendar-day{min-height:64px;justify-content:flex-start;gap:4px}
+ .settings-sidebar{max-width:100%;flex-wrap:wrap;overflow:visible}
+ .record .record-meta>strong{font-size:16px}
+ .economy-assets-table td:last-child{white-space:normal;min-width:100px}
+ .economy-assets-table th,.economy-assets-table td{padding:6px}
+}

@@ -129,7 +129,7 @@ test('추가기록은 실제 하위 라벨만 반환하고 일반 기록 표기�
   }), extraType);
   assert.equal(C.recordLabel({
     kind: '추가기록'
-  }), '추가 기록');
+  }), '추가기록');
   assert.equal(C.recordLabel({
     kind: '관찰'
   }), '기록');

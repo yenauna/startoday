@@ -8,7 +8,7 @@ test('날짜·짧은 날짜·전체 시각은 연도2자리·0패딩·요일을 
  for(const [date,label] of [['2026-03-01','26.03.01.(일)'],['2027-02-01','27.02.01.(월)'],['2026-11-03','26.11.03.(화)']]){
   assert.equal(C.formatDate(date),label);assert.equal(C.formatShortDate(date),label);assert.equal(C.formatShortDate(date,false),label);
  }
- assert.equal(C.formatDate('2026-02-30'),'');assert.equal(C.formatTimestamp('2026-12-31T15:05:00Z'),'27.01.01.(금) 00:05');
+ assert.equal(C.formatDate('2026-02-30'),'');assert.equal(C.formatTimestamp('2026-12-31T15:05:00Z'),'27.01.01.(금) 오전 12:05');
 });
 test('학생 달력은 모든 날짜의 메모1만 투영하고 오늘의 일정은 실제 오늘에만 메모1·2 공개',()=>{
  const d=C.initialDB();d.students=[{id:'s',no:1,name:'가온'}];const days=[-1,0,1].map(n=>C.addDays(C.today(),n));

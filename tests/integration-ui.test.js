@@ -45,7 +45,7 @@ test('기존 자유 배치는 명단 추가·수정 시 보존하고 신규 학�
 test('날짜 표기와 사건 제목은 저장 원문을 바꾸지 않고 요일을 계산', () => {
   assert.equal(C.formatDate('2026-11-07'), '26.11.07.(토)');
   assert.equal(C.formatDate('2026-02-30'), '');
-  assert.equal(C.formatTimestamp('2026-11-06T23:30:00Z'), '26.11.07.(토) 08:30');
+  assert.equal(C.formatTimestamp('2026-11-06T23:30:00Z'), '26.11.07.(토) 오전 8:30');
   const db = roster(2);
   db.students[0].name = '김가온';
   db.students[1].name = '박지우';

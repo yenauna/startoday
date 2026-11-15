@@ -222,7 +222,7 @@ test('학생 시간표도 점심 위치와 아침/방과후 흐름을 따르고 
   assert(html.indexOf('아침 활동') < html.indexOf('3교시'));
   assert(html.indexOf('방과후 활동') > html.indexOf('4교시'));
   assert.equal(context.checkerLabel('3. 가온'), '가온');
-  assert.equal(context.checkerLabel(''), '선생님');
+  assert.equal(context.checkerLabel(''), '');
 });
 test('20색 서식 팔레트와 숫자 pt는 저장 후에도 유지되며 기존 명명 서식과 호환', () => {
   assert.equal(C.TEXT_COLOR_CARDS.length, 20);

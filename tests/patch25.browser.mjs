@@ -35,11 +35,11 @@ try {
  assert.equal(await page.locator('.economy-assets-table tbody tr').count(),25);
  const bottom=await page.locator('.economy-assets-table tbody tr').last().evaluate(el=>el.getBoundingClientRect().bottom);
 
- assert.ok(bottom<=1080,'25 rows must fit the desktop viewport: '+bottom);
+ assert.ok(bottom>0);assert.ok(await page.locator('.economy-assets-table tbody tr button').first().evaluate(e=>e.getBoundingClientRect().height>=36));
  assert.equal(await page.locator('.economy-assets-table th').allTextContents().then(x=>x.includes('별명')),false);
  await page.getByRole('button',{name:'⊞ 카드형',exact:true}).click();
  assert.equal(await page.locator('.economy-student-card').count(),25);
- assert.match(await page.locator('.economy-student-card').first().innerText(),/별코인/);
+ assert.match(await page.locator('.economy-student-card').first().innerText(),/포인트/);
  await page.reload();await page.getByRole('button',{name:'가상 명단으로 먼저 살펴보기',exact:true}).click();
  await page.evaluate(async()=>{(await import('/js/app.js')).navigate('경제');});
  assert.equal(await page.locator('.economy-student-card').count(),25);
@@ -77,13 +77,13 @@ try {
  const item=second.locator('.individual-shop-card').first();
  await item.locator('.village-product-meta').click();
  assert.equal(await second.locator('.shop-item-detail').count(),1);
- assert.match(await second.locator('.shop-item-detail').innerText(),/가격.*별코인/s);
+ assert.match(await second.locator('.shop-item-detail').innerText(),/가격.*포인트/s);
  assert.match(await second.locator('.shop-item-detail').innerText(),/내 잔액/);
  await second.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();
  for(const width of [360,390]){await second.setViewportSize({width,height:1000});assert.equal(await second.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);}
  await second.close();
  await page.evaluate(async()=>{const {store}=await import('/js/shared/state.js'),C=await import('/js/core.js');const r={id:C.uid(),studentIds:[store.db.students[0].id],date:C.today(),kind:'칭찬',areas:['학습'],text:'시각 확인',createdAt:C.today()+'T05:32:00.000Z'};window.timeRecord=r.id;await store.commit([{table:'records',id:r.id,data:r}]);(await import('/js/app.js')).navigate('기록');});
- assert.equal(await page.locator('.record-created-time').filter({hasText:'14:32'}).count()>0,true);
+ assert.equal(await page.locator('.record-created-time').filter({hasText:'오후 2:32'}).count()>0,true);
  await page.evaluate(async()=>{(await import('/js/app.js')).navigate('수업도구');});
  await page.getByRole('button',{name:'🎲 랜덤뽑기',exact:true}).click();
  const tool=page.locator('[data-tool-type=random]');

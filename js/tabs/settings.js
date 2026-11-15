@@ -9,7 +9,7 @@ import { studentDetail, studentEditor } from './students.js';
 import { schoolPickerFields, bindSchoolPicker } from '../components/school-picker.js';
 import { koreanPasswordField, bindKoreanPasswordFields } from '../components/korean-password.js';
 import { validateKoreanPassword } from '../shared/student-auth.js';
-const settingsCategories = ['기본 정보', '교실 화면', '학사일정', '과목·전담', '경험치 종류', '학생 명단', '데이터 백업'];
+const settingsCategories = ['기본 정보', '교실화면', '학사일정', '과목·전담', '경험치 종류', '학생 명단', '데이터 백업'];
 let settingsCategory = '기본 정보';
 export function settingsView() {
   startRosterSync();
@@ -19,7 +19,7 @@ export function settingsView() {
   return `<div class="toolbar"><div><h2>설정</h2><small>학급과 기록 방식을 선생님께 맞추세요.</small></div></div><div id="settings-layout" class="settings-layout"><nav class="settings-sidebar" aria-label="설정 카테고리">${settingsCategories.map(category => btn(esc(category), () => {
     settingsCategory = category;
     applySettingsCategory();
-  }, settingsCategory === category ? 'active' : '', `data-settings-tab="${esc(category)}" aria-pressed="${settingsCategory === category}"`)).join('')}</nav><div class="settings-content"><form id="settings-form" novalidate><section class="panel" data-settings-category="기본 정보"><h3>기본 정보</h3><div class="formgrid">${input('학급 이름', 'className', st.className, 'text', 'required')}${input('학년도', 'academicYear', st.academicYear, 'number', 'min="2020" max="2100" required')}${schoolPickerFields(st.schoolName || '', st.schoolCode || '')}${input('학년', 'grade', st.grade || '', 'number', 'min="1" max="6" required')}${input('반', 'classGroup', st.classGroup || '', 'text', 'required maxlength="40"')}</div></section><section class="panel" data-settings-category="교실 화면" hidden><h3>교실 화면</h3><div class="formgrid">${select('이름 표시 방식', 'nameDisplayMode', [['real', '번호와 이름'], ['number', '번호만'], ['masked', '이름 가림'], ['alias', '별명']], st.nameDisplayMode)}${checkbox('학생 점수 표시', 'classroomShowScores', !!st.classroomShowScores)}${input('화면 해제 비밀번호 · 변경할 때만 입력', 'classroomPin', '', 'password', 'minlength="4" autocomplete="new-password"')}</div></section><section class="panel" data-settings-category="기본 정보"><h3>학생 화면</h3>${select('칭찬 편지함 노출 기간', 'studentPraisePeriod', [['all', '전체 다 보이기'], ['30d', '최근 한 달치만'], ['7d', '최근 일주일만'], ['month', '이번 달만'], ['recent3', '최근 3개만']], st.studentPraisePeriod || 'all')}</section><section class="panel" data-settings-category="기본 정보"><h3>보고서</h3><div class="formgrid">${input('보고서 제목', 'reportHeader', st.reportHeader)}${select('기본 출력 방식', 'reportPrintMode', [['color', '컬러'], ['mono', '흑백']], st.reportPrintMode || 'color')}</div></section><section class="panel" data-settings-category="학사일정" hidden><h3>학사일정</h3><div class="formgrid">${select('점심시간 위치', 'lunchAfterPeriod', [[3, '3교시 후'], [4, '4교시 후'], [5, '5교시 후']], C.lunchPosition(st))}${Array.from({
+  }, settingsCategory === category ? 'active' : '', `data-settings-tab="${esc(category)}" aria-pressed="${settingsCategory === category}"`)).join('')}</nav><div class="settings-content"><form id="settings-form" novalidate><section class="panel" data-settings-category="기본 정보"><h3>기본 정보</h3><div class="formgrid">${input('학급 이름', 'className', st.className, 'text', 'required')}${input('학년도', 'academicYear', st.academicYear, 'number', 'min="2020" max="2100" required')}${schoolPickerFields(st.schoolName || '', st.schoolCode || '')}${input('학년', 'grade', st.grade || '', 'number', 'min="1" max="6" required')}${input('반', 'classGroup', st.classGroup || '', 'text', 'required maxlength="40"')}</div></section><section class="panel" data-settings-category="교실화면" hidden><h3>교실화면</h3><div class="formgrid">${select('이름 표시 방식', 'nameDisplayMode', [['real', '번호와 이름'], ['number', '번호만'], ['masked', '이름 가림'], ['alias', '별명']], st.nameDisplayMode)}${checkbox('학생 별 개수 표시', 'classroomShowScores', !!st.classroomShowScores)}${input('화면 해제 비밀번호 · 변경할 때만 입력', 'classroomPin', '', 'password', 'minlength="4" autocomplete="new-password"')}</div></section><section class="panel" data-settings-category="기본 정보"><h3>학생 화면</h3>${select('포인트 집계 기간','pointPeriod',[['all','전체(누적)'],['7d','최근 1주일'],['14d','최근 2주일'],['30d','최근 1달'],['month','이번 달']],st.pointPeriod || 'all')}${select('칭찬 편지함 노출 기간', 'studentPraisePeriod', [['all', '전체 다 보이기'], ['30d', '최근 한 달치만'], ['7d', '최근 일주일만'], ['month', '이번 달만'], ['recent3', '최근 3개만']], st.studentPraisePeriod || 'all')}</section><section class="panel" data-settings-category="기본 정보"><h3>보고서</h3><div class="formgrid">${input('보고서 제목', 'reportHeader', st.reportHeader)}${select('기본 출력 방식', 'reportPrintMode', [['color', '컬러'], ['mono', '흑백']], st.reportPrintMode || 'color')}</div></section><section class="panel" data-settings-category="학사일정" hidden><h3>학사일정</h3><div class="formgrid">${select('점심시간 위치', 'lunchAfterPeriod', [[3, '3교시 후'], [4, '4교시 후'], [5, '5교시 후']], C.lunchPosition(st))}${Array.from({
     length: 6
   }, (_, i) => input(`${i + 1}교시 시간`, 'period-' + i, st.periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i])).join('')}${checkbox('시간표에 선생님 표시', 'showTeacher', st.timetableDisplay.showTeacher)}${checkbox('시간표에 장소 표시', 'showLocation', st.timetableDisplay.showLocation)}${[['term1Start', '1학기 개학일'], ['summerEnd', '여름방학식'], ['term2Start', '2학기 개학일'], ['winterEnd', '겨울방학식']].map(([key, label]) => input(label, key, calendar[key] || '', 'date')).join('')}<div class="span2">${checkbox('봄방학 사용', 'springBreak', !!calendar.springBreak)}</div><fieldset id="spring-dates" class="span2 formgrid" ${calendar.springBreak ? '' : 'disabled'}>${input('겨울방학 후 개학일', 'winterReturn', calendar.winterReturn || '', 'date')}${input('봄방학식 · 종업식/졸업식', 'springEnd', calendar.springEnd || '', 'date')}</fieldset><div class="span2"><label>자율휴업일 · 여러 날짜 선택 후 추가</label><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate('')) || '날짜 선택'}</span><input id="holiday-date" type="date" aria-label="자율휴업일 추가 날짜"></span>${btn('날짜 추가', () => {
     const field = $('#holiday-date'),
@@ -62,6 +62,7 @@ export function settingsView() {
       classroomShowScores: !!f.get('classroomShowScores'),
       reportPrintMode: f.get('reportPrintMode'),
       studentPraisePeriod: f.get('studentPraisePeriod') || 'all',
+      pointPeriod: C.POINT_PERIODS.includes(f.get('pointPeriod')) ? f.get('pointPeriod') : 'all',
       academicCalendar: {
         ...calendar,
         ...Object.fromEntries(['term1Start', 'summerEnd', 'term2Start', 'winterEnd'].map(key => [key, f.get(key) || ''])),
@@ -430,7 +431,7 @@ function applySettingsCategory() {
     button.setAttribute('aria-pressed', String(active));
   });
   const form = $('#settings-form');
-  if (form) form.hidden = !['기본 정보', '교실 화면', '학사일정'].includes(settingsCategory);
+  if (form) form.hidden = !['기본 정보', '교실화면', '학사일정'].includes(settingsCategory);
 }
 function bindSchoolSettings() {
   setTimeout(() => {

@@ -14,10 +14,7 @@ export const name = id => {
 };
 export async function commit(ops, message = '저장했습니다.') {
   await store.commit(ops);
-  state.saveNotice = `저장 ${new Date().toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })}`;
+  state.saveNotice = `저장 ${C.formatTime(new Date())}`;
   render();
   if (message) toast(message);
 }
