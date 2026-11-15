@@ -29,7 +29,7 @@ try {
  const fonts=await page.locator('[data-record-id=record33] .record-meta').evaluate(e=>['small','.record-created-time','.record-updated-time'].map(q=>{const s=getComputedStyle(e.querySelector(q));return [s.fontSize,s.color,s.fontWeight];}));assert.deepEqual(fonts[0],fonts[1]);assert.deepEqual(fonts[0],fonts[2]);
  await page.evaluate(async()=>{const {state}=await import('/js/shared/state.js');state.calendarDate=window.seed33.date;(await import('/js/app.js')).navigate('시간표·일정');});
  const teacher=page.locator(`[data-drag="${seed.date}:1"]`);assert.equal(await teacher.locator('.slot-memos').count(),1);assert((await teacher.locator('.slot-memos').innerText()).includes('📢 PUBLIC33'));assert((await teacher.locator('.slot-memos').innerText()).includes('🔒 SECRET33'));assert(!(await teacher.innerText()).includes('📌'));assert.equal(await teacher.locator('.slot-memos .slot-event-link').count(),1);
- const layout=await teacher.evaluate(el=>({subject:el.querySelector('.subject-title').getBoundingClientRect().right,memos:el.querySelector('.slot-memos').getBoundingClientRect().left}));assert(layout.memos>=layout.subject);
+ const layout=await teacher.evaluate(el=>({subject:el.querySelector('.slot-main').getBoundingClientRect().bottom,memos:el.querySelector('.slot-memos').getBoundingClientRect().top}));assert(layout.memos>=layout.subject);
  await page.evaluate(async()=>{(await import('/js/app.js')).navigate('대시보드');window.scrollTo(0,700);});
  await page.evaluate(async id=>(await import('/js/tabs/student-view.js')).previewStudent(id),seed.s);assert.equal(await page.evaluate(()=>scrollY),0);
  const icon=await page.locator('.student-wardrobe-open').boundingBox(),score=await page.locator('.student-profile-score strong').boundingBox();assert(icon.y>=score.y+score.height-1);
@@ -50,5 +50,5 @@ try {
  assert.equal(await page.locator('.student-character-scene img').evaluateAll(imgs=>imgs.every(img=>img.complete&&img.naturalWidth>0)),true);
  await page.getByRole('button',{name:'교사 화면으로 돌아가기',exact:true}).click();await page.evaluate(async()=>{(await import('/js/app.js')).navigate('경제');});
  const history=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'최근 학급 경제 거래',exact:true})});assert.deepEqual(await history.locator('th').allTextContents(),['일시','학생','종류','내용']);
- assert.deepEqual(errors,[]);console.log('PASS: identical date fonts, right-side memo groups and teacher/student icon boundaries, entry/section scroll top with same-section retention, both avatar purchases/equips/layers/unequip/balance, responsive loaded assets, four-column teacher ledger');
+ assert.deepEqual(errors,[]);console.log('PASS: identical date fonts, full-width calendar memo groups and teacher/student icon boundaries, entry/section scroll top with same-section retention, both avatar purchases/equips/layers/unequip/balance, responsive loaded assets, four-column teacher ledger');
 }finally{await browser?.close();await new Promise(r=>server.close(r));}

@@ -1575,3 +1575,21 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
  .calendar .day .slot.calendar-lesson .subject-title{font-size:12px;line-height:1.35;white-space:normal;overflow:visible;overflow-wrap:anywhere}
  .calendar .day .slot.calendar-lesson .slot-memo-indicator{display:inline;font-size:.8em;line-height:0;vertical-align:super;margin-left:1px}
 }
+
+/* Landscape phones/tablets use the same compact month preview. */
+@media(min-width:641px) and (max-width:1100px){
+ .calendar:not(.week) .day .slot.calendar-lesson .slot-main{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;max-width:100%}
+ .calendar:not(.week) .day .slot.calendar-lesson .slot-subject-row{display:block}
+ .calendar:not(.week) .day .slot.calendar-lesson .slot-period-row{display:block;width:100%}
+ .calendar:not(.week) .day .slot.calendar-lesson .slot-memos{display:none}
+ .calendar:not(.week) .day .slot.calendar-lesson .subject-title{font-size:12px;line-height:1.35;white-space:normal;overflow:visible;overflow-wrap:anywhere}
+ .calendar:not(.week) .day .slot.calendar-lesson .slot-memo-indicator{display:inline;font-size:.8em;line-height:0;vertical-align:super;margin-left:1px}
+}
+
+/* Wide month cells give notes a full row, with bounded preview height. */
+@media(min-width:1101px){
+ .calendar:not(.week) .day .calendar-lesson .slot-subject-row{display:flex;flex-direction:column;align-items:stretch;gap:4px}
+ .calendar:not(.week) .day .calendar-lesson .slot-main{width:100%;max-width:100%;flex:none;flex-wrap:wrap}
+ .calendar:not(.week) .day .calendar-lesson .slot-memos{width:100%;flex:none;max-height:120px;overflow:hidden}
+ .calendar:not(.week) .day .calendar-lesson .slot-memos>*{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;text-overflow:ellipsis;white-space:pre-line;overflow-wrap:anywhere;flex:none}
+}
