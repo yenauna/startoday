@@ -1,6 +1,6 @@
 import { esc, toast } from '../shared/ui.js';
 export function koreanPasswordField(label, key, value = '', attrs = '') {
-  return `<label>${esc(label)}<span class="korean-password-field"><input name="${esc(key)}" type="password" value="${esc(value)}" lang="ko" data-korean-password maxlength="200" autocapitalize="off" spellcheck="false" ${attrs}><button type="button" class="password-visibility" data-password-label="${esc(label)}" aria-label="${esc(label)} 보기" aria-pressed="false">👁️</button></span></label>`;
+  return `<label>${esc(label)}<span class="korean-password-field"><input name="${esc(key)}" type="text" data-password-masked="true" value="${esc(value)}" lang="ko" data-korean-password maxlength="200" autocapitalize="off" spellcheck="false" ${attrs}><button type="button" class="password-visibility" data-password-label="${esc(label)}" aria-label="${esc(label)} 보기" aria-pressed="false">👁️</button></span></label>`;
 }
 export function bindKoreanPasswordFields(root) {
   for (const field of root?.querySelectorAll('[data-korean-password]') || []) {
@@ -41,8 +41,8 @@ export function bindKoreanPasswordFields(root) {
     });
     const toggle = field.parentElement.querySelector('.password-visibility');
     toggle.onclick = () => {
-      const show = field.type === 'password';
-      field.type = show ? 'text' : 'password';
+      const show = field.dataset.passwordMasked !== 'false';
+      field.dataset.passwordMasked = String(!show);
       toggle.setAttribute('aria-pressed', String(show));
       toggle.setAttribute('aria-label', toggle.dataset.passwordLabel + ' ' + (show ? '숨기기' : '보기'));
     };

@@ -609,7 +609,7 @@ export function validateBackup(x) {
       ids.add(row.id);
     }
   }
-  if (x.data.areas.some(a => typeof a.name !== 'string' || !a.name.trim() || !Number.isInteger(a.sortOrder) || a.sortOrder < 0) || new Set(x.data.areas.map(a => a.name)).size !== x.data.areas.length) throw Error('경험치 영역 형식 오류');
+  if (x.data.areas.some(a => typeof a.name !== 'string' || !a.name.trim() || !Number.isInteger(a.sortOrder) || a.sortOrder < 0) || new Set(x.data.areas.map(a => a.name)).size !== x.data.areas.length) throw Error('분야 형식 오류');
   if (x.data.settings.length !== 1 || x.data.settings[0].id !== 'main') throw Error('설정 데이터가 올바르지 않습니다.');
   for (const r of x.data.records) if (!Array.isArray(r.studentIds) || !Array.isArray(r.areas) || !KINDS.includes(r.kind) || typeof r.text !== 'string' || typeof r.createdAt !== 'string') throw Error('기록 형식 오류');
   for (const a of x.data.assignments) if (!a.repeat || !['none', 'daily', 'weekly'].includes(a.repeat.type) || !a.date) throw Error('과제 형식 오류');
@@ -898,8 +898,8 @@ export function areaBatchOps(db, draft) {
     name: areaName(a.name.trim()),
     sortOrder
   }));
-  if (rows.some(a => !a.name) || new Set(rows.map(a => a.name)).size !== rows.length) throw Error('경험치 이름을 비우거나 중복할 수 없습니다.');
-  if (new Set(rows.map(a => a.id)).size !== rows.length || areaRows(db, true).some(a => !rows.some(r => r.id === a.id))) throw Error('경험치 목록을 다시 확인하세요.');
+  if (rows.some(a => !a.name) || new Set(rows.map(a => a.name)).size !== rows.length) throw Error('분야 이름을 비우거나 중복할 수 없습니다.');
+  if (new Set(rows.map(a => a.id)).size !== rows.length || areaRows(db, true).some(a => !rows.some(r => r.id === a.id))) throw Error('분야 목록을 다시 확인하세요.');
   const renamed = new Map(areaRows(db, true).map(a => [a.name, rows.find(r => r.id === a.id).name]));
   const ops = rows.map(data => ({
     table: 'areas',
@@ -1877,13 +1877,13 @@ export function avatarSnapshot(student) {
 export function avatarOps(database, studentId, itemId, action) {
   economyStudent(database, studentId);
   const student=database.students.find(s=>s.id===studentId), item=AVATAR_CATALOG.find(item=>item.id===itemId), avatar=avatarSnapshot(student);
-  if (!item || !['buy','equip'].includes(action)) throw Error('아바타 아이템을 확인하세요.');
+  if (!item || !['buy','equip'].includes(action)) throw Error('아바타 물건을 확인하세요.');
   if (action === 'buy') {
-    if (avatar.owned.includes(itemId)) throw Error('이미 보유한 아이템입니다.');
+    if (avatar.owned.includes(itemId)) throw Error('이미 보유한 물건입니다.');
     if (studentBalance(database,studentId)<item.price) throw Error('잔액이 부족합니다.');
     return [economyUp('students',{...student,avatarOwned:[...avatar.owned,itemId],avatarEquipped:avatar.equipped}),economyUp('economy_tx',economyEntry(studentId,'아바타구매',-item.price,{id:item.id,name:item.name,category:item.category}))];
   }
-  if (!avatar.owned.includes(itemId)) throw Error('보유한 아이템만 장착할 수 있습니다.');
+  if (!avatar.owned.includes(itemId)) throw Error('보유한 물건만 장착할 수 있습니다.');
   const equipped={...avatar.equipped};
   if (equipped[item.category]===itemId) delete equipped[item.category];else equipped[item.category]=itemId;
   return [economyUp('students',{...student,avatarOwned:avatar.owned,avatarEquipped:equipped})];

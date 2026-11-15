@@ -1097,7 +1097,6 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .village-shop .village-ledger-date{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:11px;color:#7c6c55;min-width:0;overflow-wrap:anywhere}
 .village-shop .village-ledger-type{display:inline-block;font-size:10px;padding:1px 6px;background:#eee5d2;border-radius:5px;color:#705939}
 .village-shop .village-ledger-item{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-width:0;overflow-wrap:anywhere;font-size:13px}
-.village-shop .village-ledger-status{font-size:10px;line-height:1.5;padding:2px 7px;border:1px solid #c7d0b8;background:#edf0df;color:#57684b;border-radius:7px;max-width:100%;overflow-wrap:anywhere}
 .village-shop .village-ledger-amount{font-size:14px;text-align:right;overflow-wrap:anywhere;min-width:0}
 .village-shop .village-ledger-amount small{font-size:10px;font-weight:500;color:#7b6f5b}
 .village-shop .village-ledger-amount.is-credit{color:#476e51}.village-shop .village-ledger-amount.is-debit{color:#9a5a43}.village-shop .village-ledger-amount.is-neutral{color:#7b6f5b}
@@ -1534,11 +1533,8 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .economy-drawer-toggle{min-height:40px}
 .record .record-meta>strong{font-size:17px;font-weight:750;line-height:1.4}
 .record .record-content-line>.body{font-size:14px;line-height:1.6}
-.student-calendar-count{display:none}
 .slot-clock{white-space:normal;line-height:1.35}
 @media(max-width:640px){
- .student-calendar-day .student-calendar-pill{display:none}
- .student-calendar-count{display:inline-flex;justify-content:center;align-items:center;font-size:12px;line-height:1.4;padding:2px 4px;background:#e6eefe;border-radius:8px;max-width:100%;white-space:nowrap}
  .student-calendar-day{min-height:64px;justify-content:flex-start;gap:4px}
  .settings-sidebar{max-width:100%;flex-wrap:wrap;overflow:visible}
  .record .record-meta>strong{font-size:16px}
@@ -1602,3 +1598,24 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .behavior-result details{margin-top:12px;overflow-wrap:anywhere}.behavior-result summary{cursor:pointer}
 .behavior-result .row{flex-wrap:wrap;gap:8px;margin-top:10px}
 @media(max-width:640px){.behavior-result{padding:10px}.behavior-converter button{min-height:40px;white-space:normal}.behavior-converter input[type=date]{max-width:100%}.behavior-converter .row>label{min-width:0;flex:1 1 140px}}
+
+/* Keep the Korean IME: visibility changes masking, never the input type. */
+[data-korean-password][data-password-masked="true"]{-webkit-text-security:disc}
+[data-korean-password][data-password-masked="false"]{-webkit-text-security:none}
+.village-ledger-pages{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;margin-top:14px}
+.village-ledger-pages button{min-width:36px;min-height:40px;padding:5px 9px}
+.economy-asset-actions{display:flex;flex-wrap:nowrap;align-items:center;gap:6px}
+.economy-asset-actions button{flex:0 0 auto;min-height:40px;white-space:nowrap}
+.student-home-topbar .student-header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;min-width:0}
+.student-header .student-site-name{grid-column:1;grid-row:1;width:fit-content;max-width:100%}
+.student-header .student-logout{grid-column:2;grid-row:1;justify-self:end;margin:0}
+.student-header .student-header-class{grid-column:1/-1;grid-row:2}
+@media(max-width:640px){
+ .student-home-topbar .student-header{flex-basis:100%;width:100%}
+ .student-calendar-day .student-calendar-pill{display:block;font-size:10px;line-height:1.35;max-height:2.7em;overflow:hidden;overflow-wrap:anywhere}
+ .economy-grid:not(.village-product-grid){grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .economy-grid:not(.village-product-grid)>article{width:100%;max-width:none;min-width:0;padding:9px;overflow-wrap:anywhere}
+ .economy-grid:not(.village-product-grid)>article h3{font-size:14px}
+ .economy-grid:not(.village-product-grid)>article .row{flex-wrap:wrap}
+ .economy-assets-table .economy-asset-actions button{margin:0}
+}

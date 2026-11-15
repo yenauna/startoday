@@ -145,7 +145,7 @@ try {
     } = await import('/js/app.js');
     navigate('설정');
   });
-  await page.locator('[data-settings-tab="경험치 종류"]').click();
+  await page.locator('[data-settings-tab="분야 종류"]').click();
   await page.locator('#title-goal').fill('30');
   await page.getByRole('button', {
     name: '칭호 목표 저장',

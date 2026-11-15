@@ -57,7 +57,7 @@ export function studentsView() {
     d.setUTCMonth(d.getUTCMonth() - 1, 1);
     selectStudentMonth(d.toISOString().slice(0, 7));
     render();
-  })}${[1, 2].map(term => btn(term + '학기', () => selectStudentSemester(term), '', C.semesterRange(settings(), term) ? '' : 'disabled title="설정에서 학사일정을 먼저 등록하세요"')).join('')}</div><div class="row student-custom-range">${input('직접 지정 시작', 'statsFrom', range.from, 'date')}${input('직접 지정 종료', 'statsTo', range.to, 'date')}${btn('기간 적용', () => { const from=$('[name=statsFrom]').value,to=$('[name=statsTo]').value;C.dates(from,to);studentRange={from,to};studentMonth='';render(); })}</div><div class="table-wrap"><table class="student-score-table"><thead><tr><th>학생</th><th>전체</th><th>칭찬</th><th>조언</th><th>경험치별</th></tr></thead><tbody>${rows.map(({
+  })}${[1, 2].map(term => btn(term + '학기', () => selectStudentSemester(term), '', C.semesterRange(settings(), term) ? '' : 'disabled title="설정에서 학사일정을 먼저 등록하세요"')).join('')}</div><div class="row student-custom-range">${input('직접 지정 시작', 'statsFrom', range.from, 'date')}${input('직접 지정 종료', 'statsTo', range.to, 'date')}${btn('기간 적용', () => { const from=$('[name=statsFrom]').value,to=$('[name=statsTo]').value;C.dates(from,to);studentRange={from,to};studentMonth='';render(); })}</div><div class="table-wrap"><table class="student-score-table"><thead><tr><th>학생</th><th>전체</th><th>칭찬</th><th>조언</th><th>분야별</th></tr></thead><tbody>${rows.map(({
     student,
     score
   }) => {

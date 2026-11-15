@@ -291,7 +291,7 @@ export class Store {
       });
       if (error) {
         if (ops.some(op => op.table === 'areas') && error.message.includes('INVALID_TABLE_OR_ID')) {
-          throw Error('경험치 종류를 저장하려면 Supabase SQL Editor에서 최신 schema.sql을 먼저 실행하세요.');
+          throw Error('분야 종류를 저장하려면 Supabase SQL Editor에서 최신 schema.sql을 먼저 실행하세요.');
         }
         if (error.message.includes('REVISION_CONFLICT')) {
           await this.load();

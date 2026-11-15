@@ -63,11 +63,11 @@ try {
   await page.locator('#modal [name=stock]').fill('2');
   await page.locator('#modal button[type=submit]').click();
   await page.getByRole('button',{name:'자산 관리',exact:true}).click();
-  await page.locator('tbody tr').first().getByRole('button',{name:'지급/차감'}).click();
+  await page.locator('tbody tr').first().getByRole('button',{name:'돈'}).click();
   await page.locator('#modal [name=amount]').fill('100');
   await page.locator('#modal [name=memo]').fill('테스트 지급');
   await page.locator('#modal button[type=submit]').click();
-  await page.locator('tbody tr').first().getByRole('button',{name:'선물하기'}).click();
+  await page.locator('tbody tr').first().getByRole('button',{name:'물건'}).click();
   await page.locator('#modal .economy-item').filter({has:page.getByRole('heading',{name:'검증 쿠폰',exact:true})}).getByRole('button',{name:'선물하기'}).click();
   const initial=await page.evaluate(async()=>{const {store,state}=await import('/js/shared/state.js');const C=await import('/js/core.js');const s=store.db.students[0];window.econStudent=s.id;window.econItem=store.db.shop_items.find(i=>i.name==='검증 쿠폰').id;return C.studentBalance(store.db,s.id);});
   await page.evaluate(async()=>{const {state}=await import('/js/shared/state.js');state.impersonatingStudentId=window.econStudent;state.viewMode='student';(await import('/js/app.js')).render();});

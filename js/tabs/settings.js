@@ -9,7 +9,7 @@ import { studentDetail, studentEditor } from './students.js';
 import { schoolPickerFields, bindSchoolPicker } from '../components/school-picker.js';
 import { koreanPasswordField, bindKoreanPasswordFields } from '../components/korean-password.js';
 import { validateKoreanPassword } from '../shared/student-auth.js';
-const settingsCategories = ['기본 정보', '교실화면', '학사일정', '과목·전담', '경험치 종류', '학생 명단', '데이터 백업'];
+const settingsCategories = ['기본 정보', '교실화면', '학사일정', '과목·전담', '분야 종류', '학생 명단', '데이터 백업'];
 let settingsCategory = '기본 정보';
 export function settingsView() {
   startRosterSync();
@@ -342,7 +342,7 @@ export function areasSettings() {
     areaDraft = JSON.parse(source);
     areaDraftBase = source;
   }
-  return `<section class="panel" data-settings-category="경험치 종류" hidden><h3>경험치 종류</h3><div class="row title-goal-settings"><label>칭호 단계별 기준 횟수 <input id="title-goal" type="number" min="3" max="9999" step="1" value="${settings().titleGoal || 15}"></label>${btn('칭호 목표 저장', async () => {
+  return `<section class="panel" data-settings-category="분야 종류" hidden><h3>분야 종류</h3><div class="row title-goal-settings"><label>칭호 단계별 기준 횟수 <input id="title-goal" type="number" min="3" max="9999" step="1" value="${settings().titleGoal || 15}"></label>${btn('칭호 목표 저장', async () => {
     const goal = Number($('#title-goal').value);
     C.titleThresholds({
       goal
@@ -352,11 +352,11 @@ export function areasSettings() {
       ...settings(),
       titleGoal: goal
     })]);
-  })}<small>기본 15회: 1단계 15회 · 2단계 30회 · 3단계 45회. 기준을 바꾸면 각 단계가 배수로 적용됩니다.</small></div><p class="muted">카드를 끌어서 순서를 바꾸세요. 변경한 이름과 순서는 아래 버튼으로 한 번에 저장합니다. 삭제한 영역의 지난 기록은 보존됩니다.</p><div class="area-cards">${areaDraft.map((a, i) => `<div class="area-card" draggable="true" data-area-id="${esc(a.id)}"><span class="area-drag-handle" draggable="true" title="끌어서 순서 변경" aria-hidden="true">⠿</span><input id="area-${esc(a.id)}" aria-label="경험치 이름 ${esc(a.name)}" value="${esc(a.name)}" ${a.deletedAt ? 'disabled' : ''}>${a.deletedAt ? '<small>삭제됨</small>' : ''}${btn('↑', () => moveArea(a.id, -1), '', `aria-label="${esc(a.name)} 위로" ${i === 0 ? 'disabled' : ''}`)}${btn('↓', () => moveArea(a.id, 1), '', `aria-label="${esc(a.name)} 아래로" ${i === areaDraft.length - 1 ? 'disabled' : ''}`)}${btn(a.deletedAt ? '복원' : '삭제', () => {
+  })}<small>기본 15회: 1단계 15회 · 2단계 30회 · 3단계 45회. 기준을 바꾸면 각 단계가 배수로 적용됩니다.</small></div><p class="muted">카드를 끌어서 순서를 바꾸세요. 변경한 이름과 순서는 아래 버튼으로 한 번에 저장합니다. 삭제한 영역의 지난 기록은 보존됩니다.</p><div class="area-cards">${areaDraft.map((a, i) => `<div class="area-card" draggable="true" data-area-id="${esc(a.id)}"><span class="area-drag-handle" draggable="true" title="끌어서 순서 변경" aria-hidden="true">⠿</span><input id="area-${esc(a.id)}" aria-label="분야 이름 ${esc(a.name)}" value="${esc(a.name)}" ${a.deletedAt ? 'disabled' : ''}>${a.deletedAt ? '<small>삭제됨</small>' : ''}${btn('↑', () => moveArea(a.id, -1), '', `aria-label="${esc(a.name)} 위로" ${i === 0 ? 'disabled' : ''}`)}${btn('↓', () => moveArea(a.id, 1), '', `aria-label="${esc(a.name)} 아래로" ${i === areaDraft.length - 1 ? 'disabled' : ''}`)}${btn(a.deletedAt ? '복원' : '삭제', () => {
     captureAreas();
     a.deletedAt = a.deletedAt ? null : C.now();
     render();
-  })}</div>`).join('')}</div><div class="row"><input id="new-area" aria-label="새 경험치 이름" placeholder="새 경험치 이름">${btn('영역 추가', () => {
+  })}</div>`).join('')}</div><div class="row"><input id="new-area" aria-label="새 분야 이름" placeholder="새 분야 이름">${btn('영역 추가', () => {
     captureAreas();
     const name = $('#new-area').value.trim();
     if (!name) throw Error('이름을 입력하세요.');
@@ -366,9 +366,9 @@ export function areasSettings() {
       deletedAt: null
     });
     render();
-  })}${btn('경험치 순서/이름 저장', async () => {
+  })}${btn('분야 순서/이름 저장', async () => {
     captureAreas();
-    if (JSON.stringify(C.areaRows(db(), true)) !== areaDraftBase) throw Error('경험치 목록이 다른 곳에서 변경되었습니다. 변경 취소 후 다시 확인하세요.');
+    if (JSON.stringify(C.areaRows(db(), true)) !== areaDraftBase) throw Error('분야 목록이 다른 곳에서 변경되었습니다. 변경 취소 후 다시 확인하세요.');
     const old = C.areaRows(db(), true).find(a => a.name === state.recordFilters.area);
     const ops = C.areaBatchOps(db(), areaDraft);
     await commit(ops);
