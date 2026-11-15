@@ -16,10 +16,8 @@ export function displayName(s) {
   }
   return String(s.no) + '번';
 }
-let classroomInteractionCleanup;
 const dismissedCountdowns = new Set();
 export function classroom() {
-  classroomInteractionCleanup?.();
   document.title = '교실화면 · 오늘의 별';
   classroomResizeObserver?.disconnect();
   document.querySelector('.print-root')?.remove();
@@ -31,7 +29,7 @@ export function classroom() {
   state.locked = true;
   syncToolsVisibility();
   const d = C.today();
-  $('#app').innerHTML = `<div class="lockscreen"><div class="classroom-top"><div class="classroom-heading"><div class="classroom-brand"><h1>오늘의 별</h1><small>${esc(settings().className)}</small></div><div class="classroom-datetime"><time>${esc(C.formatDate(d))}</time><div id="class-clock" class="clock"></div></div></div>${announcementView()}<section class="panel classroom-schedule"><div class="row">${C.calendarEvents(db()).filter(e => e.date === d && C.eventTimePeriod(e) == null || e.isDday && e.date !== d).map(e => `<div class="classroom-event">${badge(e.title + (e.isDday ? ' ' + C.dday(e.date, d) : ''))}${e.description ? `<small class="event-description">${esc(e.description)}</small>` : ''}</div>`).join('')}</div><div class="schedule registered-schedule">${timeSlots(d, false, true, 'classroom')}</div></section></div><div class="students classroom-students">${students().map(student => classroomStudent(student, d)).join('')}</div><button type="button" id="class-tools" class="class-tools">🧰 수업도구</button><button type="button" class="lock-exit" id="lock-exit" aria-label="교사 화면 잠금 해제" title="길게 누르기 또는 두 번 탭하여 해제">🔒<span class="lock-hint" style="font-size:12px; margin-left:4px; font-weight:500;">길게 눌러 해제</span></button></div>`;
+  $('#app').innerHTML = `<div class="lockscreen"><div class="classroom-top"><div class="classroom-heading"><div class="classroom-brand"><h1>오늘의 별</h1><small>${esc(settings().className)}</small></div><div class="classroom-datetime"><time>${esc(C.formatDate(d))}</time><div id="class-clock" class="clock"></div></div></div>${announcementView()}<section class="panel classroom-schedule"><div class="row">${C.calendarEvents(db()).filter(e => e.date === d && C.eventTimePeriod(e) == null || e.isDday && e.date !== d).map(e => `<div class="classroom-event">${badge(e.title + (e.isDday ? ' ' + C.dday(e.date, d) : ''))}${e.description ? `<small class="event-description">${esc(e.description)}</small>` : ''}</div>`).join('')}</div><div class="schedule registered-schedule">${timeSlots(d, false, true, 'classroom')}</div></section></div><div class="students classroom-students">${students().map(student => classroomStudent(student, d)).join('')}</div><div class="classroom-controls"><button type="button" id="class-tools" class="class-tools" aria-label="수업도구"><span>수업<br>도구</span></button><button type="button" class="lock-exit" id="lock-exit" aria-label="교사 화면 잠금 해제" title="더블클릭 또는 두 번 탭하여 해제"><span aria-hidden="true">🔓</span><span class="lock-hint">더블<br>클릭</span></button></div></div>`;
   $('#class-tools').onclick = openToolsOverlay;
   fitClassroom();
   classroomResizeObserver = new ResizeObserver(() => requestAnimationFrame(fitClassroom));
@@ -51,56 +49,50 @@ export function classroom() {
   tick();
   clearInterval(state.clockTimer);
   state.clockTimer = setInterval(tick, 1000);
-  let touchInteraction = false,
-    hold,
-    lastTouch = 0;
-  classroomInteractionCleanup = () => clearTimeout(hold);
+  let touchInteraction = false, lastTouch = 0, unlocking = false;
   const exit = $('#lock-exit');
   const unlock = async () => {
-    if (settings().classroomPinHash) {
-      const pin = prompt('교실화면 해제 비밀번호');
-      if (pin === null || (await hashPin(pin)) !== settings().classroomPinHash) {
-        toast('비밀번호를 확인하세요.');
-        return;
+    if (unlocking || !state.locked) return;
+    unlocking = true;
+    try {
+      if (settings().classroomPinHash) {
+        const pin = prompt('교실화면 해제 비밀번호');
+        if (pin === null || (await hashPin(pin)) !== settings().classroomPinHash) {
+          toast('비밀번호를 확인하세요.');
+          return;
+        }
       }
-    }
-    clearInterval(state.clockTimer);
-    if (touchInteraction) {
-      // Swallow the synthetic click after a touch release so it cannot hit the
-      // newly revealed top-right logout button underneath the unlock icon.
-      const swallow = event => {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-      };
-      document.addEventListener('click', swallow, true);
-      setTimeout(() => document.removeEventListener('click', swallow, true), 500);
-    }
-    classroomResizeObserver?.disconnect();
-    state.locked = false;
-    render();
+      clearInterval(state.clockTimer);
+      if (touchInteraction) {
+        // Swallow the synthetic click after a touch release so it cannot hit the
+        // newly revealed top-right logout button underneath the unlock icon.
+        const swallow = event => {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        };
+        document.addEventListener('click', swallow, true);
+        setTimeout(() => document.removeEventListener('click', swallow, true), 500);
+      }
+      classroomResizeObserver?.disconnect();
+      state.locked = false;
+      render();
+    } finally { unlocking = false; }
   };
   exit.onpointerdown = e => {
     touchInteraction = e.pointerType === 'touch';
-    e.preventDefault();
-    hold = setTimeout(() => run(unlock), 1400);
+    if (touchInteraction) e.preventDefault();
   };
   exit.onpointerup = e => {
+    if (e.pointerType !== 'touch') return;
     e.preventDefault();
-    clearTimeout(hold);
-    if (e.pointerType === 'touch') {
-      const now = Date.now();
-      if (lastTouch && now - lastTouch < 350) {
-        lastTouch = 0;
-        run(unlock);
-      } else lastTouch = now;
-    }
+    const now = Date.now();
+    if (lastTouch && now - lastTouch < 350) {
+      lastTouch = 0;
+      run(unlock);
+    } else lastTouch = now;
   };
-  exit.onpointercancel = () => clearTimeout(hold);
-  exit.onpointerleave = () => clearTimeout(hold);
-  exit.ondblclick = () => run(unlock);
-  exit.onkeydown = e => {
-    if (e.ctrlKey && e.key === 'Enter') run(unlock);
-  };
+  exit.onpointercancel = () => { lastTouch = 0; };
+  exit.ondblclick = e => { e.preventDefault(); run(unlock); };
 }
 function updateClassroomCountdown() {
   const next = C.classroomCountdown(db(), settings());

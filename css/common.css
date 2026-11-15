@@ -815,7 +815,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .tools-maximized[data-tool-type=qr] textarea { display:none; }
 .tools-maximized[data-tool-type=qr] .tool-qr-canvas { height:100%; max-height:none; width:100%; }
 .tools-maximized[data-tool-type=qr] .tools-window-body { align-items:center; }
-.lockscreen button.class-tools { pointer-events:auto; position:fixed; right:14px; top:53px; z-index:110; background:#fcfcfe; color:#283247; padding:6px 12px; border-radius:14px; }
+.lockscreen button.class-tools { pointer-events:auto; background:#fcfcfe; color:#283247; border-radius:14px; }
 @media(max-width:480px) { .sticky-navigation .tabs { gap:2px; padding-inline:6px; }.sticky-navigation .tabs button{font-size:12px;padding:6px;}.tools-board{padding:7px;}.tools-toolbar{gap:4px;}.tools-toolbar button{font-size:12px;padding:5px 8px;}.tools-canvas{min-height:60vh;}.tools-overlay .tools-canvas{min-height:0;}.tools-heading small{font-size:11px;} }
 .tools-maximized .tool-random-canvas { max-height:none; }
 #class-tools.class-tools { pointer-events:auto; }
@@ -1544,4 +1544,23 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
  .record .record-meta>strong{font-size:16px}
  .economy-assets-table td:last-child{white-space:normal;min-width:100px}
  .economy-assets-table th,.economy-assets-table td{padding:6px}
+}
+
+/* Full-width period/time rows do not inherit the subject column width. */
+.registered-schedule{gap:8px}
+.schedule.registered-schedule{grid-template-columns:repeat(auto-fit,minmax(min(100%,205px),1fr))}
+.registered-schedule .slot-period-row{width:100%;flex-wrap:nowrap;gap:6px}
+.registered-schedule .slot-period-row .slot-clock{margin-left:auto;flex:0 0 auto;white-space:nowrap}
+.assignment-date-detail{margin-top:16px;border-top:1px solid var(--line);padding-top:12px;min-width:0}
+.assignment-date-task{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.assignment-date-task>div{min-width:0;overflow-wrap:anywhere}
+.assignment-date-task>button{flex:none;min-height:40px}
+.assignment-date-task strong{display:block;font-size:15px}
+.assignment-date-task small{display:block;line-height:1.5}
+@media(max-width:640px){
+ .assignment-calendar .assignment-calendar-task{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;min-width:0;max-width:100%;height:24px;line-height:16px}
+ .assignment-calendar .assignment-day{overflow:hidden;min-width:0}
+ .assignment-calendar .day-head{display:inline-block;width:calc(100% - 24px)}
+ .assignment-date-detail .toolbar{flex-wrap:wrap;gap:8px}
+ .assignment-date-detail h3{font-size:16px}
 }

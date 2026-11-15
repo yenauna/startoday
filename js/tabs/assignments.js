@@ -338,7 +338,16 @@ function assignmentCalendar(assignments) {
       assignmentMonth = date.slice(0, 7);
       render();
     }, 'day-head', `aria-label="${esc(C.formatDate(date))} 과제 조회" aria-pressed="${date === state.date}"`)} ${btn('+', () => assignmentEditor(null, date), 'assignment-calendar-add', `aria-label="${date} 과제 추가"`)}${list.map(a => btn(esc(a.title) + exemptionBadge(a, date), () => assignmentActions(a, date), 'assignment-calendar-task' + (students().some(student => C.targeted(a, student.id) && !C.excluded(db(), student.id, date) && !['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, date, student.id))) ? ' has-incomplete' : ''), `data-assignment-id="${esc(a.id)}" data-assignment-date="${date}"`)).join('')}</div>`;
-  }).join('')}</div>${!assignments.length ? '<p class="muted" style="margin-top:12px">등록한 과제가 없습니다.</p>' : ''}</section>`;
+  }).join('')}</div>${assignmentDateDetail(assignments)}${!assignments.length ? '<p class="muted" style="margin-top:12px">등록한 과제가 없습니다.</p>' : ''}</section>`;
+}
+function assignmentDateDetail(assignments) {
+  const date = state.date, list = assignments.filter(a => !a.isQuest && C.occurs(a, date));
+  return `<div class="assignment-date-detail" data-date="${esc(date)}"><div class="toolbar"><h3>${esc(C.formatDate(date))} 과제</h3>${btn('+ 과제 추가', () => assignmentEditor(null, date))}</div>${list.map(a => {
+    const targets = students().filter(s => C.targeted(a, s.id) && !C.excluded(db(), s.id, date));
+    const missing = targets.filter(s => !['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, date, s.id)));
+    const info = C.assignmentPublicInfo(db(), a);
+    return `<article class="assignment-date-task" data-assignment-id="${esc(a.id)}"><div><strong>${esc(a.title)}</strong>${info.memo ? `<p class="assignment-public-memo">${esc(info.memo)}</p>` : ''}<small class="muted">미완료 ${missing.length}/${targets.length}명${missing.length ? ' · ' + esc(missing.map(s => name(s.id)).join(', ')) : ''}</small></div>${btn('관리', () => assignmentActions(a, date))}</article>`;
+  }).join('') || '<p class="muted">이 날짜에 등록된 과제가 없습니다.</p>'}</div>`;
 }
 function moveAssignmentMonth(amount) {
   const date = new Date(assignmentMonth + '-01T12:00Z');

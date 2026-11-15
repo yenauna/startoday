@@ -3,7 +3,7 @@
 .lockscreen .student{min-height:90px;display:flex;flex-direction:column;justify-content:center}
 .lockscreen strong{font-size:25px}
 .lockscreen h1{font-size:36px}
-.lock-exit{position:fixed;top:8px;bottom:auto;right:8px;pointer-events:auto!important;z-index:101;touch-action:none}
+.lock-exit{pointer-events:auto!important;touch-action:none}
 .clock{font-size:45px;font-variant-numeric:tabular-nums}
 .lockscreen button:not(.lock-exit){pointer-events:none}
 
@@ -53,7 +53,7 @@
 .lockscreen .classroom-score { flex:0 0 auto; display:flex; gap:4px; align-items:baseline; margin:0 0 4px; }
 .lockscreen .classroom-score .score-star { color:#F59E0B; font-size:19px; }
 .lockscreen .classroom-score .score-total { color:#0F172A; font-size:18px; font-weight:700; }
-.lockscreen .pending-tasks { flex:0 1 auto; display:grid; gap:4px; min-height:0; overflow:hidden; margin:3px 0 0; }
+.lockscreen .pending-tasks { flex:0 0 auto; display:grid; gap:4px; min-height:0; overflow:hidden; margin:3px 0 0; }
 .lockscreen .classroom-student .pending-tasks .task { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; background:#fff; border:1px solid #fecdd3; color:#be123c; font-size:13px; line-height:1.3; border-radius:12px; padding:4px 10px; max-width:100%; min-height:24px; white-space:normal; overflow:hidden; text-overflow:clip; overflow-wrap:anywhere; }
 .lockscreen .classroom-student .pending-tasks .task.overdue { color:#e11d48!important; font-weight:600; }
 .lockscreen .routine-indicator { flex:0 1 auto; min-height:0; overflow:hidden; margin-top:4px; }
@@ -195,3 +195,13 @@
 /* Keep non-lesson time labels subordinate to subject titles. */
 .lockscreen .timeline-slot>strong { font-size:12px; font-weight:600; }
 @media(max-width:768px){.lockscreen .timeline-slot>strong{font-size:11px}}
+
+/* Reserve the control cluster's width so the clock never sits underneath it. */
+.classroom-controls{position:fixed;top:8px;right:8px;z-index:110;display:flex;align-items:center;gap:6px;pointer-events:auto}
+.classroom-controls #class-tools,.classroom-controls #lock-exit{position:static;display:flex;align-items:center;justify-content:center;gap:4px;min-height:44px;padding:5px 8px;line-height:1.15;flex:none}
+.classroom-controls #class-tools,.classroom-controls .lock-hint{font-size:11px;font-weight:500}
+.classroom-controls #lock-exit>span:first-child{font-size:19px}
+.classroom-heading{padding-right:124px}
+.lockscreen .classroom-student .pending-tasks{flex:none;grid-auto-rows:max-content;overflow:visible}
+.lockscreen .classroom-student .pending-tasks .task{flex:none;min-height:0;line-height:1.35}
+@media(max-width:768px){.classroom-heading{padding-top:46px;padding-right:0;flex-wrap:wrap}.classroom-datetime{width:100%;flex-wrap:wrap;gap:6px 14px}}
