@@ -1564,3 +1564,14 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
  .assignment-date-detail .toolbar{flex-wrap:wrap;gap:8px}
  .assignment-date-detail h3{font-size:16px}
 }
+
+/* Narrow teacher calendar is a subject preview; full notes remain in details. */
+.slot-memo-indicator{display:none}
+@media(max-width:640px){
+ .calendar .day .slot.calendar-lesson .slot-main{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;max-width:100%}
+ .calendar .day .slot.calendar-lesson .slot-subject-row{display:block}
+ .calendar .day .slot.calendar-lesson .slot-period-row{display:block;width:100%}
+ .calendar .day .slot.calendar-lesson .slot-memos{display:none}
+ .calendar .day .slot.calendar-lesson .subject-title{font-size:12px;line-height:1.35;white-space:normal;overflow:visible;overflow-wrap:anywhere}
+ .calendar .day .slot.calendar-lesson .slot-memo-indicator{display:inline;font-size:.8em;line-height:0;vertical-align:super;margin-left:1px}
+}

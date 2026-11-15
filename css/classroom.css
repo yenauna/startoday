@@ -196,12 +196,26 @@
 .lockscreen .timeline-slot>strong { font-size:12px; font-weight:600; }
 @media(max-width:768px){.lockscreen .timeline-slot>strong{font-size:11px}}
 
-/* Reserve the control cluster's width so the clock never sits underneath it. */
-.classroom-controls{position:fixed;top:8px;right:8px;z-index:110;display:flex;align-items:center;gap:6px;pointer-events:auto}
+/* Header controls share the same row and never float over the clock. */
+.classroom-controls{position:static;flex:0 0 auto;display:flex;align-items:center;gap:6px;pointer-events:auto}
 .classroom-controls #class-tools,.classroom-controls #lock-exit{position:static;display:flex;align-items:center;justify-content:center;gap:4px;min-height:44px;padding:5px 8px;line-height:1.15;flex:none}
 .classroom-controls #class-tools,.classroom-controls .lock-hint{font-size:11px;font-weight:500}
 .classroom-controls #lock-exit>span:first-child{font-size:19px}
-.classroom-heading{padding-right:124px}
+.lockscreen .classroom-heading{display:flex;flex-wrap:nowrap;align-items:center;gap:12px;padding:0 0 8px;min-width:0}
+.lockscreen .classroom-brand{flex:0 1 160px;min-width:0}
+.lockscreen .classroom-brand h1,.lockscreen .classroom-brand small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lockscreen .classroom-datetime{flex:1 1 auto;width:auto;min-width:0;flex-wrap:nowrap}
 .lockscreen .classroom-student .pending-tasks{flex:none;grid-auto-rows:max-content;overflow:visible}
 .lockscreen .classroom-student .pending-tasks .task{flex:none;min-height:0;line-height:1.35}
-@media(max-width:768px){.classroom-heading{padding-top:46px;padding-right:0;flex-wrap:wrap}.classroom-datetime{width:100%;flex-wrap:wrap;gap:6px 14px}}
+@media(max-width:768px){
+ .lockscreen .classroom-heading{gap:6px;padding:0 0 5px;flex-wrap:nowrap}
+ .lockscreen .classroom-brand{flex:0 1 80px}
+ .lockscreen .classroom-brand h1{font-size:14px}
+ .lockscreen .classroom-brand small{font-size:10px}
+ .lockscreen .classroom-datetime{flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;letter-spacing:-.035em}
+ .lockscreen .classroom-datetime .clock{font-size:clamp(14px,4.3vw,22px)}
+ .classroom-controls{gap:4px}
+ .classroom-controls #class-tools,.classroom-controls #lock-exit{padding:4px 6px;min-height:40px}
+ .classroom-controls #class-tools,.classroom-controls .lock-hint{font-size:10px}
+ .classroom-controls #lock-exit>span:first-child{font-size:17px}
+}

@@ -35,7 +35,8 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
     const subject = slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '';
     const time = settings().periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i];
     const periodRow = `<div class="slot-period-row"><span class="slot-time">${p}교시</span><small class="slot-clock">${esc(C.formatTimeRange(time))}</small></div>`;
-    const subjectTitle = subject ? `<strong class="subject-title">${esc(subject)}</strong>` : '';
+    const memoIndicator = calendar && (memo || privateMemo || teacherMemo || events.length) ? '<sup class="slot-memo-indicator" aria-label="메모 있음">*</sup>' : '';
+    const subjectTitle = subject ? `<strong class="subject-title">${esc(subject)}${memoIndicator}</strong>` : '';
     const memoHtml = `${memo ? `<span class="slot-public-memo">${audience === 'teacher' ? '📢 ' : ''}${esc(memo)}</span>` : ''}${privateMemo ? `<span class="slot-same-day-memo">${esc(privateMemo)}</span>` : ''}${teacherMemo ? `<span class="slot-teacher-memo">🔒 ${esc(teacherMemo)}</span>` : ''}`;
     if (audience === 'classroom') return `<div class="slot${slot ? ' subject-color subject-stripe' : ''}" style="${slot ? C.subjectColorStyle(info.rule || slot.subjectCode) : 'background:#FFFFFF'}">${periodRow}<div class="slot-subject-row">${subjectTitle}<div class="slot-memos">${memoHtml}${events.map(event=>`<span class="slot-public-memo">${esc(event.title)}${event.description ? ' '+esc(event.description) : ''}</span>`).join('')}</div></div></div>`;
     const main = btn((calendar ? periodRow : '') + subjectTitle, () => {
