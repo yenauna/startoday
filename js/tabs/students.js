@@ -3,7 +3,7 @@ import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, name, settings, students, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
-import { $, badge, btn, checkbox, empty, esc, input } from '../shared/ui.js';
+import { $, badge, btn, checkbox, empty, esc, input, toast } from '../shared/ui.js';
 import { taskStateEditor } from './assignments.js';
 import { recordCard, recordEditor } from './records.js';
 import { validateKoreanPassword } from '../shared/student-auth.js';
@@ -46,7 +46,7 @@ export function studentsView() {
   });
   rows.sort((a, b) => (studentSort === 'stars' ? b.score.total - a.score.total : studentSort === 'attention' ? b.attention - a.attention : 0) || a.student.no - b.student.no);
   const change = n => `<span class="score-change ${n > 0 ? 'positive' : n < 0 ? 'negative' : 'neutral'}">(${n > 0 ? '+' : ''}${n})</span>`;
-  return `<div class="toolbar"><div><h2>통계</h2><small>누적 별 개수 · 선택 기간 변화 ${esc(C.formatDate(range.from))} ~ ${esc(C.formatDate(range.to))}</small></div><div class="row">${btn('학생 선택 / 전체 내보내기', () => reportDialog(null, range.from, range.to))}</div></div><div class="statistics-summary" aria-label="이번 달 학급 요약"><span class="badge tone-yellow">이번 달 별 ${summary.total}개</span><span class="badge tone-praise">칭찬 ${summary.praise} : 조언 ${summary.advice} · 칭찬 ${summary.praisePercent}%</span><span class="badge tone-mint">칭찬 영역 TOP 1 · ${summary.topArea ? esc(summary.topArea) + ' ' + summary.topCount + '건' : '아직 없음'}</span></div><div class="statistics-sort row">${[['number', '번호순'], ['stars', '별 개수 많은 순'], ['attention', '관심 필요(조언·미완료 많은 순)']].map(([key, label]) => btn(label, () => {
+  return `<div class="toolbar"><div><h2>통계</h2><small>누적 별 개수 · 선택 기간 변화 ${esc(C.formatDate(range.from))} ~ ${esc(C.formatDate(range.to))}</small></div><div class="row">${btn('행발 문장 변환기', () => behaviorConverter(null, range.from, range.to))}${btn('학생 선택 / 전체 내보내기', () => reportDialog(null, range.from, range.to))}</div></div><div class="statistics-summary" aria-label="이번 달 학급 요약"><span class="badge tone-yellow">이번 달 별 ${summary.total}개</span><span class="badge tone-praise">칭찬 ${summary.praise} : 조언 ${summary.advice} · 칭찬 ${summary.praisePercent}%</span><span class="badge tone-mint">칭찬 영역 TOP 1 · ${summary.topArea ? esc(summary.topArea) + ' ' + summary.topCount + '건' : '아직 없음'}</span></div><div class="statistics-sort row">${[['number', '번호순'], ['stars', '별 개수 많은 순'], ['attention', '관심 필요(조언·미완료 많은 순)']].map(([key, label]) => btn(label, () => {
     studentSort = key;
     render();
   }, studentSort === key ? 'primary' : '', `aria-pressed="${studentSort === key}" title="${key === 'attention' ? '누적 조언 + 현재 미완료 과제·루틴 수' : label}"`)).join('')}</div><div class="student-period-controls row"><input type="month" id="student-month" aria-label="학생 조회 월" value="${esc(studentMonth)}">${btn('이번 달', () => {
@@ -57,7 +57,7 @@ export function studentsView() {
     d.setUTCMonth(d.getUTCMonth() - 1, 1);
     selectStudentMonth(d.toISOString().slice(0, 7));
     render();
-  })}${[1, 2].map(term => btn(term + '학기', () => selectStudentSemester(term), '', C.semesterRange(settings(), term) ? '' : 'disabled title="설정에서 학사일정을 먼저 등록하세요"')).join('')}</div><div class="table-wrap"><table class="student-score-table"><thead><tr><th>학생</th><th>전체</th><th>칭찬</th><th>조언</th><th>경험치별</th></tr></thead><tbody>${rows.map(({
+  })}${[1, 2].map(term => btn(term + '학기', () => selectStudentSemester(term), '', C.semesterRange(settings(), term) ? '' : 'disabled title="설정에서 학사일정을 먼저 등록하세요"')).join('')}</div><div class="row student-custom-range">${input('직접 지정 시작', 'statsFrom', range.from, 'date')}${input('직접 지정 종료', 'statsTo', range.to, 'date')}${btn('기간 적용', () => { const from=$('[name=statsFrom]').value,to=$('[name=statsTo]').value;C.dates(from,to);studentRange={from,to};studentMonth='';render(); })}</div><div class="table-wrap"><table class="student-score-table"><thead><tr><th>학생</th><th>전체</th><th>칭찬</th><th>조언</th><th>경험치별</th></tr></thead><tbody>${rows.map(({
     student,
     score
   }) => {
@@ -84,7 +84,7 @@ export function studentDetail(id, from = state.date.slice(0, 7) + '-01', to = st
   modal(name(id), `<div class="student-kingdom-detail">${C.kingdomBadge(s, C.kingdomCounts(db(), s.id), C.kingdomConfig(db()))}<details><summary>👑 획득한 칭호 목록</summary>${C.kingdomSummary(C.kingdomCounts(db(), s.id), C.kingdomConfig(db()), s)}</details></div><div class="student-detail-content" data-student-id="${esc(id)}" data-from="${esc(from)}" data-to="${esc(to)}"><div class="row" style="margin-bottom:14px">${btn('+ 기록', () => recordEditor({
     studentIds: [id],
     date: state.date
-  }))}${btn('학생 수정', () => studentEditor(s))}${btn('👁️ 학생 화면으로 보기', () => previewStudent(s.id))}${btn('보고서로 내보내기', () => reportDialog(id, from, to), 'primary')}${btn('이번 주', () => studentDetail(id, C.addDays(state.date, -((C.weekday(state.date) + 6) % 7)), state.date))}${btn('이번 달', () => studentDetail(id, state.date.slice(0, 7) + '-01', state.date))}</div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(from)) || '날짜 선택'}</span><input aria-label="기록 조회 시작" type="date" id="student-from" value="${from}"></span><span>~</span><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(to)) || '날짜 선택'}</span><input aria-label="기록 조회 종료" type="date" id="student-to" value="${to}"></span>${btn('조회', () => studentDetail(id, $('#student-from').value, $('#student-to').value))}</div><div class="panel" style="margin-top:14px"><h3>별 ${score.total}개 · 기간 요약</h3><div class="chips">${C.areaNames(db(), true).map(a => badge(a + ' ' + score.areas[a])).join('')}</div></div><h3>미완료 과제 ${pending.length}건</h3>${pending.map(({
+  }))}${btn('학생 수정', () => studentEditor(s))}${btn('👁️ 학생 화면으로 보기', () => previewStudent(s.id))}${btn('행발 문장 변환기', () => behaviorConverter([id], from, to))}${btn('보고서로 내보내기', () => reportDialog(id, from, to), 'primary')}${btn('이번 주', () => studentDetail(id, C.addDays(state.date, -((C.weekday(state.date) + 6) % 7)), state.date))}${btn('이번 달', () => studentDetail(id, state.date.slice(0, 7) + '-01', state.date))}</div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(from)) || '날짜 선택'}</span><input aria-label="기록 조회 시작" type="date" id="student-from" value="${from}"></span><span>~</span><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(to)) || '날짜 선택'}</span><input aria-label="기록 조회 종료" type="date" id="student-to" value="${to}"></span>${btn('조회', () => studentDetail(id, $('#student-from').value, $('#student-to').value))}</div><div class="panel" style="margin-top:14px"><h3>별 ${score.total}개 · 기간 요약</h3><div class="chips">${C.areaNames(db(), true).map(a => badge(a + ' ' + score.areas[a])).join('')}</div></div><h3>미완료 과제 ${pending.length}건</h3>${pending.map(({
     assignment: a,
     date: d
   }) => btn(esc(C.formatDate(d) + ' ' + a.title), () => taskStateEditor(a, d, id))).join('') || '<p class="muted">남은 과제가 없습니다.</p>'}<details style="margin-top:14px"><summary>과제 처리 이력</summary>${db().assignmentStates.filter(x => x.studentId === id && x.date >= from && x.date <= to).map(x => `<p>${esc(C.formatDate(x.date))} · ${esc(db().assignments.find(a => a.id === x.assignmentId)?.title || '(삭제된 과제)')} · ${esc(x.status)} ${esc(x.memo)}</p>`).join('') || '<p>처리 이력 없음</p>'}</details><details><summary>출결 제외 이력</summary><p>${db().attendance.filter(x => x.studentId === id && x.excluded).map(x => esc(C.formatDate(x.date))).sort().join(' · ') || '없음'}</p></details><h3 style="margin-top:20px">기록 ${records.length}건</h3>${records.map(r => recordCard(r, true, true)).join('') || empty('조회 기간에 기록이 없습니다.')}</div>`);
@@ -202,4 +202,30 @@ function showReports(reports, from, to, mode, timestamps = false) {
   document.body.append(root);
   document.body.classList.add('report-open');
   root.scrollIntoView();
+}
+
+async function copyBehavior(text) {
+  try {
+    if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(text);
+    else {const field=document.createElement('textarea');field.value=text;$('#modal .dialog-body').append(field);field.select();const ok=document.execCommand('copy');field.remove();if(!ok)throw Error('copy');}
+    toast('복사했습니다.');
+  } catch {toast('복사하지 못했습니다. 문장을 선택해 직접 복사해 주세요.');}
+}
+export function behaviorConverter(ids = null, from = studentRange?.from || state.date.slice(0,7)+'-01', to = studentRange?.to || state.date) {
+  const list=students(),selected=ids||list.map(s=>s.id);
+  let generated=[],period={from,to};
+  const draftField=id=>[...document.querySelectorAll('[data-behavior-draft]')].find(e=>e.dataset.behaviorDraft===id);
+  const draftsText=()=>generated.map(s=>`${name(s.id)}\n${draftField(s.id).value}`).join('\n\n');
+  const generate=()=>{
+    const nextFrom=$('#behavior-from').value,nextTo=$('#behavior-to').value;C.dates(nextFrom,nextTo);
+    const selected=[...document.querySelectorAll('[name=behaviorStudents]:checked')].map(e=>e.value);
+    if(!selected.length){toast('학생을 선택하세요.');return;}
+    period={from:nextFrom,to:nextTo};generated=list.filter(s=>selected.includes(s.id));
+    $('#behavior-results').innerHTML=`<p class="muted">${esc(C.formatDate(period.from))} ~ ${esc(C.formatDate(period.to))} · ${generated.length}명</p><div class="row">${btn('전체 초안 복사',()=>copyBehavior(draftsText()))}${btn('AI용 프롬프트 복사',()=>copyBehavior(C.behaviorPrompt(db(),generated.map(s=>s.id),period.from,period.to)))}</div>`+generated.map(s=>{
+      const summary=C.behaviorSummary(db(),s.id,period.from,period.to),draft=C.behaviorDraft(summary);
+      return `<article class="behavior-result"><h3>${esc(name(s.id))}</h3><p class="muted">칭찬 ${summary.praise}건 · 조언 ${summary.advice}건 · 과제 ${summary.assignments.done}/${summary.assignments.total} · 루틴 ${summary.routines.done}/${summary.routines.total}</p><label>행발 초안<textarea data-behavior-draft="${esc(s.id)}" aria-label="${esc(name(s.id))} 행발 초안">${esc(draft)}</textarea></label><div class="row">${btn('초안 복사',()=>copyBehavior(draftField(s.id).value))}${btn('개별 AI용 프롬프트 복사',()=>copyBehavior(C.behaviorPrompt(db(),[s.id],period.from,period.to)))}</div><details><summary>분석 근거 확인</summary><p>${summary.areas.map(a=>esc(`${a.area}: 칭찬 ${a.praise} / 조언 ${a.advice}`)).join(' · ')}</p>${summary.records.map(r=>`<p>${esc(C.formatDate(r.date))} · ${esc(r.kind)} · ${esc(r.text)}${r.action?' / 지도: '+esc(r.action):''}</p>`).join('')||'<p>기간 내 기록이 없습니다.</p>'}</details></article>`;
+    }).join('');
+  };
+  modal('행발 문장 변환기',`<div class="behavior-converter"><p class="muted">선택 기간의 실제 기록을 바탕으로 앱에서 초안을 생성합니다. 초안을 검토·수정한 뒤 사용하세요. AI용 복사는 명단의 이름·별명·번호와 연락처를 가립니다. 외부로 붙여넣기 전 근거의 비식별 상태도 확인해 주세요.</p><div class="row">${input('시작일','behaviorFrom',from,'date','id="behavior-from"')}${input('종료일','behaviorTo',to,'date','id="behavior-to"')}</div><div class="row">${btn('전체 선택',()=>document.querySelectorAll('[name=behaviorStudents]').forEach(e=>e.checked=true))}${btn('선택 해제',()=>document.querySelectorAll('[name=behaviorStudents]').forEach(e=>e.checked=false))}${btn('선택 학생 초안 생성',generate,'primary')}</div><div class="behavior-students">${list.map(s=>`<label><input type="checkbox" name="behaviorStudents" value="${esc(s.id)}" ${selected.includes(s.id)?'checked':''}>${esc(name(s.id))}</label>`).join('')}</div><div id="behavior-results" aria-live="polite"></div></div>`);
+  if(selected.length)generate();
 }

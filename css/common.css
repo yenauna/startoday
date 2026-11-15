@@ -1593,3 +1593,12 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
  .calendar:not(.week) .day .calendar-lesson .slot-memos{width:100%;flex:none;max-height:120px;overflow:hidden}
  .calendar:not(.week) .day .calendar-lesson .slot-memos>*{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;text-overflow:ellipsis;white-space:pre-line;overflow-wrap:anywhere;flex:none}
 }
+
+.behavior-converter{min-width:0}.behavior-converter>.row,.student-custom-range{flex-wrap:wrap;align-items:end;gap:8px}
+.behavior-students{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:12px 0}
+.behavior-students label{display:flex;align-items:center;gap:6px;min-height:36px}
+.behavior-result{border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:14px;min-width:0}
+.behavior-result h3{margin:0 0 8px}.behavior-result textarea{display:block;width:100%;min-height:190px;resize:vertical;font-size:14px;line-height:1.65}
+.behavior-result details{margin-top:12px;overflow-wrap:anywhere}.behavior-result summary{cursor:pointer}
+.behavior-result .row{flex-wrap:wrap;gap:8px;margin-top:10px}
+@media(max-width:640px){.behavior-result{padding:10px}.behavior-converter button{min-height:40px;white-space:normal}.behavior-converter input[type=date]{max-width:100%}.behavior-converter .row>label{min-width:0;flex:1 1 140px}}

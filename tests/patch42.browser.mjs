@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import http from 'node:http';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+const {chromium}=createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE||'playwright');
+const root=path.resolve(fileURLToPath(new URL('..',import.meta.url)));
+const server=http.createServer((req,res)=>{
+ const pathname=new URL(req.url,'http://localhost').pathname;
+ if(pathname==='/config.js'){res.setHeader('Content-Type','text/javascript');res.end('window.STARTODAY_CONFIG={};');return;}
+ const file=path.resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
+ if(!file.startsWith(root+path.sep)){res.writeHead(403).end();return;}
+ try{res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':file.endsWith('.png')?'image/png':file.endsWith('.svg')?'image/svg+xml':'text/html');res.end(readFileSync(file));}catch{res.writeHead(404).end();}
+});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+let browser;
+try {
+ browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox']});const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('https://cdn.jsdelivr.net/**',r=>r.abort());await page.goto(`http://127.0.0.1:${server.address().port}`);await page.getByRole('button',{name:'가상 명단으로 먼저 살펴보기',exact:true}).click();
+ page.setDefaultTimeout(8000);
+ await page.evaluate(async()=>{const {store,state}=await import('/js/shared/state.js'),C=await import('/js/core.js');const d=C.initialDB();d.students=[{id:'student42-a',no:1,name:'김가온',nickname:'우주고래'},{id:'student42-b',no:2,name:'이나래'}];d.records=[{id:'record42',studentIds:['student42-a'],date:'2026-03-02',kind:'칭찬',areas:['관계'],text:'김가온이 2번 이나래와 협력하여 정리함',createdAt:C.now()},{id:'advice42',studentIds:['student42-a'],date:'2026-03-03',kind:'지도',areas:['생활'],text:'우주고래 준비물 누락',action:'준비물 확인 연습',createdAt:C.now()},{id:'outside42',studentIds:['student42-a'],date:'2025-01-01',kind:'칭찬',areas:['학습'],text:'기간 밖 기록',createdAt:C.now()}];d.assignments=[];d.routines=[];d.settings[0].academicCalendar={term1Start:'2026-03-01',summerEnd:'2026-08-16',term2Start:'2026-08-17',winterEnd:'2027-02-28'};store.db=d;localStorage.setItem('startoday-demo-v1',JSON.stringify(d));state.date=C.today();window.copied42='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.copied42=text;}}});(await import('/js/app.js')).navigate('통계');});
+ for(const [button,from,to] of [['1학기','2026-03-01','2026-08-16'],['2학기','2026-08-17','2027-02-28']]){await page.getByRole('button',{name:button,exact:true}).click();await page.getByRole('button',{name:'행발 문장 변환기',exact:true}).click();assert.equal(await page.locator('#behavior-from').inputValue(),from);assert.equal(await page.locator('#behavior-to').inputValue(),to);await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();}
+ await page.getByLabel('학생 조회 월').fill('2026-03');await page.getByLabel('학생 조회 월').dispatchEvent('change');await page.getByRole('button',{name:'행발 문장 변환기',exact:true}).click();assert.equal(await page.locator('#behavior-from').inputValue(),'2026-03-01');assert.equal(await page.locator('#behavior-to').inputValue(),'2026-03-31');await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();
+ await page.getByLabel('직접 지정 시작').fill('2026-03-01');await page.getByLabel('직접 지정 종료').fill('2026-03-31');await page.getByRole('button',{name:'기간 적용',exact:true}).click();
+ for(const width of [1280,412]){
+  await page.setViewportSize({width,height:900});await page.getByRole('button',{name:'행발 문장 변환기',exact:true}).click();assert.equal(await page.locator('#behavior-from').inputValue(),'2026-03-01');assert.equal(await page.locator('#behavior-to').inputValue(),'2026-03-31');assert.equal(await page.locator('.behavior-result').count(),2);
+  const draft=page.locator('[data-behavior-draft="student42-a"]');assert.match(await draft.inputValue(),/협력하여 정리함/);assert.match(await draft.inputValue(),/준비물 확인 연습/);assert(!(await draft.inputValue()).includes('기간 밖 기록'));assert.match(await page.locator('[data-behavior-draft="student42-b"]').inputValue(),/근거가 부족/);
+  await draft.fill('교사가 수정한 행발 초안으로 협력에 성실히 참여함.');await page.locator('.behavior-result').first().getByRole('button',{name:'초안 복사',exact:true}).click();assert.equal(await page.evaluate(()=>window.copied42),'교사가 수정한 행발 초안으로 협력에 성실히 참여함.');await page.getByRole('button',{name:'전체 초안 복사',exact:true}).click();assert.match(await page.evaluate(()=>window.copied42),/교사가 수정한/);
+  await page.getByRole('button',{name:'AI용 프롬프트 복사',exact:true}).click();const prompt=await page.evaluate(()=>window.copied42);for(const privateText of ['김가온','이나래','우주고래','2번','student42-a','기간 밖 기록'])assert(!prompt.includes(privateText),privateText);assert(prompt.includes('학생 A'));assert(prompt.includes('학생 B'));assert(prompt.includes('준비물 확인 연습'));
+  await page.getByRole('button',{name:'선택 해제',exact:true}).click();await page.locator('[name=behaviorStudents][value="student42-a"]').check();await page.getByRole('button',{name:'선택 학생 초안 생성',exact:true}).click();assert.equal(await page.locator('.behavior-result').count(),1);
+  await page.screenshot({path:`/tmp/patch42-converter-${width}.png`});assert.equal(await page.locator('.dialog-body').evaluate(e=>e.scrollWidth>e.clientWidth+1),false);await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();
+ }
+ await page.locator('.student-score-table tbody button').first().click();await page.getByLabel('기록 조회 시작').fill('2026-03-02');await page.getByLabel('기록 조회 종료').fill('2026-03-02');await page.getByRole('button',{name:'조회',exact:true}).click();await page.locator('#modal').getByRole('button',{name:'행발 문장 변환기',exact:true}).click();assert.equal(await page.locator('.behavior-result').count(),1);assert.equal(await page.locator('#behavior-to').inputValue(),'2026-03-02');assert(!(await page.locator('[data-behavior-draft]').inputValue()).includes('준비물 확인 연습'));
+ assert.deepEqual(errors,[]);console.log('PASS: statistics custom range and student detail range, individual/all selection, grounded editable drafts, latest edit copy, anonymized batch prompts and responsive converter at 1280/412px');
+}finally{await browser?.close();await new Promise(r=>server.close(r));}
