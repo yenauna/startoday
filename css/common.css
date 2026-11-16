@@ -1657,8 +1657,10 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .tools-top-bar .tools-drawer-toggle{margin:0}
 .tools-drawer-collapsed .tools-top-bar .tools-toolbar{visibility:hidden;opacity:0;pointer-events:none}
 .economy-student-manager{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
-.quick-memo-bar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:150;display:flex;align-items:center;gap:6px;width:min(760px,calc(100% - 20px));padding:8px 10px;background:var(--st-surface);border:1px solid var(--st-line);border-radius:14px;box-shadow:var(--st-shadow-3)}
+.quick-memo-bar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:210;display:flex;align-items:center;gap:6px;width:min(760px,calc(100% - 20px));padding:8px 10px;background:var(--st-surface);border:1px solid var(--st-line);border-radius:14px;box-shadow:var(--st-shadow-3)}
 .quick-memo-bar>span{font-size:12px;white-space:nowrap}.quick-memo-bar input{flex:1;min-width:0;padding:6px;min-height:36px;font-size:14px}.quick-memo-bar button{flex:none;min-height:36px;padding:4px 7px;font-size:12px;white-space:nowrap}
 @media(max-width:640px){.economy-student-manager{grid-template-columns:1fr}.quick-memo-bar{gap:3px;padding:6px}.quick-memo-bar>span{font-size:10px}.quick-memo-bar button{padding:4px;font-size:11px}.quick-memo-bar input{font-size:12px}}
 /* Global button hover/active transforms must not replace chip centering. */
 .survey-board button.survey-board-chip,.survey-board button.survey-board-chip:hover:not(:disabled),.survey-board button.survey-board-chip:active:not(:disabled){transform:translate(-50%,-50%);transition:none}
+
+body:has(.quick-memo-bar) .memo-undo{bottom:82px}

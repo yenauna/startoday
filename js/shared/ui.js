@@ -131,6 +131,7 @@ export function undoToast(message, undo, available = () => true, actionLabel = '
 let dismissQuickMemo = null;
 export function quickMemoBar(save, available = () => true) {
   dismissQuickMemo?.();
+  const notice=$('#toast');if(notice)notice.style.display='none';
   const root=document.createElement('div');root.className='quick-memo-bar';root.setAttribute('role','region');root.setAttribute('aria-label','시간표 빠른 메모');
   const label=document.createElement('span');label.textContent='저장됨';
   const field=document.createElement('input');field.type='text';field.placeholder='빠른 메모 입력';field.setAttribute('aria-label','빠른 메모 입력');
