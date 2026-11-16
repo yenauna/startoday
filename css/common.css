@@ -775,9 +775,6 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 
 /* Classroom tools: an isolated, local-only window canvas. */
 .tools-board { color:var(--st-text); background:#f6f7fa; border-radius:18px; padding:12px; }
-.tools-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; }
-.tools-heading h2 { margin:0 0 4px; }
-.tools-heading small { color:var(--st-text-muted); }
 .tools-toolbar { display:flex; flex-wrap:wrap; gap:6px; padding:12px 0; }
 .tools-board button { font:inherit; font-size:13px; padding:6px 10px; }
 .tools-canvas { height:72vh; min-height:440px; position:relative; overflow:auto; border:1px solid #d9e0ea; border-radius:12px; background:#edf0f5; }
@@ -823,7 +820,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .tools-maximized[data-tool-type=qr] .tool-qr-canvas { height:100%; max-height:none; width:100%; }
 .tools-maximized[data-tool-type=qr] .tools-window-body { align-items:center; }
 .lockscreen button.class-tools { pointer-events:auto; background:#fcfcfe; color:#283247; border-radius:14px; }
-@media(max-width:480px) { .sticky-navigation .tabs { gap:2px; padding-inline:6px; }.sticky-navigation .tabs button{font-size:12px;padding:6px;}.tools-board{padding:7px;}.tools-toolbar{gap:4px;}.tools-toolbar button{font-size:12px;padding:5px 8px;}.tools-canvas{min-height:60vh;}.tools-overlay .tools-canvas{min-height:0;}.tools-heading small{font-size:11px;} }
+@media(max-width:480px) { .sticky-navigation .tabs { gap:2px; padding-inline:6px; }.sticky-navigation .tabs button{font-size:12px;padding:6px;}.tools-board{padding:7px;}.tools-toolbar{gap:4px;}.tools-toolbar button{font-size:12px;padding:5px 8px;}.tools-canvas{min-height:60vh;}.tools-overlay .tools-canvas{min-height:0;} }
 .tools-maximized .tool-random-canvas { max-height:none; }
 #class-tools.class-tools { pointer-events:auto; }
 .tools-widget[data-tool-type=qr] .tools-window-body { overflow:hidden; }
@@ -857,12 +854,8 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .tools-drawer-toggle { margin-bottom:8px; }
 .tools-board-status { display:block; color:var(--st-text-muted); }
 .tools-board-status:empty { display:none; }
-.tools-drawer-collapsed>.tools-heading,.tools-drawer-collapsed>.tools-toolbar,.tools-drawer-collapsed>.tools-board-status { display:none; }
-.tools-drawer-collapsed>.tools-drawer-toggle { position:absolute; right:16px; top:14px; z-index:10000; margin:0; background:#ffffffdd; backdrop-filter:blur(10px); box-shadow:var(--st-shadow-1); }
-.tools-drawer-collapsed .tools-window-head { padding-right:145px; }
 .tools-board.tools-board-screen,.tools-board:fullscreen { position:fixed; inset:0; z-index:180; height:100dvh; width:100%; display:flex; flex-direction:column; border-radius:0; padding:10px; overflow:hidden; }
 .tools-board-screen .tools-canvas,.tools-board:fullscreen .tools-canvas { flex:1; min-height:0; height:auto; }
-.tools-overlay.tools-drawer-collapsed .tools-canvas,.tools-board-screen.tools-drawer-collapsed .tools-canvas { margin:0; }
 .tool-rich-editor { min-height:140px; font-weight:400; font-size:48px; outline:none; cursor:text; overflow:auto; caret-color:currentColor; }
 .tool-rich-editor:empty::before { content:attr(data-placeholder); opacity:.65; pointer-events:none; }
 .tool-rich-controls { gap:4px; }
@@ -1391,18 +1384,17 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .tool-card-deck .tool-draw-card.is-drawn{animation:tool-card-flip .3s ease-out}
 .tool-random-canvas[role=button]{cursor:pointer;touch-action:manipulation}
 @keyframes tool-card-flip{from{transform:rotateY(-70deg);opacity:.5}to{transform:rotateY(0);opacity:1}}
-.economy-drawer-toggle{border:0;background:transparent;box-shadow:none;padding:0;text-align:left;font:inherit;font-weight:inherit;min-height:24px}
+.economy-student-manage{border:0;background:transparent;box-shadow:none;padding:0;text-align:left;font:inherit;font-weight:inherit;min-height:24px}
 .economy-student-card[data-economy-student],tr[data-economy-student]{cursor:pointer}
-.economy-student-drawer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:14px;background:#f8f6fc;border:1px solid #e5dfef;border-radius:12px;margin-top:10px;animation:economy-drawer-open .18s ease-out;white-space:normal}
-.economy-student-drawer section{min-width:0}.economy-student-drawer h4{margin:0 0 8px}.economy-student-drawer ul{list-style:none;padding:0;margin:0;max-height:320px;overflow:auto}
-.economy-student-drawer li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #e6e0ef;overflow-wrap:anywhere}
-.economy-student-drawer li>span{min-width:0}.economy-student-drawer button{flex:none;font-size:12px;min-height:32px;padding:4px 8px}
-.economy-assets-table .economy-drawer-row>td{white-space:normal}.economy-assets-table .economy-student-drawer button{min-height:40px}
+.economy-student-manager{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:14px;background:#f8f6fc;border:1px solid #e5dfef;border-radius:12px;margin-top:10px;animation:economy-manager-open .18s ease-out;white-space:normal}
+.economy-student-manager section{min-width:0}.economy-student-manager h4{margin:0 0 8px}.economy-student-manager ul{list-style:none;padding:0;margin:0;max-height:320px;overflow:auto}
+.economy-student-manager li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #e6e0ef;overflow-wrap:anywhere}
+.economy-student-manager li>span{min-width:0}.economy-student-manager button{flex:none;font-size:12px;min-height:40px;padding:4px 8px}
 .economy-gift-grid-panel{margin-top:12px;border-top:1px solid #e2dcea;padding-top:12px}.economy-gift-grid-panel h4{font-size:13px;margin:0 0 8px}
 .economy-student-gift-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(40px,1fr));gap:6px}.economy-student-gift-grid button{min-height:40px;padding:5px;background:#f0eafa}
-@keyframes economy-drawer-open{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
-@media(max-width:640px){.economy-student-drawer{grid-template-columns:minmax(0,1fr)}}
-@media(prefers-reduced-motion:reduce){.tool-card-deck .tool-draw-card.is-drawn,.economy-student-drawer{animation:none}}
+@keyframes economy-manager-open{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:640px){.economy-student-manager{grid-template-columns:minmax(0,1fr)}}
+@media(prefers-reduced-motion:reduce){.tool-card-deck .tool-draw-card.is-drawn,.economy-student-manager{animation:none}}
 
 /* Animate only the face so the touch target and deck never change their bounds. */
 .tool-card-deck .tool-draw-card.is-drawn{animation:none}
@@ -1423,7 +1415,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .economy-grid:not(.village-product-grid){grid-template-columns:repeat(auto-fill,minmax(min(100%,160px),220px));justify-content:start}
 .economy-grid:not(.village-product-grid)>article{max-width:220px;padding:12px;font-size:13px}.economy-grid:not(.village-product-grid)>article h3{font-size:15px;margin:7px 0}.economy-grid:not(.village-product-grid)>article .row{gap:5px}.economy-grid:not(.village-product-grid)>article button{font-size:12px;padding:5px 8px}
 .economy-grid:not(.village-product-grid)>article:has(.economy-gift-grid-panel){grid-column:1 / -1;max-width:none}
-.economy-student-drawer section:last-child ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),220px));gap:8px}.economy-student-drawer section:last-child li{max-width:220px;padding:8px;border:1px solid #e4ddec;border-radius:9px;font-size:12px}
+.economy-student-manager section:last-child ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),220px));gap:8px}.economy-student-manager section:last-child li{max-width:220px;padding:8px;border:1px solid #e4ddec;border-radius:9px;font-size:12px}
 .economy-student-gift-grid{grid-template-columns:repeat(auto-fit,minmax(72px,1fr));max-width:520px;gap:7px}.economy-student-gift-grid button{white-space:normal;overflow-wrap:anywhere;font-size:12px;min-height:44px}.economy-student-gift-grid .is-selected{background:#ddd1f5;border:2px solid #9272c6;color:#493168;font-weight:750}.economy-gift-confirm{margin-top:10px}
 .tool-box-grid .tool-mystery-box{background:radial-gradient(ellipse at 20% 10%,#fffef5 0,transparent 60%),linear-gradient(130deg,#fff5dd,#f0e8fc 65%,#e8f4ff);border:2px solid #d9bb7a;box-shadow:inset 0 2px 1px #fff,0 4px 0 #c6a466,0 8px 15px #78633b22}
 .tool-box-grid .tool-mystery-box.tool-box-shake{animation:star-box-bounce .55s ease-in-out}
@@ -1537,7 +1529,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 @media(prefers-reduced-motion:reduce){.student-character-shadow,.student-character-scene.is-bouncing>.student-character-shadow{animation:none;transform:none}}
 
 /* Shared responsive hierarchy and compact calendar count presentation. */
-.economy-drawer-toggle{min-height:40px}
+.economy-student-manage{min-height:40px}
 .record .record-meta>strong{font-size:17px;font-weight:750;line-height:1.4}
 .record .record-content-line>.body{font-size:14px;line-height:1.6}
 .slot-clock{white-space:normal;line-height:1.35}
@@ -1652,3 +1644,21 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 }
 
 @media(max-width:640px){.assignment-calendar .assignment-calendar-count.has-incomplete{background:var(--st-incomplete-bg);color:var(--st-incomplete-text);border-color:var(--st-incomplete-border)}}
+
+/* Fixed-size survey roster chips: placement never adds text or changes flow. */
+.survey-peer-list button{background:#fff;color:var(--st-text);border:2px solid transparent;box-sizing:border-box;font-weight:600}
+.survey-peer-list button.is-placed{background:#e5e7eb}
+.survey-peer-list button.primary{color:var(--st-selected-text);border-color:var(--st-selected-border);font-weight:600}
+.survey-response-details>.row{flex-wrap:wrap;margin:10px 0}
+.tools-top-bar{display:flex;align-items:center;gap:8px;height:48px;min-height:48px;flex:none;overflow-x:auto;overflow-y:hidden;white-space:nowrap}
+.tools-top-bar .tools-toolbar{display:flex;flex-wrap:nowrap;align-items:center;gap:4px;padding:0;margin:0;background:none;box-shadow:none;flex:1 0 auto}
+.tools-top-bar .tool-controls{display:flex;flex-wrap:nowrap;align-items:center;gap:4px;flex:0 0 auto;margin-left:auto}
+.tools-top-bar button{white-space:nowrap;font-size:12px;min-height:34px;padding:4px 7px;flex:none}
+.tools-top-bar .tools-drawer-toggle{margin:0}
+.tools-drawer-collapsed .tools-top-bar .tools-toolbar{visibility:hidden;opacity:0;pointer-events:none}
+.economy-student-manager{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.quick-memo-bar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:150;display:flex;align-items:center;gap:6px;width:min(760px,calc(100% - 20px));padding:8px 10px;background:var(--st-surface);border:1px solid var(--st-line);border-radius:14px;box-shadow:var(--st-shadow-3)}
+.quick-memo-bar>span{font-size:12px;white-space:nowrap}.quick-memo-bar input{flex:1;min-width:0;padding:6px;min-height:36px;font-size:14px}.quick-memo-bar button{flex:none;min-height:36px;padding:4px 7px;font-size:12px;white-space:nowrap}
+@media(max-width:640px){.economy-student-manager{grid-template-columns:1fr}.quick-memo-bar{gap:3px;padding:6px}.quick-memo-bar>span{font-size:10px}.quick-memo-bar button{padding:4px;font-size:11px}.quick-memo-bar input{font-size:12px}}
+/* Global button hover/active transforms must not replace chip centering. */
+.survey-board button.survey-board-chip,.survey-board button.survey-board-chip:hover:not(:disabled),.survey-board button.survey-board-chip:active:not(:disabled){transform:translate(-50%,-50%);transition:none}

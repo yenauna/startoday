@@ -59,18 +59,18 @@ try {
  await page.getByRole('button',{name:'교사 화면으로 돌아가기',exact:true}).click();await page.setViewportSize({width:1440,height:1080});
  await page.evaluate(async()=>{(await import('/js/app.js')).navigate('경제');});
  const first=page.locator('.economy-assets-table tbody tr[data-economy-student]').first();await first.locator('td').first().tap();
- assert.equal(await page.locator('#modal[open]').count(),0);assert.equal(await page.locator('.economy-student-drawer').count(),1);
+ assert.equal(await page.locator('#modal[open]').count(),1);assert.equal(await page.locator('.economy-student-manager').count(),1);
  await page.getByRole('button',{name:'터치 선물 쿠폰 선물하기',exact:true}).tap();
- await page.waitForFunction(()=>[...document.querySelectorAll('.economy-student-drawer section:first-child li')].some(el=>el.textContent.includes('터치 선물 쿠폰')));
+ await page.waitForFunction(()=>[...document.querySelectorAll('.economy-student-manager section:first-child li')].some(el=>el.textContent.includes('터치 선물 쿠폰')));
  await page.getByRole('button',{name:'터치 선물 쿠폰 회수',exact:true}).tap();
  await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.shop_items.find(i=>i.id===window.patch26Item).stock===2;});
  await page.getByRole('button',{name:'터치 선물 쿠폰 선물하기',exact:true}).tap();
- await page.waitForFunction(()=>!!document.querySelector('.economy-student-drawer section:first-child button'));
+ await page.waitForFunction(()=>!!document.querySelector('.economy-student-manager section:first-child button'));
  answers.push(true,false);await page.getByRole('button',{name:'터치 선물 쿠폰 회수',exact:true}).tap();
- await page.waitForFunction(()=>!document.querySelector('.economy-student-drawer section:first-child button'));
+ await page.waitForFunction(()=>!document.querySelector('.economy-student-manager section:first-child button'));
  let result=await page.evaluate(async()=>{const {store}=await import('/js/shared/state.js');const C=await import('/js/core.js');return{stock:store.db.shop_items.find(i=>i.id===window.patch26Item).stock,balance:C.studentBalance(store.db,window.patch26Student),reclaims:store.db.economy_tx.filter(t=>t.type==='회수').length};});
  assert.equal(result.stock,1);assert.equal(result.balance,seed.balance);assert.equal(result.reclaims,2);
- await page.getByRole('button',{name:'⊞ 카드형',exact:true}).click();assert.equal(await page.locator('.economy-student-card .economy-student-drawer').count(),1);
+ await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();await page.getByRole('button',{name:'⊞ 카드형',exact:true}).click();assert.equal(await page.locator('.economy-student-card .economy-student-manager').count(),0);
  await page.getByRole('button',{name:'상점 관리',exact:true}).click();
  const item=page.locator('.economy-item').filter({has:page.getByRole('heading',{name:'터치 선물 쿠폰',exact:true})});
  await item.getByRole('button',{name:'🎁 선물하기',exact:true}).tap();assert.equal(await item.locator('.economy-student-gift-grid button').count(),20);
@@ -92,5 +92,5 @@ try {
  const box=tool.locator('.tool-mystery-box').filter({hasText:'5. 박가나다'});assert.equal(await box.evaluate(el=>el.scrollWidth<=el.clientWidth),true);
  await tool.getByRole('button',{name:'목록 리셋',exact:true}).click();await tool.getByLabel('뽑기 연출').selectOption('wheel');assert.equal(await tool.getByRole('button',{name:'돌리기',exact:true}).count(),0);
  await tool.getByRole('button',{name:'돌림판 돌리기',exact:true}).tap();await tool.locator('.tool-wheel-popup').waitFor();
- assert.deepEqual(errors,[]);console.log('PASS: cumulative checklist/date flexibility, compact teacher cards/wide student list, inline drawer gift/reclaim with/without stock, item student grids, nickname settings and direct card/wheel touch with stable card width');
+ assert.deepEqual(errors,[]);console.log('PASS: cumulative checklist/date flexibility, compact teacher cards/wide student list, unified modal gift/reclaim with/without stock, item student grids, nickname settings and direct card/wheel touch with stable card width');
 }finally{await browser?.close();await new Promise(r=>server.close(r));}

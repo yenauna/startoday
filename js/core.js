@@ -1971,5 +1971,9 @@ export function surveyAnalysis(database,surveyId,previousId=null){
     if(priorAB&&priorBA){const shift=Math.max(Math.hypot(ab.x-priorAB.x,ab.y-priorAB.y),Math.hypot(ba.x-priorBA.x,ba.y-priorBA.y));if(shift>=30||quadrant(ab)!==quadrant(priorAB)||quadrant(ba)!==quadrant(priorBA))changes.push({a,b,shift,from:`${quadrant(priorAB)} / ${quadrant(priorBA)}`,to:`${quadrant(ab)} / ${quadrant(ba)}`});}
   }
   const attention=roster.map(s=>{const incoming=rows.filter(r=>r.studentId!==s.id).map(r=>r.placements.find(p=>p.targetId===s.id)).filter(Boolean),outgoing=rows.find(r=>r.studentId===s.id)?.placements||[];return {id:s.id,positive:incoming.filter(near).length,received:incoming.length,distant:outgoing.filter(p=>p.x<40).length,total:outgoing.length,reasons:rows.flatMap(r=>r.placements.filter(p=>p.targetId===s.id&&p.reason).map(p=>({from:r.studentId,reason:p.reason})))};}).filter(s=>s.received>=2&&s.positive<=1||s.total>=2&&s.distant/s.total>=.6);
-  return {pairs,attention,changes,submitted:rows.map(r=>r.studentId),missing:roster.filter(s=>!rows.some(r=>r.studentId===s.id))};
+  const received=roster.map(s=>{const incoming=rows.filter(r=>r.studentId!==s.id).flatMap(r=>r.placements.filter(p=>p.targetId===s.id).map(p=>({...p,from:r.studentId})));return {id:s.id,responses:incoming,received:incoming.length,positive:incoming.filter(near).length,uncomfortable:incoming.filter(uncomfortable).length,average:incoming.length?incoming.reduce((n,p)=>n+(p.x+p.y)/2,0)/incoming.length:null,averageY:incoming.length?incoming.reduce((n,p)=>n+p.y,0)/incoming.length:null};});
+  const tie=(a,b)=>roster.find(s=>s.id===a.id).no-roster.find(s=>s.id===b.id).no;
+  const preferred=[...received].filter(s=>s.received).sort((a,b)=>b.positive-a.positive||b.average-a.average||tie(a,b)).slice(0,5);
+  const nonpreferred=[...received].filter(s=>s.received).sort((a,b)=>b.uncomfortable-a.uncomfortable||a.averageY-b.averageY||tie(a,b)).slice(0,5);
+  return {pairs,attention,changes,received,preferred,nonpreferred,submitted:rows.map(r=>r.studentId),missing:roster.filter(s=>!rows.some(r=>r.studentId===s.id))};
 }

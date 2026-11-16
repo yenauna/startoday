@@ -8,7 +8,7 @@ function editorFixture() {
     buttons = [];
   let dialog,
     closed = 0,
-    assignmentDate;
+    assignmentDate,quickMemo;
   database.settings[0].grade=5;
   const form = {
     values: {
@@ -57,7 +57,8 @@ function editorFixture() {
       };
     },
     closeModal: () => closed++,
-    commit: async ops => Object.assign(database, C.applyOps(database, ops)),
+    quickMemoBar: (save,available)=>{quickMemo={save,available};},
+    commit: async ops => Object.assign(database, C.applyOps(database, typeof ops==='function'?ops(database):ops)),
     $: () => form,
     FormData: class extends Map {
       constructor(f) {
@@ -70,6 +71,7 @@ function editorFixture() {
   vm.runInNewContext(source + '\nglobalThis.openEditor=dayEditor;', context);
   return {
     database,
+    get quickMemo(){return quickMemo;},
     buttons,
     form,
     open: context.openEditor,
@@ -116,6 +118,7 @@ test('교시 전용 모달은 선택 교시를 고정하고 과목 즉시 저장
   assert.equal(saved.teacherOverride, '김선생');
   assert.equal(saved.createdAt, '2026-11-01T00:00:00Z');
   assert.equal(f.closed, 1);
+  assert(f.quickMemo.available());await f.quickMemo.save('teacherMemo','빠른 교사 메모');assert.equal(f.database.timetables[0].teacherMemo,'빠른 교사 메모');assert.equal(f.database.timetables[0].publicMemo,'준비물\n15분에 이동');await f.quickMemo.save('publicMemo','새 공개 메모');assert.equal(f.database.timetables[0].memo,'새 공개 메모');await f.quickMemo.save('privateMemo','새 당일 메모');assert.equal(f.database.timetables[0].privateMemo,'새 당일 메모');assert.equal(f.database.timetables[0].teacherMemo,'빠른 교사 메모');
   assert.throws(() => f.open(date, '시간표', 8), /교시/);
 });
 test('일반 일정 등록은 일정/과제만 제공하고 종일 행사 및 과제 시작일을 그대로 저장', async () => {

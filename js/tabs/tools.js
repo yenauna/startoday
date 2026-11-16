@@ -51,8 +51,9 @@ function saveToolLayout(w) {
 function setToolDrawer(collapsed) {
   toolRoot.classList.toggle('tools-drawer-collapsed', collapsed);
   const b = toolRoot.querySelector('.tools-drawer-toggle');
-  b.textContent = collapsed ? '도구 메뉴 펼치기 ▾' : '도구 메뉴 접기 ▴';
+  b.textContent = collapsed ? '도구 보이기' : '도구 숨기기';
   b.setAttribute('aria-expanded', String(!collapsed));
+  const toolbar=toolRoot.querySelector('.tools-toolbar');toolbar.inert=collapsed;toolbar.setAttribute('aria-hidden',String(collapsed));
 }
 async function toggleToolBoardScreen() {
   if (document.fullscreenElement === toolRoot) {
@@ -151,15 +152,12 @@ function mountToolBoard(host, overlay) {
   if (!toolRoot) {
     toolRoot = toolElement('section', 'tools-board');
     toolRoot.setAttribute('aria-label', '교실 수업도구 캔버스');
-    const heading = toolElement('div', 'tools-heading'),
-      title = toolElement('div');
-    title.append(toolElement('h2', '', '수업도구'), toolElement('small', '', '창 제목을 끌어 이동하고 모서리로 크기를 바꾸세요. 보드를 닫으면 시간 측정과 음성 안내가 멈춥니다.'));
+    const heading = toolElement('div', 'tools-top-bar');
     const actions = toolElement('div', 'tool-controls');
     actions.append(toolButton('전체화면', toggleToolBoardScreen, 'tools-board-fullscreen'), toolButton('앱 설치', async () => {
       if (!(await requestPwaInstall())) toolRoot.querySelector('.tools-board-status').textContent = '브라우저 메뉴의 앱 설치 / 홈 화면에 추가를 이용하세요.';
     }), toolButton('닫기', hideToolBoard, 'tools-overlay-close'));
-    heading.append(title, actions);
-    const drawer = toolButton('도구 메뉴 접기 ▴', () => setToolDrawer(!toolRoot.classList.contains('tools-drawer-collapsed')), 'tools-drawer-toggle');
+    const drawer = toolButton('도구 숨기기', () => setToolDrawer(!toolRoot.classList.contains('tools-drawer-collapsed')), 'tools-drawer-toggle');
     drawer.setAttribute('aria-expanded', 'true');
     const boardStatus = toolElement('small', 'tools-board-status');
     boardStatus.setAttribute('role', 'status');
@@ -167,7 +165,9 @@ function mountToolBoard(host, overlay) {
     for (const [type, label] of Object.entries(TOOL_TYPES)) toolbar.append(toolButton(label, () => createToolWindow(type), 'tools-add'));
     toolCanvas = toolElement('div', 'tools-canvas');
     toolCanvas.append(toolElement('p', 'tools-empty', '위에서 도구를 골라 함께 배치해 보세요.'));
-    toolRoot.append(heading, toolbar, drawer, boardStatus, toolCanvas);
+    actions.insertBefore(drawer,actions.lastElementChild);
+    heading.append(toolbar,actions);
+    toolRoot.append(heading,boardStatus,toolCanvas);
     toolBoardObserver = new ResizeObserver(() => {
       if (!toolRoot?.isConnected || !toolCanvas.clientWidth) return;
       for (const w of toolWindows.values()) {

@@ -3,7 +3,7 @@ import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, settings, students, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
-import { $, badge, btn, checkbox, esc, input, opts, run, select, textarea, toast, undoToast } from '../shared/ui.js';
+import { $, badge, btn, checkbox, esc, input, opts, run, select, textarea, toast, undoToast, quickMemoBar } from '../shared/ui.js';
 import { assignmentEditor } from './assignments.js';
 export function periodInfo(slot) {
   const catalog = C.subjectCatalog(db());
@@ -167,7 +167,7 @@ export function timetableEditor(d, p) {
     field.focus();
   }, 'memo-clear', `aria-label="${label} 내용 지우기"`)}</span><textarea name="${key}">${esc(value)}</textarea></label>`;
   const memoScope = () => `${store.mode}:${store.classId}:${state.viewMode}`;
-  const save = async (subjectCode, form) => {
+  const save = async (subjectCode, form, quick = false) => {
     subjectCode = subjectCode || db().timetables.find(t => t.date === d && t.period === p)?.subjectCode || '';
     const old = db().timetables.find(t => t.date === d && t.period === p);
     const publicMemo = form.get('publicMemo') || '';
@@ -187,6 +187,14 @@ export function timetableEditor(d, p) {
       updatedAt: C.now()
     })]);
     closeModal();
+    if(quick && scope===memoScope()){
+      const savedId=old?.id||`${d}-${p}`,tab=state.tab;
+      const available=()=>scope===memoScope()&&!state.locked&&state.viewMode!=='student'&&state.tab===tab&&db()?.timetables.some(t=>t.id===savedId&&t.date===d&&t.period===p);
+      quickMemoBar(async(key,text)=>{
+        if(!available())throw Error('시간표 화면이 변경되었습니다.');
+        await commit(current=>{if(!available())throw Error('시간표 화면이 변경되었습니다.');const latest=current.timetables.find(t=>t.id===savedId&&t.date===d&&t.period===p);if(!latest)throw Error('저장할 시간표가 없습니다.');return [up('timetables',{...latest,[key]:text,...(key==='publicMemo'?{memo:text}:{}),updatedAt:C.now()})];},'메모를 저장했습니다.');
+      },available);
+    }
     if (fields.length && scope === memoScope()) undoToast('수업 메모를 지웠습니다.', async () => {
       const current = db().timetables.find(t => t.date === d && t.period === p);
       if (!current || current.id !== (old?.id || `${d}-${p}`) || current.subjectCode !== subjectCode || fields.some(key => current[key])) throw Error('메모가 변경되어 복구할 수 없습니다.');
@@ -201,7 +209,7 @@ export function timetableEditor(d, p) {
       await commit([up('timetables', next)]);
     }, () => scope === memoScope());
   };
-  const choices = subjects => subjects.map(subject => btn(esc(subject.code), () => save(subject.code, new FormData($('#modal-form'))), 'subject-color subject-stripe subject-choice' + (subject.code === slot?.subjectCode ? ' selected' : ''), `style="${C.subjectColorStyle(subject)}" aria-pressed="${subject.code === slot?.subjectCode}"`)).join('');
+  const choices = subjects => subjects.map(subject => btn(esc(subject.code), () => save(subject.code, new FormData($('#modal-form')), true), 'subject-color subject-stripe subject-choice' + (subject.code === slot?.subjectCode ? ' selected' : ''), `style="${C.subjectColorStyle(subject)}" aria-pressed="${subject.code === slot?.subjectCode}"`)).join('');
   modal(`${C.formatDate(d)} · ${p}교시 시간표`, `${C.gradeSubjectCodes(settings().grade).length ? `<div class="subject-grid">${choices(regular)}</div>` : '<p class="muted">설정-기본정보에서 학년을 설정하면 과목이 보입니다.</p>'}<details class="project-subjects" ${special.some(subject => subject.code === slot?.subjectCode) ? 'open' : ''}><summary>+ 특별·프로젝트 수업 ▾</summary><div class="subject-grid">${choices(special) || '<p class="muted">설정-과목·전담에서 특별 과목을 추가하세요.</p>'}</div></details><p class="muted">과목 버튼을 누르면 바로 저장됩니다.</p>${memoField('메모1 : 학생 달력에도 기록되어 언제든 학생들이 볼 수 있음', 'publicMemo', slot?.publicMemo ?? slot?.memo ?? '')}${memoField("메모2 : 학생들은 당일 '오늘의 일정'과 교실화면에서만 볼 수 있음", 'privateMemo', slot?.privateMemo || '')}${memoField('메모3 : 교사만 볼 수 있음', 'teacherMemo', slot?.teacherMemo || '')}${slotEventEditorList(d,p)}${slot ? btn('이 교시 비우기', async () => {
     if (confirm('이 교시를 비울까요?')) {
       await commit([{
