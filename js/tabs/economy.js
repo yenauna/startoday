@@ -52,7 +52,7 @@ export function economyView() {
   }, economyTeacherTab === 'shop' ? 'active' : '')}</nav>${economyTeacherTab === 'assets' ? economyAssetsView(data, list) : `<section class="panel"><div class="toolbar">${btn('환불 허용: ' + (data.settings[0].allowRefund !== false ? '켜짐' : '꺼짐'), () => commit([up('settings', {
     ...data.settings[0],
     allowRefund: data.settings[0].allowRefund === false
-  })]))}${btn('물품 등록', () => economyItemDialog())}</div>${economyGroupedItems((data.shop_items || []).filter(i => !i.deletedAt), i => (!i.isGroupBuy ? btn('🎁 선물하기', () => { openGiftItemId = openGiftItemId === i.id ? null : i.id; selectedGiftStudentId = null; render(); }, 'economy-item-gift-toggle', `aria-expanded="${openGiftItemId === i.id}"`) : '') + (i.isGroupBuy ? btn('상세 보기', () => teacherGroupBuyDialog(i.id), 'group-buy-detail-open') + (i.isFunded && !i.isUsed ? btn('보상 사용 완료', () => teacherUseGroupBuy(i.id)) : '') : '') + btn('수정', () => economyItemDialog(i)) + btn('삭제', async () => {
+  })]))}${btn('물품 등록', () => economyItemDialog())}</div>${economyGroupedItems((data.shop_items || []).filter(i => !i.deletedAt), i => (!i.isGroupBuy ? btn('🎁 선물', () => { openGiftItemId = openGiftItemId === i.id ? null : i.id; selectedGiftStudentId = null; render(); }, 'economy-item-gift-toggle', `aria-expanded="${openGiftItemId === i.id}"`) : '') + (i.isGroupBuy ? btn('상세 보기', () => teacherGroupBuyDialog(i.id), 'group-buy-detail-open') + (i.isFunded && !i.isUsed ? btn('보상 사용 완료', () => teacherUseGroupBuy(i.id)) : '') : '') + btn('수정', () => economyItemDialog(i)) + btn('삭제', async () => {
     if (confirm('상점에서 이 물품을 삭제할까요? 기존 구매 내역은 유지됩니다.')) await commit([up('shop_items', {
       ...i,
       deletedAt: C.now()
@@ -113,7 +113,7 @@ function refreshEconomyManager(studentId){
 }
 
 function economyAdjustDialog(s) {
-  modal(name(s.id) + ' · 지급/차감', input('금액 (지급은 양수, 차감은 음수)', 'amount', '', 'number', 'required step="1" min="-1000000000" max="1000000000"') + textarea('사유', 'memo', ''), async f => {
+  modal(name(s.id) + ' · 지급/차감', `<p class="economy-current-balance">현재 잔액: ★ ${C.studentBalance(db(),s.id)}포인트</p>` + input('금액 (지급은 양수, 차감은 음수)', 'amount', '', 'number', 'required step="1" min="-1000000000" max="1000000000"') + textarea('사유', 'memo', ''), async f => {
     await store.economyAction('adjust', s.id, null, Number(f.get('amount')), String(f.get('memo')));
     closeModal();
     render();
@@ -255,14 +255,15 @@ async function economyReclaim(studentId, tx) {
   await economyInlineAction('reclaim', studentId, tx.id, restore ? 1 : 0);
 }
 function economyStudentManager(student) {
-  const holdings = C.studentHoldings(db(), student.id);
-  const items = db().shop_items.filter(item => !item.deletedAt && !item.isGroupBuy);
-  return `<div class="economy-student-manager" data-student-id="${esc(student.id)}" aria-label="${esc(student.no)}번 ${esc(student.name)} 물건 관리"><section><h4>학생 보유함</h4><ul>${holdings.map(tx => `<li><span>${esc(tx.itemName)}</span>${btn('회수', () => economyReclaim(student.id, tx), '', 'aria-label="' + esc(tx.itemName) + ' 회수"')}</li>`).join('') || '<li>보유 물품이 없습니다.</li>'}</ul></section><section><h4>상점 물품 목록</h4><ul>${items.map(item => `<li><span>${esc(item.name)} <small>${item.stock === null ? '무제한' : item.stock + '개'}</small></span>${btn('선물하기', () => economyInlineAction('gift', student.id, item.id), '', `aria-label="${esc(item.name)} 선물하기" ${item.stock === 0 ? 'disabled' : ''}`)}</li>`).join('') || '<li>등록된 개인 물품이 없습니다.</li>'}</ul></section></div>`;
+  const items=db().shop_items.filter(item=>!item.deletedAt&&!item.isGroupBuy),groups=new Map();
+  for(const tx of C.studentHoldings(db(),student.id)){const item=db().shop_items.find(i=>i.id===tx.itemId),key=tx.itemId||`${tx.itemCategory}:${tx.itemName}`;if(!groups.has(key))groups.set(key,{name:item?.name||tx.itemName,category:item?.category||tx.itemCategory||'기타',transactions:[]});groups.get(key).transactions.push(tx);}
+  const categories=(rows,card)=>{const grouped=new Map();for(const item of rows){const category=item.category||'기타';if(!grouped.has(category))grouped.set(category,[]);grouped.get(category).push(item);}return [...grouped].map(([category,list])=>`<div class="economy-managed-category"><h5>${esc(category)}</h5><div class="economy-managed-grid">${list.map(card).join('')}</div></div>`).join('');};
+  return `<div class="economy-student-manager" data-student-id="${esc(student.id)}" aria-label="${esc(student.no)}번 ${esc(student.name)} 물건 관리"><section><h4>학생 보유함</h4>${categories([...groups.values()],group=>`<article class="economy-managed-item"><strong>${esc(group.name)}</strong><span class="economy-holding-count">× ${group.transactions.length}개</span>${btn('회수',()=>economyReclaim(student.id,group.transactions[0]),'',`aria-label="${esc(group.name)} 회수"`)}</article>`)||'<p>보유 물품이 없습니다.</p>'}</section><section><h4>상점 물품 목록</h4>${categories(items,item=>`<article class="economy-managed-item"><strong>${esc(item.name)}</strong><small>${item.stock===null?'무제한':item.stock+'개'}</small>${btn('선물',()=>economyInlineAction('gift',student.id,item.id),'',`aria-label="${esc(item.name)} 선물" ${item.stock===0?'disabled':''}`)}</article>`)||'<p>등록된 개인 물품이 없습니다.</p>'}</section></div>`;
 }
 function economyItemGiftGrid(item) {
   if (item.isGroupBuy || openGiftItemId !== item.id) return '';
   const selected = students().find(student => student.id === selectedGiftStudentId);
-  return `<section class="economy-gift-grid-panel"><h4>선물할 학생을 선택하세요</h4><div class="economy-student-gift-grid">${students().map(student => btn(esc(student.no) + '. ' + esc(student.name), () => { selectedGiftStudentId = student.id; render(); }, selectedGiftStudentId === student.id ? 'is-selected' : '', `aria-label="${esc(student.no)}. ${esc(student.name)} 선택" aria-pressed="${selectedGiftStudentId === student.id}" ${item.stock === 0 ? 'disabled' : ''}`)).join('')}</div>${btn(selected ? '선택한 학생(' + esc(selected.no) + '. ' + esc(selected.name) + ')에게 선물하기' : '선물할 학생을 선택하세요', () => selected && economyInlineAction('gift', selected.id, item.id), 'primary economy-gift-confirm', !selected || item.stock === 0 ? 'disabled' : '')}</section>`;
+  return `<section class="economy-gift-grid-panel"><h4>선물할 학생을 선택하세요</h4><div class="economy-student-gift-grid">${students().map(student => btn(esc(student.no) + '. ' + esc(student.name), () => { selectedGiftStudentId = student.id; render(); }, selectedGiftStudentId === student.id ? 'is-selected' : '', `aria-label="${esc(student.no)}. ${esc(student.name)} 선택" aria-pressed="${selectedGiftStudentId === student.id}" ${item.stock === 0 ? 'disabled' : ''}`)).join('')}</div>${btn(selected ? '선택한 학생(' + esc(selected.no) + '. ' + esc(selected.name) + ')에게 선물' : '선물할 학생을 선택하세요', () => selected && economyInlineAction('gift', selected.id, item.id), 'primary economy-gift-confirm', !selected || item.stock === 0 ? 'disabled' : '')}</section>`;
 }
 function showGiftUndo(transactionId, studentId) {
   const scope = store.mode + ':' + store.classId + ':' + (store.user?.id || '');

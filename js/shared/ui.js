@@ -129,15 +129,16 @@ export function undoToast(message, undo, available = () => true, actionLabel = '
 }
 
 let dismissQuickMemo = null;
-export function quickMemoBar(save, available = () => true) {
+export function quickMemoBar(save, available = () => true, initialStatus = '저장됨') {
   dismissQuickMemo?.();
   const notice=$('#toast');if(notice)notice.style.display='none';
   const root=document.createElement('div');root.className='quick-memo-bar';root.setAttribute('role','region');root.setAttribute('aria-label','시간표 빠른 메모');
-  const label=document.createElement('span');label.textContent='저장됨';
+  const label=document.createElement('span');label.textContent=initialStatus;
   const field=document.createElement('input');field.type='text';field.placeholder='빠른 메모 입력';field.setAttribute('aria-label','빠른 메모 입력');
   const closeButton=document.createElement('button');closeButton.type='button';closeButton.textContent='✕';closeButton.setAttribute('aria-label','빠른 메모 닫기');
   let timeout,scopeTimer;
   const close=()=>{clearTimeout(timeout);clearInterval(scopeTimer);root.remove();if(dismissQuickMemo===close)dismissQuickMemo=null;};
+  close.setStatus=text=>{label.textContent=text;};
   dismissQuickMemo=close;closeButton.onclick=close;
   const keep=()=>clearTimeout(timeout);field.onfocus=keep;field.oninput=()=>{keep();for(const button of root.querySelectorAll('[data-memo-field]'))button.disabled=!field.value.trim();};
   root.append(label,field);

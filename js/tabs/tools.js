@@ -49,11 +49,16 @@ function saveToolLayout(w) {
   }
 }
 function setToolDrawer(collapsed) {
-  toolRoot.classList.toggle('tools-drawer-collapsed', collapsed);
-  const b = toolRoot.querySelector('.tools-drawer-toggle');
-  b.textContent = collapsed ? '도구 보이기' : '도구 숨기기';
-  b.setAttribute('aria-expanded', String(!collapsed));
-  const toolbar=toolRoot.querySelector('.tools-toolbar');toolbar.inert=collapsed;toolbar.setAttribute('aria-hidden',String(collapsed));
+  toolRoot.classList.toggle('tools-drawer-collapsed',collapsed);
+  toolRoot.querySelector('.tools-top-bar').inert=collapsed;
+  toolRoot.querySelector('.tools-reveal').hidden=!collapsed;
+  toolRoot.querySelector('.tools-drawer-toggle').setAttribute('aria-expanded',String(!collapsed));
+}
+function setToolDock(position,persist=true){
+  const dock=['top','bottom','left','right'].includes(position)?position:'top';
+  toolRoot.dataset.dock=dock;
+  toolRoot.querySelectorAll('[data-tools-dock]').forEach(button=>{button.setAttribute('aria-pressed',String(button.dataset.toolsDock===dock));});
+  if(persist)try{localStorage.setItem('startoday_tools_dock',dock);}catch{}
 }
 async function toggleToolBoardScreen() {
   if (document.fullscreenElement === toolRoot) {
@@ -165,9 +170,14 @@ function mountToolBoard(host, overlay) {
     for (const [type, label] of Object.entries(TOOL_TYPES)) toolbar.append(toolButton(label, () => createToolWindow(type), 'tools-add'));
     toolCanvas = toolElement('div', 'tools-canvas');
     toolCanvas.append(toolElement('p', 'tools-empty', '위에서 도구를 골라 함께 배치해 보세요.'));
+    const docks=toolElement('div','tools-dock-options');docks.setAttribute('role','group');docks.setAttribute('aria-label','도구 바 위치');
+    for(const [key,label] of [['top','상'],['bottom','하'],['left','좌'],['right','우']]){const button=toolButton(label,()=>setToolDock(key));button.dataset.toolsDock=key;button.setAttribute('aria-label','도구 바 '+label);docks.append(button);}
+    actions.insertBefore(docks,actions.lastElementChild);
+    const reveal=toolButton('도구',()=>setToolDrawer(false),'tools-reveal');reveal.hidden=true;reveal.setAttribute('aria-label','도구 보이기');
     actions.insertBefore(drawer,actions.lastElementChild);
     heading.append(toolbar,actions);
-    toolRoot.append(heading,boardStatus,toolCanvas);
+    toolRoot.append(toolCanvas,heading,boardStatus,reveal);
+    let dock='top';try{dock=localStorage.getItem('startoday_tools_dock')||'top';}catch{}setToolDock(dock,false);
     toolBoardObserver = new ResizeObserver(() => {
       if (!toolRoot?.isConnected || !toolCanvas.clientWidth) return;
       for (const w of toolWindows.values()) {

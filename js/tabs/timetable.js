@@ -173,7 +173,7 @@ export function timetableEditor(d, p) {
     const publicMemo = form.get('publicMemo') || '';
     const scope = memoScope(),
       fields = [...cleared].filter(key => !form.get(key) && (key === 'publicMemo' ? old?.publicMemo ?? old?.memo : old?.[key]));
-    await commit([up('timetables', {
+    const ops=[up('timetables', {
       ...old,
       id: old?.id || `${d}-${p}`,
       date: d,
@@ -185,16 +185,22 @@ export function timetableEditor(d, p) {
       privateMemo: form.get('privateMemo') || '',
       teacherMemo: form.get('teacherMemo') || '',
       updatedAt: C.now()
-    })]);
-    closeModal();
-    if(quick && scope===memoScope()){
-      const savedId=old?.id||`${d}-${p}`,tab=state.tab;
-      const available=()=>scope===memoScope()&&!state.locked&&state.viewMode!=='student'&&state.tab===tab&&db()?.timetables.some(t=>t.id===savedId&&t.date===d&&t.period===p);
-      quickMemoBar(async(key,text)=>{
+    })];
+    const savedId=old?.id||`${d}-${p}`,tab=state.tab;
+    let subjectPromise,pending=true,failed=false,closeQuick;
+    const available=()=>!failed&&scope===memoScope()&&!state.locked&&state.viewMode!=='student'&&state.tab===tab&&(pending||db()?.timetables.some(t=>t.id===savedId&&t.date===d&&t.period===p));
+    if(quick){
+      closeModal();
+      closeQuick=quickMemoBar(async(key,text)=>{
+        try{await subjectPromise;}catch{return;}
         if(!available())throw Error('시간표 화면이 변경되었습니다.');
-        await commit(current=>{if(!available())throw Error('시간표 화면이 변경되었습니다.');const latest=current.timetables.find(t=>t.id===savedId&&t.date===d&&t.period===p);if(!latest)throw Error('저장할 시간표가 없습니다.');return [up('timetables',{...latest,[key]:text,...(key==='publicMemo'?{memo:text}:{}),updatedAt:C.now()})];},'메모를 저장했습니다.');
-      },available);
+        await commit(current=>{if(!available())throw Error('시간표 화면이 변경되었습니다.');const latest=current.timetables.find(t=>t.id===savedId&&t.date===d&&t.period===p);if(!latest)throw Error('저장할 시간표가 없습니다.');return [up('timetables',{...latest,[key]:text,...(key==='publicMemo'?{memo:text}:{}),updatedAt:C.now()})];},'');
+      },available,'저장 중');
     }
+    subjectPromise=commit(ops,quick?'':'저장했습니다.');
+    try{await subjectPromise;pending=false;closeQuick?.setStatus?.('저장됨');}
+    catch(error){pending=false;failed=true;closeQuick?.();if(quick){toast(error.message||'시간표를 저장하지 못했습니다.');return;}throw error;}
+    if(!quick)closeModal();
     if (fields.length && scope === memoScope()) undoToast('수업 메모를 지웠습니다.', async () => {
       const current = db().timetables.find(t => t.date === d && t.period === p);
       if (!current || current.id !== (old?.id || `${d}-${p}`) || current.subjectCode !== subjectCode || fields.some(key => current[key])) throw Error('메모가 변경되어 복구할 수 없습니다.');

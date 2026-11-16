@@ -8,7 +8,8 @@ function editorFixture() {
     buttons = [];
   let dialog,
     closed = 0,
-    assignmentDate,quickMemo;
+    assignmentDate,quickMemo,commitGate=null;
+  const messages=[];
   database.settings[0].grade=5;
   const form = {
     values: {
@@ -58,7 +59,8 @@ function editorFixture() {
     },
     closeModal: () => closed++,
     quickMemoBar: (save,available)=>{quickMemo={save,available};},
-    commit: async ops => Object.assign(database, C.applyOps(database, typeof ops==='function'?ops(database):ops)),
+    commit: async ops => {if(commitGate)await commitGate;return Object.assign(database, C.applyOps(database, typeof ops==='function'?ops(database):ops));},
+    toast:message=>messages.push(message),
     $: () => form,
     FormData: class extends Map {
       constructor(f) {
@@ -72,6 +74,7 @@ function editorFixture() {
   return {
     database,
     get quickMemo(){return quickMemo;},
+    setCommitGate:gate=>{commitGate=gate;},messages,
     buttons,
     form,
     open: context.openEditor,
@@ -147,4 +150,11 @@ test('시간표 버튼은 학년 프리셋 중 사용 과목만 표시하고 특
  const f=editorFixture();f.database.settings[0].grade=1;f.database.subject_rules.find(s=>s.code==='국어').enabled=false;f.database.subject_rules.push({id:'coding',code:'코딩',isProject:true,sortOrder:99});
  f.open('2026-11-07','시간표',1);
  const labels=f.buttons.map(button=>button.label);assert(!labels.includes('국어'));assert(!labels.includes('과학'));assert(labels.includes('통합교과'));assert(labels.includes('코딩'));assert(f.dialog.body.includes('project-subjects'));
+});
+
+test('과목 저장 지연 중 모달/빠른 메모는 먼저 열고 메모 저장은 과목 저장 뒤에 연결',async()=>{
+ const f=editorFixture(),date='2026-11-07';let release;f.setCommitGate(new Promise(r=>release=r));f.open(date,'시간표',2);const subject=f.buttons.find(b=>b.label==='수학').callback();assert.equal(f.closed,1);assert(f.quickMemo);assert(f.quickMemo.available());assert.equal(f.database.timetables.length,0);const memo=f.quickMemo.save('privateMemo','체이닝 메모');release();await Promise.all([subject,memo]);assert.equal(f.database.timetables[0].subjectCode,'수학');assert.equal(f.database.timetables[0].privateMemo,'체이닝 메모');assert.equal(f.messages.length,0);
+});
+test('과목 저장 실패 시 뒤따르는 메모 저장을 막고 오류만 한 번 안내',async()=>{
+ const f=editorFixture(),date='2026-11-07';let reject;f.setCommitGate(new Promise((_,r)=>reject=r));f.open(date,'시간표',2);const subject=f.buttons.find(b=>b.label==='수학').callback(),memo=f.quickMemo.save('teacherMemo','저장되면 안 됨');reject(Error('저장 실패 검증'));await Promise.all([subject,memo]);assert.equal(f.database.timetables.length,0);assert.deepEqual(f.messages,['저장 실패 검증']);
 });

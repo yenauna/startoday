@@ -59,11 +59,11 @@ try{
  await compact.locator('summary').tap();assert.equal(await compact.locator('.quest-stamp-board').isVisible(),true);await compact.locator('summary').tap();assert.equal(await compact.locator('.student-quest-subtasks').isVisible(),false);
  const deadline=page.locator('.student-long-card').filter({hasText:'과제 deadline'});assert.match(await deadline.locator('summary').innerText(),/마감일 \d{2}\.\d{2}\.\d{2}\.\([일월화수목금토]\)/);assert.match(await deadline.locator('summary').innerText(),/확인 : 나래/);
  await page.getByRole('button',{name:'교사 화면으로 돌아가기',exact:true}).click();await page.evaluate(async()=>{(await import('/js/app.js')).navigate('경제');});await page.getByRole('button',{name:'상점 관리',exact:true}).click();
- const item=page.locator('.economy-item').filter({has:page.getByRole('heading',{name:'안전 선물 쿠폰',exact:true})});await item.getByRole('button',{name:'🎁 선물하기',exact:true}).tap();
+ const item=page.locator('.economy-item').filter({has:page.getByRole('heading',{name:'안전 선물 쿠폰',exact:true})});await item.getByRole('button',{name:'🎁 선물',exact:true}).tap();
  const choose=item.getByRole('button',{name:'1. 가온 선택',exact:true});await choose.tap();assert.equal(await choose.getAttribute('aria-pressed'),'true');
  let stock=await page.evaluate(async()=>{const {store}=await import('/js/shared/state.js');return store.db.shop_items.find(i=>i.id===window.p27item).stock;});assert.equal(stock,2);
  const cols=await item.locator('.economy-student-gift-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);assert.ok(cols>=4&&cols<=6);
- await item.getByRole('button',{name:'선택한 학생(1. 가온)에게 선물하기',exact:true}).tap();
+ await item.getByRole('button',{name:'선택한 학생(1. 가온)에게 선물',exact:true}).tap();
  await page.getByRole('button',{name:/↩ 선물 취소/}).click();
  await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.shop_items.find(i=>i.id===window.p27item).stock===2;});
  const cancel=await page.evaluate(async()=>{const {store}=await import('/js/shared/state.js');return store.db.economy_tx.filter(t=>t.itemId===window.p27item).map(t=>[t.type,t.status]);});assert.ok(cancel.some(t=>t[0]==='선물'&&t[1]==='취소됨'));

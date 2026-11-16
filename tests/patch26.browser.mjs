@@ -60,11 +60,11 @@ try {
  await page.evaluate(async()=>{(await import('/js/app.js')).navigate('경제');});
  const first=page.locator('.economy-assets-table tbody tr[data-economy-student]').first();await first.locator('td').first().tap();
  assert.equal(await page.locator('#modal[open]').count(),1);assert.equal(await page.locator('.economy-student-manager').count(),1);
- await page.getByRole('button',{name:'터치 선물 쿠폰 선물하기',exact:true}).tap();
- await page.waitForFunction(()=>[...document.querySelectorAll('.economy-student-manager section:first-child li')].some(el=>el.textContent.includes('터치 선물 쿠폰')));
+ await page.getByRole('button',{name:'터치 선물 쿠폰 선물',exact:true}).tap();
+ await page.waitForFunction(()=>[...document.querySelectorAll('.economy-student-manager section:first-child .economy-managed-item')].some(el=>el.textContent.includes('터치 선물 쿠폰')));
  await page.getByRole('button',{name:'터치 선물 쿠폰 회수',exact:true}).tap();
  await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.shop_items.find(i=>i.id===window.patch26Item).stock===2;});
- await page.getByRole('button',{name:'터치 선물 쿠폰 선물하기',exact:true}).tap();
+ await page.getByRole('button',{name:'터치 선물 쿠폰 선물',exact:true}).tap();
  await page.waitForFunction(()=>!!document.querySelector('.economy-student-manager section:first-child button'));
  answers.push(true,false);await page.getByRole('button',{name:'터치 선물 쿠폰 회수',exact:true}).tap();
  await page.waitForFunction(()=>!document.querySelector('.economy-student-manager section:first-child button'));
@@ -73,7 +73,7 @@ try {
  await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();await page.getByRole('button',{name:'⊞ 카드형',exact:true}).click();assert.equal(await page.locator('.economy-student-card .economy-student-manager').count(),0);
  await page.getByRole('button',{name:'상점 관리',exact:true}).click();
  const item=page.locator('.economy-item').filter({has:page.getByRole('heading',{name:'터치 선물 쿠폰',exact:true})});
- await item.getByRole('button',{name:'🎁 선물하기',exact:true}).tap();assert.equal(await item.locator('.economy-student-gift-grid button').count(),20);
+ await item.getByRole('button',{name:'🎁 선물',exact:true}).tap();assert.equal(await item.locator('.economy-student-gift-grid button').count(),20);
  await item.locator('.economy-student-gift-grid button').nth(1).tap();
  await item.locator('.economy-gift-confirm').tap();
  await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.shop_items.find(i=>i.id===window.patch26Item).stock===0;});
