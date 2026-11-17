@@ -422,12 +422,13 @@ function studentCalendarView(data, id) {
   })}${['month', 'week'].map(mode => btn(mode === 'month' ? '월간' : '주간', () => {
     studentCalendarMode = mode;
     render();
-  }, studentCalendarMode === mode ? 'primary' : '', `aria-pressed="${studentCalendarMode === mode}"`)).join('')}</div><div class="student-calendar-grid">${['월', '화', '수', '목', '금', '토', '일'].map(day => `<div class="weekday">${day}</div>`).join('')}${Array.from({
+  }, studentCalendarMode === mode ? 'primary' : '', `aria-pressed="${studentCalendarMode === mode}"`)).join('')}</div><div class="student-calendar-grid ${studentCalendarMode}">${['월', '화', '수', '목', '금', '토', '일'].map(day => `<div class="weekday">${day}</div>`).join('')}${Array.from({
     length: studentCalendarMode === 'month' ? 42 : 7
   }, (_, index) => {
     const date = C.addDays(start, index),
       items = studentCalendarItems(data.calendar, date);
-    return btn(`<strong>${Number(date.slice(5, 7))}.${Number(date.slice(-2))}</strong>${items.length ? `` : ''}${items.filter(item => item.kind !== 'event' || item.isImportant).map(item => `<span title="${esc(item.title)}" class="student-calendar-pill ${item.kind === 'task' && !['완료', '늦게완료', '면제'].includes(item.status) ? 'has-incomplete' : ''}">${esc(item.title)}</span>`).join('')}`, event => {
+    const visibleItems = items.filter(item => item.kind !== 'event' || item.isImportant);
+    return btn(`<strong>${Number(date.slice(5, 7))}.${Number(date.slice(-2))}</strong>${visibleItems.length ? `<span class="student-calendar-count${visibleItems.some(item => item.kind === 'task' && !['완료', '늦게완료', '면제'].includes(item.status)) ? ' has-incomplete' : ''}">${visibleItems.length}건</span>` : ''}${visibleItems.map(item => `<span title="${esc(item.title)}" class="student-calendar-pill ${item.kind === 'task' && !['완료', '늦게완료', '면제'].includes(item.status) ? 'has-incomplete' : ''}">${esc(item.title)}</span>`).join('')}`, event => {
       event?.preventDefault();
       studentCalendarExpanded = !(studentCalendarExpanded && studentCalendarDate === date);
       studentCalendarDate = date;

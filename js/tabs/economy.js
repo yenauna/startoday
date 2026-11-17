@@ -36,7 +36,7 @@ export function economyMessage(error) {
 function economyDate(value) { return C.formatTimestamp(value); }
 function economyHistory(rows, teacher = false) {
   const content = t => ['지급','차감'].includes(t.type) ? `${t.memo ? t.memo + ' (' : ''}${t.amount > 0 ? '+' : ''}${t.amount}${t.memo ? ')' : ''}` : t.itemName || t.memo || '';
-  return `<div class="table-wrap"><table><thead><tr><th>일시</th>${teacher ? '<th>학생</th>' : ''}<th>종류</th><th>내용</th>${teacher ? '' : '<th>포인트</th><th>상태</th>'}</tr></thead><tbody>${[...rows].sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).map(t=>`<tr><td>${esc(economyDate(t.createdAt))}</td>${teacher ? `<td>${esc(name(t.studentId))}</td>` : ''}<td>${esc(t.type)}</td><td>${esc(teacher ? content(t) : t.itemName || t.memo || '')}</td>${teacher ? '' : `<td>${t.amount > 0 ? '+' : ''}${esc(t.amount)}</td><td>${esc(t.status || '')}</td>`}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="economy-history${teacher ? ' teacher-history' : ''}"><thead><tr><th>일시</th>${teacher ? '<th>학생</th>' : ''}<th>종류</th><th>내용</th>${teacher ? '' : '<th>포인트</th><th>상태</th>'}</tr></thead><tbody>${[...rows].sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).map(t=>`<tr><td>${esc(economyDate(t.createdAt))}</td>${teacher ? `<td class="economy-history-student">${esc(name(t.studentId))}</td>` : ''}<td>${esc(t.type)}</td><td>${esc(teacher ? content(t) : t.itemName || t.memo || '')}</td>${teacher ? '' : `<td>${t.amount > 0 ? '+' : ''}${esc(t.amount)}</td><td>${esc(t.status || '')}</td>`}</tr>`).join('')}</tbody></table></div>`;
 }
 export function economyView() {
   const scope = store.mode + ':' + store.classId + ':' + (store.user?.id || '');
