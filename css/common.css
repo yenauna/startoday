@@ -1598,6 +1598,27 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .behavior-result .row{flex-wrap:wrap;gap:8px;margin-top:10px}
 @media(max-width:640px){.behavior-result{padding:10px}.behavior-converter button{min-height:40px;white-space:normal}.behavior-converter input[type=date]{max-width:100%}.behavior-converter .row>label{min-width:0;flex:1 1 140px}}
 
+/* 행발 초안 저장 상태 · 초안 내려받기 · 기록 검색 · CSV 가져오기 */
+.behavior-toolbar{align-items:center}.behavior-toolbar button{white-space:normal}
+.behavior-draft-meta{align-items:center;gap:8px}
+.behavior-draft-status{font-size:12px;color:var(--muted);border:1px dashed #CBD5E1;border-radius:999px;padding:3px 9px;overflow-wrap:anywhere}
+.behavior-draft-status.is-saved{color:#0F766E;border-style:solid;border-color:#99F6E4;background:#F0FDFA}
+.record-search{position:relative;display:flex;align-items:center;margin:6px 0 4px;max-width:100%}
+.record-search input{width:100%;padding-right:42px}
+.record-search input[type=search]::-webkit-search-cancel-button,.record-search input[type=search]::-webkit-search-decoration{-webkit-appearance:none;appearance:none;display:none}
+.record-search-clear{position:absolute;right:6px;min-width:30px;min-height:30px;padding:0 8px;border-radius:999px;background:#fff;line-height:1}
+.record-search-summary{margin:6px 0 0}.record-search-empty{margin:10px 0 0}
+.csv-import{min-width:0}.csv-import>.row{align-items:end;gap:10px;flex-wrap:wrap}
+.csv-import-file{margin:10px 0 14px}
+.csv-file-label{flex:1 1 220px;min-width:0}.csv-file-label input{padding:7px;max-width:100%}
+.csv-mapping .formgrid{margin:8px 0 10px}.csv-mapping select{max-width:100%}
+.csv-preview-counts{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 8px}
+.csv-preview-notes{margin:0 0 10px;padding-left:18px;color:var(--muted);font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.csv-preview-notes li{margin:2px 0}.csv-preview-empty{margin:8px 0;color:var(--muted)}
+.csv-preview-table{font-size:13px}.csv-preview-table td{max-width:260px;overflow-wrap:anywhere}
+.csv-import-foot{justify-content:flex-end;gap:8px;margin-top:14px;position:sticky;bottom:0;z-index:2;padding:10px 0;background:var(--st-surface,#ffffff);border-top:1px solid var(--line)}
+@media(max-width:640px){.csv-preview-table td{max-width:140px}.csv-import-foot button{min-height:40px}.behavior-draft-meta button{min-height:38px}}
+
 /* Keep the Korean IME: visibility changes masking, never the input type. */
 [data-korean-password][data-password-masked="true"]{-webkit-text-security:disc}
 [data-korean-password][data-password-masked="false"]{-webkit-text-security:none}

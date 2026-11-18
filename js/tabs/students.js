@@ -4,7 +4,8 @@ import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, name, settings, students, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
-import { $, badge, btn, checkbox, empty, esc, input, toast } from '../shared/ui.js';
+import { $, badge, btn, checkbox, empty, esc, input, saveFile, toast } from '../shared/ui.js';
+import { recordImportDialog } from './import-records.js';
 import { taskStateEditor } from './assignments.js';
 import { recordCard, recordEditor } from './records.js';
 import { validateKoreanPassword } from '../shared/student-auth.js';
@@ -49,7 +50,7 @@ export function studentsView() {
   });
   rows.sort((a, b) => (studentSort === 'stars' ? b.score.total - a.score.total : studentSort === 'attention' ? b.attention - a.attention : 0) || a.student.no - b.student.no);
   const change = n => `<span class="score-change ${n > 0 ? 'positive' : n < 0 ? 'negative' : 'neutral'}">(${n > 0 ? '+' : ''}${n})</span>`;
-  return navigation+`<div class="toolbar"><div><h2>통계</h2><small>누적 별 개수 · 선택 기간 변화 ${esc(C.formatDate(range.from))} ~ ${esc(C.formatDate(range.to))}</small></div><div class="row">${btn('행발 문장 변환기', () => behaviorConverter(null, range.from, range.to))}${btn('학생 선택 / 전체 내보내기', () => reportDialog(null, range.from, range.to))}</div></div><div class="statistics-summary" aria-label="이번 달 학급 요약"><span class="badge tone-yellow">이번 달 별 ${summary.total}개</span><span class="badge tone-praise">칭찬 ${summary.praise} : 조언 ${summary.advice} · 칭찬 ${summary.praisePercent}%</span><span class="badge tone-mint">칭찬 영역 TOP 1 · ${summary.topArea ? esc(summary.topArea) + ' ' + summary.topCount + '건' : '아직 없음'}</span></div><div class="statistics-sort row">${[['number', '번호순'], ['stars', '별 개수 많은 순'], ['attention', '관심 필요(조언·미완료 많은 순)']].map(([key, label]) => btn(label, () => {
+  return navigation+`<div class="toolbar"><div><h2>통계</h2><small>누적 별 개수 · 선택 기간 변화 ${esc(C.formatDate(range.from))} ~ ${esc(C.formatDate(range.to))}</small></div><div class="row">${btn('행발 문장 변환기', () => behaviorConverter(null, range.from, range.to))}${btn('CSV 가져오기', () => recordImportDialog())}${btn('학생 선택 / 전체 내보내기', () => reportDialog(null, range.from, range.to))}</div></div><div class="statistics-summary" aria-label="이번 달 학급 요약"><span class="badge tone-yellow">이번 달 별 ${summary.total}개</span><span class="badge tone-praise">칭찬 ${summary.praise} : 조언 ${summary.advice} · 칭찬 ${summary.praisePercent}%</span><span class="badge tone-mint">칭찬 영역 TOP 1 · ${summary.topArea ? esc(summary.topArea) + ' ' + summary.topCount + '건' : '아직 없음'}</span></div><div class="statistics-sort row">${[['number', '번호순'], ['stars', '별 개수 많은 순'], ['attention', '관심 필요(조언·미완료 많은 순)']].map(([key, label]) => btn(label, () => {
     studentSort = key;
     render();
   }, studentSort === key ? 'primary' : '', `aria-pressed="${studentSort === key}" title="${key === 'attention' ? '누적 조언 + 현재 미완료 과제·루틴 수' : label}"`)).join('')}</div><div class="student-period-controls row"><input type="month" id="student-month" aria-label="학생 조회 월" value="${esc(studentMonth)}">${btn('이번 달', () => {
@@ -90,7 +91,44 @@ export function studentDetail(id, from = state.date.slice(0, 7) + '-01', to = st
   }))}${btn('학생 수정', () => studentEditor(s))}${btn('👁️ 학생 화면으로 보기', () => previewStudent(s.id))}${btn('행발 문장 변환기', () => behaviorConverter([id], from, to))}${btn('보고서로 내보내기', () => reportDialog(id, from, to), 'primary')}${btn('이번 주', () => studentDetail(id, C.addDays(state.date, -((C.weekday(state.date) + 6) % 7)), state.date))}${btn('이번 달', () => studentDetail(id, state.date.slice(0, 7) + '-01', state.date))}</div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(from)) || '날짜 선택'}</span><input aria-label="기록 조회 시작" type="date" id="student-from" value="${from}"></span><span>~</span><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(to)) || '날짜 선택'}</span><input aria-label="기록 조회 종료" type="date" id="student-to" value="${to}"></span>${btn('조회', () => studentDetail(id, $('#student-from').value, $('#student-to').value))}</div><div class="panel" style="margin-top:14px"><h3>별 ${score.total}개 · 기간 요약</h3><div class="chips">${C.areaNames(db(), true).map(a => badge(a + ' ' + score.areas[a])).join('')}</div></div><h3>미완료 과제 ${pending.length}건</h3>${pending.map(({
     assignment: a,
     date: d
-  }) => btn(esc(C.formatDate(d) + ' ' + a.title), () => taskStateEditor(a, d, id))).join('') || '<p class="muted">남은 과제가 없습니다.</p>'}<details style="margin-top:14px"><summary>과제 처리 이력</summary>${db().assignmentStates.filter(x => x.studentId === id && x.date >= from && x.date <= to).map(x => `<p>${esc(C.formatDate(x.date))} · ${esc(db().assignments.find(a => a.id === x.assignmentId)?.title || '(삭제된 과제)')} · ${esc(x.status)} ${esc(x.memo)}</p>`).join('') || '<p>처리 이력 없음</p>'}</details><details><summary>출결 제외 이력</summary><p>${db().attendance.filter(x => x.studentId === id && x.excluded).map(x => esc(C.formatDate(x.date))).sort().join(' · ') || '없음'}</p></details><h3 style="margin-top:20px">기록 ${records.length}건</h3>${records.map(r => recordCard(r, true, true)).join('') || empty('조회 기간에 기록이 없습니다.')}</div>`);
+  }) => btn(esc(C.formatDate(d) + ' ' + a.title), () => taskStateEditor(a, d, id))).join('') || '<p class="muted">남은 과제가 없습니다.</p>'}<details style="margin-top:14px"><summary>과제 처리 이력</summary>${db().assignmentStates.filter(x => x.studentId === id && x.date >= from && x.date <= to).map(x => `<p>${esc(C.formatDate(x.date))} · ${esc(db().assignments.find(a => a.id === x.assignmentId)?.title || '(삭제된 과제)')} · ${esc(x.status)} ${esc(x.memo)}</p>`).join('') || '<p>처리 이력 없음</p>'}</details><details><summary>출결 제외 이력</summary><p>${db().attendance.filter(x => x.studentId === id && x.excluded).map(x => esc(C.formatDate(x.date))).sort().join(' · ') || '없음'}</p></details><h3 style="margin-top:20px">기록 ${records.length}건</h3>${records.length ? `<div class="record-search"><input type="search" id="student-record-search" placeholder="기록 내용에서 단어 찾기" aria-label="기록 내용에서 단어 찾기" autocomplete="off"><button type="button" id="student-record-search-clear" class="record-search-clear" aria-label="검색어 지우기" hidden>✕</button></div><p class="muted record-search-summary" id="student-record-search-summary" hidden></p>` : ''}<div id="student-record-list">${records.map(r => recordCard(r, true, true)).join('') || empty('조회 기간에 기록이 없습니다.')}${records.length ? '<p class="muted record-search-empty" id="student-record-search-empty" hidden>검색어와 맞는 기록이 없습니다.</p>' : ''}</div></div>`);
+  bindStudentRecordSearch(records);
+}
+function bindStudentRecordSearch(records) {
+  const field = $('#student-record-search');
+  if (!field) return;
+  const items = [...document.querySelectorAll('#student-record-list article.record')],
+    haystack = new Map(records.map(r => [r.id, [r.text, r.action, C.recordLabel(r), ...C.recordAreas(r)].join(' ').toLowerCase()])),
+    summary = $('#student-record-search-summary'),
+    emptyMessage = $('#student-record-search-empty'),
+    clear = $('#student-record-search-clear');
+  const apply = () => {
+    const query = field.value.trim().toLowerCase();
+    let shown = 0;
+    for (const item of items) {
+      const match = !query || (haystack.get(item.dataset.recordId) || '').includes(query);
+      item.hidden = !match;
+      if (match) shown += 1;
+    }
+    if (clear) clear.hidden = !field.value;
+    if (summary) {
+      summary.hidden = !query;
+      summary.textContent = query ? `기록 ${items.length}건 중 ${shown}건 표시` : '';
+    }
+    if (emptyMessage) emptyMessage.hidden = !query || shown > 0;
+  };
+  field.oninput = apply;
+  field.onkeydown = event => {
+    if (event.key !== 'Escape') return;
+    field.value = '';
+    apply();
+  };
+  if (clear) clear.onclick = () => {
+    field.value = '';
+    apply();
+    field.focus();
+  };
+  apply();
 }
 export async function resetStudentPassword(id) {
   const student = db().students.find(row => row.id === id);
@@ -214,21 +252,107 @@ async function copyBehavior(text) {
     toast('복사했습니다.');
   } catch {toast('복사하지 못했습니다. 문장을 선택해 직접 복사해 주세요.');}
 }
+// Drafts stay on this device, keyed by class and student id.
+const BEHAVIOR_DRAFT_KEY = 'startoday-behavior-drafts-v1';
+function behaviorDraftScope() {
+  return `${store.mode || 'local'}:${store.classId || 'default'}`;
+}
+function readBehaviorDrafts() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(BEHAVIOR_DRAFT_KEY) || '{}'),
+      rows = saved && typeof saved === 'object' ? saved[behaviorDraftScope()] : null;
+    return rows && typeof rows === 'object' ? rows : {};
+  } catch {
+    return {};
+  }
+}
+function writeBehaviorDrafts(rows) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(BEHAVIOR_DRAFT_KEY) || '{}'),
+      next = saved && typeof saved === 'object' ? saved : {};
+    next[behaviorDraftScope()] = rows;
+    localStorage.setItem(BEHAVIOR_DRAFT_KEY, JSON.stringify(next));
+    return true;
+  } catch {
+    return false;
+  }
+}
+function savedBehaviorDraft(id) {
+  const row = readBehaviorDrafts()[id];
+  return row && typeof row.text === 'string' ? row : null;
+}
+function saveBehaviorDraft(id, text) {
+  const rows = readBehaviorDrafts(),
+    value = String(text ?? '');
+  if (!value.trim()) {
+    delete rows[id];
+    return writeBehaviorDrafts(rows);
+  }
+  rows[id] = {text: value, updatedAt: new Date().toISOString()};
+  return writeBehaviorDrafts(rows);
+}
+function clearBehaviorDraft(id) {
+  const rows = readBehaviorDrafts();
+  delete rows[id];
+  return writeBehaviorDrafts(rows);
+}
 export function behaviorConverter(ids = null, from = studentRange?.from || state.date.slice(0,7)+'-01', to = studentRange?.to || state.date) {
   const list=students(),selected=ids||list.map(s=>s.id);
   let generated=[],period={from,to};
   const draftField=id=>[...document.querySelectorAll('[data-behavior-draft]')].find(e=>e.dataset.behaviorDraft===id);
-  const draftsText=()=>generated.map(s=>`${name(s.id)}\n${draftField(s.id).value}`).join('\n\n');
+  const currentText=id=>draftField(id)?.value??'';
+  const draftsText=()=>generated.map(s=>`${name(s.id)}\n${currentText(s.id)}`).join('\n\n');
+  const draftStatus=id=>{const saved=savedBehaviorDraft(id);return saved?`저장된 초안 · ${C.formatTime(saved.updatedAt)}`:'저장 안 됨 · 고치면 자동 저장됩니다';};
+  const setStatus=id=>{const el=[...document.querySelectorAll('[data-behavior-status]')].find(e=>e.dataset.behaviorStatus===id);if(!el)return;const saved=savedBehaviorDraft(id);el.classList.toggle('is-saved',!!saved);el.textContent=draftStatus(id);};
+  const storeDraft=id=>{const ok=saveBehaviorDraft(id,currentText(id));setStatus(id);if(!ok)toast('자동 저장 공간을 쓸 수 없습니다. 초안을 복사해 두세요.');return ok;};
+  const draftText=s=>savedBehaviorDraft(s.id)?.text??C.behaviorDraft(C.behaviorSummary(db(),s.id,period.from,period.to));
+  const regenerate=id=>{
+    if(savedBehaviorDraft(id)&&!confirm(`${name(id)}의 저장된 초안을 지금 기록으로 새로 만든 초안으로 바꿀까요?`))return;
+    const field=draftField(id);if(!field)return;
+    field.value=C.behaviorDraft(C.behaviorSummary(db(),id,period.from,period.to));
+    storeDraft(id);
+    toast('초안을 새로 만들었습니다.');
+  };
+  const forget=id=>{
+    if(!savedBehaviorDraft(id))return toast('저장된 초안이 없습니다.');
+    if(!confirm(`${name(id)}의 저장된 초안을 지울까요?`))return;
+    clearBehaviorDraft(id);
+    const field=draftField(id);if(field)field.value='';
+    setStatus(id);
+    toast('저장된 초안을 지웠습니다.');
+  };
+  const downloadDrafts=kind=>{
+    if(!generated.length)return toast('먼저 초안을 생성할 학생을 선택하세요.');
+    const rows=generated.map(s=>({no:s.no,label:C.studentLabel(s),count:C.behaviorSummary(db(),s.id,period.from,period.to).records.length,text:currentText(s.id)}));
+    const range=`${C.formatDate(period.from)} ~ ${C.formatDate(period.to)}`,stamp=C.today().replaceAll('-','');
+    if(kind==='csv'){
+      const quote=value=>`"${String(value??'').replace(/"/g,'""')}"`;
+      const csv='\uFEFF'+['번호,학생,기간,기록 수,초안',...rows.map(r=>[r.no,r.label,range,r.count,r.text].map(quote).join(','))].join('\r\n');
+      saveFile(`행발_초안_${stamp}.csv`,csv,'text/csv;charset=utf-8');
+      toast('CSV 파일로 내려받았습니다.');
+    }else{
+      saveFile(`행발_초안_${stamp}.txt`,rows.map(r=>`${r.no}. ${r.label} (${r.count}건)\n${r.text}`).join('\n\n'),'text/plain;charset=utf-8');
+      toast('텍스트 파일로 내려받았습니다.');
+    }
+  };
+  const card=s=>{
+    const summary=C.behaviorSummary(db(),s.id,period.from,period.to),saved=savedBehaviorDraft(s.id);
+    return `<article class="behavior-result" data-behavior-id="${esc(s.id)}"><h3>${esc(name(s.id))}</h3><p class="muted">칭찬 ${summary.praise}건 · 조언 ${summary.advice}건 · 과제 ${summary.assignments.done}/${summary.assignments.total} · 루틴 ${summary.routines.done}/${summary.routines.total}</p><label>행발 초안<textarea data-behavior-draft="${esc(s.id)}" aria-label="${esc(name(s.id))} 행발 초안">${esc(draftText(s))}</textarea></label><div class="row behavior-draft-meta"><span class="behavior-draft-status ${saved?'is-saved':''}" data-behavior-status="${esc(s.id)}">${esc(draftStatus(s.id))}</span>${btn('초안 새로 생성(덮어쓰기)',()=>regenerate(s.id))}${btn('저장된 초안 지우기',()=>forget(s.id))}</div><div class="row">${btn('초안 복사',()=>copyBehavior(currentText(s.id)))}${btn('개별 AI용 프롬프트 복사',()=>copyBehavior(C.behaviorPrompt(db(),[s.id],period.from,period.to)))}</div><details><summary>분석 근거 확인</summary><p>${summary.areas.map(a=>esc(`${a.area}: 칭찬 ${a.praise} / 조언 ${a.advice}`)).join(' · ')}</p>${summary.records.map(r=>`<p>${esc(C.formatDate(r.date))} · ${esc(r.kind)} · ${esc(r.text)}${r.action?' / 지도: '+esc(r.action):''}</p>`).join('')||'<p>기간 내 기록이 없습니다.</p>'}</details></article>`;
+  };
+  const bindDrafts=()=>{
+    for(const field of document.querySelectorAll('[data-behavior-draft]'))field.oninput=()=>storeDraft(field.dataset.behaviorDraft);
+  };
+  const renderResults=()=>{
+    $('#behavior-results').innerHTML=`<p class="muted">${esc(C.formatDate(period.from))} ~ ${esc(C.formatDate(period.to))} · ${generated.length}명</p><div class="row behavior-toolbar">${btn('전체 초안 복사',()=>copyBehavior(draftsText()))}${btn('AI용 프롬프트 복사',()=>copyBehavior(C.behaviorPrompt(db(),generated.map(s=>s.id),period.from,period.to)))}${btn('CSV로 내려받기',()=>downloadDrafts('csv'))}${btn('텍스트로 내려받기',()=>downloadDrafts('txt'))}</div>`+generated.map(card).join('');
+    bindDrafts();
+  };
   const generate=()=>{
     const nextFrom=$('#behavior-from').value,nextTo=$('#behavior-to').value;C.dates(nextFrom,nextTo);
-    const selected=[...document.querySelectorAll('[name=behaviorStudents]:checked')].map(e=>e.value);
-    if(!selected.length){toast('학생을 선택하세요.');return;}
-    period={from:nextFrom,to:nextTo};generated=list.filter(s=>selected.includes(s.id));
-    $('#behavior-results').innerHTML=`<p class="muted">${esc(C.formatDate(period.from))} ~ ${esc(C.formatDate(period.to))} · ${generated.length}명</p><div class="row">${btn('전체 초안 복사',()=>copyBehavior(draftsText()))}${btn('AI용 프롬프트 복사',()=>copyBehavior(C.behaviorPrompt(db(),generated.map(s=>s.id),period.from,period.to)))}</div>`+generated.map(s=>{
-      const summary=C.behaviorSummary(db(),s.id,period.from,period.to),draft=C.behaviorDraft(summary);
-      return `<article class="behavior-result"><h3>${esc(name(s.id))}</h3><p class="muted">칭찬 ${summary.praise}건 · 조언 ${summary.advice}건 · 과제 ${summary.assignments.done}/${summary.assignments.total} · 루틴 ${summary.routines.done}/${summary.routines.total}</p><label>행발 초안<textarea data-behavior-draft="${esc(s.id)}" aria-label="${esc(name(s.id))} 행발 초안">${esc(draft)}</textarea></label><div class="row">${btn('초안 복사',()=>copyBehavior(draftField(s.id).value))}${btn('개별 AI용 프롬프트 복사',()=>copyBehavior(C.behaviorPrompt(db(),[s.id],period.from,period.to)))}</div><details><summary>분석 근거 확인</summary><p>${summary.areas.map(a=>esc(`${a.area}: 칭찬 ${a.praise} / 조언 ${a.advice}`)).join(' · ')}</p>${summary.records.map(r=>`<p>${esc(C.formatDate(r.date))} · ${esc(r.kind)} · ${esc(r.text)}${r.action?' / 지도: '+esc(r.action):''}</p>`).join('')||'<p>기간 내 기록이 없습니다.</p>'}</details></article>`;
-    }).join('');
+    const chosen=[...document.querySelectorAll('[name=behaviorStudents]:checked')].map(e=>e.value);
+    if(!chosen.length){toast('학생을 선택하세요.');return;}
+    period={from:nextFrom,to:nextTo};generated=list.filter(s=>chosen.includes(s.id));
+    renderResults();
   };
-  modal('행발 문장 변환기',`<div class="behavior-converter"><p class="muted">선택 기간의 실제 기록을 바탕으로 앱에서 초안을 생성합니다. 초안을 검토·수정한 뒤 사용하세요. AI용 복사는 명단의 이름·별명·번호와 연락처를 가립니다. 외부로 붙여넣기 전 근거의 비식별 상태도 확인해 주세요.</p><div class="row">${input('시작일','behaviorFrom',from,'date','id="behavior-from"')}${input('종료일','behaviorTo',to,'date','id="behavior-to"')}</div><div class="row">${btn('전체 선택',()=>document.querySelectorAll('[name=behaviorStudents]').forEach(e=>e.checked=true))}${btn('선택 해제',()=>document.querySelectorAll('[name=behaviorStudents]').forEach(e=>e.checked=false))}${btn('선택 학생 초안 생성',generate,'primary')}</div><div class="behavior-students">${list.map(s=>`<label><input type="checkbox" name="behaviorStudents" value="${esc(s.id)}" ${selected.includes(s.id)?'checked':''}>${esc(name(s.id))}</label>`).join('')}</div><div id="behavior-results" aria-live="polite"></div></div>`);
+  modal('행발 문장 변환기',`<div class="behavior-converter"><p class="muted">선택 기간의 실제 기록을 바탕으로 앱에서 초안을 생성합니다. 초안을 검토·수정한 뒤 사용하세요. 고친 초안은 이 기기에 자동 저장되며 다시 열어도 그대로 남습니다. AI용 복사는 명단의 이름·별명·번호와 연락처를 가립니다. 외부로 붙여넣기 전 근거의 비식별 상태도 확인해 주세요.</p><div class="row">${input('시작일','behaviorFrom',from,'date','id="behavior-from"')}${input('종료일','behaviorTo',to,'date','id="behavior-to"')}</div><div class="row">${btn('전체 선택',()=>document.querySelectorAll('[name=behaviorStudents]').forEach(e=>e.checked=true))}${btn('선택 해제',()=>document.querySelectorAll('[name=behaviorStudents]').forEach(e=>e.checked=false))}${btn('선택 학생 초안 생성',generate,'primary')}</div><div class="behavior-students">${list.map(s=>`<label><input type="checkbox" name="behaviorStudents" value="${esc(s.id)}" ${selected.includes(s.id)?'checked':''}>${esc(name(s.id))}</label>`).join('')}</div><div id="behavior-results" aria-live="polite"></div></div>`);
   if(selected.length)generate();
 }
