@@ -4,6 +4,7 @@ import { bindQuickInput, renderLogin, renderShell } from './components/header.js
 import { db } from './shared/data.js';
 import { installGlobalEvents } from './shared/events.js';
 import { state, store } from './shared/state.js';
+import { classroomLocked } from './shared/classroom-lock.js';
 import { $, toast } from './shared/ui.js';
 import { assignmentsView } from './tabs/assignments.js';
 import { dashboard } from './tabs/dashboard.js';
@@ -45,6 +46,8 @@ readTabHash();
 let lastStudentScrollKey = null;
 export function render() {
   syncToolsVisibility();
+  // 잠금이 걸린 화면은 새로고침 뒤에도 풀리지 않는다.
+  if (state.locked) return;
   if (state.studentPasswordPending || state.viewMode === 'student' || state.studentUser || state.impersonatingStudentId) {
     document.title = '학생 화면 · 오늘의 별';
     state.actions.clear();
@@ -59,12 +62,15 @@ export function render() {
     return;
   }
   lastStudentScrollKey = null;
-  if (state.locked) return;
   document.querySelector('.print-root')?.remove();
   document.body.classList.remove('report-open');
   if (!db()) {
     document.title = '오늘의 별';
     renderLogin();
+    return;
+  }
+  if (classroomLocked()) {
+    classroom();
     return;
   }
   document.title = state.tab === '통계' ? '통계 · 오늘의 별' : '오늘의 별';

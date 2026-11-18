@@ -54,7 +54,7 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
 }
 function calendarDayDetails(date) {
   const events = C.calendarEvents(db()).filter(event => event.date === date);
-  modal(C.formatDate(date) + ' · 시간표와 메모', timeSlots(date) + db().assignments.filter(a => C.occurs(a, date)).map(a => btn(esc(a.title), () => { closeModal(); state.date = date; state.tab = '과제'; render(); }, 'task calendar-detail-task')).join('') + events.map(event => btn(esc(event.title) + (event.description ? `<small>${esc(event.description)}</small>` : ''), () => dayEditor(date, '일정', null, event), 'event')).join(''));
+  modal(C.formatDate(date) + ' · 시간표와 메모', timeSlots(date) + events.map(event => btn(esc(event.title) + (event.description ? `<small>${esc(event.description)}</small>` : ''), () => dayEditor(date, '일정', null, event), 'event')).join(''));
 }
 export function calendarView() {
   const first = state.calendarDate.slice(0, 7) + '-01',
@@ -84,14 +84,13 @@ export function calendarView() {
   })}${btn('기본안 일괄 배포', bulkTimetable)}${btn('시수 계산', hoursDialog)}</div></div><div class="row" style="margin-bottom:14px">${[['events', '종일 일정'], ['time', '시간표'], ['tasks', '과제'], ['detail', '자세히 보기']].map(([key, label]) => btn((state.calendarFilters[key] ? '✓ ' : '') + label, () => {
     state.calendarFilters[key] = !state.calendarFilters[key];
     render();
-  }, state.calendarFilters[key] ? 'primary' : '')).join('')}<small>수업을 드래그해 교체 · 터치는 길게 누른 후 대상 교시 선택</small></div>${C.calendarEvents(db()).some(event => event.date === C.today()) ? '' : '<div class="empty-calendar-notice" style="color:var(--st-text-muted); font-size:13px; padding:8px 0;">오늘 등록된 일정이 없습니다.</div>'}<div class="table-wrap"><div class="calendar teacher-calendar ${state.calendarMode === 'week' ? 'week' : ''}">${heads.map(h => `<div class="weekday">${h}</div>`).join('')}${Array.from({
+  }, state.calendarFilters[key] ? 'primary' : '')).join('')}<small>수업을 드래그해 교체 · 터치는 길게 누른 후 대상 교시 선택</small></div>${C.calendarEvents(db()).some(event => event.date === C.today()) ? '' : '<div class="empty-calendar-notice" style="color:var(--st-text-muted); font-size:13px; padding:8px 0;">오늘 등록된 일정이 없습니다.</div>'}<div class="table-wrap"><div class="calendar ${state.calendarMode === 'week' ? 'week' : ''}">${heads.map(h => `<div class="weekday">${h}</div>`).join('')}${Array.from({
     length: days
   }, (_, i) => {
     const d = C.addDays(start, i),
       events = C.calendarEvents(db()).filter(e => e.date === d && C.eventTimePeriod(e) == null),
       tasks = db().assignments.filter(a => C.occurs(a, d));
-    const summaryCount = (state.calendarFilters.events ? C.calendarEvents(db()).filter(e => e.date === d).length : 0) + (state.calendarFilters.time ? db().timetables.filter(t => t.date === d).length : 0) + (state.calendarFilters.tasks ? tasks.length : 0);
-    return `<div class="day ${d.slice(0, 7) !== state.calendarDate.slice(0, 7) ? 'faded' : ''} ${d === C.today() ? 'today' : ''}">${btn(`<span>${Number(d.slice(-2))}${state.calendarMode === 'week' ? '일' : ''}</span><small>＋</small>`, () => dayEditor(d), 'day-head')}${btn(summaryCount + '건', () => calendarDayDetails(d), 'calendar-mobile-summary', `aria-label="${esc(C.formatDate(d))} ${summaryCount}건 상세 보기"`)}${btn('메모 상세', () => calendarDayDetails(d), 'calendar-day-details')}${state.calendarFilters.events ? events.map(e => btn(esc(e.title) + (e.description ? `<small class="event-description">${esc(e.description)}</small>` : '') + (e.isDday ? ' ' + badge(C.dday(e.date)) : ''), () => dayEditor(d, '일정', null, e), 'event' + (e.isImportant !== false ? ' is-important' : ' is-ordinary'))).join('') : ''}${state.calendarFilters.time ? timeSlots(d, true) : ''}${state.calendarFilters.tasks ? tasks.map(a => {
+    return `<div class="day ${d.slice(0, 7) !== state.calendarDate.slice(0, 7) ? 'faded' : ''} ${d === C.today() ? 'today' : ''}">${btn(`<span>${Number(d.slice(-2))}${state.calendarMode === 'week' ? '일' : ''}</span><small>＋</small>`, () => dayEditor(d), 'day-head')}${btn('메모 상세', () => calendarDayDetails(d), 'calendar-day-details')}${state.calendarFilters.events ? events.map(e => btn(esc(e.title) + (e.description ? `<small class="event-description">${esc(e.description)}</small>` : '') + (e.isDday ? ' ' + badge(C.dday(e.date)) : ''), () => dayEditor(d, '일정', null, e), 'event' + (e.isImportant !== false ? ' is-important' : ' is-ordinary'))).join('') : ''}${state.calendarFilters.time ? timeSlots(d, true) : ''}${state.calendarFilters.tasks ? tasks.map(a => {
       const targets = students().filter(s => C.targeted(a, s.id) && !C.excluded(db(), s.id, d)),
         done = targets.filter(s => ['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, d, s.id))).length;
       return `<div class="taskline">${btn(esc(a.title) + ` <small>${done}/${targets.length}</small>`, () => {

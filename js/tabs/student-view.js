@@ -428,7 +428,7 @@ function studentCalendarView(data, id) {
     const date = C.addDays(start, index),
       items = studentCalendarItems(data.calendar, date);
     const visibleItems = items.filter(item => item.kind !== 'event' || item.isImportant);
-    return btn(`<strong>${Number(date.slice(5, 7))}.${Number(date.slice(-2))}</strong>${visibleItems.length ? `<span class="student-calendar-count${visibleItems.some(item => item.kind === 'task' && !['완료', '늦게완료', '면제'].includes(item.status)) ? ' has-incomplete' : ''}">${visibleItems.length}건</span>` : ''}${visibleItems.map(item => `<span title="${esc(item.title)}" class="student-calendar-pill ${item.kind === 'task' && !['완료', '늦게완료', '면제'].includes(item.status) ? 'has-incomplete' : ''}">${esc(item.title)}</span>`).join('')}`, event => {
+    return btn(`<strong>${Number(date.slice(5, 7))}.${Number(date.slice(-2))}</strong>${visibleItems.map(item => `<span title="${esc(item.title)}" class="student-calendar-pill ${item.kind === 'task' && !['완료', '늦게완료', '면제'].includes(item.status) ? 'has-incomplete' : ''}">${esc(item.title)}</span>`).join('')}`, event => {
       event?.preventDefault();
       studentCalendarExpanded = !(studentCalendarExpanded && studentCalendarDate === date);
       studentCalendarDate = date;

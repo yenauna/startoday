@@ -332,13 +332,12 @@ function assignmentCalendar(assignments) {
     length: 42
   }, (_, i) => {
     const date = C.addDays(start, i),
-      list = assignments.filter(a => !a.isQuest && C.occurs(a, date)),
-      hasIncomplete = list.some(a => students().some(student => C.targeted(a, student.id) && !C.excluded(db(), student.id, date) && !['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, date, student.id))));
+      list = assignments.filter(a => !a.isQuest && C.occurs(a, date));
     return `<div class="day assignment-day ${date.slice(0, 7) !== assignmentMonth ? 'faded' : ''} ${date === state.date ? 'selected-day' : ''}" data-date="${date}">${btn(String(Number(date.slice(-2))), () => {
       state.date = date;
       assignmentMonth = date.slice(0, 7);
       render();
-    }, 'day-head', `aria-label="${esc(C.formatDate(date))} 과제 조회" aria-pressed="${date === state.date}"`)} ${btn('+', () => assignmentEditor(null, date), 'assignment-calendar-add', `aria-label="${date} 과제 추가"`)}${list.length ? btn(list.length+'건',()=>{state.date=date;assignmentMonth=date.slice(0,7);render();},'assignment-calendar-count'+(hasIncomplete?' has-incomplete':''),`aria-label="${esc(C.formatDate(date))} 과제 ${list.length}건 보기"`) : ''}${list.map(a => btn(esc(a.title) + exemptionBadge(a, date), () => assignmentActions(a, date), 'assignment-calendar-task' + (students().some(student => C.targeted(a, student.id) && !C.excluded(db(), student.id, date) && !['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, date, student.id))) ? ' has-incomplete' : ''), `data-assignment-id="${esc(a.id)}" data-assignment-date="${date}"`)).join('')}</div>`;
+    }, 'day-head', `aria-label="${esc(C.formatDate(date))} 과제 조회" aria-pressed="${date === state.date}"`)} ${btn('+', () => assignmentEditor(null, date), 'assignment-calendar-add', `aria-label="${date} 과제 추가"`)}${list.map(a => btn(esc(a.title) + exemptionBadge(a, date), () => assignmentActions(a, date), 'assignment-calendar-task' + (students().some(student => C.targeted(a, student.id) && !C.excluded(db(), student.id, date) && !['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, date, student.id))) ? ' has-incomplete' : ''), `data-assignment-id="${esc(a.id)}" data-assignment-date="${date}"`)).join('')}</div>`;
   }).join('')}</div>${assignmentDateDetail(assignments)}${!assignments.length ? '<p class="muted" style="margin-top:12px">등록한 과제가 없습니다.</p>' : ''}</section>`;
 }
 function assignmentDateDetail(assignments) {

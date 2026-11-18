@@ -1637,13 +1637,6 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
  background:var(--st-selected-bg);color:var(--st-selected-text);border-color:var(--st-selected-border);outline-color:var(--st-selected-border)
 }
 .calendar-task.has-incomplete,.student-calendar-pill.has-incomplete{background:var(--st-incomplete-bg);color:var(--st-incomplete-text);border-color:var(--st-incomplete-border)}
-.assignment-calendar-count{display:none}
-@media(max-width:640px){
- .assignment-calendar .assignment-calendar-task{display:none}
- .assignment-calendar .assignment-calendar-count{display:flex;align-items:center;justify-content:center;width:100%;min-width:0;min-height:28px;margin-top:4px;padding:3px 0;font-size:11px;line-height:1.3;background:var(--st-selected-bg);color:var(--st-selected-text);border-radius:8px;white-space:nowrap}
-}
-
-@media(max-width:640px){.assignment-calendar .assignment-calendar-count.has-incomplete{background:var(--st-incomplete-bg);color:var(--st-incomplete-text);border-color:var(--st-incomplete-border)}}
 
 /* Fixed-size survey roster chips: placement never adds text or changes flow. */
 .survey-peer-list button{background:#fff;color:var(--st-text);border:2px solid transparent;box-sizing:border-box;font-weight:600}
@@ -1692,10 +1685,8 @@ body:has(.quick-memo-bar) .memo-undo{bottom:82px}
 .tools-board[data-dock=left]>button.tools-reveal,.tools-board[data-dock=right]>button.tools-reveal{transform:translateY(-50%)}
 
 
-/* Mobile adaptation: keep compact icons inside comfortable, non-overlapping targets. */
-.calendar-mobile-summary,.student-calendar-count{display:none}
+/* Mobile adaptation: month grids keep their own content; only controls wrap. */
 @media(max-width:640px){
- button{min-width:44px!important;min-height:44px!important}
  .tabs{flex-wrap:nowrap;overflow-x:auto;gap:4px}
  .tabs button{flex:none;padding-inline:10px;font-size:13px}
  .student .student-detail-open{flex:none}
@@ -1703,23 +1694,10 @@ body:has(.quick-memo-bar) .memo-undo{bottom:82px}
  .quick-bottom,.quick-actions,.student-calendar-controls{flex-wrap:wrap}
  .tools-board>.tools-top-bar{height:56px;min-height:56px}
  .tools-board[data-dock=left]>.tools-top-bar,.tools-board[data-dock=right]>.tools-top-bar{height:auto}
- .teacher-calendar:not(.week)>.day,.assignment-calendar>.day{padding:1px}
- .teacher-calendar:not(.week)>.day>:not(.day-head):not(.calendar-mobile-summary){display:none}
- .teacher-calendar:not(.week) .day-head{justify-content:center;flex-wrap:wrap;padding:4px 0}
- .teacher-calendar:not(.week) .day-head small{font-size:13px;margin-left:3px}
- .teacher-calendar:not(.week) .calendar-mobile-summary{display:flex;align-items:center;justify-content:center;width:100%;padding:4px 0;font-size:12px;background:transparent;box-shadow:none}
- .teacher-calendar:not(.week)>.day{min-height:100px}
  .calendar.week{min-width:720px}
- .calendar.week .slot-main{min-height:44px!important}
  .calendar.week .slot strong,.calendar.week .event,.calendar.week .calendar-task{font-size:14px}
  .calendar.week .slot-memos{display:block!important}
  .calendar.week .slot-memos>span{font-size:13px;line-height:1.5}
- .assignment-calendar .day-head{display:flex;width:100%;padding:4px 0;justify-content:center}
- .assignment-calendar .assignment-calendar-add{display:block;width:44px;margin:2px auto;padding:4px;font-size:15px;background:transparent;box-shadow:none}
- .assignment-calendar .assignment-calendar-count{min-height:44px;font-size:12px}
- .student-calendar-grid.month .student-calendar-pill{display:none}
- .student-calendar-grid.month .student-calendar-count{display:block;font-size:12px;line-height:1.5;padding:3px 0;border-radius:6px}
- .student-calendar-count.has-incomplete{background:var(--st-incomplete-bg);color:var(--st-incomplete-text)}
  .student-calendar-grid.week{min-width:560px}
  .student-calendar-card{overflow-x:auto}
  .student-calendar-grid.week .student-calendar-pill{font-size:13px;max-height:none;overflow:visible}

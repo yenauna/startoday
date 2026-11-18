@@ -2,6 +2,7 @@ import { render } from '../app.js';
 import { closeModal } from '../components/modal.js';
 import * as C from '../core.js';
 import { db, settings, students } from '../shared/data.js';
+import { lockClassroom, releaseClassroomLock } from '../shared/classroom-lock.js';
 import { state } from '../shared/state.js';
 import { $, badge, esc, hashPin, run, toast } from '../shared/ui.js';
 import { announcementView } from './dashboard.js';
@@ -19,6 +20,7 @@ export function displayName(s) {
 const dismissedCountdowns = new Set();
 export function classroom() {
   document.title = '교실화면 · 오늘의 별';
+  lockClassroom();
   classroomResizeObserver?.disconnect();
   document.querySelector('.print-root')?.remove();
   document.body.classList.remove('report-open');
@@ -62,6 +64,8 @@ export function classroom() {
           return;
         }
       }
+      // 비밀번호를 통과한 뒤에만 저장된 잠금을 풀어, 새로고침으로는 빠져나가지 못하게 한다.
+      releaseClassroomLock();
       clearInterval(state.clockTimer);
       if (touchInteraction) {
         // Swallow the synthetic click after a touch release so it cannot hit the
