@@ -35,11 +35,11 @@ try{
   assert.equal(await page.locator('#quick-text').inputValue(),'이름만 표시하고 기록은 유지');
   assert.equal(await page.locator('.tabs button').first().evaluate(e=>getComputedStyle(e).borderRadius),'10px');
   await noOverflow();await page.waitForTimeout(850);await page.screenshot({path:`/tmp/ui-refinements-selection-${width}.png`});
-  await page.getByRole('button',{name:'✕ 선택 취소',exact:true}).click();
+  await page.locator('#quick-cancel').click();
   await page.evaluate(async()=>(await import('/js/app.js')).navigate('기록'));
   const hold=page.locator('[data-record-id="ui-record"] .hold-delete');await hold.waitFor();await hold.scrollIntoViewIfNeeded();
   assert.equal(await hold.evaluate(e=>getComputedStyle(e).borderRadius),'999px');assert.equal(await hold.evaluate(e=>getComputedStyle(e).borderWidth),'0px');
-  assert.equal(await hold.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(241, 245, 249)');
+  assert.equal(await hold.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(243, 244, 246)');
   const dims=await hold.boundingBox();assert(dims.width>=58&&dims.height>=30);
   const labels=await hold.locator('.label').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};}));assert.deepEqual(labels[0],labels[1]);
   await hold.hover();assert.equal(await hold.evaluate(e=>getComputedStyle(e).transform),'none');

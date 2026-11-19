@@ -75,16 +75,17 @@ try {
     assert.deepEqual(await selected(),['pill1','pill2','pill3','pill4','pill5']);
     assert.equal(await page.locator('[data-selected-id] button:focus').count(),1);
     await noOverflow();
-    await page.getByRole('button',{name:'✕ 선택 취소',exact:true}).click();
+    await page.locator('#quick-cancel').click();
     assert.deepEqual(await selected(),[]);
-    assert.equal(await page.locator('#quick-text').inputValue(),'선택과 저장 모션 확인');
+    assert.equal(await page.locator('#quick-text').inputValue(),'');
     await page.getByRole('button',{name:'전체 선택',exact:true}).click();
     assert.equal((await selected()).length,8);
     await noOverflow();
     await page.locator('#quick-selection-more').click();
     await page.waitForTimeout(1000);
     await page.screenshot({path:`/tmp/selection-expanded-${width}.png`});
-    await page.getByRole('button',{name:'✕ 선택 취소',exact:true}).click();
+    await page.locator('#quick-cancel').click();
+    await page.locator('#quick-text').fill('선택과 저장 모션 확인');
     // Saving still writes each actual selected student once, including folded ones.
     await add('1 2 3 4 5 6');
     await page.locator('.quick-areas .area-chip').first().click();

@@ -313,7 +313,8 @@ async function requestRecordDeletion(record, event) {
       if(!ops.some(op=>op.table==='records'&&op.id===record.id&&op.remove))ops.push({table:'records',id:record.id,remove:true});
       job.undoOps=ops.map(op=>{const old=latest[op.table].find(row=>row.id===op.id);return old?{table:op.table,id:op.id,data:structuredClone(old)}:{table:op.table,id:op.id,remove:true};});
       return ops;
-    },'기록을 삭제했습니다.');
+    },'');
+    if($('#toast')) $('#toast').style.display='none';
     if(scope!==recordDeletionScope()||state.locked){removeRecordDeletion(job);return;}
     job.after=job.undoOps.map(op=>({table:op.table,id:op.id,value:JSON.stringify(db()[op.table].find(row=>row.id===op.id))}));
     job.phase='undoable';job.deadline=performance.now()+5000;button.disabled=false;

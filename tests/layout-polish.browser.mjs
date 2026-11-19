@@ -40,7 +40,7 @@ try {
   await search.fill('가온');await search.press('Enter');
   assert.equal(await text.inputValue(),'관찰한 내용을 이어서 기록해요.');
   assert.equal(await page.locator('.selection-composer').count(),1);
-  await page.getByRole('button',{name:'✕ 선택 취소',exact:true}).click();
+  await page.locator('#quick-cancel').click();
   await navigate('설정');
   const sizes=await page.locator('#settings-form [name=className],#settings-form [name=academicYear],#settings-form [name=schoolName],#settings-form [name=grade],#settings-form [name=classGroup]').evaluateAll(es=>es.map(e=>({name:e.name,height:e.getBoundingClientRect().height,top:e.getBoundingClientRect().top})));
   assert(sizes.every(e=>e.height===42),JSON.stringify(sizes));
