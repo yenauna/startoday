@@ -62,7 +62,7 @@ try {
     assert.match(await widget.locator('.tool-remaining').innerText(),/남은 3 \/ 4개/);
     assert.equal(await page.evaluate(()=>window.cardOverflow),'visible');
     assert((await page.evaluate(()=>window.backTone)).includes('repeating-linear-gradient'));
-    assert.equal(await page.evaluate(()=>window.frontTone),'rgb(255, 251, 239)');
+    assert.equal(await page.evaluate(()=>window.frontTone),'rgb(255, 253, 247)');
     assert(await page.evaluate(()=>window.waveWidth>window.cardWidth));
     assert.equal(await card.locator('.card-reveal-light').count(),0);
     await card.click();

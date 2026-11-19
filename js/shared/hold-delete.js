@@ -25,7 +25,7 @@ export function attachHoldDelete(btn, onConfirm) {
   const holdSec=1.2,p=S(0,260,14),sc=S(1,520,20),shake=S(0,700,9);
   let mode='idle',holding=false,raf=0,last=0,pointer=null,key=null;
   const control={stop};
-  function resetPaint(){btn.style.transform='';fill.style.width='0px';top.style.clipPath='inset(0 100% 0 0)';}
+  function resetPaint(){btn.style.transform='';btn.style.zIndex='';fill.style.width='0px';top.style.clipPath='inset(0 100% 0 0)';}
   function tick(now){
     if(!btn.isConnected || btn.disabled && mode!=='done'){holding=false;raf=0;active.delete(control);resetPaint();mode='idle';p.x=p.v=p.t=0;return;}
     const dt=Math.min((now-last)/1000,1/30);last=now;
@@ -36,15 +36,15 @@ export function attachHoldDelete(btn, onConfirm) {
       step(sc,sub);step(shake,sub);
     }
     const w=btn.offsetWidth,fw=Math.max(0,p.x)*w;
-    btn.style.transform=`translateX(${shake.x}px) scale(${sc.x})`;
+    btn.style.transform=`translateX(${shake.x}px) translateY(${-(sc.x-1)/.3*4}px) scale(${sc.x})`;
     fill.style.width=fw+'px';top.style.clipPath=`inset(0 ${Math.max(0,w-fw)}px 0 0)`;
-    if(mode==='done'){raf=0;active.delete(control);btn.style.transform='';return;}
+    if(mode==='done'){raf=0;active.delete(control);btn.style.transform='';btn.style.zIndex='';return;}
     const settled=!holding && Math.abs(p.x)<.001 && Math.abs(p.v)<.001 && Math.abs(sc.x-1)<.001 && Math.abs(sc.v)<.001 && Math.abs(shake.x)<.05 && Math.abs(shake.v)<.05;
     if(settled){raf=0;active.delete(control);resetPaint();return;}
     raf=requestAnimationFrame(tick);
   }
   function ensureLoop(){if(!raf){active.add(control);last=performance.now();raf=requestAnimationFrame(tick);}}
-  function start(){if(mode!=='idle'||btn.disabled)return;holding=true;mode='holding';sc.t=.96;ensureLoop();}
+  function start(){if(mode!=='idle'||btn.disabled)return;holding=true;mode='holding';sc.t=1.3;btn.style.zIndex='20';ensureLoop();}
   function stop(){
     if(mode!=='holding')return;
     holding=false;mode='idle';sc.t=1;pointer=null;key=null;

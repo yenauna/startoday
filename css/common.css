@@ -243,7 +243,7 @@ button:hover, .btn:hover { background: #f0f3f9; }
 .login .logo { background: var(--st-gray-bg); color: var(--st-text); }
 .quick-wrap { background: rgba(246, 247, 250, 0.94); }
 .tabs { border-bottom-color: var(--st-line); }
-.tabs button { border-radius: var(--st-radius-pill); box-shadow: none; color: var(--st-text-muted); }
+.tabs button { border-radius: var(--st-radius-action, 10px); box-shadow: none; color: var(--st-text-muted); }
 .tabs button.active { background: var(--st-lavender-bg); color: var(--st-lavender-text); border-bottom-color: transparent; }
 
 input, select, textarea, .input, .textarea, #notice-editor {
@@ -383,7 +383,7 @@ header.top>.row { flex-wrap:nowrap; flex:0 0 auto; gap:6px; }
 header.top .brand-home { min-width:0; gap:8px; }
 header.top .brand-home small { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; }
 .sticky-navigation .tabs button.active { background:var(--st-selected-bg); color:var(--st-selected-text); border-bottom-color:transparent; box-shadow:none; }
-.quick-wrap.quick-composer-card.selection-composer { position:fixed; top:0; left:0; right:0; z-index:120; margin:0; padding:12px max(12px,calc((100vw - 1720px)/2)); max-height:75vh; max-height:75dvh; overflow:auto; border-radius:0 0 20px 20px; background:#fcfcfe; }
+/* Selected students expand within the existing composer, without viewport reparenting. */
 .selection-composer-head { display:flex; align-items:flex-start; gap:12px; }
 .selection-dismiss { flex:0 0 auto; }
 .selection-composer .selected-students { padding:4px 0 10px; }
@@ -1859,8 +1859,17 @@ body:has(.quick-memo-bar) .memo-undo{bottom:82px}
  .selection-summary{gap:6px}
 }
 
-.hold-delete {
+.record .record-controls .hold-delete {
  position:relative;
+ border:0;
+ border-radius:999px;
+ background:#f1f5f9;
+ color:#475569;
+ min-width:58px;
+ min-height:30px;
+ padding:0;
+ transition:background-color .15s ease;
+ box-shadow:none;
  overflow:hidden;
  touch-action:none;
  -webkit-tap-highlight-color:transparent;
@@ -1873,8 +1882,11 @@ body:has(.quick-memo-bar) .memo-undo{bottom:82px}
  pointer-events:none;
 }
 .hold-delete .label {
- position:relative;z-index:1;
- display:inline-flex;align-items:center;justify-content:center;
+ position:absolute;inset:0;z-index:1;
+ width:auto;height:auto;min-height:0;margin:0;padding:0;border:0;border-radius:0;box-shadow:none;
+ backdrop-filter:none;-webkit-backdrop-filter:none;
+ background:transparent;font:inherit;letter-spacing:inherit;line-height:inherit;
+ display:flex;align-items:center;justify-content:center;
  white-space:nowrap;pointer-events:none;
 }
 .hold-delete .label.top {
@@ -1882,3 +1894,41 @@ body:has(.quick-memo-bar) .memo-undo{bottom:82px}
  color:#fff;
  clip-path:inset(0 100% 0 0);
 }
+
+.record .hold-delete:hover:not(:disabled),.record .hold-delete:active:not(:disabled){transform:none;box-shadow:none;background:#f1f5f9}
+
+/* A cream paper draw card, with a fine gold frame and a generous name field. */
+.tool-card-deck .tool-draw-card,.tool-card-deck .tool-draw-card.is-drawn{
+ width:min(300px,100%);height:auto;aspect-ratio:6 / 5;min-height:200px;padding:32px 26px;
+ border:1px solid #d6b875;border-radius:18px;background:#fffdf7;
+ background-image:radial-gradient(ellipse at 20% 0%,#f4e8ce40,transparent 70%);
+ color:#604a2a;box-shadow:0 8px 20px #604a2a14;letter-spacing:.015em;
+ font-size:clamp(18px,calc(180px / var(--candidate-length,4)),36px);font-weight:650;line-height:1.45;
+}
+.tool-card-deck .tool-draw-card::before{
+ content:'';inset:9px;border:1px solid #d6b87566;border-radius:11px;background:none;z-index:0;
+}
+.tool-card-deck .tool-draw-card.card-reveal-front{background-color:#fffdf7;color:#604a2a}
+.tool-card-deck .tool-draw-card .tool-card-face{white-space:normal;overflow-wrap:anywhere;text-wrap:balance}
+.tool-card-deck .tool-draw-card .card-reveal-light{z-index:2}
+@media(max-width:480px){.tool-card-deck{padding:18px}.tool-card-deck .tool-draw-card{padding:28px 22px}}
+
+/* Native form semantics, with a small animated square; leave custom switches alone. */
+input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input)){
+ appearance:none;-webkit-appearance:none;width:18px;height:18px;min-width:18px;min-height:18px;
+ flex:0 0 18px;padding:0;border:2px solid var(--st-blue-text,#2563eb);border-radius:5px;
+ background:transparent;position:relative;cursor:pointer;vertical-align:middle;
+}
+input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input))::before{
+ content:'';position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:3px;
+ background:var(--st-blue-text,#2563eb);transform:translate(-50%,-50%) scale(0);
+ transition:transform .3s ease-in-out;pointer-events:none;
+}
+input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input)):checked::before{transform:translate(-50%,-50%) scale(1)}
+input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input)):indeterminate::before{transform:translate(-50%,-50%) scale(1,.3)}
+input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input)):focus-visible{outline:2px solid var(--st-blue-text,#2563eb);outline-offset:3px}
+input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input)):disabled{opacity:.45;cursor:not-allowed}
+@media(prefers-reduced-motion:reduce){input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input))::before{transition:none}}
+@media(forced-colors:active){input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input)){appearance:auto!important;-webkit-appearance:auto!important}input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input))::before{display:none}}
+
+.tool-card-deck .tool-draw-card.card-reveal-fast:not(.card-reveal-front){background:repeating-linear-gradient(45deg,#b7a67a16 0 1px,transparent 1px 12px),linear-gradient(145deg,#f5eddb,#e6d4ad);color:#8c7249}

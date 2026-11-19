@@ -195,10 +195,11 @@ function quickStudentsField() {
   const added = state.selected.filter(id => !quickSelectionOrder.includes(id));
   quickSelectionOrder = [...added.reverse(), ...quickSelectionOrder.filter(id => state.selected.includes(id))];
   if (state.selected.length <= limit) quickSelectionExpanded = false;
-  const chip = (id, index) => `<span class="quick-student-chip" data-selected-id="${esc(id)}" data-selected-name="${esc(name(id))}" ${index >= limit && !quickSelectionExpanded ? 'hidden' : ''}><span class="selection-pill"><span class="selection-chip-name" title="${esc(name(id))}">${esc(name(id))}</span>${btn('×', () => {
+  const shortName = id => {const student=db().students.find(row=>row.id===id);return student?student.no+'. '+student.name:'(나간 학생)';};
+  const chip = (id, index) => `<span class="quick-student-chip" data-selected-id="${esc(id)}" data-selected-name="${esc(shortName(id))}" ${index >= limit && !quickSelectionExpanded ? 'hidden' : ''}><span class="selection-pill"><span class="selection-chip-name" title="${esc(shortName(id))}">${esc(shortName(id))}</span>${btn('×', () => {
     state.selected = state.selected.filter(value => value !== id);
     render();
-  }, 'quick-student-remove', `aria-label="${esc(name(id))} 선택 해제"`)}</span></span>`;
+  }, 'quick-student-remove', `aria-label="${esc(shortName(id))} 선택 해제"`)}</span></span>`;
   return `<div id="quick-students"><div class="selection-summary"><span class="selection-total" role="status" aria-live="polite" aria-atomic="true"><span data-selection-count="${state.selected.length}">${state.selected.length}명 선택</span></span><span class="selection-hint"><span data-selection-hint>×로 선택 해제</span></span>${btn('전체 선택', () => {
     state.selected = C.activeStudents(db()).map(student => student.id);
     render();
