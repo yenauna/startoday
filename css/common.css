@@ -1384,7 +1384,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .tool-random-stage:has(.tool-card-deck){display:grid;place-items:center;flex:1;min-height:300px}
 .tool-card-deck{display:grid;place-items:center;width:100%;height:100%;padding:20px}
 .tool-card-deck .tool-draw-card,.tool-card-deck .tool-draw-card.is-drawn{display:grid;place-items:center;width:320px;max-width:100%;height:260px;line-height:1.35;min-width:0;flex:none;transition:none;font-size:clamp(14px,calc(280px / var(--candidate-length,4)),48px)}
-.tool-card-deck .tool-draw-card.is-drawn{animation:tool-card-flip .3s ease-out}
+.tool-card-deck .tool-draw-card.is-drawn{animation:none}
 .tool-random-canvas[role=button]{cursor:pointer;touch-action:manipulation}
 @keyframes tool-card-flip{from{transform:rotateY(-70deg);opacity:.5}to{transform:rotateY(0);opacity:1}}
 .economy-student-manage{border:0;background:transparent;box-shadow:none;padding:0;text-align:left;font:inherit;font-weight:inherit;min-height:24px}
@@ -1399,10 +1399,10 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 @media(max-width:640px){.economy-student-manager{grid-template-columns:minmax(0,1fr)}}
 @media(prefers-reduced-motion:reduce){.tool-card-deck .tool-draw-card.is-drawn,.economy-student-manager{animation:none}}
 
-/* Animate only the face so the touch target and deck never change their bounds. */
+/* Keep the face text independent of the bounded card reveal below. */
 .tool-card-deck .tool-draw-card.is-drawn{animation:none}
 .tool-card-face{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
-.tool-card-deck .tool-draw-card.is-drawn .tool-card-face{animation:tool-card-flip .3s ease-out}
+.tool-card-deck .tool-draw-card.is-drawn .tool-card-face{animation:none}
 @media(prefers-reduced-motion:reduce){.tool-card-deck .tool-draw-card.is-drawn .tool-card-face{animation:none}}
 
 /* Separate timetable edits and linked-event actions without nested buttons. */
@@ -1424,7 +1424,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .tool-box-grid .tool-mystery-box.tool-box-shake{animation:star-box-bounce .55s ease-in-out}
 .tool-card-deck .tool-draw-card{position:relative;isolation:isolate;perspective:700px;background:linear-gradient(145deg,#fdf4dd,#e8e0fa 70%,#e2effb);border-color:#d4b574}
 .tool-card-deck .tool-draw-card:before{content:'';position:absolute;inset:12px;border:1px solid #d5be8580;border-radius:15px;background:radial-gradient(circle at 20% 25%,#d8af5f 0 2px,transparent 3px),radial-gradient(circle at 65% 15%,#d8af5f 0 2px,transparent 3px),radial-gradient(circle at 75% 60%,#d8af5f 0 2px,transparent 3px),radial-gradient(circle at 30% 80%,#d8af5f 0 2px,transparent 3px),linear-gradient(25deg,transparent 49.5%,#c5b3d330 50%,transparent 50.5%);pointer-events:none;z-index:-1}
-.tool-card-face{position:relative;z-index:1;backface-visibility:hidden}.tool-card-deck .tool-draw-card.is-drawn:after{content:'✦  ✧  ✦';position:absolute;top:18px;color:#ccaa5c;pointer-events:none;animation:card-sparkle .5s ease-out both}
+.tool-card-face{position:relative;z-index:1;backface-visibility:hidden}.tool-card-deck .tool-draw-card.is-drawn:after{content:none}
 @keyframes star-box-bounce{0%,100%{transform:translateY(0)}35%{transform:translateY(-9px) rotate(-2deg)}65%{transform:translateY(-3px) rotate(2deg)}}
 @keyframes card-sparkle{from{opacity:0;transform:scale(.7)}45%{opacity:1}to{opacity:0;transform:scale(1.15)}}
 @keyframes panel-unfold{from{opacity:.2;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
@@ -1782,3 +1782,49 @@ body:has(.quick-memo-bar) .memo-undo{bottom:82px}
  .student-home-village .student-timetable-card>p.muted{flex-direction:row;min-height:48px;gap:8px;margin:0;padding:8px 0;text-align:left}
  .student-home-village .student-timetable-card>p.muted:before{width:24px;height:22px;border-width:2px;background-position:0 6px}
 }
+
+/* Silent card reveal: 250ms anticipation → 170ms flip → 60ms hold → 300ms light. */
+.tool-card-deck{perspective:900px}
+.tool-card-deck .tool-draw-card,.tool-box-grid .tool-mystery-box{position:relative;isolation:isolate;touch-action:manipulation;overflow:hidden}
+.tool-card-face{overflow-wrap:anywhere;max-width:100%;min-width:0}
+.tool-card-deck .tool-draw-card.card-reveal-fast,.tool-box-grid .tool-mystery-box.card-reveal-fast{animation:card-reveal-fast 780ms linear both;will-change:transform}
+.card-reveal-light{position:absolute;inset:0;overflow:hidden;border-radius:inherit;pointer-events:none;z-index:2}
+.card-reveal-light::before,.card-reveal-light::after{content:"";position:absolute;opacity:0;pointer-events:none}
+.card-reveal-light::before{inset:5px;border:2px solid #e4b54e;border-radius:inherit;animation:card-gold-wave 300ms 480ms ease-out both}
+.card-reveal-light::after{top:-40%;bottom:-40%;left:0;width:35%;background:linear-gradient(90deg,transparent,#fff9,transparent);animation:card-light-sweep 300ms 480ms ease-out both}
+@keyframes card-reveal-fast{
+  0%{transform:perspective(900px) translateY(0) rotateZ(0) rotateY(0)}
+  8%,20%{transform:perspective(900px) translateY(-3px) rotateZ(-1.5deg) rotateY(0)}
+  14%,26%{transform:perspective(900px) translateY(-5px) rotateZ(1.5deg) rotateY(0)}
+  32.05%{transform:perspective(900px) translateY(-6px) rotateZ(0) rotateY(0)}
+  43.58%{transform:perspective(900px) translateY(-6px) rotateY(90deg)}
+  43.60%{transform:perspective(900px) translateY(-6px) rotateY(-90deg)}
+  53.85%,61.54%{transform:perspective(900px) translateY(-3px) rotateY(0)}
+  100%{transform:perspective(900px) translateY(0) rotateY(0)}
+}
+@keyframes card-gold-wave{0%{opacity:0;transform:scale(.92)}20%{opacity:1}100%{opacity:0;transform:scale(1.04)}}
+@keyframes card-light-sweep{0%{opacity:0;transform:translateX(-140%) rotate(18deg)}20%{opacity:.8}100%{opacity:0;transform:translateX(440%) rotate(18deg)}}
+/* Reward only: 1.5s anticipation, 200ms flip, 60ms hold, 480ms holographic light. */
+.title-unlock-card{position:fixed;z-index:15000;bottom:max(16px,env(safe-area-inset-bottom));left:50%;translate:-50% 0;width:min(360px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;box-sizing:border-box;padding:24px 24px 18px;border-radius:16px;background:#fffbef;color:#61451a;box-shadow:0 12px 40px #2c221e35;text-align:center;isolation:isolate;overflow-wrap:anywhere}
+.title-unlock-message{margin:0 0 12px;font-size:15px;line-height:1.5}
+.title-unlock-name{display:block;font-size:clamp(22px,6vw,30px);line-height:1.4;min-height:42px}
+.title-unlock-close{position:relative;z-index:3;margin-top:16px;min-width:72px;min-height:44px;background:#fff7db;color:#61451a;border:1px solid #c8a15a;border-radius:10px;touch-action:manipulation}
+.title-unlock-card.card-reveal-reward{animation:card-reveal-reward 2240ms linear both;will-change:transform}
+.card-reveal-reward .card-reveal-light::before{border:0;background:radial-gradient(ellipse,#ffdfa4bb,transparent 68%);animation:card-reward-bloom 480ms 1760ms ease-out both}
+.card-reveal-reward .card-reveal-light::after{width:55%;background:linear-gradient(110deg,transparent,#f8a5c566,#b6bcff88,#a9eadf88,#fff4c599,transparent);mix-blend-mode:multiply;animation:card-light-sweep 480ms 1760ms ease-out both}
+@keyframes card-reveal-reward{
+  0%,10%{transform:perspective(900px) translateY(0) rotateZ(0)}
+  18%,30%,42%,54%,63%{transform:perspective(900px) translateY(-4px) rotateZ(-1deg)}
+  24%,36%,48%,59%,66%{transform:perspective(900px) translateY(-6px) rotateZ(1deg)}
+  66.96%{transform:perspective(900px) translateY(-8px) rotateZ(0) rotateY(0)}
+  71.42%{transform:perspective(900px) translateY(-8px) rotateY(90deg)}
+  71.44%{transform:perspective(900px) translateY(-8px) rotateY(-90deg)}
+  75.89%,78.57%{transform:perspective(900px) translateY(-4px) rotateY(0)}
+  100%{transform:perspective(900px) translateY(0) rotateY(0)}
+}
+@keyframes card-reward-bloom{0%{opacity:0;transform:scale(.25)}25%{opacity:.8}100%{opacity:0;transform:scale(1.8)}}
+@media(prefers-reduced-motion:reduce){
+  .tool-card-deck .tool-draw-card.card-reveal-fast,.tool-box-grid .tool-mystery-box.card-reveal-fast,.title-unlock-card.card-reveal-reward{animation:card-reveal-gentle 80ms ease-out both;will-change:auto}
+  .card-reveal-light{display:none}
+}
+@keyframes card-reveal-gentle{from{opacity:.8}to{opacity:1}}

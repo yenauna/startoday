@@ -1,3 +1,4 @@
+import { clearTitleUnlock, syncTitleUnlock } from './components/title-unlock.js';
 import { economyView, syncGroupBuyDialog } from './tabs/economy.js';
 import { setupPwa } from './shared/pwa.js';
 import { bindQuickInput, renderLogin, renderShell } from './components/header.js';
@@ -56,12 +57,17 @@ export function render() {
     const scrollY = window.scrollY;
     $('#app').innerHTML = renderStudentShell();
     syncGroupBuyDialog();
+    const titleSnapshot = state.studentSnapshot;
+    if (titleSnapshot?.student && !state.impersonatingStudentId) {
+      syncTitleUnlock(titleSnapshot, `${store.mode}:${store.classId}:${titleSnapshot.student.id}`);
+    } else clearTitleUnlock();
     const key = studentViewScrollKey();
     window.scrollTo?.(0, key === lastStudentScrollKey ? scrollY : 0);
     lastStudentScrollKey = key;
     return;
   }
   lastStudentScrollKey = null;
+  clearTitleUnlock();
   document.querySelector('.print-root')?.remove();
   document.body.classList.remove('report-open');
   if (!db()) {

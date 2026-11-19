@@ -1,3 +1,4 @@
+import { revealCards } from '../shared/card-reveal.js';
 import { preferredKoreanVoice } from '../shared/tools-core.js';
 import { createFormatCards } from '../components/format-cards.js';
 import { formatToolRange } from '../shared/tool-rich.js';
@@ -859,6 +860,7 @@ function renderToolDraw(w) {
       const button = toolButton('?', () => revealToolBox(w, button, item), 'tool-mystery-box');
       button.setAttribute('aria-label', '물음표 상자 열기');
       button.dataset.candidateId = item.id;
+      button.replaceChildren(toolElement('span', 'tool-card-face', '?'));
       grid.append(button);
     }
     w.randomStage.append(grid);
@@ -901,91 +903,66 @@ function finishToolResult(w, items) {
     close.focus();
   }
 }
+function animateToolCards(w, cards, reveal) {
+  w.randomBusy = true;
+  const cancel = revealCards(cards, () => {
+    if (!w.el.isConnected) return w.cancelAnimation?.();
+    reveal();
+  }, () => {
+    w.randomBusy = false;
+    w.cancelAnimation = null;
+  });
+  w.cancelAnimation = () => {
+    cancel();
+    w.randomBusy = false;
+    w.cancelAnimation = null;
+  };
+}
+function revealToolCandidate(card, item) {
+  card.querySelector('.tool-card-face').textContent = item.label;
+  card.title = item.label;
+  card.style.setProperty('--candidate-length', Math.max(3, [...item.label].length));
+}
 function revealToolBox(w, button, item) {
   if (w.randomBusy || button.disabled) return;
-  w.randomBusy = true;
-  button.classList.add('tool-box-shake');
-  let timeout;
-  const cancel = () => {
-    clearTimeout(timeout);
-    button.classList.remove('tool-box-shake');
-    w.randomBusy = false;
-  };
-  w.cancelAnimation = cancel;
-  timeout = setTimeout(() => {
-    if (!w.el.isConnected) {
-      cancel();
-      return;
-    }
-    button.textContent = item.label;
-    button.title = item.label;
-    button.style.setProperty('--candidate-length', Math.max(3, [...item.label].length));
-    button.classList.remove('tool-box-shake');
+  animateToolCards(w, [button], () => {
+    revealToolCandidate(button, item);
     button.classList.add('is-revealed');
     button.disabled = !w.replacement;
-    w.randomBusy = false;
     finishToolResult(w, [item]);
-    w.cancelAnimation = null;
-  }, 550);
+  });
 }
 function startToolDraw(w) {
   if (w.randomBusy) return;
   const items = remainingTools(w.randomItems, w.drawn, w.replacement);
   if (!items.length) return toolNotice(w, '남은 후보가 없습니다. 목록을 리셋하세요.');
   if (w.randomMode === 'cards') {
-    w.randomBusy = true;
     const card = w.randomStage.querySelector('.tool-draw-card');
     const item = shuffledTools(items)[0];
     card.classList.remove('is-drawn');
-    const face = card.querySelector('.tool-card-face');
-    face.textContent = '✦';
-    let timer;
-    const cancel = () => { clearTimeout(timer); w.randomBusy = false; };
-    w.cancelAnimation = cancel;
-    timer = setTimeout(() => {
-      if (!w.el.isConnected) return cancel();
-      face.textContent = item.label;
-      card.title = item.label;
-      card.style.setProperty('--candidate-length', Math.max(3, [...item.label].length));
+    card.querySelector('.tool-card-face').textContent = '✦';
+    animateToolCards(w, [card], () => {
+      revealToolCandidate(card, item);
       card.classList.add('is-drawn');
       finishToolResult(w, [item]);
-      w.randomBusy = false;
-      w.cancelAnimation = null;
-    }, 300);
+    });
     return;
   }
   if (w.randomMode === 'boxes') {
-    w.randomBusy = true;
     const buttons = [...w.randomStage.querySelectorAll('button:not(:disabled)')];
-    buttons.forEach(b => b.classList.add('tool-box-shake'));
-    let timeout;
-    w.cancelAnimation = () => {
-      clearTimeout(timeout);
-      buttons.forEach(b => b.classList.remove('tool-box-shake'));
-      w.randomBusy = false;
-    };
-    timeout = setTimeout(() => {
-      if (!w.el.isConnected) {
-        w.cancelAnimation?.();
-        return;
-      }
+    animateToolCards(w, buttons, () => {
       const revealed = [];
       for (const b of buttons) {
         const item = items.find(i => i.id === b.dataset.candidateId);
         if (item) {
-          b.textContent = item.label;
-          b.title = item.label;
-          b.style.setProperty('--candidate-length', Math.max(3, [...item.label].length));
+          revealToolCandidate(b, item);
           b.classList.add('is-revealed');
-          b.classList.remove('tool-box-shake');
           b.disabled = !w.replacement;
           revealed.push(item);
         }
       }
-      w.randomBusy = false;
       finishToolResult(w, revealed);
-      w.cancelAnimation = null;
-    }, 550);
+    });
     return;
   }
   if (w.randomMode === 'wheel') runToolWheel(w, items);else runToolRace(w, items);
