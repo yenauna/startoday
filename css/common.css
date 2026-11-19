@@ -167,7 +167,10 @@ a{color:#334155}
   --st-pending-bg: var(--st-incomplete-bg);
   --st-pending-highlight: var(--st-incomplete-bg);
   --st-pending-shade: var(--st-incomplete-bg);
-  --st-radius-card: 20px;
+  --st-radius-card: 16px;
+  --st-radius-action: 10px;
+  --st-space-field: 8px;
+  --st-space-panel: 16px;
   --st-radius-student: 18px;
   --st-radius-input: 16px;
   --st-radius-pill: 9999px;
@@ -219,7 +222,7 @@ button:hover, .btn:hover { background: #f0f3f9; }
   border: 0;
   border-radius: var(--st-radius-card);
   background: linear-gradient(155deg, #ffffff 0%, var(--st-surface) 75%, #f8f9fc 100%);
-  box-shadow: var(--st-surface-light), var(--st-shadow-2);
+  box-shadow: var(--st-surface-light), var(--st-shadow-1);
 }
 .panel.praise, .record.praise { background: var(--st-blue-bg); color: var(--st-blue-text); }
 .panel.advice, .record.advice { background: var(--st-rose-bg); color: var(--st-rose-text); }
@@ -342,7 +345,7 @@ dialog::backdrop { background: rgba(40, 50, 71, 0.3); }
 .sticky-navigation .top { border-radius:0; }
 .quick-wrap.quick-composer-card { position:relative; top:auto; z-index:auto; margin:16px 0; padding:12px; border:1px solid rgba(98,109,128,.14); border-radius:20px; background:rgba(252,252,254,.96); box-shadow:var(--st-surface-light),var(--st-shadow-1); }
 .quick-composer-card .quick { display:flex; flex-direction:column; align-items:stretch; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
-.quick-main { display:grid; grid-template-columns:minmax(0,1fr) minmax(200px,32%); gap:16px; align-items:start; }
+.quick-main { display:grid; grid-template-columns:minmax(0,3fr) minmax(180px,1fr); gap:16px; align-items:start; }
 .quick-composer-card .quick textarea { width:100%; min-height:65px; background:#eff1f6; border-radius:14px; padding:12px; }
 .quick-composer-card .quick-areas { padding:4px 0; align-content:start; }
 .quick-composer-card .quick-controls { margin:0; width:100%; flex:0 0 auto; padding-top:10px; border-top:1px solid var(--st-line); }
@@ -1643,13 +1646,13 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .statistics-subtabs{margin-bottom:14px;flex-wrap:wrap}.survey-rounds{flex-wrap:wrap;margin:12px 0}
 .survey-analysis-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px}
 .survey-analysis-card{padding:12px;border:1px solid var(--line);border-radius:12px;min-width:0;overflow-wrap:anywhere;background:white;margin:6px 0}
-.survey-analysis-card p{font-size:13px;margin:6px 0}.student-survey-main{width:100%;min-width:0}.student-survey{max-width:850px;margin:0 auto}
+.survey-analysis-card p{font-size:13px;margin:6px 0}.student-survey-main{width:100%;min-width:0}.student-survey{max-width:850px;margin:0 auto;padding:16px}
 .survey-peer-list{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}.survey-peer-list button{min-height:40px;touch-action:none}
 .survey-board{position:relative;width:calc(100% - 36px);margin:12px 18px;aspect-ratio:1.3;max-height:60dvh;background:linear-gradient(90deg,transparent calc(50% - 1px),#8e93ad 50%,transparent calc(50% + 1px)),linear-gradient(transparent calc(50% - 1px),#8e93ad 50%,transparent calc(50% + 1px)),conic-gradient(from 0deg at 50% 50%,#e4f5e7 0 25%,#f9ede5 25% 50%,#f7e6ef 50% 75%,#e9edf9 75% 100%);border:1px solid #bcc5d9;border-radius:14px;touch-action:manipulation;overflow:visible}
 .survey-quadrant{position:absolute;font-size:11px;color:#667085;pointer-events:none}.survey-quadrant.q1{left:8px;top:8px}.survey-quadrant.q2{right:8px;top:8px}.survey-quadrant.q3{left:8px;bottom:8px}.survey-quadrant.q4{right:8px;bottom:8px}
 .survey-board .survey-board-chip{position:absolute;transform:translate(-50%,-50%);min-height:34px;padding:4px 8px;max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;touch-action:none;z-index:2;background:white;border:1px solid #b1b9d6;font-size:12px;transition:none}
 .survey-board .survey-board-chip.is-selected{z-index:3;outline:2px solid #566bc2;background:#e9edff}.survey-axis-top{text-align:center;font-size:13px}.survey-axis-bottom{display:flex;justify-content:space-between;font-size:12px}.survey-reason{display:block;margin:12px 0}.survey-reason textarea{width:100%;min-height:72px}.student-survey>.row{margin-top:12px}.student-survey-main button{user-select:none}
-@media(max-width:640px){.student-survey{padding:12px}.survey-board{aspect-ratio:1}.survey-board .survey-board-chip{font-size:11px;max-width:65px;min-height:36px}.survey-quadrant{font-size:10px}.survey-teacher .toolbar{flex-wrap:wrap}}
+@media(max-width:640px){.student-survey{padding:16px}.survey-board{aspect-ratio:1}.survey-board .survey-board-chip{font-size:11px;max-width:65px;min-height:36px}.survey-quadrant{font-size:10px}.survey-teacher .toolbar{flex-wrap:wrap}}
 
 [data-survey-peer]{cursor:grab}.survey-peer-list .is-dragging,.survey-board .is-dragging{position:relative;z-index:10;pointer-events:auto;cursor:grabbing;box-shadow:0 6px 16px #304a3680}.survey-board .is-dragging{position:absolute}
 
@@ -1732,4 +1735,50 @@ body:has(.quick-memo-bar) .memo-undo{bottom:82px}
  .teacher-history th:nth-child(3){width:14%}
  .teacher-history th:nth-child(4){width:32%}
  .teacher-history td.economy-history-student{white-space:nowrap;overflow-wrap:normal;word-break:keep-all}
+}
+
+
+/* Classroom workbench: input leads, supporting controls stay quiet. */
+.quick-entry-fields{gap:var(--st-space-field)}
+.quick-composer-card #quick-student-query,.quick-composer-card #quick-text{background:var(--st-surface);font-size:16px;box-shadow:none}
+.quick-composer-card #quick-text{min-height:48px}
+.quick-composer-card .quick-areas{gap:8px;align-content:start;padding:8px;border-radius:var(--st-radius-action);background:var(--st-gray-bg)}
+.quick-composer-card .area-chip{box-shadow:none;background:transparent}
+.quick-composer-card .quick-controls{gap:8px;margin-top:8px;padding-top:8px}
+.quick-composer-card .quick-period-toggle,.quick-composer-card .record-action{box-shadow:none}
+.quick-composer-card .quick-student-search>button{border-radius:var(--st-radius-action);box-shadow:none}
+.quick-composer-card .quick-student-search>button:hover{background:var(--st-gray-bg)}
+
+/* Real actions have a shared shape; tabs, stamps and calendar arrows keep theirs. */
+.settings-save,.dialog-foot>button,.dialog-foot-start>button,.student-survey>.row>.primary{border-radius:var(--st-radius-action);box-shadow:none}
+.settings-save,.dialog-foot>button[type=submit],.student-survey>.row>.primary{background:var(--st-blue-text);color:var(--st-surface);font-weight:650}
+.settings-save:hover,.dialog-foot>button[type=submit]:hover,.student-survey>.row>.primary:hover{background:var(--st-text)}
+.dialog-foot>button:not([type=submit]){background:var(--st-gray-bg);color:var(--st-gray-text)}
+.badge,.pill{box-shadow:none}
+.metric strong,.student-profile-score strong{font-variant-numeric:tabular-nums}
+
+/* Stable form rows: adjacent helper text must not stretch single-line inputs. */
+.settings-content .formgrid{align-items:start;gap:16px}
+.settings-content .formgrid>label,.settings-content .school-picker label{align-content:start;gap:8px}
+.settings-content input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]):not([type=hidden]),.settings-content select{height:42px;width:100%;box-sizing:border-box}
+.settings-content .panel{padding:var(--st-space-panel)}
+.settings-content .panel>label+label{margin-top:12px}
+.student-survey>h2{margin-bottom:12px}
+.student-survey .survey-peer-list{margin-block:16px;gap:8px}
+.student-survey .survey-peer-list button{box-shadow:none}
+
+@media(max-width:640px){
+ .quick-main{grid-template-columns:minmax(0,1fr);gap:12px}
+ .quick-composer-card .quick-areas{padding:8px}
+ .quick-composer-card .quick-controls{margin-top:0}
+ .student-home-village{--sh-gap:12px}
+ .student-home-village .student-profile-card .student-profile-main{padding:12px}
+ .student-home-village .student-profile-card .student-avatar-stage{margin-top:4px}
+ .student-home-village .student-profile-card .student-avatar-stage .student-character-scene{min-height:164px}
+ .student-home-village .student-profile-card .student-avatar-stage .student-profile-image{height:156px;max-height:156px}
+ .student-home-village .student-profile-card .student-profile-areas{margin-top:8px;padding-block:6px}
+ .student-home-village .student-timetable-card{padding:12px}
+ .student-home-village .student-timetable-card .student-home-sign{margin-bottom:8px}
+ .student-home-village .student-timetable-card>p.muted{flex-direction:row;min-height:48px;gap:8px;margin:0;padding:8px 0;text-align:left}
+ .student-home-village .student-timetable-card>p.muted:before{width:24px;height:22px;border-width:2px;background-position:0 6px}
 }

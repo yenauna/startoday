@@ -86,7 +86,7 @@ assert.equal(await changePassword('wrong','새암호7'),null);
 for(const invalid of ['바람123','12345','바람12','ㄱㄴ123','바람abc123','행복!123','ab1','!!!!'])await assert.rejects(changePassword('바람123',invalid),/INVALID_STUDENT_PASSWORD/);
 const teacherRevision=revision;
 let view=await changePassword('바람123','별빛123');
-assert.equal(view.mustChangePassword,false);assert.equal(view.student.name,'가상학생');assert.equal(view.praise.length,2);assert.equal(view.score.total,1);assert.equal(view.tasks.find(t=>t.date===day&&t.title==='연산').status,'완료');assert.equal(view.routines[0].status,'면제');assert.equal(view.timetable[0].location,'우리 교실');assert.equal(view.timetable[0].privateMemo,'당일 공개 수업 안내');assert(!JSON.stringify(view.calendar).includes('당일 공개 수업 안내'));assert.equal(view.timetable[0].publicMemo,'[준비물] 태블릿\n15분에 이동');assert(view.calendar.assignments.some(a=>a.id==='a1'));assert(view.calendar.states.some(s=>s.status==='완료'));assert(view.calendar.states.every(state=>!Object.hasOwn(state,'memo')));assert.equal(view.tasks.find(t=>t.date===day&&t.title==='연산').memo,'공개 준비물\n교과서');assert.equal(view.tasks.find(t=>t.date===day&&t.title==='연산').checkerName,'2. 다른학생');assert.equal(view.calendar.assignments.find(a=>a.id==='a1').checkerName,'2. 다른학생');assert.equal(view.timetable[0].periodTime,config.periodTimes[0]);assert(view.calendar.assignments.some(a=>a.id==='future-own'));assert(!JSON.stringify(view).includes('OTHER_TASK_SECRET'));assert(!JSON.stringify(view).includes('PRIVATE_ASSIGNMENT'));assert(!JSON.stringify(view).includes('PRIVATE_EVENT'));assert(view.calendar.events.some(e=>e.title==='운동회'));assert(view.calendar.events.some(e=>e.title==='개학식'));assert(view.calendar.events.some(e=>e.title==='자율휴업일'));assert.equal(view.timetable[0].color,'#E8F4F0');assert.equal(view.timetable[0].accentColor,'#20604A');assert.equal(view.timetable[0].colorSource,'custom');
+assert.equal(view.mustChangePassword,false);assert.equal(view.student.name,'가상학생');assert.equal(view.praise.length,2);assert.equal(view.score.total,1);assert.equal(view.tasks.find(t=>t.date===day&&t.title==='연산').status,'완료');assert.equal(view.routines[0].status,'면제');assert.equal(view.timetable[0].location,'우리 교실');assert(view.timetable.every(slot=>!Object.hasOwn(slot,'privateMemo')));assert(!JSON.stringify(view).includes('당일 공개 수업 안내'));assert(!JSON.stringify(view.calendar).includes('당일 공개 수업 안내'));assert.equal(view.timetable[0].publicMemo,'[준비물] 태블릿\n15분에 이동');assert(view.calendar.assignments.some(a=>a.id==='a1'));assert(view.calendar.states.some(s=>s.status==='완료'));assert(view.calendar.states.every(state=>!Object.hasOwn(state,'memo')));assert.equal(view.tasks.find(t=>t.date===day&&t.title==='연산').memo,'공개 준비물\n교과서');assert.equal(view.tasks.find(t=>t.date===day&&t.title==='연산').checkerName,'2. 다른학생');assert.equal(view.calendar.assignments.find(a=>a.id==='a1').checkerName,'2. 다른학생');assert.equal(view.timetable[0].periodTime,config.periodTimes[0]);assert(view.calendar.assignments.some(a=>a.id==='future-own'));assert(!JSON.stringify(view).includes('OTHER_TASK_SECRET'));assert(!JSON.stringify(view).includes('PRIVATE_ASSIGNMENT'));assert(!JSON.stringify(view).includes('PRIVATE_EVENT'));assert(view.calendar.events.some(e=>e.title==='운동회'));assert(view.calendar.events.some(e=>e.title==='개학식'));assert(view.calendar.events.some(e=>e.title==='자율휴업일'));assert.equal(view.timetable[0].color,'#E8F4F0');assert.equal(view.timetable[0].accentColor,'#20604A');assert.equal(view.timetable[0].colorSource,'custom');
 for(const hidden of ['SECRET_ADVICE','SECRET_TASK_MEMO','SECRET_ROUTINE_MEMO','PRIVATE_ACTION','OTHER_STUDENT','owner_id','password','바람123','별빛123'])assert(!JSON.stringify(view).includes(hidden));
 assert.equal(await schoolLogin('바람123'),null);assert.equal((await schoolLogin('별빛123')).student.id,'s1');
 await assert.rejects(pg.query('select * from public.startoday_student_login_attempts'),/permission denied/);
@@ -231,21 +231,27 @@ await pg.exec('reset role');
 const otherStudentView=(await pg.query('select public.startoday_student_payload($1,$2) as data',[classId,'s2'])).rows[0].data;
 assert(!otherStudentView.tasks.some(t=>t.id===datedQuest.id));
 console.log('PASS: 장기과제 항목별 완료일 JSONB 저장·보존·해제 및 학생 응답·타학생 격리');
-// Three memo scopes: only memo1 is ever present in the student calendar.
+// Private timetable memos stay stored for teachers but never enter student payloads.
 await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
 const memoDays=[C.addDays(day,-1),day,C.addDays(day,1)];
 await commit(memoDays.map((date,i)=>({table:'timetables',id:'memo32-'+i,data:{id:'memo32-'+i,date,period:3,subjectCode:'국어',memo:'LEGACY32',publicMemo:'PUBLIC32-'+i,privateMemo:'SAME_DAY32-'+i,teacherMemo:'TEACHER32-'+i}})));
-snap=await snapshot();revision=Number(snap.revision);assert.equal(snap.data.timetables.find(t=>t.id==='memo32-1').teacherMemo,'TEACHER32-1');
+snap=await snapshot();revision=Number(snap.revision);
+for(const [i,date] of memoDays.entries()){
+ const stored=snap.data.timetables.find(t=>t.id==='memo32-'+i);
+ assert.equal(stored.date,date);assert.equal(stored.publicMemo,'PUBLIC32-'+i);
+ assert.equal(stored.privateMemo,'SAME_DAY32-'+i);assert.equal(stored.teacherMemo,'TEACHER32-'+i);
+}
 await pg.exec('set role anon');const memoView=await schoolLogin('새암호123');
 assert(!JSON.stringify(memoView).includes('TEACHER32'));
-assert.equal(memoView.timetable.find(t=>t.period===3).privateMemo,'SAME_DAY32-1');
+assert(memoView.timetable.every(slot=>!Object.hasOwn(slot,'privateMemo')));
+assert(!JSON.stringify(memoView).includes('SAME_DAY32'));
 assert.equal(memoView.timetable.find(t=>t.period===3).publicMemo,'PUBLIC32-1');
 for(const [i,date] of memoDays.entries()){
  const slot=memoView.calendar.timetables.find(t=>t.date===date&&t.period===3);assert.equal(slot.publicMemo,'PUBLIC32-'+i);
  assert.deepEqual(Object.keys(slot).sort(),['date','period','publicMemo','subject']);
 }
 assert(!JSON.stringify(memoView.calendar).includes('SAME_DAY32'));
-console.log('PASS: 교사 메모3 저장, 학생 당일 메모1·2, 학생 달력 과거·오늘·미래 메모1 전용, 메모2·3 비노출');
+console.log('PASS: 교사 메모2·3 저장 보존, 학생 오늘·달력 과거·오늘·미래 응답에 privateMemo 키·내용 미포함, 메모1 유지');
 // Avatar RPCs authenticate the student and use only the server catalogue/prices.
 await pg.exec('set role authenticated');await asUser(owner);
 await pg.query('select public.startoday_economy_action($1,$2,$3,null,$4,$5)',[classId,'s1','adjust',1000,'아바타 검증']);

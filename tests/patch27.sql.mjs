@@ -28,7 +28,17 @@ await commit([{table:'assignments',id:q.id,data:q}]);await commit(C.questStampOp
 await identity(other);await assert.rejects(action('undo_gift',gift.transactionId),/FORBIDDEN/);
 await pg.exec('set role anon');await identity('');await assert.rejects(action('undo_gift',gift.transactionId),/permission denied/);
 const view=(await pg.query('select public.startoday_student_login($1,$2,$3,$4,$5) as data',['정돈초등학교','5','1',1,'나만암호7'])).rows[0].data;
-assert.equal(view.timetable.length,1);assert.equal(view.timetable[0].privateMemo,'날짜 메모 0');assert.ok(!JSON.stringify(view).includes('날짜 메모 -1'));assert.ok(!JSON.stringify(view).includes('날짜 메모 1'));assert.ok(!JSON.stringify(view.calendar).includes('날짜 메모'));assert.ok(!view.tasks.some(t=>t.id===q.id));
+assert.equal(view.timetable.length,1);assert.equal(view.timetable[0].publicMemo,'공개 준비물');
+assert.ok(view.timetable.every(slot=>!Object.hasOwn(slot,'privateMemo')));
+assert.ok(view.calendar.timetables.every(slot=>!Object.hasOwn(slot,'privateMemo')));
+assert.ok(!JSON.stringify(view).includes('날짜 메모'));
+assert.ok(!view.tasks.some(t=>t.id===q.id));
+await pg.exec('set role authenticated');await identity(owner);
+const storedSlots=(await snap()).data.timetables;
+for(const [index,offset] of [[0,-1],[1,0],[2,1]]){
+ const slot=storedSlots.find(t=>t.id==='slot'+index);
+ assert.equal(slot.publicMemo,'공개 준비물');assert.equal(slot.privateMemo,'날짜 메모 '+offset);
+}
 await pg.exec('reset role');await pg.exec(schema);
-console.log('PASS: exact gift ID, atomic five-second undo/repeated/expired/used gift guards, ownership, project cleanup/permanent reward and same-day memo response boundaries');
+console.log('PASS: exact gift ID, atomic five-second undo/repeated/expired/used gift guards, ownership, project cleanup/permanent reward and private memo payload omission and stored memo preservation');
 }finally{await pg.close();}
