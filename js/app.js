@@ -1,3 +1,4 @@
+import { captureSelectionMotion, animateSelectionMotion, clearSelectionMotion } from './shared/selection-motion.js';
 import { clearTitleUnlock, syncTitleUnlock } from './components/title-unlock.js';
 import { economyView, syncGroupBuyDialog } from './tabs/economy.js';
 import { setupPwa } from './shared/pwa.js';
@@ -48,8 +49,9 @@ let lastStudentScrollKey = null;
 export function render() {
   syncToolsVisibility();
   // 잠금이 걸린 화면은 새로고침 뒤에도 풀리지 않는다.
-  if (state.locked) return;
+  if (state.locked) {clearSelectionMotion();return;}
   if (state.studentPasswordPending || state.viewMode === 'student' || state.studentUser || state.impersonatingStudentId) {
+    clearSelectionMotion();
     document.title = '학생 화면 · 오늘의 별';
     state.actions.clear();
     document.querySelector('.print-root')?.remove();
@@ -71,6 +73,7 @@ export function render() {
   document.querySelector('.print-root')?.remove();
   document.body.classList.remove('report-open');
   if (!db()) {
+    clearSelectionMotion();
     document.title = '오늘의 별';
     renderLogin();
     return;
@@ -80,8 +83,10 @@ export function render() {
     return;
   }
   document.title = state.tab === '통계' ? '통계 · 오늘의 별' : '오늘의 별';
+  const selectionBefore = captureSelectionMotion();
   $('#app').innerHTML = renderShell(renderTab);
   bindQuickInput();
+  animateSelectionMotion(selectionBefore);
   bindTimetableDrag();
   syncGroupBuyDialog();
 }
