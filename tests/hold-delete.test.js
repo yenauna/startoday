@@ -31,11 +31,11 @@ test('keyboard release, blur, pointer cancellation and removed controls never co
  const f=fixture();f.emit('keydown',{key:'Enter',repeat:false});f.advance(20);f.emit('keyup',{key:'Enter'});f.advance(400);assert.equal(f.frames.size,0);assert.equal(f.confirmed(),0);
  f.emit('pointerdown');f.advance(10);f.btn.isConnected=false;f.advance(1);assert.equal(f.frames.size,0);assert.equal(f.confirmed(),0);
 });
-test('holding lifts the compact control at 1.3x and releases its elevated layer',()=>{
+test('holding grows the compact control to 1.4x, lifts it clear and releases its layer',()=>{
  const f=fixture();f.emit('pointerdown');f.advance(40);
  const scale=Number(f.btn.style.transform.match(/scale\(([^)]+)\)/)[1]);
  const y=Number(f.btn.style.transform.match(/translateY\(([^p]+)px\)/)[1]);
- assert(Math.abs(scale-1.3)<.02);assert(Math.abs(y+4)<.3);assert.equal(f.btn.style.zIndex,'20');
+ assert(Math.abs(scale-1.4)<.02);assert(Math.abs(y+8)<.3);assert.equal(f.btn.style.zIndex,'20');
  f.emit('pointerup');f.advance(400);assert.equal(f.btn.style.zIndex,'');assert.equal(f.btn.style.transform,'');
 });
 

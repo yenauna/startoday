@@ -41,7 +41,7 @@ try{
    else{await page.mouse.move(r.x+r.width/2,r.y+r.height/2);await page.mouse.down();await page.waitForTimeout(ms);await waitForFill();await page.mouse.up();}
   };
   const manual=record('hold-manual').getByRole('button',{name:'삭제',exact:true});
-  const size=await manual.boundingBox();assert.equal(await manual.locator('.label.base').innerText(),'삭제');
+  const size=await manual.boundingBox();assert.equal(await manual.locator('.hold-glyph.base svg').count(),1);assert.equal(await manual.locator('.hold-glyph.invert svg').count(),1);assert.equal(size.width,38);assert.equal(size.height,38);
   await manual.click();await page.waitForTimeout(500);assert((await getDb()).records.some(r=>r.id==='hold-manual'));
   await press(manual,400);assert((await getDb()).records.some(r=>r.id==='hold-manual'));await page.waitForTimeout(1800);
   await page.waitForFunction(e=>e.style.transform===''&&e.querySelector('.fill').style.width==='0px',await manual.elementHandle(),{timeout:4000});

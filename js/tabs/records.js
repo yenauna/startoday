@@ -1,4 +1,5 @@
 import { attachHoldDelete } from '../shared/hold-delete.js';
+import { actionIcon } from '../components/economy-action.js';
 import { render } from '../app.js';
 import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
@@ -162,20 +163,35 @@ function recordCreatedTime(r) {
   const modified = r.updatedAt && Number.isFinite(updated.getTime()) && updated - created >= 60000;
   return `<time class="record-created-time" datetime="${esc(r.createdAt)}" title="최초 작성 ${esc(C.formatTimestamp(r.createdAt))}">작성 ${esc(format(created))}</time>${modified ? ` / <time class="record-updated-time" datetime="${esc(r.updatedAt)}" title="최근 수정 ${esc(C.formatTimestamp(r.updatedAt))}">수정 ${esc(format(updated))}</time>` : ''}`;
 }
+// Record cards use the same 38px circular tooltip control as the shop: pencil for
+// edit, bin for delete. The bin keeps its 1.2s hold, and only the hold itself grows
+// the circle and sweeps the rose fill from left to right.
+function recordActionLabel(label) {
+  return `<span class="tooltip" aria-hidden="true">${label}</span><span class="economy-action-label" aria-hidden="true">${label}</span>`;
+}
+function recordEditAction(fn, disabled) {
+  const markup = actionIcon('edit') + recordActionLabel('수정');
+  return `<span class="economy-action economy-action-edit record-icon-action">${btn(markup, fn, 'record-edit economy-icon-button', `aria-label="수정" ${disabled ? 'disabled' : ''}`)}</span>`;
+}
 function holdRecordDelete(record) {
   const id='hold-record-'+String(++state.actionNo);
   setTimeout(()=>{
     const button=document.getElementById(id);
     if(button)attachHoldDelete(button,()=>run(()=>requestRecordDeletion(record,{target:button})));
   },0);
-  return `<button type="button" id="${id}" class="record-delete hold-delete" aria-label="삭제" aria-description="1.2초 동안 누르면 삭제됩니다. 5초 안에 실행 취소할 수 있습니다." ${recordDeletions.has(record.id)?'disabled':''}><span class="label base">삭제</span><span class="fill"></span><span class="label top" aria-hidden="true">삭제</span></button>`;
+  const glyph=actionIcon('delete');
+  return `<span class="economy-action economy-action-delete record-icon-action"><button type="button" id="${id}" class="record-delete hold-delete economy-icon-button" aria-label="삭제" aria-description="1.2초 동안 누르면 삭제됩니다. 5초 안에 실행 취소할 수 있습니다." ${recordDeletions.has(record.id)?'disabled':''}><span class="hold-fill" aria-hidden="true"><span class="fill"></span></span><span class="hold-glyph base" aria-hidden="true">${glyph}</span><span class="hold-glyph invert" aria-hidden="true">${glyph}</span>${recordActionLabel('삭제')}</button></span>`;
 }
 export function recordCard(r, controls = true, detail = false) {
-  return `<article data-record-id="${esc(r.id)}" class="record ${recordDeletions.has(r.id) ? 'is-deleting' : ''} ${detail ? 'detail-record' : ''} ${r.kind === '칭찬' ? 'praise' : r.kind === '지도' ? 'advice' : r.kind === '관찰' ? 'observation' : ''} ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><div class="record-head"><div class="row record-meta"><strong>${esc(r.studentIds.map(name).join(', '))}</strong>${['칭찬', '지도'].includes(r.kind) ? '' : badge(C.recordLabel(r))}<small>${esc(C.formatDate(r.date))}${C.recordPeriod(r.period) ? ' ' + esc(C.recordPeriod(r.period)) : ''}</small>${recordCreatedTime(r)}${r.kind === '추가기록' ? badge(r.printIncluded ? '인쇄 포함' : '비공개') : ''}${r.notified ? badge('가정 통보') : ''}</div>${controls ? `<div class="row record-controls">${r.autoRef ? btn('수정', () => {
-    const state = db().assignmentStates.find(s => s.id === r.autoRef),
-      a = db().assignments.find(a => a.id === state?.assignmentId);
-    if (a) taskStateEditor(a, state.date, state.studentId);
-  }, 'record-edit', recordDeletions.has(r.id) ? 'disabled' : '') : btn('수정', () => recordEditor(r, true), 'record-edit', recordDeletions.has(r.id) ? 'disabled' : '')}${holdRecordDelete(r)}${r.incidentId ? btn('사건 보기', () => incidentDetail(r.incidentId)) : ''}</div>` : ''}</div><div class="record-content-line">${C.recordAreas(r).map(badge).join('')}<span class="body">${esc(r.text)}</span></div>${r.action ? `<div class="action">지도 내용 · ${esc(r.action)}</div>` : ''}</article>`;
+  return `<article data-record-id="${esc(r.id)}" class="record ${recordDeletions.has(r.id) ? 'is-deleting' : ''} ${detail ? 'detail-record' : ''} ${r.kind === '칭찬' ? 'praise' : r.kind === '지도' ? 'advice' : r.kind === '관찰' ? 'observation' : ''} ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><div class="record-head"><div class="row record-meta"><strong>${esc(r.studentIds.map(name).join(', '))}</strong>${['칭찬', '지도'].includes(r.kind) ? '' : badge(C.recordLabel(r))}<small>${esc(C.formatDate(r.date))}${C.recordPeriod(r.period) ? ' ' + esc(C.recordPeriod(r.period)) : ''}</small>${recordCreatedTime(r)}${r.kind === '추가기록' ? badge(r.printIncluded ? '인쇄 포함' : '비공개') : ''}${r.notified ? badge('가정 통보') : ''}</div>${controls ? `<div class="row record-controls">${recordEditAction(() => {
+    if (r.autoRef) {
+      const state = db().assignmentStates.find(s => s.id === r.autoRef),
+        a = db().assignments.find(a => a.id === state?.assignmentId);
+      if (a) taskStateEditor(a, state.date, state.studentId);
+      return;
+    }
+    recordEditor(r, true);
+  }, recordDeletions.has(r.id))}${holdRecordDelete(r)}${r.incidentId ? btn('사건 보기', () => incidentDetail(r.incidentId)) : ''}</div>` : ''}</div><div class="record-content-line">${C.recordAreas(r).map(badge).join('')}<span class="body">${esc(r.text)}</span></div>${r.action ? `<div class="action">지도 내용 · ${esc(r.action)}</div>` : ''}</article>`;
 }
 export function recordsView() {
   const f = state.recordFilters,

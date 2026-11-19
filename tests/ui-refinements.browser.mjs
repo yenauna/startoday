@@ -38,14 +38,27 @@ try{
   await page.locator('#quick-cancel').click();
   await page.evaluate(async()=>(await import('/js/app.js')).navigate('기록'));
   const hold=page.locator('[data-record-id="ui-record"] .hold-delete');await hold.waitFor();await hold.scrollIntoViewIfNeeded();
-  assert.equal(await hold.evaluate(e=>getComputedStyle(e).borderRadius),'999px');assert.equal(await hold.evaluate(e=>getComputedStyle(e).borderWidth),'1px');
-  assert.equal(await hold.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 255, 255)');
-  const dims=await hold.boundingBox();assert(dims.width>=58&&dims.height>=30);
-  const labels=await hold.locator('.label').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};}));assert.deepEqual(labels[0],labels[1]);
+  const edit=page.locator('[data-record-id="ui-record"] .record-edit');
+  assert.equal(await hold.evaluate(e=>getComputedStyle(e).borderRadius),'50%');assert.equal(await hold.evaluate(e=>getComputedStyle(e).borderWidth),'0px');
+  assert.equal(await hold.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(249, 234, 240)');
+  assert.equal(await hold.evaluate(e=>getComputedStyle(e).color),'rgb(137, 80, 104)');
+  assert.equal(await edit.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(241, 245, 249)');
+  const dims=await hold.boundingBox(),editDims=await edit.boundingBox();
+  assert.equal(dims.width,38);assert.equal(dims.height,38);assert.equal(editDims.width,dims.width);assert.equal(editDims.height,dims.height);
+  assert.equal(await edit.locator('svg').count(),1);assert.equal(await hold.locator('.hold-glyph.base svg').count(),1);assert.equal(await hold.locator('.hold-glyph.invert svg').count(),1);
+  for(const button of [hold,edit])assert.equal(await button.locator('.tooltip').textContent(),await button.getAttribute('aria-label'));
+  assert.equal(await hold.locator('.tooltip').textContent(),'삭제');assert.equal(await edit.locator('.tooltip').textContent(),'수정');
+  const glyphPath=button=>button.locator('svg').first().evaluate(e=>e.firstElementChild.getAttribute('d'));
+  assert.equal(await glyphPath(hold),'M3 6h18 M9 6V3h6v3 M5 6l1 15h12l1-15 M10 10v7 M14 10v7');
+  assert.equal(await glyphPath(edit),'M16 3a2.8 2.8 0 0 1 4 4L7 20l-4 1 1-4L16 3z M14 5l4 4');
+  assert.equal(await hold.locator('.hold-glyph.invert svg').evaluate(e=>e.firstElementChild.getAttribute('d')),await glyphPath(hold));
+  assert.deepEqual(await hold.evaluate(e=>[e.clientWidth,e.clientHeight]),[38,38]);assert.equal(await hold.locator('.hold-fill').evaluate(e=>getComputedStyle(e).borderRadius),'50%');
+  assert.equal(await hold.locator('.hold-glyph.base').evaluate(e=>getComputedStyle(e).color),'rgb(137, 80, 104)');
+  assert.equal(await hold.locator('.hold-glyph.invert').evaluate(e=>getComputedStyle(e).color),'rgb(255, 255, 255)');
   await hold.hover();assert.equal(await hold.evaluate(e=>getComputedStyle(e).transform),'none');
   await hold.dispatchEvent('pointerdown',{button:0,pointerId:7,isPrimary:true,pointerType:touch?'touch':'mouse'});await page.waitForTimeout(650);
   const matrix=await hold.evaluate(e=>{const m=new DOMMatrix(getComputedStyle(e).transform);return{scale:m.a,y:m.f,z:e.style.zIndex};});
-  assert(Math.abs(matrix.scale-1.3)<.02,JSON.stringify(matrix));assert(Math.abs(matrix.y+4)<.3,JSON.stringify(matrix));assert.equal(matrix.z,'20');
+  assert(Math.abs(matrix.scale-1.4)<.02,JSON.stringify(matrix));assert(Math.abs(matrix.y+8)<.3,JSON.stringify(matrix));assert.equal(matrix.z,'20');
   await page.screenshot({path:`/tmp/ui-refinements-hold-${width}.png`});
   await hold.dispatchEvent('pointerup',{pointerId:7});await page.waitForTimeout(2400);
   assert.equal(await hold.evaluate(e=>e.style.transform),'');assert.equal(await hold.evaluate(e=>e.style.zIndex),'');
@@ -72,7 +85,7 @@ try{
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.evaluate(()=>{const input=document.createElement('input');input.type='checkbox';input.id='reduced-checkbox';document.body.append(input);});
   assert.equal(await page.locator('#reduced-checkbox').evaluate(e=>getComputedStyle(e,'::before').transitionDuration),'0s');
-  assert.deepEqual(errors,[]);console.log(`PASS ${width} touch=${touch}: stable composer/name-only pills, squared tabs, aligned 1.3x lifted hold, custom checkboxes/exemptions, cream card and no overflow`);
+  assert.deepEqual(errors,[]);console.log(`PASS ${width} touch=${touch}: stable composer/name-only pills, squared tabs, equal 38px pencil/bin circles and 1.4x lifted hold, custom checkboxes/exemptions, cream card and no overflow`);
   await context.close();
  }
 }finally{await browser?.close();await new Promise(r=>server.close(r));}

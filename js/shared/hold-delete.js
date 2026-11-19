@@ -21,8 +21,10 @@ export function attachHoldDelete(btn, onConfirm) {
   const S=(x,k=400,c=30)=>({x,v:0,t:x,k,c:reduce?2*Math.sqrt(k):c});
   const tune=(s,k,c)=>{s.k=k;s.c=reduce?2*Math.sqrt(k):c;};
   const step=(s,dt)=>{const a=-s.k*(s.x-s.t)-s.c*s.v;s.v+=a*dt;s.x+=s.v*dt;};
-  const fill=btn.querySelector('.fill'),top=btn.querySelector('.label.top');
-  const holdSec=1.2,p=S(0,260,14),sc=S(1,520,20),shake=S(0,700,9);
+  const fill=btn.querySelector('.fill'),top=btn.querySelector('.hold-glyph.invert');
+  // The control keeps its compact size at rest; the press grows it and lifts it
+  // clear of the finger while the rose fill sweeps across the circle.
+  const holdSec=1.2,grow=1.4,lift=8,p=S(0,260,14),sc=S(1,520,20),shake=S(0,700,9);
   let mode='idle',holding=false,raf=0,last=0,pointer=null,key=null;
   const control={stop};
   function resetPaint(){btn.style.transform='';btn.style.zIndex='';fill.style.width='0px';top.style.clipPath='inset(0 100% 0 0)';}
@@ -36,7 +38,7 @@ export function attachHoldDelete(btn, onConfirm) {
       step(sc,sub);step(shake,sub);
     }
     const w=btn.clientWidth??btn.offsetWidth,fw=Math.max(0,p.x)*w;
-    btn.style.transform=`translateX(${shake.x}px) translateY(${-(sc.x-1)/.3*4}px) scale(${sc.x})`;
+    btn.style.transform=`translateX(${shake.x}px) translateY(${-(sc.x-1)/(grow-1)*lift}px) scale(${sc.x})`;
     fill.style.width=fw+'px';top.style.clipPath=`inset(0 ${Math.max(0,w-fw)}px 0 0)`;
     if(mode==='done'){raf=0;active.delete(control);btn.style.transform='';btn.style.zIndex='';return;}
     const settled=!holding && Math.abs(p.x)<.001 && Math.abs(p.v)<.001 && Math.abs(sc.x-1)<.001 && Math.abs(sc.v)<.001 && Math.abs(shake.x)<.05 && Math.abs(shake.v)<.05;
@@ -44,7 +46,7 @@ export function attachHoldDelete(btn, onConfirm) {
     raf=requestAnimationFrame(tick);
   }
   function ensureLoop(){if(!raf){active.add(control);last=performance.now();raf=requestAnimationFrame(tick);}}
-  function start(){if(mode!=='idle'||btn.disabled)return;holding=true;mode='holding';sc.t=1.3;btn.style.zIndex='20';ensureLoop();}
+  function start(){if(mode!=='idle'||btn.disabled)return;holding=true;mode='holding';sc.t=grow;btn.style.zIndex='20';ensureLoop();}
   function stop(){
     if(mode!=='holding')return;
     holding=false;mode='idle';sc.t=1;pointer=null;key=null;
