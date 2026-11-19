@@ -45,6 +45,14 @@ try {
       const observer=new MutationObserver(()=>{if(!e.hasAttribute('aria-busy')){window.revealEnd=performance.now();observer.disconnect();}});
       observer.observe(e,{attributes:true,attributeFilter:['aria-busy']});
       e.click();e.click();
+      window.backTone=getComputedStyle(e).backgroundImage;window.cardOverflow=getComputedStyle(e).overflow;
+      setTimeout(()=>{window.frontTone=getComputedStyle(e).backgroundColor;},400);
+      setTimeout(()=>{
+        const animations=e.getAnimations({subtree:true});
+        animations.forEach(a=>{a.pause();a.currentTime=650;});
+        window.waveWidth=e.querySelector('.card-reveal-wave')?.getBoundingClientRect().width;window.cardWidth=e.offsetWidth;
+        animations.forEach(a=>a.play());
+      },650);
       window.revealAnimations=e.getAnimations({subtree:true}).map(a=>a.effect.getTiming()).map(t=>Number(t.delay)+Number(t.duration));
     });
     await page.waitForFunction(()=>document.querySelector('.tool-draw-card')?.getAttribute('aria-busy')===null);
@@ -52,6 +60,10 @@ try {
     assert(measured>=700 && measured<850,`animation duration ${measured}`);
     assert((await page.evaluate(()=>window.revealAnimations)).every(ms=>ms<=780));
     assert.match(await widget.locator('.tool-remaining').innerText(),/남은 3 \/ 4개/);
+    assert.equal(await page.evaluate(()=>window.cardOverflow),'visible');
+    assert((await page.evaluate(()=>window.backTone)).includes('repeating-linear-gradient'));
+    assert.equal(await page.evaluate(()=>window.frontTone),'rgb(255, 251, 239)');
+    assert(await page.evaluate(()=>window.waveWidth>window.cardWidth));
     assert.equal(await card.locator('.card-reveal-light').count(),0);
     await card.click();
     await page.waitForTimeout(510);
@@ -99,8 +111,10 @@ try {
     });
     const reward=page.locator('.title-unlock-card');
     await reward.waitFor();
+    assert.equal(await reward.evaluate(e=>getComputedStyle(e).animationDuration),'1.5s');
+    assert.equal(await reward.evaluate(e=>getComputedStyle(e).overflow),'visible');
     assert.equal(await reward.locator('.title-unlock-name').innerText(),'✦');
-    await page.waitForTimeout(1840);
+    await page.waitForTimeout(1120);
     await page.screenshot({path:`${shots}/reveal-title-${width}.png`});
     await page.waitForFunction(()=>!document.querySelector('.card-reveal-reward'));
     assert.equal(await reward.locator('.title-unlock-name').innerText(),'지식의 탐색자');
@@ -114,7 +128,7 @@ try {
       state.studentSnapshot.student.rewardTitles=[{id:'quest:test',name:'<img src=x onerror=alert(1)>'}];
       (await import('/js/app.js')).render();
     });
-    await page.waitForTimeout(1640);
+    await page.waitForTimeout(940);
     assert.equal(await reward.locator('img').count(),0);
     assert.match(await reward.innerText(),/<img src=x/);
     // Leaving the student session clears the notification and pending work.

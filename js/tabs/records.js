@@ -1,3 +1,4 @@
+import { attachHoldDelete } from '../shared/hold-delete.js';
 import { render } from '../app.js';
 import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
@@ -161,12 +162,20 @@ function recordCreatedTime(r) {
   const modified = r.updatedAt && Number.isFinite(updated.getTime()) && updated - created >= 60000;
   return `<time class="record-created-time" datetime="${esc(r.createdAt)}" title="최초 작성 ${esc(C.formatTimestamp(r.createdAt))}">작성 ${esc(format(created))}</time>${modified ? ` / <time class="record-updated-time" datetime="${esc(r.updatedAt)}" title="최근 수정 ${esc(C.formatTimestamp(r.updatedAt))}">수정 ${esc(format(updated))}</time>` : ''}`;
 }
+function holdRecordDelete(record) {
+  const id='hold-record-'+String(++state.actionNo);
+  setTimeout(()=>{
+    const button=document.getElementById(id);
+    if(button)attachHoldDelete(button,()=>run(()=>requestRecordDeletion(record,{target:button})));
+  },0);
+  return `<button type="button" id="${id}" class="record-delete hold-delete" aria-label="삭제" aria-description="1.2초 동안 누르면 삭제됩니다. 5초 안에 실행 취소할 수 있습니다." ${recordDeletions.has(record.id)?'disabled':''}><span class="label base">삭제</span><span class="fill"></span><span class="label top" aria-hidden="true">삭제</span></button>`;
+}
 export function recordCard(r, controls = true, detail = false) {
   return `<article data-record-id="${esc(r.id)}" class="record ${recordDeletions.has(r.id) ? 'is-deleting' : ''} ${detail ? 'detail-record' : ''} ${r.kind === '칭찬' ? 'praise' : r.kind === '지도' ? 'advice' : r.kind === '관찰' ? 'observation' : ''} ${r.kind === '추가기록' && r.extraType === '사건' ? 'incident-record' : ''}"><div class="record-head"><div class="row record-meta"><strong>${esc(r.studentIds.map(name).join(', '))}</strong>${['칭찬', '지도'].includes(r.kind) ? '' : badge(C.recordLabel(r))}<small>${esc(C.formatDate(r.date))}${C.recordPeriod(r.period) ? ' ' + esc(C.recordPeriod(r.period)) : ''}</small>${recordCreatedTime(r)}${r.kind === '추가기록' ? badge(r.printIncluded ? '인쇄 포함' : '비공개') : ''}${r.notified ? badge('가정 통보') : ''}</div>${controls ? `<div class="row record-controls">${r.autoRef ? btn('수정', () => {
     const state = db().assignmentStates.find(s => s.id === r.autoRef),
       a = db().assignments.find(a => a.id === state?.assignmentId);
     if (a) taskStateEditor(a, state.date, state.studentId);
-  }, 'record-edit', recordDeletions.has(r.id) ? 'disabled' : '') : btn('수정', () => recordEditor(r, true), 'record-edit', recordDeletions.has(r.id) ? 'disabled' : '')}${btn('삭제', event => requestRecordDeletion(r, event), 'record-delete', recordDeletions.has(r.id) ? 'disabled' : '')}${r.incidentId ? btn('사건 보기', () => incidentDetail(r.incidentId)) : ''}</div>` : ''}</div><div class="record-content-line">${C.recordAreas(r).map(badge).join('')}<span class="body">${esc(r.text)}</span></div>${r.action ? `<div class="action">지도 내용 · ${esc(r.action)}</div>` : ''}</article>`;
+  }, 'record-edit', recordDeletions.has(r.id) ? 'disabled' : '') : btn('수정', () => recordEditor(r, true), 'record-edit', recordDeletions.has(r.id) ? 'disabled' : '')}${holdRecordDelete(r)}${r.incidentId ? btn('사건 보기', () => incidentDetail(r.incidentId)) : ''}</div>` : ''}</div><div class="record-content-line">${C.recordAreas(r).map(badge).join('')}<span class="body">${esc(r.text)}</span></div>${r.action ? `<div class="action">지도 내용 · ${esc(r.action)}</div>` : ''}</article>`;
 }
 export function recordsView() {
   const f = state.recordFilters,
@@ -280,122 +289,56 @@ function removeRecordDeletion(job) {
   if (container && !container.children.length) container.remove();
 }
 async function requestRecordDeletion(record, event) {
-  if (recordDeletions.has(record.id)) return;
-  const current = db().records.find(row => row.id === record.id);
-  if (!current) return;
-  const scope = recordDeletionScope(),
-    fingerprint = JSON.stringify(current);
-  const article = event?.target?.closest?.('article.record');
-  const detail = article?.closest('.student-detail-content');
-  highlightRecord(record.id, true);
-  // Let the target outline paint before opening the blocking confirmation.
-  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  if (scope !== recordDeletionScope()) {
-    highlightRecord(record.id, false);
-    return;
-  }
-  const confirmed = confirm(record.autoRef ? '자동 기록을 삭제하면 연결된 과제를 진행중으로 되돌립니다. 5초 안에 실행취소할 수 있습니다. 계속할까요?' : '이 기록을 삭제할까요? 5초 안에 실행취소할 수 있습니다.');
-  if (!confirmed) {
-    highlightRecord(record.id, false);
-    return;
-  }
-  if (scope !== recordDeletionScope() || JSON.stringify(db().records.find(row => row.id === record.id)) !== fingerprint) {
-    highlightRecord(record.id, false);
-    toast('기록이 변경되었습니다. 다시 확인하세요.');
-    return;
-  }
-  let container = document.querySelector('.record-delete-toasts');
-  if (!container) {
-    container = document.createElement('div');
-    container.className = 'record-delete-toasts';
-    document.body.append(container);
-  }
-  const root = document.createElement('div');
-  root.className = 'record-delete-toast';
-  root.dataset.recordId = record.id;
-  root.setAttribute('role', 'status');
-  const label = document.createElement('span');
-  label.textContent = record.studentIds.map(name).join(', ') + ' · ' + C.recordLabel(record) + ' 삭제 대기 · ' + String(record.text || '').slice(0, 36);
-  const button = document.createElement('button');
-  button.type = 'button';
-  root.append(label, button);
-  container.append(root);
-  const job = {
-    id: record.id,
-    record: structuredClone(current),
-    fingerprint,
-    scope,
-    detail,
-    root,
-    button,
-    deadline: performance.now() + 5000,
-    phase: 'pending',
-    timer: null,
-    retry: null
-  };
-  recordDeletions.set(job.id, job);
-  highlightRecord(job.id, true);
-  button.onclick = () => {
-    if (job.phase === 'pending' && performance.now() < job.deadline) removeRecordDeletion(job);
-  };
-  const tick = () => {
-    if (recordDeletions.get(job.id) !== job) return;
-    if (scope !== recordDeletionScope() || state.locked) {
-      removeRecordDeletion(job);
-      return;
-    }
-    const remaining = Math.ceil((job.deadline - performance.now()) / 1000);
-    if (remaining <= 0) {
-      clearInterval(job.timer);
-      job.phase = 'saving';
-      button.disabled = true;
-      button.textContent = '삭제 저장 중';
-      run(() => finishRecordDeletion(job));
-    } else button.textContent = `↩ 실행취소 (${remaining}초)`;
-  };
-  job.unregister = registerUndo(button, () => job.phase === 'pending' && performance.now() < job.deadline && scope === recordDeletionScope());
-  tick();
-  job.timer = setInterval(tick, 100);
-}
-async function finishRecordDeletion(job) {
-  if (recordDeletions.get(job.id) !== job) return;
-  if (job.scope !== recordDeletionScope() || state.locked) {
-    removeRecordDeletion(job);
-    return;
-  }
-  if (store.busy) {
-    job.retry = setTimeout(() => run(() => finishRecordDeletion(job)), 100);
-    return;
-  }
-  const current = db().records.find(row => row.id === job.id);
-  if (!current) {
-    removeRecordDeletion(job);
-    return;
-  }
-  if (JSON.stringify(current) !== job.fingerprint) {
-    removeRecordDeletion(job);
-    toast('기록이 변경되어 삭제를 취소했습니다.');
-    return;
-  }
-  let ops = [];
-  if (current.autoRef) {
-    const taskState = db().assignmentStates.find(row => row.id === current.autoRef),
-      assignment = db().assignments.find(row => row.id === taskState?.assignmentId);
-    if (taskState && assignment) ops = C.taskStateOps(db(), assignment, taskState.date, taskState.studentId, '진행중', taskState.memo || '');
-  }
-  if (!ops.some(op => op.table === 'records' && op.id === job.id && op.remove)) ops.push({
-    table: 'records',
-    id: job.id,
-    remove: true
-  });
-  try {
-    await commit(ops, '기록을 삭제했습니다.');
-    const detail = job.detail;
-    removeRecordDeletion(job);
-    recordElements(job.id).forEach(el => el.remove());
-    if (detail?.isConnected && $('#modal')?.open) studentDetail(detail.dataset.studentId, detail.dataset.from, detail.dataset.to);
-  } catch (error) {
-    removeRecordDeletion(job);
-    throw error;
-  }
+  if(recordDeletions.has(record.id))return;
+  const current=db().records.find(row=>row.id===record.id);
+  if(!current)return;
+  const scope=recordDeletionScope(), fingerprint=JSON.stringify(current);
+  const detail=event?.target?.closest?.('.student-detail-content');
+  let container=document.querySelector('.record-delete-toasts');
+  if(!container){container=document.createElement('div');container.className='record-delete-toasts';document.body.append(container);}
+  const root=document.createElement('div'),label=document.createElement('span'),button=document.createElement('button');
+  root.className='record-delete-toast';root.dataset.recordId=record.id;root.setAttribute('role','status');
+  label.textContent=record.studentIds.map(name).join(', ')+' · '+C.recordLabel(record)+' 삭제됨 · '+String(record.text||'').slice(0,36);
+  button.type='button';button.textContent='삭제 저장 중';button.disabled=true;root.append(label,button);container.append(root);
+  const job={id:record.id,scope,root,button,detail,phase:'saving',timer:null,retry:null,undoOps:[],after:[]};
+  recordDeletions.set(job.id,job);highlightRecord(job.id,true);
+  try{
+    await commit(latest=>{
+      if(scope!==recordDeletionScope()||state.locked||JSON.stringify(latest.records.find(row=>row.id===record.id))!==fingerprint)throw Error('기록이 변경되었습니다. 다시 확인하세요.');
+      let ops=[];
+      if(current.autoRef){
+        const taskState=latest.assignmentStates.find(row=>row.id===current.autoRef),assignment=latest.assignments.find(row=>row.id===taskState?.assignmentId);
+        if(taskState&&assignment)ops=C.taskStateOps(latest,assignment,taskState.date,taskState.studentId,'진행중',taskState.memo||'');
+      }
+      if(!ops.some(op=>op.table==='records'&&op.id===record.id&&op.remove))ops.push({table:'records',id:record.id,remove:true});
+      job.undoOps=ops.map(op=>{const old=latest[op.table].find(row=>row.id===op.id);return old?{table:op.table,id:op.id,data:structuredClone(old)}:{table:op.table,id:op.id,remove:true};});
+      return ops;
+    },'기록을 삭제했습니다.');
+    if(scope!==recordDeletionScope()||state.locked){removeRecordDeletion(job);return;}
+    job.after=job.undoOps.map(op=>({table:op.table,id:op.id,value:JSON.stringify(db()[op.table].find(row=>row.id===op.id))}));
+    job.phase='undoable';job.deadline=performance.now()+5000;button.disabled=false;
+    const refreshDetail=()=>{const active=document.querySelector('.student-detail-content');if(detail&&active?.dataset.studentId===detail.dataset.studentId&&$('#modal')?.open)studentDetail(detail.dataset.studentId,detail.dataset.from,detail.dataset.to);};
+    refreshDetail();
+    button.onclick=()=>run(async()=>{
+      if(job.phase!=='undoable'||performance.now()>=job.deadline||scope!==recordDeletionScope()||state.locked)return;
+      job.phase='restoring';button.disabled=true;
+      try{
+        await commit(latest=>{
+          if(scope!==recordDeletionScope()||state.locked)throw Error('화면이 변경되어 실행 취소할 수 없습니다.');
+          if(job.after.some(op=>JSON.stringify(latest[op.table].find(row=>row.id===op.id))!==op.value))throw Error('연결된 기록이나 과제가 변경되어 실행 취소할 수 없습니다.');
+          return job.undoOps;
+        },'삭제를 실행 취소했습니다.');
+        removeRecordDeletion(job);refreshDetail();
+      }catch(error){removeRecordDeletion(job);throw error;}
+    });
+    job.unregister=registerUndo(button,()=>job.phase==='undoable'&&performance.now()<job.deadline&&scope===recordDeletionScope());
+    const tick=()=>{
+      if(scope!==recordDeletionScope()||state.locked){removeRecordDeletion(job);return;}
+      if(job.phase!=='undoable')return;
+      const remaining=Math.ceil((job.deadline-performance.now())/1000);
+      if(remaining<=0){removeRecordDeletion(job);return;}
+      button.textContent=`↩ 실행취소 (${remaining}초)`;
+    };
+    tick();job.timer=setInterval(tick,100);
+  }catch(error){removeRecordDeletion(job);render();throw error;}
 }
