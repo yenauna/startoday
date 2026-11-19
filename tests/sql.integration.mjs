@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import * as C from '../js/core.js';
 const require=createRequire(import.meta.url);
 const {PGlite}=require(process.env.PGLITE_MODULE||'@electric-sql/pglite');
-const pg=new PGlite();
+const {pgcrypto}=require('@electric-sql/pglite/contrib/pgcrypto');
+const pg=new PGlite({extensions:{pgcrypto}});
 await pg.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;grant usage on schema auth to authenticated;grant execute on function auth.uid() to authenticated;`);
 const schema=await readFile(new URL('../schema.sql',import.meta.url),'utf8');
 // Start with the pre-areas schema, then migrate a populated class in place.
@@ -200,7 +201,8 @@ console.log('PASS: 학습 구 이름/중복 영역 마이그레이션, 커스텀
 await pg.exec('set role anon');async function nicknameSet(nickname,no=1,password='새암호123'){return(await pg.query('select public.startoday_student_nickname_set($1,$2,$3,$4,$5,$6) as data',['NEIS001','5','오',no,password,nickname])).rows[0].data;}
 for(const name of ['','영문a','별 명','별!','별1','ㄱ','가나다라마바사아자'])assert.equal(await nicknameSet(name),null);assert.equal(await nicknameSet('별님',1,'틀린암호123'),null);assert.equal(await nicknameSet('별님',2,'행복한5반'),null);
 let nicknameResult=await nicknameSet('반짝별');assert.equal(nicknameResult.snapshot.student.nickname,'반짝별');assert.equal((await schoolLogin('새암호123')).student.nickname,'반짝별');assert(!JSON.stringify(nicknameResult).includes('password'));
-await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);assert.equal(snap.data.students.find(s=>s.id==='s1').password,'새암호123');assert(!snap.data.students.find(s=>s.id==='s2').nickname);
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);assert(!snap.data.students.some(s=>'password' in s||'passwordHash' in s));assert(!JSON.stringify(snap.data).includes('새암호123'));assert(!/\$2[aby]\$/.test(JSON.stringify(snap.data)));assert(!snap.data.students.find(s=>s.id==='s2').nickname);
+await pg.exec('reset role');assert.equal((await pg.query("select count(*)::int as n from public.startoday_student_secrets where student_id='s1' and password_hash ~ '^\\$2[aby]\\$' and not must_change")).rows[0].n,1);await pg.exec('set role authenticated');await asUser(owner);assert(!snap.data.students.find(s=>s.id==='s2').nickname);
 const quest={id:'long-quest',title:'독서 원정',date:C.addDays(day,-2),repeat:{type:'none'},target:{studentIds:['s1']},isQuest:true,questGoal:3,questTitle:'책의 탐험가',statArea:'과제',checkerStudentId:'s1'};await commit([{table:'assignments',id:quest.id,data:quest}]);
 for(let n=1;n<=3;n++){snap=await snapshot();revision=Number(snap.revision);await commit(C.questStampOps(snap.data,quest,day,'s1',1));}
 snap=await snapshot();revision=Number(snap.revision);assert.equal(snap.data.assignmentStates.find(s=>s.assignmentId===quest.id).stamps,3);assert.equal(snap.data.records.find(r=>r.autoRef===C.stateId(quest.id,quest.date,'s1')).date,day);assert.equal(snap.data.students.find(s=>s.id==='s1').rewardTitles.filter(t=>t.id==='quest:'+quest.id).length,1);
@@ -319,4 +321,49 @@ await pg.exec('set role authenticated');await asUser(other);assert.equal((await 
 await asUser(owner);snap=await snapshot();revision=Number(snap.revision);const response=snap.data.survey_responses[0];assert.equal(response.placements[0].x,83.4567);assert.equal(response.placements[0].reason,'교사만 보는 이유');await commit([{table:'survey_responses',id:response.id,data:response}]);await commit([{table:'surveys',id:surveyId,remove:true},{table:'surveys',id:surveyId,data:snap.data.surveys.find(s=>s.id===surveyId)},{table:'survey_responses',id:response.id,remove:true},{table:'survey_responses',id:response.id,data:response}]);assert.equal((await snapshot()).data.survey_responses.length,1);
 await commit(C.surveyCloseOps(snap.data,surveyId));await pg.exec('set role anon');assert.equal((await schoolLogin('새암호123')).survey,null);await assert.rejects(submitSurvey(),/SURVEY_CLOSED/);
 console.log('PASS: 설문 회차/RLS, 잘못된 인증·대상·좌표·누락 차단, 1회 제출, 소수 좌표/이유 보존, 학생 결과 비노출, 교사 전용 조회 및 마감');
+// M2: student passwords are bcrypt hashes; legacy plaintext upgrades on login and in migration.
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
+await commit([{table:'students',id:'legacy-hash',data:{id:'legacy-hash',no:7,name:'옛학생',passwordChanged:true,password:'옛날암호7'}},{table:'students',id:'legacy-reset',data:{id:'legacy-reset',no:8,name:'초기학생',password:'예전암호8',passwordChanged:false,passwordResetRequired:true}},{table:'students',id:'legacy-invalid',data:{id:'legacy-invalid',no:9,name:'영문학생',passwordChanged:true,password:'Start77'}}]);
+await pg.exec('reset role');
+assert.equal((await pg.query("select count(*)::int as n from public.startoday_students where data ? 'password'")).rows[0].n,0);
+assert.equal((await pg.query("select count(*)::int as n from public.startoday_student_secrets where class_id=$1 and password_hash ~ '^\\$2[aby]\\$' and student_id in ('legacy-hash','legacy-invalid')",[classId])).rows[0].n,2);
+assert.equal((await pg.query("select count(*)::int as n from public.startoday_student_secrets where class_id=$1 and student_id='legacy-reset'",[classId])).rows[0].n,0);
+// Put an unmigrated plaintext row back the way older versions stored it, then reapply schema.sql.
+await pg.query("update public.startoday_students set data=data||'{\"password\":\"옛날암호7\",\"passwordChanged\":true}'::jsonb where class_id=$1 and id='legacy-hash'",[classId]);
+await pg.query('delete from public.startoday_student_secrets where class_id=$1 and student_id=$2',[classId,'legacy-hash']);
+await pg.exec(schema);
+assert.equal((await pg.query("select count(*)::int as n from public.startoday_students where data ? 'password'")).rows[0].n,0);
+assert.equal((await pg.query("select count(*)::int as n from public.startoday_student_secrets where class_id=$1 and student_id='legacy-hash' and password_hash ~ '^\\$2[aby]\\$'",[classId])).rows[0].n,1);
+// Old plaintext keeps working after the hash upgrade; a reset row follows the current class initial.
+await pg.exec('set role anon');
+async function legacyLogin(no,password){return (await pg.query('select public.startoday_student_login($1,$2,$3,$4,$5) as data',['NEIS001','5','오',no,password])).rows[0].data;}
+async function changePasswordFor(no,oldPassword,newPassword){const r=await pg.query('select public.startoday_student_change_password($1,$2,$3,$4,$5,$6) as data',['NEIS001','5','오',no,oldPassword,newPassword]);return r.rows[0].data;}
+assert.equal((await legacyLogin(7,'옛날암호7')).student.id,'legacy-hash');
+assert.equal((await legacyLogin(7,'틀린암호7')),null);
+assert.deepEqual(await legacyLogin(8,'예전암호8'),null);
+assert.deepEqual(await legacyLogin(8,'행복한5반'),{mustChangePassword:true});
+// Old English passwords are rejected at input and stay locked until the teacher resets them.
+assert.equal(await legacyLogin(9,'Start77'),null);
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
+await commit([{table:'students',id:'legacy-invalid',data:{...snap.data.students.find(s=>s.id==='legacy-invalid'),password:'행복한5반',passwordChanged:false,passwordResetRequired:true}}]);
+await pg.exec('reset role');
+assert.equal((await pg.query("select count(*)::int as n from public.startoday_student_secrets where class_id=$1 and student_id='legacy-invalid'",[classId])).rows[0].n,0);
+await pg.exec('set role anon');
+assert.deepEqual(await legacyLogin(9,'행복한5반'),{mustChangePassword:true});
+// A changed password is stored only as a hash and invalidates the previous one.
+assert.equal((await changePasswordFor(9,'행복한5반','새별123')).student.id,'legacy-invalid');
+await pg.exec('reset role');
+const stored=(await pg.query("select password_hash,must_change from public.startoday_student_secrets where class_id=$1 and student_id='legacy-invalid'",[classId])).rows[0];
+assert(/^\$2[aby]\$/.test(stored.password_hash));assert.equal(stored.must_change,false);
+assert(!stored.password_hash.includes('새별123'));
+await pg.exec('set role anon');assert.equal(await legacyLogin(9,'행복한5반'),null);assert.equal((await legacyLogin(9,'새별123')).student.id,'legacy-invalid');
+// No teacher-readable path exposes a hash or a plaintext password, including backups.
+await pg.exec('set role authenticated');await asUser(owner);
+await assert.rejects(pg.query('select * from public.startoday_student_secrets'),/permission denied/);
+await pg.query('select public.startoday_backup($1)',[classId]);
+const backup=(await pg.query('select data from public.startoday_backups where class_id=$1 order by created_at desc limit 1',[classId])).rows[0].data;
+assert(!JSON.stringify(backup).includes('옛날암호7'));assert(!JSON.stringify(backup).includes('새별123'));assert(!/\$2[aby]\$/.test(JSON.stringify(backup)));assert(!backup.data.students.some(s=>'password' in s||'passwordHash' in s));
+await pg.exec('set role anon');await assert.rejects(pg.query('select * from public.startoday_student_secrets'),/permission denied/);
+await assert.rejects(pg.query('select public.startoday_password_hash($1)',['바람123']),/permission denied/);
+console.log('PASS: 학생 비밀번호 bcrypt 저장·레거시 평문 로그인 호환·일괄/로그인 시 마이그레이션·초기화 유지·스냅샷/백업 비노출');
 await pg.close();

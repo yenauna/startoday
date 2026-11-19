@@ -1,5 +1,7 @@
 -- 오늘의 별 1단계 / Supabase SQL Editor에서 전체 실행
 begin;
+-- Student passwords are stored as bcrypt hashes outside the snapshot JSONB.
+create extension if not exists pgcrypto;
 create table if not exists public.startoday_classes (
  id uuid primary key default gen_random_uuid(), owner_id uuid not null default auth.uid() references auth.users(id),
  revision bigint not null default 0, created_at timestamptz not null default now(), unique(owner_id)
@@ -163,7 +165,12 @@ begin
  -- 공유 잠금으로 여러 테이블 읽기 도중 다른 기기가 수정하지 못하게 합니다.
  perform 1 from public.startoday_classes where id=c.id for share;
  foreach t in array array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx','group_buy_contribs','surveys','survey_responses'] loop
+ -- Credentials never leave the database, not even as a hash, in a teacher snapshot or backup.
+ if t='students' then
+ execute format('select coalesce(jsonb_agg(data-''password''-''passwordHash''),''[]''::jsonb) from public.%I where class_id=$1 and owner_id=$2','startoday_'||t) into rows using c.id,auth.uid();
+ else
  execute format('select coalesce(jsonb_agg(data),''[]''::jsonb) from public.%I where class_id=$1 and owner_id=$2','startoday_'||t) into rows using c.id,auth.uid();
+ end if;
  result:=result||jsonb_build_object(t,rows);
  end loop;
  select * into c from public.startoday_classes where id=c.id;
@@ -221,6 +228,15 @@ begin
  if t='settings' and v ? 'studentPraisePeriod' and (jsonb_typeof(v->'studentPraisePeriod') is distinct from 'string' or v->>'studentPraisePeriod' not in ('all','30d','7d','month','recent3')) then raise exception 'INVALID_STUDENT_PRAISE_PERIOD';end if;
  if t='settings' and v ? 'titleGoal' and (jsonb_typeof(v->'titleGoal')<>'number' or (v->>'titleGoal')::numeric<>trunc((v->>'titleGoal')::numeric) or (v->>'titleGoal')::numeric not between 3 and 9999) then raise exception 'INVALID_TITLE_GOAL';end if;
  if t='students' then
+  -- A reset or a never-changed student follows the class initial password, so no hash is kept.
+  if coalesce(v->>'passwordResetRequired','false')='true' or coalesce(v->>'passwordChanged','false')<>'true' then
+   delete from public.startoday_student_secrets where class_id=c.id and student_id=op->>'id';
+  elsif v ? 'password' and coalesce(v->>'password','')<>'' then
+   if jsonb_typeof(v->'password') is distinct from 'string' or char_length(v->>'password')>200 then raise exception 'INVALID_STUDENT_PASSWORD';end if;
+   insert into public.startoday_student_secrets(class_id,student_id,password_hash,must_change,updated_at) values(c.id,op->>'id',public.startoday_password_hash(v->>'password'),not public.startoday_password_is_valid(v->>'password'),now()) on conflict(class_id,student_id) do update set password_hash=excluded.password_hash,must_change=excluded.must_change,updated_at=now();
+  end if;
+  -- Teacher edits only ever carry a new password; hashes stay out of the row itself.
+  v:=v-'password'-'passwordHash';
   if v->>'nickname' is not null and v->>'nickname' !~ '^[가-힣]{1,8}$' then raise exception 'INVALID_NICKNAME';end if;
   select data into old from public.startoday_students where class_id=c.id and id=op->>'id';
   if jsonb_typeof(old->'avatarOwned')='array' then v:=v||jsonb_build_object('avatarOwned',(select coalesce(jsonb_agg(distinct value),'[]'::jsonb) from jsonb_array_elements(old->'avatarOwned'||case when jsonb_typeof(v->'avatarOwned')='array' then v->'avatarOwned' else '[]'::jsonb end)),'avatarEquipped',coalesce(v->'avatarEquipped',old->'avatarEquipped','{}'::jsonb));end if;
@@ -321,6 +337,28 @@ create table if not exists public.startoday_student_login_attempts (
 );
 alter table public.startoday_student_login_attempts enable row level security;
 revoke all on public.startoday_student_login_attempts from public,anon,authenticated;
+-- Password secrets never enter snapshots, backups or teacher JSONB; only definer RPCs read them.
+create table if not exists public.startoday_student_secrets (
+ class_id uuid not null references public.startoday_classes(id) on delete cascade,
+ student_id text not null, password_hash text not null, must_change boolean not null default false,
+ updated_at timestamptz not null default now(), primary key(class_id,student_id)
+);
+alter table public.startoday_student_secrets enable row level security;
+revoke all on public.startoday_student_secrets from public,anon,authenticated;
+create or replace function public.startoday_password_digest(p_password text) returns text language sql immutable set search_path=public,extensions,pg_temp as $$
+ select encode(digest(p_password,'sha256'),'hex')
+$$;
+-- Fixed-length digest keeps bcrypt clear of its 72-byte input limit for long Hangul passwords.
+create or replace function public.startoday_password_hash(p_password text) returns text language sql immutable set search_path=public,extensions,pg_temp as $$
+ select crypt(public.startoday_password_digest(p_password),gen_salt('bf',10))
+$$;
+create or replace function public.startoday_password_matches(p_password text,p_hash text) returns boolean language sql immutable set search_path=public,extensions,pg_temp as $$
+ select coalesce(p_hash ~ '^\$2[aby]\$' and crypt(public.startoday_password_digest(coalesce(p_password,'')),p_hash)=p_hash,false)
+$$;
+create or replace function public.startoday_password_is_valid(p_password text) returns boolean language sql immutable set search_path=public,pg_temp as $$
+ select coalesce(char_length(p_password) between 5 and 200 and p_password ~ '^[가-힣0-9]+$' and p_password ~ '[가-힣]',false)
+$$;
+revoke all on function public.startoday_password_digest(text),public.startoday_password_hash(text),public.startoday_password_matches(text,text),public.startoday_password_is_valid(text) from public,anon,authenticated;
 -- Stored projection of the profile JSON; existing generic commits and RLS stay intact.
 alter table public.startoday_students add column if not exists equipped_title text generated always as (data->>'equippedTitle') stored;
 -- Six XP domains: praise counts are independent of record wording.
@@ -417,7 +455,7 @@ drop function if exists public.startoday_student_login(text,text);
 create or replace function public.startoday_student_authenticate(p_school text,p_grade text,p_class text,p_no integer,p_password text)
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
 declare matches jsonb; cid uuid; sid text; student jsonb; config jsonb; initial text; expected text;
- v_failures integer; started timestamptz; must_change boolean;
+ v_failures integer; started timestamptz; must_change boolean; v_hash text; v_temporary boolean;
 begin
  if p_school is null or length(trim(p_school))=0 or length(p_school)>200 or p_grade not in ('1','2','3','4','5','6') or p_grade is null or p_class is null or length(trim(p_class))=0 or length(p_class)>40 or p_no is null or p_no<1 or p_password is null or length(p_password)>200 or p_password ~ '[^가-힣0-9]' then return null;end if;
  select jsonb_agg(jsonb_build_object('cid',s.class_id,'sid',s.id)) into matches
@@ -435,19 +473,38 @@ begin
  and cfg.data->>'grade'=p_grade and trim(cfg.data->>'classGroup')=trim(p_class);
  if student is null then return null;end if;
  initial:=coalesce(nullif(config->>'defaultStudentPassword',''),'바람123');
- expected:=case when student->>'passwordResetRequired'='true' or student->>'passwordChanged'='false'
- or (coalesce(student->>'passwordChanged','false')<>'true' and (student->>'password' is null or student->>'password'='12345'))
- then initial else coalesce(student->>'password',initial) end;
+ select x.password_hash,x.must_change into v_hash,v_temporary from public.startoday_student_secrets x where x.class_id=cid and x.student_id=sid;
  insert into public.startoday_student_login_attempts(class_id,student_id) values(cid,sid) on conflict do nothing;
  select a.failures,a.window_start into v_failures,started from public.startoday_student_login_attempts a where a.class_id=cid and a.student_id=sid for update;
  if started<now()-interval '15 minutes' then v_failures:=0;started:=now();end if;
  if v_failures>=10 then return null;end if;
- if p_password is distinct from expected then
- update public.startoday_student_login_attempts a set failures=v_failures+1,window_start=started where a.class_id=cid and a.student_id=sid;
- return null;
+ if v_hash is not null then
+  -- Bcrypt hashes are checked in constant time by the extension; plaintext never returns.
+  must_change:=coalesce(v_temporary,false);
+  if not public.startoday_password_matches(p_password,v_hash) then
+   update public.startoday_student_login_attempts a set failures=v_failures+1,window_start=started where a.class_id=cid and a.student_id=sid;
+   return null;
+  end if;
+ else
+  -- Legacy rows keep logging in with the password they had; the plaintext is replaced here.
+  expected:=case when student->>'passwordResetRequired'='true' or student->>'passwordChanged'='false'
+  or (coalesce(student->>'passwordChanged','false')<>'true' and (student->>'password' is null or student->>'password'='12345'))
+  then initial else coalesce(student->>'password',initial) end;
+  if p_password is distinct from expected then
+   update public.startoday_student_login_attempts a set failures=v_failures+1,window_start=started where a.class_id=cid and a.student_id=sid;
+   return null;
+  end if;
+  must_change:=expected=initial or not public.startoday_password_is_valid(expected);
+  if student ? 'password' then
+   if expected is distinct from initial then
+    insert into public.startoday_student_secrets(class_id,student_id,password_hash,must_change) values(cid,sid,public.startoday_password_hash(expected),must_change) on conflict(class_id,student_id) do nothing;
+   end if;
+   update public.startoday_students set data=data-'password',updated_at=now() where class_id=cid and id=sid;
+   student:=student-'password';
+  end if;
  end if;
  update public.startoday_student_login_attempts a set failures=0,window_start=now() where a.class_id=cid and a.student_id=sid;
- must_change:=coalesce(student->>'passwordChanged','false')<>'true' or student->>'passwordResetRequired'='true' or expected=initial or char_length(expected)<5 or expected !~ '[가-힣]' or expected ~ '[^가-힣0-9]';
+ must_change:=coalesce(student->>'passwordChanged','false')<>'true' or student->>'passwordResetRequired'='true' or coalesce(must_change,false);
  return jsonb_build_object('cid',cid,'sid',sid,'student',student,'config',config,'mustChangePassword',coalesce(must_change,false));
 end $$;
 revoke all on function public.startoday_student_authenticate(text,text,text,integer,text) from public,anon,authenticated;
@@ -471,7 +528,8 @@ begin
  initial:=coalesce(nullif(verified->'config'->>'defaultStudentPassword',''),'바람123');
  if p_new_password is null or char_length(p_new_password)<5 or char_length(p_new_password)>200 or p_new_password !~ '[가-힣]' or p_new_password ~ '[^가-힣0-9]' or p_new_password=initial or p_new_password=p_old_password then raise exception 'INVALID_STUDENT_PASSWORD';end if;
  cid:=(verified->>'cid')::uuid;sid:=verified->>'sid';
- update public.startoday_students set data=data||jsonb_build_object('password',p_new_password,'passwordChanged',true,'passwordResetRequired',false,'passwordChangedAt',to_char(now() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),updated_at=now() where class_id=cid and id=sid;
+ insert into public.startoday_student_secrets(class_id,student_id,password_hash,must_change,updated_at) values(cid,sid,public.startoday_password_hash(p_new_password),false,now()) on conflict(class_id,student_id) do update set password_hash=excluded.password_hash,must_change=false,updated_at=now();
+ update public.startoday_students set data=(data-'password')||jsonb_build_object('passwordChanged',true,'passwordResetRequired',false,'passwordChangedAt',to_char(now() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),updated_at=now() where class_id=cid and id=sid;
  update public.startoday_classes set revision=revision+1 where id=cid returning revision,owner_id into rev,owner;
  insert into public.startoday_audit(owner_id,class_id,revision,table_name,row_id,operation) values(owner,cid,rev,'students',sid,'student_password_change');
  delete from public.startoday_student_login_attempts where class_id=cid and student_id=sid;
@@ -861,4 +919,21 @@ begin
 end $$;
 revoke all on function public.startoday_student_survey_submit(text,text,text,integer,text,text,jsonb) from public;
 grant execute on function public.startoday_student_survey_submit(text,text,text,integer,text,text,jsonb) to anon,authenticated;
+-- One-time in-place migration: existing plaintext passwords become hashes the same value still opens.
+-- Rows still on the class initial password keep following the current setting instead of being frozen.
+do $$ declare r record; initial text; expected text;
+begin
+ for r in select s.class_id,s.id,s.data,cfg.data as cfg from public.startoday_students s join public.startoday_settings cfg on cfg.class_id=s.class_id and cfg.id='main' where s.data ? 'password' loop
+  initial:=coalesce(nullif(r.cfg->>'defaultStudentPassword',''),'바람123');
+  expected:=case when r.data->>'passwordResetRequired'='true' or r.data->>'passwordChanged'='false'
+  or (coalesce(r.data->>'passwordChanged','false')<>'true' and (r.data->>'password' is null or r.data->>'password'='12345'))
+  then initial else coalesce(r.data->>'password',initial) end;
+  if expected is distinct from initial and not exists(select 1 from public.startoday_student_secrets x where x.class_id=r.class_id and x.student_id=r.id) then
+   insert into public.startoday_student_secrets(class_id,student_id,password_hash,must_change) values(r.class_id,r.id,public.startoday_password_hash(expected),not public.startoday_password_is_valid(expected)) on conflict(class_id,student_id) do nothing;
+  end if;
+  update public.startoday_students set data=data-'password' where class_id=r.class_id and id=r.id and data ? 'password';
+ end loop;
+ -- A class with students but no settings cannot log anyone in; its plaintext is still removed.
+ update public.startoday_students set data=data-'password' where data ? 'password';
+end $$;
 commit;

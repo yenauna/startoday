@@ -124,8 +124,15 @@ export class Store {
     if (!c.supabaseUrl || !c.supabaseKey) return false;
     if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(c.supabaseUrl)) throw Error('config.js의 Supabase 프로젝트 주소를 확인하세요.');
     await new Promise((resolve, reject) => {
+      if (window.supabase?.createClient) {
+        resolve();
+        return;
+      }
+      // Pinned local bundle; the integrity hash makes a swapped file fail closed.
       const el = document.createElement('script');
-      el.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/dist/umd/supabase.min.js';
+      el.src = new URL('vendor/supabase-js-2.49.8.min.js', document.baseURI).href;
+      el.integrity = 'sha384-l7yJnh/cWKcqeTC5adHUdc5b+J4Kb2QTGRSkCQehn1YT5xEFlrgwnXOYuvrtI1F6';
+      el.crossOrigin = 'anonymous';
       el.onload = resolve;
       el.onerror = () => reject(Error('Supabase SDK를 불러오지 못했습니다. 네트워크를 확인하세요.'));
       document.head.append(el);
@@ -268,6 +275,8 @@ export class Store {
       // Factory operations must use the latest snapshot while the save lock is held.
       if (typeof ops === 'function') ops = ops(this.db);
       const next = applyOps(this.db, ops);
+      // Cloud rows never keep a plaintext password in memory once the server has hashed it.
+      if (this.mode === 'cloud') for (const row of next.students || []) delete row.password;
       if (this.mode === 'demo' || this.mode === 'local') {
         if (ops.some(op => op.table === 'students' && !op.remove)) {
           try {

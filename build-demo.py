@@ -37,6 +37,8 @@ def inline_style(match):
     return '<style>'+css+'</style>'
 html=re.sub(r'<link rel="stylesheet" href="([^"]+)">',inline_style,html)
 html=html.replace('<script src="config.js"></script>','<script>window.STARTODAY_CONFIG={supabaseUrl:"",supabaseKey:""};</script>')
+# 파일을 직접 열어 보는 체험본은 인라인 스크립트·스타일을 쓰므로 자기 자신만 허용한다.
+html=html.replace("script-src 'self'","script-src 'self' 'unsafe-inline'")
 html=html.replace('<script type="module" src="js/app.js"></script>','<script>'+js.replace('</script','<\\/script')+'</script>')
 (root/'startoday-demo.html').write_text(html)
 print('startoday-demo.html generated')
