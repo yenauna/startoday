@@ -53,7 +53,7 @@ export function economyView() {
   }, economyTeacherTab === 'shop' ? 'active' : '')}</nav>${economyTeacherTab === 'assets' ? economyAssetsView(data, list) : `<section class="panel"><div class="toolbar">${btn('환불 허용: ' + (data.settings[0].allowRefund !== false ? '켜짐' : '꺼짐'), () => commit([up('settings', {
     ...data.settings[0],
     allowRefund: data.settings[0].allowRefund === false
-  })]))}${btn('물품 등록', () => economyItemDialog())}</div>${economyGroupedItems((data.shop_items || []).filter(i => !i.deletedAt), i => (!i.isGroupBuy ? economyAction('gift', () => { openGiftItemId = openGiftItemId === i.id ? null : i.id; selectedGiftStudentId = null; render(); }, 'economy-item-gift-toggle', `aria-expanded="${openGiftItemId === i.id}"`) : '') + (i.isGroupBuy ? btn('상세 보기', () => teacherGroupBuyDialog(i.id), 'group-buy-detail-open') + (i.isFunded && !i.isUsed ? btn('보상 사용 완료', () => teacherUseGroupBuy(i.id)) : '') : '') + btn('수정', () => economyItemDialog(i)) + economyAction('delete', async () => {
+  })]))}${btn('물품 등록', () => economyItemDialog())}</div>${economyGroupedItems((data.shop_items || []).filter(i => !i.deletedAt), i => (!i.isGroupBuy ? economyAction('gift', () => { openGiftItemId = openGiftItemId === i.id ? null : i.id; selectedGiftStudentId = null; render(); }, 'economy-item-gift-toggle', `aria-expanded="${openGiftItemId === i.id}"`) : '') + (i.isGroupBuy ? btn('상세 보기', () => teacherGroupBuyDialog(i.id), 'group-buy-detail-open') + (i.isFunded && !i.isUsed ? btn('보상 사용 완료', () => teacherUseGroupBuy(i.id)) : '') : '') + economyAction('edit', () => economyItemDialog(i)) + economyAction('delete', async () => {
     if (confirm('상점에서 이 물품을 삭제할까요? 기존 구매 내역은 유지됩니다.')) await commit([up('shop_items', {
       ...i,
       deletedAt: C.now()

@@ -35,7 +35,7 @@ export function attachHoldDelete(btn, onConfirm) {
       else step(p,sub);
       step(sc,sub);step(shake,sub);
     }
-    const w=btn.offsetWidth,fw=Math.max(0,p.x)*w;
+    const w=btn.clientWidth??btn.offsetWidth,fw=Math.max(0,p.x)*w;
     btn.style.transform=`translateX(${shake.x}px) translateY(${-(sc.x-1)/.3*4}px) scale(${sc.x})`;
     fill.style.width=fw+'px';top.style.clipPath=`inset(0 ${Math.max(0,w-fw)}px 0 0)`;
     if(mode==='done'){raf=0;active.delete(control);btn.style.transform='';btn.style.zIndex='';return;}

@@ -1861,10 +1861,10 @@ body:has(.quick-memo-bar) .memo-undo{bottom:82px}
 
 .record .record-controls .hold-delete {
  position:relative;
- border:0;
+ border:1px solid #e2e8f0;
  border-radius:999px;
- background:#f3f4f6;
- color:#475569;
+ background:#ffffff;
+ color:#e11d48;
  min-width:58px;
  min-height:30px;
  padding:0;
@@ -1877,7 +1877,7 @@ body:has(.quick-memo-bar) .memo-undo{bottom:82px}
 }
 .hold-delete .fill {
  position:absolute;left:0;top:0;bottom:0;width:0;
- background:var(--st-rose-text,#c2596b);
+ background:#f43f5e;
  border-radius:inherit;
  pointer-events:none;
 }
@@ -1895,7 +1895,7 @@ body:has(.quick-memo-bar) .memo-undo{bottom:82px}
  clip-path:inset(0 100% 0 0);
 }
 
-.record .hold-delete:hover:not(:disabled),.record .hold-delete:active:not(:disabled){transform:none;box-shadow:none;background:#f3f4f6}
+.record .hold-delete:hover:not(:disabled),.record .hold-delete:active:not(:disabled){transform:none;box-shadow:none;background:#ffffff}
 
 /* A cream paper draw card, with a fine gold frame and a generous name field. */
 .tool-card-deck .tool-draw-card,.tool-card-deck .tool-draw-card.is-drawn{
@@ -1937,6 +1937,7 @@ input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-s
 .economy-action{--action-ink:#365c85;--action-tint:#e8f1fa;display:inline-flex;flex:0 0 auto;flex-direction:column;align-items:center;gap:4px;vertical-align:middle;position:relative}
 .economy-action-gift{--action-ink:#317267;--action-tint:#e6f2ec}
 .economy-action-reclaim{--action-ink:#9a5a20;--action-tint:#fff0dc}
+.economy-action-edit{--action-ink:#334155;--action-tint:#f1f5f9}
 .economy-action-delete{--action-ink:var(--st-rose-text,#c2596b);--action-tint:#f9eaf0}
 .economy-action>button.economy-icon-button[data-action]{position:relative;display:grid;place-items:center;flex:none;width:38px;height:38px;min-width:38px;min-height:38px;padding:0;border:0;border-radius:50%;overflow:visible;background:var(--action-tint);color:var(--action-ink);box-shadow:0 3px 8px #30425512;transition:background-color .18s,color .18s,box-shadow .18s;touch-action:manipulation}
 .economy-action>button.economy-icon-button[data-action]:is(:hover,:focus-visible):not(:disabled){background:var(--action-ink);color:#fff;transform:none;box-shadow:0 5px 12px #30425524;z-index:3}

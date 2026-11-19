@@ -36,7 +36,7 @@ try{
    await button.scrollIntoViewIfNeeded();const target=await button.elementHandle();
    await page.waitForFunction(e=>e._holdDelete&&!e.disabled,target);
    const r=await button.boundingBox();
-   const waitForFill=async()=>{if(ms>=1200)await page.waitForFunction(e=>!e.isConnected||parseFloat(e.querySelector('.fill').style.width)>=e.offsetWidth,target,{timeout:4000});};
+   const waitForFill=async()=>{if(ms>=1200)await page.waitForFunction(e=>!e.isConnected||parseFloat(e.querySelector('.fill').style.width)>=e.clientWidth,target,{timeout:4000});};
    if(touch){const cdp=await context.newCDPSession(page);await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:r.x+r.width/2,y:r.y+r.height/2}]});await page.waitForTimeout(ms);await waitForFill();await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cdp.detach();}
    else{await page.mouse.move(r.x+r.width/2,r.y+r.height/2);await page.mouse.down();await page.waitForTimeout(ms);await waitForFill();await page.mouse.up();}
   };

@@ -38,8 +38,8 @@ try{
   await page.locator('#quick-cancel').click();
   await page.evaluate(async()=>(await import('/js/app.js')).navigate('기록'));
   const hold=page.locator('[data-record-id="ui-record"] .hold-delete');await hold.waitFor();await hold.scrollIntoViewIfNeeded();
-  assert.equal(await hold.evaluate(e=>getComputedStyle(e).borderRadius),'999px');assert.equal(await hold.evaluate(e=>getComputedStyle(e).borderWidth),'0px');
-  assert.equal(await hold.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(243, 244, 246)');
+  assert.equal(await hold.evaluate(e=>getComputedStyle(e).borderRadius),'999px');assert.equal(await hold.evaluate(e=>getComputedStyle(e).borderWidth),'1px');
+  assert.equal(await hold.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 255, 255)');
   const dims=await hold.boundingBox();assert(dims.width>=58&&dims.height>=30);
   const labels=await hold.locator('.label').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};}));assert.deepEqual(labels[0],labels[1]);
   await hold.hover();assert.equal(await hold.evaluate(e=>getComputedStyle(e).transform),'none');
@@ -56,7 +56,8 @@ try{
   const style=await checkbox.evaluate(e=>{const s=getComputedStyle(e);return{appearance:s.appearance,width:s.width,height:s.height,radius:s.borderRadius};});
   assert.deepEqual(style,{appearance:'none',width:'18px',height:'18px',radius:'5px'});
   const initial=await checkbox.isChecked();await checkbox.focus();await page.keyboard.press(' ');await page.waitForTimeout(350);assert.equal(await checkbox.isChecked(),!initial);
-  const checked=await checkbox.evaluate(e=>({checked:e.checked,transform:getComputedStyle(e,'::before').transform}));assert(checked.transform.includes(checked.checked?'matrix(1,':'matrix(0,'));
+  await page.waitForFunction(e=>Math.abs(new DOMMatrix(getComputedStyle(e,'::before').transform).a-(e.checked?1:0))<.001,await checkbox.elementHandle());
+  const checked=await checkbox.evaluate(e=>({checked:e.checked,scale:new DOMMatrix(getComputedStyle(e,'::before').transform).a}));assert(Math.abs(checked.scale-(checked.checked?1:0))<.001);
   // Custom switch and hidden chip inputs are exempt from the generic treatment.
   const custom=await page.evaluate(()=>{
    const label=document.createElement('label');label.className='student-choice-chip';label.innerHTML='<input type="checkbox"><span>별도 선택 칩</span>';
