@@ -397,9 +397,143 @@
     background-repeat: no-repeat;
   }
 
+  .theme-controls {
+    display: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    background: #EAF2F9;
+    color: #1E2E4A;
+  }
+
+  body[data-standalone] .theme-controls { display: flex; }
+  .theme-controls button {
+    min-height: 38px;
+    padding: 5px 12px;
+    border: 1px solid #A9C4DB;
+    border-radius: 8px;
+    background: #FFFFFF;
+    font-size: 14px;
+  }
+  .theme-controls button[aria-pressed="true"] { background: #324E78; color: #FFFFFF; }
+
+  body:is([data-theme="blue-hour"], [data-theme="night-sky"], [data-theme="hybrid"]) {
+    --done-star: #F59E0B;
+    --done-badge: #FFF2B6;
+    --done-badge-line: #F59E0B;
+    --gold: #FACC15;
+  }
+
+  body:is([data-theme="blue-hour"], [data-theme="hybrid"]) {
+    --page: #EAF2F9;
+    --deep: #324E78;
+    --profile-bg: #324E78;
+    --ink: #1E2E4A;
+    --paper: #EAF2F9;
+    --paper-2: #F4F8FC;
+    --paper-3: #D3E3F0;
+    --pending-line: #D3E3F0;
+    --done: rgba(234, 242, 249, .72);
+    --done-line: #A9C4DB;
+    color: var(--ink);
+    background-image:
+      url("assets/design-blue-hour-grain.webp"),
+      url("assets/design-blue-hour.webp"),
+      linear-gradient(180deg, #EAF2F9 0, #D3E3F0 50%, #A9C4DB 82%, #7FA0C2);
+    background-position: left top, center bottom, center top;
+    background-size: 144px 144px, 100% min(84vh, 780px), 100% 100%;
+    background-repeat: repeat, no-repeat, no-repeat;
+  }
+
+  body[data-theme="blue-hour"] :is(.t-top, .t-tabs, .s-topbar) {
+    background: var(--deep);
+    color: var(--light);
+  }
+
+  body:is([data-theme="blue-hour"], [data-theme="hybrid"]) :is(.toolbar small, .roster-head strong span, .legend) { color: var(--ink); }
+
+  body[data-theme="night-sky"] {
+    --page: #222B52;
+    --deep: #33406E;
+    --profile-bg: #33406E;
+    --paper: #E7ECF9;
+    --paper-2: #F0F3FB;
+    --paper-3: #D7E0F7;
+    --pending-line: #ADBCEC;
+    --done: rgba(255, 255, 255, .76);
+    --done-line: #A1AFDB;
+    --night-backdrop:
+      radial-gradient(circle at 21px 83px, #F6EDC642 0 1px, transparent 1.6px),
+      radial-gradient(circle at 129px 169px, #EDF0FF66 0 .7px, transparent 1.5px),
+      radial-gradient(ellipse at 16% 4%, #B9C8F28C, transparent 39%),
+      linear-gradient(180deg, #B9C8F2 0, #6E7FBF 14%, #4A5AA0 34%, #33406E 67%, #222B52 100%);
+    --night-backdrop-size: 227px 249px, 269px 301px, 100vw 100vh, 100vw 100vh;
+    background-image: var(--night-backdrop);
+    background-position: center top;
+    background-size: var(--night-backdrop-size);
+    background-repeat: repeat, repeat, no-repeat, no-repeat;
+    background-attachment: fixed;
+  }
+
+  body[data-theme="night-sky"] :is(.t-top, .t-tabs, .s-topbar) {
+    border-color: transparent;
+    color: #121C3C;
+    background: transparent;
+  }
+
+  body[data-theme="night-sky"] .s-topbar {
+    background-image: var(--night-backdrop);
+    background-size: var(--night-backdrop-size);
+    background-attachment: fixed;
+  }
+
+  body[data-theme="night-sky"] :is(.t-brand small, .t-tabs button, .s-header small, .s-subtabs button) {
+    color: #121C3C;
+  }
+
+  body[data-theme="night-sky"] :is(.t-tabs, .s-subtabs) button.active {
+    color: #FACC15;
+    background: #33406E;
+  }
+
+  body:is([data-theme="blue-hour"], [data-theme="night-sky"], [data-theme="hybrid"]) :is(.s-header .brand-star, .profile-score .ring) {
+    color: #FACC15;
+  }
+
+  body[data-theme="hybrid"] {
+    --profile-bg: #EAF2F9;
+    --hybrid-stars: radial-gradient(circle at 23px 28px, #FACC1566 0 1px, transparent 1.5px),
+      radial-gradient(circle at 86px 62px, #F0F3FF66 0 .75px, transparent 1.4px);
+    --hybrid-sky: linear-gradient(115deg, #33406E 0%, #4A5AA0 78%, #6E7FBF 100%);
+    background-image: linear-gradient(180deg, #EAF2F9, #F5F8FD);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+  }
+
+  body[data-theme="hybrid"] :is(.t-top, .t-tabs, .s-topbar, .profile-score) {
+    color: var(--light);
+    background-color: #33406E;
+    background-image: var(--hybrid-stars), var(--hybrid-sky);
+    background-size: 139px 101px, 193px 113px, 100% 100%;
+    border-color: transparent;
+  }
+
+  body[data-theme="hybrid"] .t-tabs { background-position: center -67px, center -67px, center; }
+  body[data-theme="hybrid"] .profile { color: var(--ink); }
+  body[data-theme="hybrid"] .profile-class { color: var(--ink); }
+  body[data-theme="hybrid"] .profile-score { border-radius: 10px; padding: 5px 8px; }
+  body[data-theme="hybrid"] .profile-areas { background: #D3E3F0; }
+  body[data-theme="hybrid"] .profile-areas :is(span, strong) { color: var(--ink); }
+
 </style>
 </head>
 <body data-view="teacher">
+<div class="theme-controls" role="group" aria-label="시안 테마">
+  <button type="button" data-theme-choice="blue-hour" aria-pressed="false">1안: Blue hour</button>
+  <button type="button" data-theme-choice="night-sky" aria-pressed="false">2안: Night sky</button>
+  <button type="button" data-theme-choice="hybrid" aria-pressed="false">3안: 밤하늘 헤더 + 밝은 본문</button>
+</div>
 
 <!-- 교사 메인화면 -->
 <section class="screen screen-teacher" aria-label="교사 메인화면 시안">
@@ -630,6 +764,24 @@
   const params = new URLSearchParams(location.search);
   const view = params.get('view') === 'student' ? 'student' : 'teacher';
   const texture = params.get('texture');
+  const choices = document.querySelectorAll('[data-theme-choice]');
+  function setTheme(theme) {
+    document.body.dataset.theme = theme;
+    for (const choice of choices) {
+      choice.setAttribute('aria-pressed', String(choice.dataset.themeChoice === theme));
+    }
+  }
+  if (window.self === window.top) document.body.dataset.standalone = '';
+  const requestedTheme = params.get('theme');
+  setTheme(['blue-hour', 'night-sky', 'hybrid'].includes(requestedTheme) ? requestedTheme : 'blue-hour');
+  for (const choice of choices) {
+    choice.addEventListener('click', () => {
+      const theme = choice.dataset.themeChoice;
+      params.set('theme', theme);
+      history.replaceState(null, '', '?' + params);
+      setTheme(theme);
+    });
+  }
   if (['ceramic', 'linen', 'wash', 'dry-brush', 'soft-wash', 'star-wash'].includes(texture)) document.body.dataset.texture = texture;
   document.body.dataset.view = view;
   document.title = (view === 'student' ? '학생 메인화면' : '교사 메인화면') + ' · 오늘의 별 시안';
