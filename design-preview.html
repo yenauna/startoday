@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>오늘의 별 · 디자인 시안</title>
+<!-- 디자인 확인용 정적 시안. 앱 코드·자료·저장소와 연결되지 않습니다. -->
+<link rel="stylesheet" href="vendor/pretendard-1.3.9-dynamic-subset.css">
+<style>
+  :root {
+    --page: #1B283B;
+    --deep: #152131;
+    --slate: #2F3F55;
+    --slate-2: #3A4B63;
+    --light: #F4EBDD;
+    --light-2: #D5CEC2;
+    --gold: #F0C984;
+    --gold-light: #FAE1AC;
+    --gold-ink: #6B461C;
+    --paper: #F3EAD9;
+    --paper-2: #FBF6EC;
+    --paper-3: #E8DCC7;
+    --ink: #282D37;
+    --ink-2: #57544D;
+    --rose: #E9B7C6;
+    --rose-ink: #8B4C63;
+    --line: rgba(199, 185, 160, .55);
+    --slate-line: rgba(149, 167, 191, .28);
+    --depth: 0 14px 32px rgba(9, 17, 28, .38);
+    --radius: 16px;
+    --font: 'Pretendard Variable', Pretendard, system-ui, -apple-system, '맑은 고딕', sans-serif;
+    --grain:
+      radial-gradient(circle, rgba(235, 208, 155, .35) 0 1px, transparent 1.6px) 13px 7px / 137px 113px,
+      radial-gradient(circle, rgba(244, 235, 221, .22) 0 .7px, transparent 1.4px) 39px 51px / 101px 163px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.5;
+    letter-spacing: -.01em;
+    color: var(--light);
+    background: var(--grain), radial-gradient(ellipse at 82% -10%, #35465F, transparent 62%), var(--page);
+    min-height: 100vh;
+  }
+  /* 글꼴은 제목·본문·버튼 모두 같은 패밀리를 씁니다. 크기와 굵기로만 위계를 만듭니다. */
+  h1, h2, h3, strong, small, button, p { font-family: inherit; }
+  h1, h2, h3 { margin: 0; letter-spacing: -.032em; font-weight: 800; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .screen { display: none; }
+  body[data-view="teacher"] .screen-teacher { display: block; }
+  body[data-view="student"] .screen-student { display: block; }
+
+  /* ── 교사 메인화면 ─────────────────────────────────────────── */
+  .t-wrap { max-width: 1240px; margin: 0 auto; padding: 0 0 64px; }
+  .t-top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; padding: 14px clamp(16px, 3vw, 30px);
+    background: var(--deep); border-bottom: 1px solid var(--slate-line);
+  }
+  .t-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .t-brand img {
+    width: 38px; height: 38px; border-radius: 10px; object-fit: cover;
+    box-shadow: 0 0 0 1px rgba(240, 201, 132, .55);
+  }
+  .t-brand strong { font-size: 17px; font-weight: 800; letter-spacing: -.03em; white-space: nowrap; }
+  .t-brand small { color: var(--light-2); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .t-top-actions { display: flex; gap: 8px; flex: none; }
+  .t-top-actions button {
+    border: 1px solid var(--slate-line); background: var(--slate); border-radius: 10px;
+    min-height: 38px; padding: 0 14px; font-size: 14px; font-weight: 600;
+  }
+  .t-top-actions button:hover { background: var(--slate-2); }
+  .t-tabs {
+    display: flex; gap: 22px; overflow-x: auto; scrollbar-width: none;
+    padding: 0 clamp(16px, 3vw, 30px); background: var(--deep);
+    border-bottom: 1px solid var(--slate-line);
+  }
+  .t-tabs::-webkit-scrollbar { display: none; }
+  .t-tabs button {
+    flex: none; border: 0; background: transparent; color: var(--light-2);
+    padding: 13px 1px; font-size: 15px; font-weight: 600; border-bottom: 2px solid transparent;
+  }
+  .t-tabs button:hover { color: var(--light); }
+  .t-tabs button.active { color: var(--gold-ink); background: var(--gold); border-radius: 10px 10px 0 0; padding: 8px 14px; margin-top: 5px; font-weight: 750; }
+  .t-main { padding: 18px clamp(16px, 3vw, 30px) 0; }
+
+  .composer {
+    position: sticky; top: 0; z-index: 5; padding: 12px 14px;
+    background: var(--paper); color: var(--ink); border-radius: var(--radius);
+    box-shadow: var(--depth); display: grid; gap: 10px;
+  }
+  .composer-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .composer input[type="text"] {
+    flex: 1 1 240px; min-width: 0; border: 1px solid var(--line); border-radius: 12px;
+    background: var(--paper-2); color: var(--ink); padding: 10px 12px; font-size: 15px;
+  }
+  .composer input::placeholder { color: var(--ink-2); }
+  .composer input.who { flex: 0 1 220px; }
+  .composer input[type="text"]:focus-visible { outline: 2px solid #95632B; outline-offset: 1px; }
+  .areas { display: flex; gap: 6px; flex-wrap: wrap; }
+  .area {
+    border: 1px solid var(--line); background: var(--paper-2); color: var(--ink-2);
+    border-radius: 999px; padding: 4px 11px; font-size: 12.5px; font-weight: 600;
+  }
+  .area.on { background: #F4D9A5; border-color: #95632B; color: #513518; }
+  .composer-foot { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+  .date-btn { border: 1px solid var(--line); background: var(--paper-2); border-radius: 12px; padding: 8px 12px; color: var(--ink); font-weight: 650; font-size: 13.5px; }
+  .rec-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .rec { border: 0; border-radius: 10px; padding: 8px 14px; font-weight: 700; font-size: 13.5px; }
+  .rec.praise { background: #E5EFFB; color: #365C85; }
+  .rec.note { background: #ECEFF3; color: #586375; }
+  .rec.advice { background: #F7E6EC; color: #895068; }
+
+  .toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 22px 0 14px; }
+  .toolbar h2 { font-size: clamp(22px, 2.6vw, 28px); }
+  .toolbar small { display: block; margin-top: 3px; color: var(--light-2); font-size: 13px; }
+  .toolbar-actions { display: flex; gap: 8px; align-items: center; }
+  .ghost-btn {
+    border: 1px solid var(--slate-line); background: var(--slate); color: var(--light);
+    border-radius: 10px; padding: 8px 13px; font-size: 13.5px; font-weight: 600;
+  }
+  .ghost-btn:hover { background: var(--slate-2); }
+
+  .panel { background: var(--paper); color: var(--ink); border-radius: var(--radius); box-shadow: var(--depth); padding: 16px 18px; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .panel-head strong { font-size: 15px; font-weight: 750; }
+  .event-chip { display: inline-flex; align-items: baseline; gap: 6px; background: var(--paper-3); border-radius: 8px; padding: 3px 9px; font-size: 12.5px; color: var(--ink); }
+  .event-chip b { color: #8A5A1C; font-weight: 750; }
+  .mini-btn { border: 1px solid var(--line); background: var(--paper-2); border-radius: 9px; padding: 6px 11px; font-size: 12.5px; font-weight: 650; color: var(--ink); }
+  .slots { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+  .slot { border: 1px solid var(--line); border-radius: 12px; background: var(--paper-2); padding: 9px 10px; }
+  .slot small { display: block; font-size: 11.5px; color: var(--ink-2); font-weight: 600; }
+  .slot strong { display: block; margin-top: 2px; font-size: 15px; font-weight: 750; }
+  .ticker { margin-top: 12px; padding-top: 9px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-2); }
+
+  .metrics { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .metric { flex: 1 1 180px; background: var(--paper); color: var(--ink); border-radius: 14px; padding: 13px 16px; box-shadow: var(--depth); }
+  .metric small { display: block; color: var(--ink-2); font-size: 12.5px; font-weight: 600; }
+  .metric strong { display: flex; align-items: baseline; gap: 3px; margin-top: 4px; font-size: 26px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .metric strong span { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .metric .star { color: #C98B2E; font-size: 19px; margin-right: 2px; }
+
+  .roster-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 22px 0 4px; }
+  .roster-head strong { font-size: 16px; font-weight: 750; }
+  .roster-head strong span { color: var(--light-2); font-weight: 600; font-size: 13.5px; margin-left: 4px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 12px; font-size: 12.5px; color: var(--light-2); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .legend .k-done { background: var(--paper-2); box-shadow: 0 0 0 1px rgba(240, 201, 132, .8); }
+  .legend .k-pending { background: #384459; box-shadow: 0 0 0 1px rgba(233, 183, 198, .45); }
+
+  .roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(226px, 1fr)); gap: 11px; }
+  .s-card {
+    position: relative; border-radius: 18px; padding: 13px 14px 12px;
+    display: flex; flex-direction: column; gap: 7px; overflow: hidden; min-width: 0;
+  }
+  .s-foot { display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 5px; width: 100%; margin-top: auto; }
+  .s-foot .s-tasks { width: 100%; }
+  /* 완료: 밝은 크림 + 별빛 */
+  .s-card.done {
+    color: var(--ink);
+    background:
+      radial-gradient(circle at 88% 6%, rgba(250, 225, 172, .95), transparent 46%),
+      linear-gradient(155deg, #FFFAF0, var(--paper));
+    box-shadow: 0 0 0 1px rgba(240, 201, 132, .75), 0 12px 26px rgba(8, 15, 26, .34);
+  }
+  /* 미완료: 어두운 슬레이트 */
+  .s-card.pending {
+    color: var(--light);
+    background: linear-gradient(155deg, #3C4A60, #333F53 62%, #2E3A4C);
+    box-shadow: inset 0 1px 0 rgba(244, 235, 221, .12), 0 12px 26px rgba(8, 15, 26, .38);
+  }
+  .s-card.pending::before {
+    content: ""; position: absolute; inset: 0 auto 0 0; width: 4px;
+    background: linear-gradient(#E9B7C6, #B87C93);
+  }
+  .s-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .s-head strong { font-size: 17px; font-weight: 750; letter-spacing: -.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .s-open { border: 0; background: transparent; border-radius: 8px; min-width: 30px; min-height: 30px; font-size: 15px; flex: none; opacity: .7; }
+  .s-card.done .s-open { color: var(--ink-2); }
+  .s-card.pending .s-open { color: var(--light-2); }
+  .s-open:hover { opacity: 1; background: rgba(0, 0, 0, .07); }
+  .s-score { display: flex; align-items: baseline; gap: 4px; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+  .s-score .star { font-size: 17px; line-height: 1; }
+  .s-card.done .s-score .star { color: #C0822A; }
+  .s-card.pending .s-score .star { color: var(--gold); }
+  .s-score strong { font-size: 20px; font-weight: 800; letter-spacing: -.03em; }
+  .s-card.done .s-score strong { color: var(--ink); }
+  .s-card.pending .s-score strong { color: var(--gold-light); }
+  .s-score small { font-size: 12px; font-weight: 550; }
+  .s-card.done .s-score small { color: var(--ink-2); }
+  .s-card.pending .s-score small { color: var(--light-2); }
+  .s-state { display: inline-flex; align-items: center; gap: 6px; width: fit-content; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; }
+  .s-card.done .s-state { background: var(--gold); color: #4A2F10; }
+  .s-card.pending .s-state { background: rgba(233, 183, 198, .18); color: #F5CDD9; box-shadow: inset 0 0 0 1px rgba(233, 183, 198, .34); }
+  .s-tasks { display: grid; gap: 4px; }
+  .s-task {
+    border-radius: 10px; padding: 4px 9px; font-size: 12.5px; font-weight: 600;
+    background: rgba(233, 183, 198, .14); color: #F7D8E1; box-shadow: inset 0 0 0 1px rgba(233, 183, 198, .26);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .s-task.late { color: #FFD7E2; box-shadow: inset 0 0 0 1px rgba(233, 183, 198, .48); }
+
+  /* ── 학생 메인화면 ─────────────────────────────────────────── */
+  .s-screen { max-width: 460px; margin: 0 auto; padding: 0 0 40px; }
+  .s-topbar {
+    position: sticky; top: 0; z-index: 6; background: rgba(21, 33, 49, .97);
+    border-bottom: 1px solid var(--slate-line); padding: 10px 14px 0;
+    backdrop-filter: blur(6px);
+  }
+  .s-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .s-header strong { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 800; letter-spacing: -.03em; }
+  .s-header .brand-star { color: var(--gold); font-size: 14px; }
+  .s-header small { color: var(--light-2); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .s-logout { border: 1px solid var(--slate-line); background: var(--slate); border-radius: 9px; padding: 6px 10px; font-size: 12px; font-weight: 600; flex: none; }
+  .s-subtabs { display: flex; gap: 6px; padding: 10px 0; }
+  .s-subtabs button { border: 0; background: transparent; color: var(--light-2); border-radius: 9px; padding: 7px 12px; font-size: 13.5px; font-weight: 650; }
+  .s-subtabs button.active { background: var(--gold); color: #382715; }
+  .s-main { display: grid; gap: 12px; padding: 12px 14px 0; }
+
+  .card { background: var(--paper); color: var(--ink); border-radius: var(--radius); box-shadow: var(--depth); padding: 15px 16px; }
+  .card > h2 { font-size: 15.5px; font-weight: 800; color: var(--ink); padding-bottom: 7px; border-bottom: 2px solid var(--gold-ink); width: fit-content; margin-bottom: 11px; }
+  .card h3 { font-size: 12.5px; font-weight: 700; color: var(--ink-2); margin: 12px 0 7px; }
+  .card h3:first-of-type { margin-top: 0; }
+
+  .profile {
+    color: var(--light); border-radius: var(--radius); padding: 0; overflow: hidden;
+    background: var(--grain), radial-gradient(ellipse at 72% 26%, #5A6478, transparent 58%), var(--slate);
+    box-shadow: var(--depth), inset 0 0 0 1px var(--slate-line);
+  }
+  .profile-top { padding: 15px 16px 0; }
+  .profile-class { color: var(--light-2); font-size: 11.5px; font-weight: 600; }
+  .profile-name-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-top: 2px; }
+  .profile-name { font-size: 21px; font-weight: 800; letter-spacing: -.035em; }
+  .profile-nick { display: inline-flex; align-items: center; gap: 5px; margin-top: 5px; background: var(--deep); border-radius: 999px; padding: 2px 9px; font-size: 11.5px; font-weight: 600; color: var(--light); }
+  .profile-score { text-align: right; flex: none; }
+  .profile-score h2 { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--light-2); letter-spacing: 0; }
+  .profile-score .ring {
+    display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+    border: 1px solid rgba(240, 201, 132, .55); color: var(--gold); font-size: 11px;
+  }
+  .profile-score strong { display: block; margin-top: 2px; font-size: 25px; font-weight: 800; color: var(--gold-light); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .profile-score strong span { font-size: 11.5px; font-weight: 600; color: var(--light-2); margin-left: 2px; }
+  .avatar-stage { position: relative; display: grid; place-items: center; height: 148px; margin: 6px 0 -4px; }
+  .avatar-stage::before { content: ""; position: absolute; width: 210px; height: 120px; border-radius: 50%; background: radial-gradient(ellipse, rgba(240, 201, 132, .34), rgba(240, 201, 132, .04) 62%, transparent 72%); }
+  .avatar-stage img { position: relative; height: 138px; width: auto; filter: drop-shadow(0 8px 14px rgba(6, 12, 22, .45)); }
+  .title-pill { display: inline-flex; align-items: center; gap: 5px; background: var(--gold-light); color: #513518; border-radius: 999px; padding: 4px 11px; font-size: 11.5px; font-weight: 750; }
+  .profile-controls { display: flex; justify-content: center; padding: 0 16px 12px; }
+  .profile-areas { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); background: var(--deep); text-align: center; }
+  .profile-areas div { padding: 8px 2px 9px; }
+  .profile-areas div + div { border-left: 1px solid var(--slate-line); }
+  .profile-areas span { display: block; font-size: 10.5px; color: var(--light-2); font-weight: 600; }
+  .profile-areas strong { display: block; margin-top: 1px; font-size: 15px; font-weight: 800; color: var(--gold-light); font-variant-numeric: tabular-nums; }
+
+  .today-events { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+  .today-events span { background: var(--paper-3); border-radius: 7px; padding: 2px 8px; font-size: 11.5px; color: var(--ink); font-weight: 600; }
+  .sched { display: grid; gap: 4px; }
+  .sched-row { display: flex; align-items: baseline; gap: 9px; padding: 5px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
+  .sched-row:last-child { border-bottom: 0; }
+  .sched-row b { flex: none; width: 34px; color: var(--ink-2); font-size: 11.5px; font-weight: 700; }
+  .sched-row em { font-style: normal; font-weight: 700; color: var(--ink); }
+  .sched-row small { margin-left: auto; color: var(--ink-2); font-size: 11.5px; }
+
+  .tasks { display: grid; gap: 5px; }
+  .task {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    border-radius: 11px; padding: 7px 11px; font-size: 13px; font-weight: 600;
+  }
+  .task.is-done { background: #F6EEDC; color: var(--ink); box-shadow: inset 0 0 0 1px rgba(201, 139, 46, .22); }
+  .task.is-pending { background: #F7E6EC; color: #7C4358; box-shadow: inset 0 0 0 1px rgba(223, 187, 201, .9); }
+  .task span.tag { font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 1px 8px; flex: none; }
+  .task.is-done span.tag { background: #EFD9A6; color: #6B461C; }
+  .task.is-pending span.tag { background: #EBC9D5; color: #7C4358; }
+  .routine { display: flex; align-items: center; gap: 8px; border-radius: 11px; padding: 6px 11px; font-size: 13px; font-weight: 600; }
+  .routine.is-done { background: #F6EEDC; color: var(--ink); box-shadow: inset 0 0 0 1px rgba(201, 139, 46, .22); }
+  .routine.is-pending { background: var(--paper-2); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); }
+  .routine .mark { width: 16px; height: 16px; border-radius: 6px; display: grid; place-items: center; font-size: 10px; flex: none; }
+  .routine.is-done .mark { background: #EFD9A6; color: #6B461C; }
+  .routine.is-pending .mark { box-shadow: inset 0 0 0 1px var(--line); }
+
+  .praise { border-radius: 12px; background: var(--paper-2); padding: 10px 12px; box-shadow: inset 0 0 0 1px var(--line); }
+  .praise small { display: block; color: var(--ink-2); font-size: 11.5px; font-weight: 600; }
+  .praise p { margin: 4px 0 0; font-size: 13px; line-height: 1.55; }
+  .praise .badge { display: inline-block; margin-right: 5px; background: #E5EFFB; color: #365C85; border-radius: 6px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
+  .todo-note { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+  @media (max-width: 640px) {
+    .slots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .roster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 560px) {
+    .t-brand small { display: none; }
+    .t-top, .t-tabs, .t-main { padding-inline: 12px; }
+    .composer { padding: 10px; }
+    .toolbar { margin-top: 16px; }
+  }
+</style>
+</head>
+<body data-view="teacher">
+
+<!-- 교사 메인화면 -->
+<section class="screen screen-teacher" aria-label="교사 메인화면 시안">
+  <div class="t-wrap">
+    <header class="t-top">
+      <div class="t-brand">
+        <img src="assets/logo-icon.jpg" alt="오늘의 별 로고">
+        <strong>오늘의 별</strong>
+        <small>서울경동초등학교 5학년 3반</small>
+      </div>
+      <div class="t-top-actions"><button type="button">교실화면</button><button type="button" aria-label="더보기">⋮</button></div>
+    </header>
+    <nav class="t-tabs" aria-label="주 메뉴">
+      <button type="button" class="active" aria-current="page">대시보드</button>
+      <button type="button">기록</button>
+      <button type="button">일정</button>
+      <button type="button">과제</button>
+      <button type="button">루틴</button>
+      <button type="button">경제</button>
+      <button type="button">통계</button>
+      <button type="button">수업도구</button>
+    </nav>
+
+    <div class="t-main">
+      <section class="composer" aria-label="빠른 기록">
+        <div class="composer-row">
+          <input type="text" class="who" value="3, 7" aria-label="대상 학생">
+          <input type="text" placeholder="내용" aria-label="빠른 기록 입력">
+        </div>
+        <div class="areas" aria-label="빠른 기록 분야">
+          <span class="area on">학습</span><span class="area on">과제</span><span class="area">관계</span>
+          <span class="area">도전</span><span class="area">생활</span><span class="area">알바</span>
+        </div>
+        <div class="composer-foot">
+          <button type="button" class="date-btn">📅 오늘 · 11월 20일</button>
+          <div class="rec-actions">
+            <button type="button" class="rec praise">칭찬</button>
+            <button type="button" class="rec note">기록</button>
+            <button type="button" class="rec advice">조언</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="toolbar">
+        <div>
+          <h2>5학년 3반의 하루</h2>
+          <small>작은 기록이 모여 성장이 됩니다.</small>
+        </div>
+        <div class="toolbar-actions">
+          <button type="button" class="ghost-btn">📅 11월 20일 금요일</button>
+          <button type="button" class="ghost-btn">오늘</button>
+        </div>
+      </div>
+
+      <section class="panel" aria-label="오늘 일정">
+        <div class="panel-head">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <strong>오늘 일정</strong>
+            <span class="event-chip">현장체험학습 신청서 제출 <b>D-3</b></span>
+            <span class="event-chip">5교시 동아리</span>
+          </div>
+          <button type="button" class="mini-btn">+ 일정</button>
+        </div>
+        <div class="slots">
+          <div class="slot"><small>1교시</small><strong>국어</strong></div>
+          <div class="slot"><small>2교시</small><strong>수학</strong></div>
+          <div class="slot"><small>3교시</small><strong>과학</strong></div>
+          <div class="slot"><small>4교시</small><strong>체육</strong></div>
+          <div class="slot"><small>5교시</small><strong>사회</strong></div>
+          <div class="slot"><small>6교시</small><strong>창체</strong></div>
+        </div>
+        <div class="ticker">이번 주 · 목요일 5교시 동아리 · 금요일 1~2교시 현장체험학습 안전교육</div>
+      </section>
+
+      <div class="metrics">
+        <div class="metric"><small>오늘 함께하는 학생</small><strong>24 <span>/ 24명</span></strong></div>
+        <div class="metric"><small>할 일을 모두 마친 학생</small><strong><span class="star" aria-hidden="true">★</span>17 <span>명</span></strong></div>
+        <div class="metric"><small>오늘 남긴 기록</small><strong>32 <span>건</span></strong></div>
+      </div>
+
+      <div class="roster-head">
+        <strong>우리 반 학생 <span>24명</span></strong>
+        <div class="toolbar-actions">
+          <button type="button" class="ghost-btn">자세히</button>
+          <button type="button" class="ghost-btn">체크</button>
+          <button type="button" class="ghost-btn">출결</button>
+        </div>
+      </div>
+      <p class="legend"><span><i class="k-done"></i>다 마친 학생</span><span><i class="k-pending"></i>할 일이 남은 학생</span></p>
+
+      <div class="roster">
+        <article class="s-card done">
+          <div class="s-head"><strong>1. 가온</strong><button type="button" class="s-open" aria-label="가온 자세히 보기">⋯</button></div>
+          <div class="s-score"><span class="star" aria-hidden="true">★</span><strong>24</strong><small>학습 6 · 과제 5 · 관계 4</small></div>
+          <div class="s-foot"><span class="s-state"><span aria-hidden="true">✓</span>다 마쳤어요</span></div>
+        </article>
+
+        <article class="s-card pending">
+          <div class="s-head"><strong>2. 다온</strong><button type="button" class="s-open" aria-label="다온 자세히 보기">⋯</button></div>
+          <div class="s-score"><span class="star" aria-hidden="true">★</span><strong>18</strong><small>학습 5 · 과제 3 · 관계 4</small></div>
+          <div class="s-foot"><span class="s-state">할 일 1개 남음</span><div class="s-tasks"><span class="s-task">수학 익힘 3쪽</span></div></div>
+        </article>
+
+        <article class="s-card done">
+          <div class="s-head"><strong>3. 나래</strong><button type="button" class="s-open" aria-label="나래 자세히 보기">⋯</button></div>
+          <div class="s-score"><span class="star" aria-hidden="true">★</span><strong>21</strong><small>학습 5 · 과제 5 · 관계 3</small></div>
+          <div class="s-foot"><span class="s-state"><span aria-hidden="true">✓</span>다 마쳤어요</span></div>
+        </article>
+
+        <article class="s-card pending">
+          <div class="s-head"><strong>4. 마루</strong><button type="button" class="s-open" aria-label="마루 자세히 보기">⋯</button></div>
+          <div class="s-score"><span class="star" aria-hidden="true">★</span><strong>15</strong><small>학습 4 · 과제 2 · 생활 3</small></div>
+          <div class="s-foot"><span class="s-state">할 일 2개 남음</span><div class="s-tasks"><span class="s-task">국어 시 낭독 녹음</span><span class="s-task late">체육 준비물 · 어제까지</span></div></div>
+        </article>
+
+        <article class="s-card done">
+          <div class="s-head"><strong>5. 라온</strong><button type="button" class="s-open" aria-label="라온 자세히 보기">⋯</button></div>
+          <div class="s-score"><span class="star" aria-hidden="true">★</span><strong>26</strong><small>학습 7 · 과제 5 · 도전 4</small></div>
+          <div class="s-foot"><span class="s-state"><span aria-hidden="true">✓</span>다 마쳤어요</span></div>
+        </article>
+
+        <article class="s-card pending">
+          <div class="s-head"><strong>6. 이든</strong><button type="button" class="s-open" aria-label="이든 자세히 보기">⋯</button></div>
+          <div class="s-score"><span class="star" aria-hidden="true">★</span><strong>13</strong><small>학습 4 · 과제 2 · 관계 3</small></div>
+          <div class="s-foot"><span class="s-state">할 일 2개 남음</span><div class="s-tasks"><span class="s-task">사회 조사 2건</span><span class="s-task">수학 익힘 3쪽</span></div></div>
+        </article>
+
+        <article class="s-card done">
+          <div class="s-head"><strong>7. 보람</strong><button type="button" class="s-open" aria-label="보람 자세히 보기">⋯</button></div>
+          <div class="s-score"><span class="star" aria-hidden="true">★</span><strong>20</strong><small>학습 5 · 과제 4 · 생활 4</small></div>
+          <div class="s-foot"><span class="s-state"><span aria-hidden="true">✓</span>다 마쳤어요</span></div>
+        </article>
+
+        <article class="s-card done">
+          <div class="s-head"><strong>8. 하람</strong><button type="button" class="s-open" aria-label="하람 자세히 보기">⋯</button></div>
+          <div class="s-score"><span class="star" aria-hidden="true">★</span><strong>22</strong><small>학습 6 · 과제 4 · 관계 4</small></div>
+          <div class="s-foot"><span class="s-state"><span aria-hidden="true">✓</span>다 마쳤어요</span></div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 학생 메인화면 -->
+<section class="screen screen-student" aria-label="학생 메인화면 시안">
+  <div class="s-screen">
+    <div class="s-topbar">
+      <div class="s-header">
+        <div style="min-width:0">
+          <strong><span class="brand-star" aria-hidden="true">★</span>오늘의 별</strong>
+          <small style="display:block">서울경동초등학교 5학년 3반</small>
+        </div>
+        <button type="button" class="s-logout">로그아웃</button>
+      </div>
+      <nav class="s-subtabs" aria-label="학생 메뉴">
+        <button type="button" class="active" aria-current="page">별빛 교실</button>
+        <button type="button">경제</button>
+        <button type="button">설문</button>
+      </nav>
+    </div>
+
+    <main class="s-main">
+      <section class="profile" aria-label="내 프로필">
+        <div class="profile-top">
+          <div class="profile-class">5학년 3반</div>
+          <div class="profile-name-row">
+            <div>
+              <h1 class="profile-name">6번 이든</h1>
+              <span class="profile-nick">별명 · 구름</span>
+            </div>
+            <div class="profile-score">
+              <h2><span class="ring" aria-hidden="true">★</span>내가 모은 별</h2>
+              <strong>13<span>개</span></strong>
+            </div>
+          </div>
+        </div>
+        <div class="avatar-stage"><img src="assets/character-default.png" alt="내 캐릭터"></div>
+        <div class="profile-controls"><span class="title-pill">🏅 새싹 기록가</span></div>
+        <div class="profile-areas" aria-label="분야별 별 개수">
+          <div><span>학습</span><strong>4</strong></div>
+          <div><span>과제</span><strong>2</strong></div>
+          <div><span>관계</span><strong>3</strong></div>
+          <div><span>도전</span><strong>1</strong></div>
+          <div><span>생활</span><strong>3</strong></div>
+          <div><span>알바</span><strong>0</strong></div>
+        </div>
+      </section>
+
+      <section class="card" aria-label="오늘의 일정">
+        <h2>오늘의 일정</h2>
+        <div class="today-events"><span>5교시 동아리</span><span>현장체험학습 신청서 D-3</span></div>
+        <div class="sched">
+          <div class="sched-row"><b>1교시</b><em>국어</em><small>시를 읽고 느낌 나누기</small></div>
+          <div class="sched-row"><b>2교시</b><em>수학</em><small>분수의 나눗셈</small></div>
+          <div class="sched-row"><b>3교시</b><em>과학</em><small>용해와 용액</small></div>
+          <div class="sched-row"><b>4교시</b><em>체육</em><small>체육관</small></div>
+        </div>
+      </section>
+
+      <section class="card" aria-label="오늘의 과제와 루틴">
+        <h2>오늘의 과제 &amp; 루틴</h2>
+        <h3>오늘의 과제</h3>
+        <div class="tasks">
+          <div class="task is-pending"><span>사회 조사 2건</span><span class="tag">미완료</span></div>
+          <div class="task is-pending"><span>수학 익힘 3쪽</span><span class="tag">미완료</span></div>
+          <div class="task is-done"><span>국어 시 낭독 녹음</span><span class="tag">✓ 완료</span></div>
+        </div>
+        <h3>매일 루틴</h3>
+        <div class="tasks">
+          <div class="routine is-done"><span class="mark" aria-hidden="true">✓</span><span>아침 독서 10분</span></div>
+          <div class="routine is-done"><span class="mark" aria-hidden="true">✓</span><span>수학 문제 1장</span></div>
+          <div class="routine is-pending"><span class="mark" aria-hidden="true"></span><span>일기 쓰기</span></div>
+        </div>
+      </section>
+
+      <section class="card" aria-label="선생님의 칭찬 편지함">
+        <h2>선생님의 칭찬 편지함</h2>
+        <article class="praise">
+          <small>11월 19일 3교시</small>
+          <p><span class="badge">관계</span>모둠에서 친구 의견을 끝까지 듣고, 우리 모둠 생각을 정리해 발표했어요.</p>
+        </article>
+      </section>
+    </main>
+  </div>
+</section>
+
+<script>
+  var view = new URLSearchParams(location.search).get('view') === 'student' ? 'student' : 'teacher';
+  document.body.dataset.view = view;
+  document.title = (view === 'student' ? '학생 메인화면' : '교사 메인화면') + ' · 오늘의 별 시안';
+</script>
+</body>
+</html>
