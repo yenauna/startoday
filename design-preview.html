@@ -357,6 +357,32 @@
     background-image: var(--wash-top);
   }
 
+  body[data-texture="star-wash"] {
+    --starry-ink: url("assets/design-card-starry-blue.webp");
+    --wash-base: url("assets/design-card-soft-blue.webp?v=2");
+  }
+
+  body[data-texture="star-wash"] :is(.s-card.done, .task.is-done, .routine.is-done) {
+    --starry-ink: url("assets/design-card-starry-gold.webp");
+    --wash-base: url("assets/design-card-soft-gold.webp?v=2");
+  }
+
+  body[data-texture="star-wash"] :is(.composer, .panel, .metric, .card, .s-card, .task, .routine) {
+    background-image: var(--starry-ink), var(--wash-base);
+    background-size: auto 92%, 100% 100%;
+    background-position: right bottom, center;
+    background-repeat: no-repeat;
+  }
+
+  body[data-texture="star-wash"] :is(.s-card, .metric, .card):nth-child(3n + 2) {
+    background-position: left bottom, center;
+  }
+
+  body[data-texture="star-wash"] :is(.s-card, .metric, .card):nth-child(3n) {
+    background-position: right top, center;
+    background-size: auto 78%, 100% 100%;
+  }
+
   body:is([data-texture="wash"], [data-texture="dry-brush"], [data-texture="soft-wash"]) :is(.composer, .panel, .metric, .card, .s-card, .task, .routine) {
     background-size: 100% 100%;
     background-repeat: no-repeat;
@@ -595,7 +621,7 @@
   const params = new URLSearchParams(location.search);
   const view = params.get('view') === 'student' ? 'student' : 'teacher';
   const texture = params.get('texture');
-  if (['ceramic', 'linen', 'wash', 'dry-brush', 'soft-wash'].includes(texture)) document.body.dataset.texture = texture;
+  if (['ceramic', 'linen', 'wash', 'dry-brush', 'soft-wash', 'star-wash'].includes(texture)) document.body.dataset.texture = texture;
   document.body.dataset.view = view;
   document.title = (view === 'student' ? '학생 메인화면' : '교사 메인화면') + ' · 오늘의 별 시안';
 </script>
