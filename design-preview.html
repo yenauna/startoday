@@ -337,10 +337,24 @@
 
   body[data-texture="soft-wash"] {
     --card-texture: url("assets/design-card-soft-blue.webp?v=2");
+    --wash-left: url("assets/design-card-left-blue.webp");
+    --wash-top: url("assets/design-card-top-blue.webp");
   }
 
   body[data-texture="soft-wash"] :is(.s-card.done, .task.is-done, .routine.is-done) {
     --card-texture: url("assets/design-card-soft-gold.webp?v=2");
+    --wash-left: url("assets/design-card-left-gold.webp");
+    --wash-top: url("assets/design-card-top-gold.webp");
+  }
+
+  body[data-texture="soft-wash"] :is(.s-card, .metric, .task, .routine):nth-child(3n + 2),
+  body[data-texture="soft-wash"] .s-main > .card:nth-child(3n + 2) {
+    background-image: var(--wash-left);
+  }
+
+  body[data-texture="soft-wash"] :is(.s-card, .metric, .task, .routine):nth-child(3n),
+  body[data-texture="soft-wash"] :is(.composer, .s-main > .card:nth-child(3n)) {
+    background-image: var(--wash-top);
   }
 
   body:is([data-texture="wash"], [data-texture="dry-brush"], [data-texture="soft-wash"]) :is(.composer, .panel, .metric, .card, .s-card, .task, .routine) {
