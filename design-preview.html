@@ -33,9 +33,10 @@
     --pending-badge: #C2D0E1;
     --done: rgb(222 229 238 / 86%);
     --done-line: #A6B4C5;
-    --done-badge: #F9E7B9;
-    --done-badge-line: #CFB875;
-    --done-star: #D5A43B;
+    --done-badge: #FFF2B6;
+    --done-badge-line: #DB9E13;
+    --done-badge-ink: #775009;
+    --done-star: #F4B400;
     --radius: 16px;
     --font: 'Pretendard Variable', Pretendard, system-ui, -apple-system, '맑은 고딕', sans-serif;
   }
@@ -127,7 +128,8 @@
   .date-btn { border: 1px solid var(--line); background: var(--paper-2); border-radius: 12px; padding: 8px 12px; color: var(--ink); font-weight: 650; font-size: 13.5px; }
   .rec-actions { display: flex; gap: 6px; flex-wrap: wrap; }
   .rec { border: 0; border-radius: 10px; padding: 8px 14px; font-weight: 700; font-size: 13.5px; }
-  .rec.praise { background: #E5EFFB; color: #365C85; }
+  .rec.praise { background: #FFF5CE; color: var(--done-badge-ink); box-shadow: inset 0 0 0 1px var(--done-badge-line); }
+  .rec.praise .star { margin-inline-end: 4px; }
   .rec.note { background: #ECEFF3; color: #586375; }
   .rec.advice { background: #F7E6EC; color: #895068; }
 
@@ -183,8 +185,9 @@
   .s-open:hover { background: rgba(0, 0, 0, .07); }
   .s-score { display: flex; align-items: baseline; gap: 4px; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
   .s-score .star { font-size: 17px; line-height: 1; }
-  .s-card.done .s-score .star { color: var(--done-star); }
-  .s-card.pending .s-score .star { color: var(--gold-ink); }
+  .s-score .star, .rec.praise .star, .task.is-done .tag::before, .routine.is-done::after {
+    color: var(--done-star); text-shadow: 0 1px 0 #9D6506;
+  }
   .s-score strong { font-size: 20px; font-weight: 800; letter-spacing: -.03em; }
   .s-card.done .s-score strong { color: var(--ink); }
   .s-card.pending .s-score strong { color: var(--ink); }
@@ -192,7 +195,7 @@
   .s-card.done .s-score small { color: var(--ink-2); }
   .s-card.pending .s-score small { color: var(--ink-2); }
   .s-state { display: inline-flex; align-items: center; gap: 6px; width: fit-content; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; }
-  .s-card.done .s-state { background: var(--done-badge); color: var(--ink); box-shadow: inset 0 0 0 1px var(--done-badge-line); }
+  .s-card.done .s-state { background: var(--done-badge); color: var(--done-badge-ink); box-shadow: inset 0 0 0 1px var(--done-badge-line); }
   .s-card.pending .s-state { background: var(--pending-badge); color: var(--ink); }
   .s-tasks { display: grid; gap: 4px; }
   .s-task {
@@ -236,14 +239,15 @@
   .profile-score { text-align: right; flex: none; }
   .profile-score h2 { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--light); letter-spacing: 0; }
   .profile-score .ring {
-    display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
-    border: 1px solid rgba(240, 201, 132, .55); color: var(--gold); font-size: 11px;
+    display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+    border: 1px solid #FFD665B8; color: #FFD34C; font-size: 15px; line-height: 1;
+    background: #FFD34C14; text-shadow: 0 0 6px #FFD34C8C; box-shadow: 0 0 8px #FFD34C33;
   }
   .profile-score strong { display: block; margin-top: 2px; font-size: 25px; font-weight: 800; color: var(--gold-light); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
   .profile-score strong span { font-size: 11.5px; font-weight: 600; color: var(--light); margin-left: 2px; }
   .avatar-stage { position: relative; display: grid; place-items: center; height: 148px; margin: 6px 0 -4px; }
   .avatar-stage img { position: relative; height: 138px; width: auto; }
-  .title-pill { display: inline-flex; align-items: center; gap: 5px; background: var(--gold-light); color: #513518; border-radius: 999px; padding: 4px 11px; font-size: 11.5px; font-weight: 750; }
+  .title-pill { display: inline-flex; align-items: center; gap: 5px; background: var(--done-badge); color: var(--done-badge-ink); box-shadow: inset 0 0 0 1px var(--done-badge-line); border-radius: 999px; padding: 4px 11px; font-size: 11.5px; font-weight: 750; }
   .profile-controls { display: flex; justify-content: center; padding: 0 16px 12px; }
   .profile-areas { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); background-color: var(--deep); text-align: center; }
   .profile-areas div { padding: 8px 2px 9px; }
@@ -272,12 +276,12 @@
     background: var(--pending); color: var(--ink); box-shadow: inset 0 0 0 1px var(--pending-line);
   }
   .task.is-done .tag::before, .routine.is-done::after {
-    content: "★" / ""; color: var(--done-star);
+    content: "★" / "";
   }
   .task.is-done .tag::before { margin-inline-end: 4px; }
   .routine.is-done::after { margin-inline-start: auto; }
   .task span.tag { font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 1px 8px; flex: none; }
-  .task.is-done span.tag { background: var(--done-badge); color: var(--ink); box-shadow: inset 0 0 0 1px var(--done-badge-line); }
+  .task.is-done span.tag { background: var(--done-badge); color: var(--done-badge-ink); box-shadow: inset 0 0 0 1px var(--done-badge-line); }
   .task.is-pending span.tag { background: var(--pending-badge); color: var(--ink); }
   .routine { display: flex; align-items: center; gap: 8px; border-radius: 11px; padding: 6px 11px; font-size: 13px; font-weight: 600; }
   .routine .mark { width: 16px; height: 16px; border-radius: 6px; display: grid; place-items: center; font-size: 10px; flex: none; }
@@ -428,7 +432,7 @@
         <div class="composer-foot">
           <button type="button" class="date-btn">📅 오늘 · 11월 20일</button>
           <div class="rec-actions">
-            <button type="button" class="rec praise">칭찬</button>
+            <button type="button" class="rec praise"><span class="star" aria-hidden="true">★</span>칭찬</button>
             <button type="button" class="rec note">기록</button>
             <button type="button" class="rec advice">조언</button>
           </div>
