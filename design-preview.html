@@ -21,14 +21,18 @@
   body[data-theme="sky"] {
     --page:#F7F8F6; --line:#E3E6E1; --ink:#1F2422; --muted:#6D7472;
     --accent:#4D5756; --tint:#D7E3E0; --hero:#1E2926; --action-ink:#374542;
+    --glass-bevel: inset 0 1.5px 1px rgba(255, 255, 255, .95),
+      inset 1.5px 0 2px rgba(255, 255, 255, .55),
+      inset 0 -2px 6px rgba(31, 36, 34, .04);
     background-image:
-      radial-gradient(ellipse 72% 46% at 26% 30%, #D6E7E6, transparent 78%),
-      radial-gradient(ellipse 68% 49% at 66% 74%, #E2E1F0, transparent 79%),
-      radial-gradient(ellipse 68% 45% at 81% 37%, #F3EDE0, transparent 81%);
+      radial-gradient(ellipse 72% 46% at 26% 30%, #CBE2E2, transparent 78%),
+      radial-gradient(ellipse 68% 49% at 66% 74%, #DAD8EE, transparent 79%),
+      radial-gradient(ellipse 68% 45% at 81% 37%, #EFE3D1, transparent 81%);
   }
 
   body[data-theme="sky"] .hero {
     background-image:radial-gradient(ellipse at 92% 10%, #2C3E3B, transparent 68%);
+    box-shadow:inset 0 1px 0 rgba(255, 255, 255, .22);
   }
 
   body[data-theme="sky"] :is(.composer,.panel,.metric,.card,.profile,.s-card) {
@@ -38,14 +42,20 @@
   }
 
   body[data-theme="sky"] :is(.composer, .panel, .metric, .s-card, .card:has(.sched)) {
-    background-color:rgba(255, 255, 255, .56);
-    border:1px solid rgba(255, 255, 255, .75);
-    box-shadow:0 8px 24px rgba(31, 36, 34, .045);
-    -webkit-backdrop-filter:blur(18px) saturate(135%);
-    backdrop-filter:blur(18px) saturate(135%);
+    background:linear-gradient(135deg, rgba(255, 255, 255, .65) 0%,
+      rgba(255, 255, 255, .34) 55%, rgba(255, 255, 255, .52) 100%);
+    border:1px solid rgba(255, 255, 255, .78);
+    box-shadow:var(--glass-bevel), 0 12px 28px rgba(31, 36, 34, .06);
+    -webkit-backdrop-filter:blur(22px) saturate(160%);
+    backdrop-filter:blur(22px) saturate(160%);
   }
 
-  body[data-theme="sky"] .s-card.done { background-color:rgba(255, 255, 255, .34); }
+  body[data-theme="sky"] .s-card.done { background:rgba(255, 255, 255, .26); }
+
+  body[data-theme="sky"] :is(.t-tabs, .s-subtabs, .t-top-actions, .rec-actions) button,
+  body[data-theme="sky"] .s-logout {
+    box-shadow:var(--glass-bevel);
+  }
 
   * { box-sizing:border-box; }
   body { margin:0; min-height:100vh; background:var(--page); color:var(--ink); font-size:15px; line-height:1.5; }
