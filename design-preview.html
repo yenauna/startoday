@@ -9,6 +9,7 @@
 <style>
   :root {
     --page: #091221;
+    --profile-bg: #40639A;
     --sky-shade: rgb(9 18 33 / 70%);
     --sky-texture: url("assets/design-starry-sky.webp");
     --deep: #203A59;
@@ -66,7 +67,8 @@
   body[data-view="student"] .screen-student { display: block; }
 
   .t-top, .t-tabs, .s-topbar {
-    background-image: linear-gradient(#152A4A75, #152A4A75), var(--sky-texture);
+    background-color: var(--page);
+    background-image: linear-gradient(var(--sky-shade), var(--sky-shade)), var(--sky-texture);
     background-position: center top;
     background-size: 100% auto;
   }
@@ -77,7 +79,7 @@
   .t-top {
     display: flex; align-items: center; justify-content: space-between;
     gap: 14px; padding: 14px clamp(16px, 3vw, 30px);
-    background-color: var(--deep); border-bottom: 1px solid var(--slate-line);
+    border-bottom: 1px solid var(--slate-line);
   }
   .t-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .t-brand img {
@@ -94,7 +96,7 @@
   .t-top-actions button:hover { background: var(--slate-2); }
   .t-tabs {
     display: flex; gap: 22px; overflow-x: auto; scrollbar-width: none;
-    padding: 0 clamp(16px, 3vw, 30px); background-color: var(--deep);
+    padding: 0 clamp(16px, 3vw, 30px);
     border-bottom: 1px solid var(--slate-line);
   }
   .t-tabs::-webkit-scrollbar { display: none; }
@@ -209,7 +211,7 @@
   /* ── 학생 메인화면 ─────────────────────────────────────────── */
   .s-screen { max-width: 460px; margin: 0 auto; padding: 0 0 40px; }
   .s-topbar {
-    position: sticky; top: 0; z-index: 6; background-color: var(--deep); color: var(--light);
+    position: sticky; top: 0; z-index: 6; color: var(--light);
     border-bottom: 1px solid var(--slate-line); padding: 10px 14px 0;
   }
   .s-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -229,7 +231,7 @@
 
   .profile {
     color: var(--light); border-radius: var(--radius); padding: 0; overflow: hidden;
-    background: var(--page);
+    background: var(--profile-bg);
     box-shadow: var(--depth), inset 0 0 0 1px var(--slate-line);
   }
   .profile-top { padding: 15px 16px 0; }
