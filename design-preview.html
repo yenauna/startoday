@@ -315,6 +315,25 @@
 
   :is(.task, .routine).is-done { --surface-edge: var(--done-line); }
 
+  body[data-texture] :is(.composer, .panel, .metric, .card, .s-card, .task, .routine) {
+    background-image: var(--card-texture);
+  }
+
+  body[data-texture="ceramic"] {
+    --card-texture: url("assets/design-card-grain.png");
+  }
+
+  body[data-texture="linen"] {
+    --card-texture: url("assets/design-card-fiber.png");
+  }
+
+  body[data-texture="wash"] {
+    --card-texture:
+      radial-gradient(ellipse at 8% -12%, #FFFFFF82, transparent 67%),
+      radial-gradient(ellipse at 97% 120%, #3759811A, transparent 71%),
+      radial-gradient(ellipse at 70% -35%, #5B7CA31A, transparent 59%);
+  }
+
 </style>
 </head>
 <body data-view="teacher">
@@ -547,6 +566,8 @@
 <script>
   const params = new URLSearchParams(location.search);
   const view = params.get('view') === 'student' ? 'student' : 'teacher';
+  const texture = params.get('texture');
+  if (['ceramic', 'linen', 'wash'].includes(texture)) document.body.dataset.texture = texture;
   document.body.dataset.view = view;
   document.title = (view === 'student' ? '학생 메인화면' : '교사 메인화면') + ' · 오늘의 별 시안';
 </script>
