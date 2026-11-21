@@ -28,11 +28,13 @@
     --slate-line: #ADBED2;
     --depth: 0 2px 8px rgba(31, 51, 78, .12);
     --button-text: #FFFFFF;
-    --pending: #D1DCE9;
-    --pending-line: #AABDD3;
+    --pending: #FFFFFF;
+    --pending-line: #7892B3;
     --pending-badge: #C2D0E1;
-    --done: #FBF8EF;
-    --done-line: #CFB875;
+    --done: rgb(222 229 238 / 86%);
+    --done-line: #A6B4C5;
+    --done-badge: #F9E7B9;
+    --done-badge-line: #CFB875;
     --done-star: #D5A43B;
     --radius: 16px;
     --font: 'Pretendard Variable', Pretendard, system-ui, -apple-system, '맑은 고딕', sans-serif;
@@ -190,15 +192,15 @@
   .s-card.done .s-score small { color: var(--ink-2); }
   .s-card.pending .s-score small { color: var(--ink-2); }
   .s-state { display: inline-flex; align-items: center; gap: 6px; width: fit-content; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; }
-  .s-card.done .s-state { background: var(--done); color: var(--ink); box-shadow: inset 0 0 0 1px var(--done-line); }
+  .s-card.done .s-state { background: var(--done-badge); color: var(--ink); box-shadow: inset 0 0 0 1px var(--done-badge-line); }
   .s-card.pending .s-state { background: var(--pending-badge); color: var(--ink); }
   .s-tasks { display: grid; gap: 4px; }
   .s-task {
     border-radius: 10px; padding: 4px 9px; font-size: 12.5px; font-weight: 600;
-    background: var(--paper-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--pending-line);
+    background: var(--paper-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .s-task.late { color: var(--rose-ink); box-shadow: inset 0 0 0 1px var(--rose); }
+  .s-task.late { background: #FAEDF2; color: var(--rose-ink); box-shadow: inset 0 0 0 1px var(--rose); }
 
   /* ── 학생 메인화면 ─────────────────────────────────────────── */
   .s-screen { max-width: 460px; margin: 0 auto; padding: 0 0 40px; }
@@ -275,7 +277,7 @@
   .task.is-done .tag::before { margin-inline-end: 4px; }
   .routine.is-done::after { margin-inline-start: auto; }
   .task span.tag { font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 1px 8px; flex: none; }
-  .task.is-done span.tag { background: var(--done); color: var(--ink); box-shadow: inset 0 0 0 1px var(--done-line); }
+  .task.is-done span.tag { background: var(--done-badge); color: var(--ink); box-shadow: inset 0 0 0 1px var(--done-badge-line); }
   .task.is-pending span.tag { background: var(--pending-badge); color: var(--ink); }
   .routine { display: flex; align-items: center; gap: 8px; border-radius: 11px; padding: 6px 11px; font-size: 13px; font-weight: 600; }
   .routine .mark { width: 16px; height: 16px; border-radius: 6px; display: grid; place-items: center; font-size: 10px; flex: none; }
@@ -306,6 +308,7 @@
       0 8px 14px #14294B40;
   }
 
+  .s-card.pending { --surface-edge: var(--pending-line); }
   .s-card.done { --surface-edge: var(--done-line); }
 
   :is(.task, .routine):is(.is-done, .is-pending) {
@@ -598,9 +601,9 @@
         </div>
         <h3>매일 루틴</h3>
         <div class="tasks">
+          <div class="routine is-pending"><span class="mark" aria-hidden="true"></span><span>일기 쓰기</span></div>
           <div class="routine is-done"><span class="mark" aria-hidden="true">✓</span><span>아침 독서 10분</span></div>
           <div class="routine is-done"><span class="mark" aria-hidden="true">✓</span><span>수학 문제 1장</span></div>
-          <div class="routine is-pending"><span class="mark" aria-hidden="true"></span><span>일기 쓰기</span></div>
         </div>
       </section>
 
