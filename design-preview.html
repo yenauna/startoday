@@ -331,7 +331,11 @@
     --card-texture: url("assets/design-card-watercolor.webp");
   }
 
-  body[data-texture="wash"] :is(.composer, .panel, .metric, .card, .s-card, .task, .routine) {
+  body[data-texture="dry-brush"] {
+    --card-texture: url("assets/design-card-dry-brush.webp");
+  }
+
+  body:is([data-texture="wash"], [data-texture="dry-brush"]) :is(.composer, .panel, .metric, .card, .s-card, .task, .routine) {
     background-size: 100% 100%;
     background-repeat: no-repeat;
   }
@@ -569,7 +573,7 @@
   const params = new URLSearchParams(location.search);
   const view = params.get('view') === 'student' ? 'student' : 'teacher';
   const texture = params.get('texture');
-  if (['ceramic', 'linen', 'wash'].includes(texture)) document.body.dataset.texture = texture;
+  if (['ceramic', 'linen', 'wash', 'dry-brush'].includes(texture)) document.body.dataset.texture = texture;
   document.body.dataset.view = view;
   document.title = (view === 'student' ? '학생 메인화면' : '교사 메인화면') + ' · 오늘의 별 시안';
 </script>
