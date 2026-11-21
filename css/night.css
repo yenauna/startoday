@@ -1,0 +1,384 @@
+@media screen {
+  :root {
+    --night-page: #1C2A3E;
+    --night-deep: #162337;
+    --night-slate: #34445B;
+    --night-slate-glass: rgb(52 68 91 / 88%);
+    --night-slate-hover: #425168;
+    --night-light: #F4EBDD;
+    --night-muted: #D4D0CA;
+    --night-gold: #F0C984;
+    --night-gold-light: #FAE1AC;
+    --night-gold-ink: #69451D;
+    --night-paper: #F2E9D8;
+    --night-paper-light: #FAF4E8;
+    --night-paper-quiet: #E7DBC6;
+    --night-ink: #282D37;
+    --night-ink-muted: #57544D;
+    --night-line: #C7B9A0;
+    --night-slate-line: #708097;
+    --night-depth: 0 12px 28px #10192A42;
+    --night-serif: "Noto Serif KR", "Noto Serif CJK KR", "Nanum Myeongjo", "AppleMyungjo", "Batang", "바탕", serif;
+    --night-grain:
+      radial-gradient(circle, #EBD09B66 0 1px, transparent 1.6px) 13px 7px / 137px 113px,
+      radial-gradient(circle, #F4EBDD54 0 .7px, transparent 1.4px) 39px 51px / 101px 163px;
+    --night-sky: var(--night-grain), radial-gradient(ellipse at 80% 0%, #3A4A62, transparent 65%);
+  }
+
+  :root, .startoday {
+    --st-bg: var(--night-paper-quiet);
+    --st-surface: var(--night-paper-light);
+    --st-text: var(--night-ink);
+    --st-text-muted: var(--night-ink-muted);
+    --st-line: var(--night-line);
+    --st-selected-bg: #F4D9A5;
+    --st-selected-text: #513518;
+    --st-selected-border: #95632B;
+    --st-selected-ring: #95632B56;
+    --st-gray-bg: #E9E0D1;
+    --st-gray-text: #4E4B45;
+    --st-yellow-bg: #F4E1BC;
+    --st-yellow-text: #604019;
+    --st-blue-text: #30567D;
+    --st-mint-text: #315740;
+    --st-lavender-text: #5D4A82;
+  }
+
+  body, .startoday, .lockscreen {
+    color: var(--night-light);
+    background: var(--night-sky) var(--night-page);
+  }
+
+  h1, h2, h3 { color: inherit; }
+
+  .brand-home > strong, .student-site-name, .classroom-brand h1, .login h1,
+  .dashboard-heading h2, .student-profile-name, .student-home-village .student-home-sign,
+  .student-home-village .student-calendar-card > h2, .student-home-village .student-praise-card > h2,
+  .dialog-head :is(h2, h3), .tools-window-head > strong {
+    font-family: var(--night-serif);
+    letter-spacing: -.045em;
+  }
+
+  .top, .sticky-navigation, .header-more-menu, .student-home-topbar,
+  .dashboard-heading, .lockscreen .classroom-heading, .tools-board > .tools-top-bar {
+    color: var(--night-light);
+    background: var(--night-deep);
+    border-color: var(--night-slate-line);
+    box-shadow: 0 1px 0 #F0C98448, var(--night-depth);
+  }
+
+  .sticky-navigation { background: #162337F5; }
+  .sticky-navigation .top { box-shadow: 0 1px 0 #F0C98448; }
+  .sticky-navigation .tabs { border-color: transparent; }
+  .top .brand-home, .top .brand-home:hover { color: var(--night-light); }
+  .top .brand-home .logo { box-shadow: 0 0 0 1px #F0C9847A; }
+  .top small, .student-home-topbar .student-header-class, .classroom-brand small,
+  .dashboard-heading small, .classroom-datetime :is(time, .clock) { color: var(--night-muted); }
+
+  .top > .row button, .header-more-menu button, .sticky-navigation .tabs button,
+  .student-home-topbar .economy-subtabs button, .student-home-topbar .student-logout,
+  .tools-top-bar button, .tools-drawer-toggle, .lockscreen button.class-tools,
+  .lockscreen .classroom-controls button {
+    color: var(--night-light);
+    background: var(--night-slate);
+    border-color: var(--night-slate-line);
+    box-shadow: none;
+  }
+
+  .sticky-navigation .tabs button { background: transparent; border-color: transparent; }
+  .top > .row button:hover, .header-more-menu button:hover, .sticky-navigation .tabs button:hover,
+  .student-home-topbar .economy-subtabs button:hover, .tools-top-bar button:hover {
+    color: var(--night-light);
+    background: var(--night-slate-hover);
+  }
+
+  .sticky-navigation .tabs button.active, .student-home-topbar .economy-subtabs .active,
+  .primary:not(.danger), .tools-board .primary {
+    color: #382715;
+    background: var(--night-gold);
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .primary:not(.danger):hover, .tools-board .primary:hover { background: var(--night-gold-light); }
+  :focus-visible { outline-color: #9E692C; }
+  :is(.sticky-navigation, .student-home-topbar, .tools-board, .lockscreen) :focus-visible {
+    outline-color: var(--night-gold);
+  }
+
+  .dashboard-heading {
+    position: relative;
+    isolation: isolate;
+    min-height: 110px;
+    padding: clamp(14px, 2.5vw, 30px);
+    border-radius: var(--st-radius-card);
+    background: var(--night-grain), linear-gradient(105deg, var(--night-deep), var(--night-slate));
+  }
+
+  .dashboard-heading h2 { overflow-wrap: anywhere; font-size: clamp(1.625rem, 3.3vw, 2.65rem); margin-bottom: 4px; }
+  .dashboard-heading .date-display { color: var(--night-ink); }
+
+  .dashboard-heading::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset-block: 0;
+    left: 62%;
+    width: min(14%, 120px);
+    background: radial-gradient(circle, #F0C98446, transparent 66%);
+    pointer-events: none;
+  }
+
+  .dashboard-heading::after, .classroom-brand h1::before {
+    content: "";
+    background: linear-gradient(145deg, var(--night-gold-light), var(--night-gold) 56%, #AE7838);
+    clip-path: polygon(50% 0%, 62% 34%, 98% 36%, 70% 58%, 80% 94%, 50% 73%, 20% 94%, 30% 58%, 2% 36%, 38% 34%);
+    pointer-events: none;
+  }
+
+  .dashboard-heading::after {
+    position: absolute;
+    z-index: -1;
+    left: 66%;
+    top: calc(50% - 24px);
+    width: 48px;
+    aspect-ratio: 1;
+    transform: rotate(12deg);
+  }
+
+  .panel:not(.praise, .advice), .card, .student-card, .metric, .record:not(.praise, .advice),
+  .quick-wrap.quick-composer-card, .seat, .empty, .class-announcement, .report-page {
+    color: var(--night-ink);
+    background: var(--night-paper);
+    box-shadow: var(--night-depth);
+  }
+
+  .login { border-top: 3px solid var(--night-gold); }
+  .login h1 { font-size: clamp(1.75rem, 4vw, 2.4rem); }
+
+  .quick-composer-card .quick textarea, #quick-students, .quick-date,
+  .quick-composer-card input:not([type=checkbox]), #notice-editor,
+  input:not([type=checkbox], [type=radio], [type=range], [type=color]), select, textarea {
+    color: var(--night-ink);
+    background: var(--night-paper-light);
+  }
+
+  .quick-composer-card .quick-controls, .dialog-foot, .dialog-head { border-color: var(--night-line); }
+  .quick-composer-card .quick { color: var(--night-ink); }
+  .table-wrap { color: var(--night-ink); background: var(--night-paper); }
+  th, .weekday { color: var(--night-ink); background: var(--night-paper-quiet); }
+  .event, .timeline-slot { background: var(--night-paper-quiet); color: var(--night-ink); }
+  .calendar { background-color: var(--night-line); }
+  .calendar .day:not(.today, .faded), .student-home-village .student-calendar-day:not(.selected) {
+    background-color: var(--night-paper-light);
+    color: var(--night-ink);
+  }
+  .calendar .day.today, .student-home-village .student-calendar-day.selected {
+    background-color: var(--st-selected-bg);
+    color: var(--st-selected-text);
+  }
+
+  #main > :is(.filters, .calendar-filters, .toolbar:not(.dashboard-heading)), .report-toolbar,
+  .student-home-topbar, .lockscreen .classroom-heading {
+    border-radius: var(--st-radius-card);
+    padding: 10px clamp(10px, 2vw, 18px);
+  }
+
+  #main > :is(.filters, .calendar-filters, .toolbar:not(.dashboard-heading)), .report-toolbar {
+    background: var(--night-slate-glass);
+    color: var(--night-light);
+  }
+
+  #main > :is(.muted, .empty-calendar-notice), .shell > .muted,
+  #main > :is(.filters, .calendar-filters, .toolbar) :is(small, .muted),
+  .report-toolbar :is(small, .muted) {
+    color: var(--night-muted);
+  }
+
+  .settings-sidebar button { color: var(--night-light); }
+  .settings-sidebar button:hover { background: var(--night-slate-hover); }
+  .settings-sidebar button.active { color: #382715; background: var(--night-gold); }
+
+  #app .students .student:not(.reveal-active, .selected, .checked, .excluded),
+  .lockscreen .students .classroom-student:not(.excluded) {
+    background: var(--night-slate-glass);
+    color: var(--night-light);
+    box-shadow: inset 0 1px #F4EBDD24, var(--night-depth);
+  }
+
+  .students .student.unfinished:not(.selected, .checked, .excluded) {
+    --st-pending-highlight: #414358;
+    --st-pending-bg: #394256;
+    --st-pending-shade: #323E52;
+  }
+
+  #app .students .student:not(.selected, .checked, .excluded) :is(.student-head > strong, .score small, .routine-count),
+  .lockscreen .students .classroom-student:not(.excluded) :is(.classroom-student-name, .classroom-complete) {
+    color: var(--night-light);
+  }
+
+  #app .students .student:not(.selected, .checked, .excluded) :is(.score-star, .score-total),
+  .lockscreen .students .classroom-student:not(.excluded) :is(.score-star, .score-total) {
+    color: var(--night-gold);
+  }
+
+  #app .students .student:not(.selected, .checked, .excluded) .student-detail-open {
+    color: var(--night-light);
+    background: var(--night-slate-hover);
+  }
+
+  #app .students .student:not(.selected, .checked, .excluded) .student-detail-open:hover {
+    background: var(--night-deep);
+  }
+
+  #app .students .student.selected {
+    background: var(--st-selected-bg);
+    color: var(--st-selected-text);
+  }
+
+  .student-home-village {
+    --sh-card: var(--night-paper);
+    --sh-ink: var(--night-ink);
+    --sh-muted: var(--night-ink-muted);
+    --sh-brass: var(--night-gold-ink);
+    --sh-line: var(--night-line);
+    background: none;
+  }
+
+  .student-home-topbar .student-site-name { background: transparent; color: var(--night-light); padding-inline: 0; }
+  .student-home-topbar .student-brand-star { color: var(--night-gold); }
+  .student-home-village > .student-card { color: var(--night-ink); background: var(--night-paper); box-shadow: var(--night-depth); }
+  .student-home-village .student-profile-card {
+    color: var(--night-light);
+    border-color: var(--night-slate-line);
+    background: var(--night-grain), radial-gradient(ellipse at 68% 35%, #586077, transparent 57%), var(--night-slate);
+  }
+
+  .student-home-village .student-profile-info { color: var(--night-light); }
+  .student-home-village .student-profile-class { color: var(--night-muted); }
+  .student-home-village .student-profile-score h2 { color: var(--night-light); }
+  .student-home-village .student-profile-score strong { color: var(--night-gold-light); }
+  .student-home-village .student-profile-score .student-profile-star {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 1.55em;
+    aspect-ratio: 1;
+    color: var(--night-gold);
+    border: 1px solid #F0C98480;
+    border-radius: 50%;
+    text-shadow: 0 0 10px #F0C98466;
+  }
+
+  .student-home-village .student-profile-card .student-profile-edit { color: var(--night-gold); }
+  .student-home-village .student-profile-card .student-profile-edit:hover {
+    background: var(--night-slate-hover);
+  }
+
+  .student-home-village .student-profile-nickname { background: var(--night-deep); color: var(--night-light); }
+  .student-home-village .student-avatar-stage .student-character-scene::before {
+    background: radial-gradient(ellipse, #F0C98450, #F0C98409 62%, transparent 72%);
+  }
+
+  .student-home-village .student-profile-areas {
+    color: var(--night-light);
+    background: var(--night-deep);
+  }
+
+  .student-home-village .student-profile-areas > div { color: var(--night-light); }
+  .student-home-village .student-profile-areas > div + div { border-color: var(--night-slate-line) !important; }
+  .student-home-village .student-profile-areas strong { color: var(--night-gold-light); }
+
+  .student-home-village .student-home-sign {
+    border: 0;
+    border-radius: 0;
+    padding: 0 0 6px;
+    background: none;
+    color: var(--night-ink);
+    box-shadow: none;
+    text-shadow: none;
+    border-bottom: 2px solid var(--night-gold-ink);
+  }
+
+  .student-home-village .student-home-sign::before, .student-home-village .student-home-sign::after { content: none; }
+  .student-home-village .student-section-heading { color: var(--night-ink); }
+  .student-home-village .student-calendar-grid .weekday { background: var(--night-paper-quiet); }
+  .student-home-village .student-calendar-grid .weekday:nth-child(6) { color: var(--st-blue-text); }
+  .student-home-village .student-calendar-grid .weekday:nth-child(7) { color: #783B52; }
+  .student-home-village .student-tasks-card .student-task > div > small:not(.assignment-checker) {
+    color: var(--night-ink-muted);
+  }
+  .student-home-village .student-praise { background: var(--night-paper-light); }
+
+  .kingdom-badge, .student-home-village .student-profile-controls .kingdom-badge {
+    color: #513518;
+    background: var(--night-gold-light);
+  }
+
+  .kingdom-domain progress, .group-buy-progress { accent-color: var(--night-gold-ink); }
+  .kingdom-domain progress::-webkit-progress-bar { background: var(--night-slate-hover); }
+  .kingdom-domain progress::-webkit-progress-value { background: var(--night-gold); }
+  .kingdom-domain progress::-moz-progress-bar { background: var(--night-gold); }
+
+  .lockscreen .classroom-brand h1::before {
+    display: inline-block;
+    width: .8em;
+    height: .8em;
+    margin-inline-end: .32em;
+  }
+
+  .lockscreen .classroom-heading { margin-bottom: 8px; }
+  .lockscreen .classroom-datetime .clock { background: transparent; box-shadow: none; }
+  .lockscreen .classroom-controls { min-width: 0; }
+  .lockscreen .classroom-schedule { color: var(--night-ink); background: var(--night-paper); }
+  .lockscreen .fullscreen-countdown-overlay, .lockscreen .fullscreen-countdown-overlay:hover {
+    color: var(--night-gold-light);
+    background: var(--night-deep);
+  }
+
+  .tools-board, .tools-board:fullscreen {
+    color: var(--night-light);
+    background: var(--night-slate);
+    border-color: var(--night-slate-line);
+  }
+
+  .tools-canvas {
+    color: var(--night-light);
+    background: var(--night-sky) var(--night-page);
+    border-color: var(--night-slate-line);
+  }
+
+  .tools-empty, .tools-board-status { color: var(--night-muted); }
+  .tools-widget { color: var(--night-ink); background: var(--night-paper); border-color: var(--night-line); box-shadow: var(--night-depth); }
+  .tools-window-head { color: var(--night-light); background: var(--night-slate); }
+  .tools-window-body :focus-visible, .lockscreen .classroom-schedule :focus-visible {
+    outline-color: #9E692C;
+  }
+  .tools-window-body .tool-clock-number { color: var(--night-ink); }
+  .ring-track { stroke: var(--night-paper-quiet); }
+  .ring-progress { stroke: var(--night-gold-ink); }
+
+  dialog {
+    color: var(--night-ink);
+    background: var(--night-paper);
+    box-shadow: 0 22px 64px #0D172980;
+  }
+
+  dialog::backdrop { background: #101C2EBB; }
+  .dialog-head {
+    color: var(--night-light);
+    background: var(--night-grain) var(--night-deep);
+    border-bottom-color: var(--night-gold);
+  }
+
+  .dialog-head small, .dialog-head .muted { color: var(--night-muted); }
+  .dialog-head :focus-visible { outline-color: var(--night-gold); }
+  #toast { color: var(--night-light); background: var(--night-deep); box-shadow: var(--night-depth); }
+
+  @media (max-width: 640px) {
+    .dashboard-heading::before { left: auto; right: 8px; width: 62px; }
+    .dashboard-heading::after { left: auto; right: 22px; top: 18px; width: 24px; }
+    .dashboard-heading > div:first-child { max-width: calc(100% - 38px); }
+    .lockscreen .classroom-heading { padding: 5px 6px; }
+  }
+}
