@@ -8,7 +8,8 @@
 <link rel="stylesheet" href="vendor/pretendard-1.3.9-dynamic-subset.css">
 <style>
   :root {
-    --page: #40639A;
+    --page: #091221;
+    --sky-shade: rgb(9 18 33 / 70%);
     --sky-texture: url("assets/design-starry-sky.webp");
     --deep: #203A59;
     --slate: #526B8B;
@@ -50,7 +51,7 @@
     letter-spacing: -.01em;
     color: var(--light);
     background-color: var(--page);
-    background-image: var(--sky-texture);
+    background-image: linear-gradient(var(--sky-shade), var(--sky-shade)), var(--sky-texture);
     background-position: center top;
     background-size: 100% auto;
     background-repeat: repeat-y;
