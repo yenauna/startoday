@@ -6,7 +6,7 @@ const frameId = 'design-preview-frame';
 const defaultWidth = { teacher: 'wide', student: 'phone' };
 let previewView = 'teacher';
 let previewWidth = defaultWidth.teacher;
-let previewTheme = 'blue-hour';
+let previewTheme = 'warm';
 
 const frameSrc = () => `design-preview.html?view=${previewView}&theme=${previewTheme}`;
 
@@ -26,10 +26,10 @@ export function designView() {
 .design-preview .dp-note{margin:0;color:var(--st-text-muted);font-size:13px;line-height:1.65}
 .design-preview .dp-note b{color:var(--st-blue-text);font-weight:700}
 .design-preview .dp-stage{display:flex;justify-content:center;padding:12px;border-radius:var(--st-radius-card);background:var(--st-gray-bg);box-shadow:inset 0 0 0 1px var(--st-line)}
-.design-preview .dp-frame{display:block;width:100%;height:min(78vh,940px);min-height:560px;border:0;border-radius:14px;background:#1B283B;box-shadow:0 10px 26px rgba(40,50,71,.18)}
+.design-preview .dp-frame{display:block;width:100%;height:min(78vh,940px);min-height:560px;border:0;border-radius:14px;background:#F6F4EF;box-shadow:0 10px 26px rgba(40,50,71,.18)}
 .design-preview .dp-stage[data-width="phone"] .dp-frame{width:min(412px,100%)}
 @media(max-width:640px){.design-preview .dp-frame{height:72vh;min-height:480px}.design-preview .dp-bar{padding:9px 10px}.design-preview .dp-chip,.design-preview .dp-link{font-size:13px;padding:6px 11px}}
-</style><div class="design-preview"><div class="dp-bar"><div class="dp-groups"><div class="dp-group" role="group" aria-label="화면 선택">${view('teacher', '교사 메인화면')}${view('student', '학생 메인화면')}</div><div class="dp-group" role="group" aria-label="화면 너비"><span class="dp-group-label">너비</span>${width('wide', '넓게')}${width('phone', '휴대폰')}</div><div class="dp-group" role="group" aria-label="시안 테마">${theme('blue-hour', '1안: Blue hour')}${theme('night-sky', '2안: Night sky')}${theme('hybrid', '3안: 밤하늘 헤더 + 밝은 본문')}${theme('dark-glass', '4안: 다크 밤하늘 + 불투명 카드')}</div></div><a class="dp-link" href="${frameSrc()}" target="_blank" rel="noopener">새 창으로 보기</a></div><p class="dp-note">임시 시안입니다. 이 화면에서는 기록·저장·설정이 바뀌지 않습니다. 상단에서 테마를 바꿔 비교할 수 있습니다.</p><div class="dp-stage" data-width="${previewWidth}"><iframe id="${frameId}" class="dp-frame" title="메인화면 디자인 시안" src="${frameSrc()}"></iframe></div></div>`;
+</style><div class="design-preview"><div class="dp-bar"><div class="dp-groups"><div class="dp-group" role="group" aria-label="화면 선택">${view('teacher', '교사 메인화면')}${view('student', '학생 메인화면')}</div><div class="dp-group" role="group" aria-label="화면 너비"><span class="dp-group-label">너비</span>${width('wide', '넓게')}${width('phone', '휴대폰')}</div><div class="dp-group" role="group" aria-label="시안 테마">${theme('warm', 'A안: 웜 페이퍼+황동')}${theme('ink', 'B안: 잉크 앤 페이퍼')}${theme('sky', 'C안: 뮤트 스카이+그라데이션')}</div></div><a class="dp-link" href="${frameSrc()}" target="_blank" rel="noopener">새 창으로 보기</a></div><p class="dp-note">임시 시안입니다. 이 화면에서는 기록·저장·설정이 바뀌지 않습니다. 상단에서 테마를 바꿔 비교할 수 있습니다.</p><div class="dp-stage" data-width="${previewWidth}"><iframe id="${frameId}" class="dp-frame" title="메인화면 디자인 시안" src="${frameSrc()}"></iframe></div></div>`;
 }
 
 function setView(name) {
