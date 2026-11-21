@@ -297,6 +297,34 @@
     .composer { padding: 10px; }
     .toolbar { margin-top: 16px; }
   }
+  /* 카드 표면 비교용 스타일 */
+  body[data-surface="paper"] :is(.composer, .panel, .metric, .card, .s-card, .task, .routine) {
+    background-image:
+      radial-gradient(ellipse, #203A5910 0 30%, transparent 65%),
+      radial-gradient(ellipse, #FFFFFFB0 0 28%, transparent 63%),
+      repeating-linear-gradient(128deg, transparent 0 7px, #203A5909 8px, transparent 10px 15px);
+    background-size: 7px 9px, 11px 13px, auto;
+    background-position: 0 0, 3px 5px, 0 0;
+  }
+
+  body[data-surface="edge"] :is(.composer, .panel, .metric, .card, .s-card) {
+    --surface-edge: #829AB8;
+    box-shadow:
+      inset 0 0 0 1px var(--surface-edge),
+      inset 0 2px #FFFFFF85,
+      0 3px 0 #172D5180,
+      0 8px 14px #14294B40;
+  }
+
+  body[data-surface="edge"] .s-card.done { --surface-edge: var(--done-line); }
+
+  body[data-surface="edge"] :is(.task, .routine) {
+    --surface-edge: var(--pending-line);
+    box-shadow: inset 0 0 0 1px var(--surface-edge), inset 0 2px #FFFFFF85, 0 2px 3px #14294B29;
+  }
+
+  body[data-surface="edge"] :is(.task, .routine).is-done { --surface-edge: var(--done-line); }
+
 </style>
 </head>
 <body data-view="teacher">
@@ -527,7 +555,10 @@
 </section>
 
 <script>
-  var view = new URLSearchParams(location.search).get('view') === 'student' ? 'student' : 'teacher';
+  const params = new URLSearchParams(location.search);
+  const view = params.get('view') === 'student' ? 'student' : 'teacher';
+  const surface = params.get('surface');
+  if (surface === 'paper' || surface === 'edge') document.body.dataset.surface = surface;
   document.body.dataset.view = view;
   document.title = (view === 'student' ? '학생 메인화면' : '교사 메인화면') + ' · 오늘의 별 시안';
 </script>
