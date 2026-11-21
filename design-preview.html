@@ -9,6 +9,7 @@
 <style>
   :root {
     --page: #40639A;
+    --sky-texture: url("assets/design-starry-sky.webp");
     --deep: #203A59;
     --slate: #526B8B;
     --slate-2: #455D7D;
@@ -46,7 +47,7 @@
     letter-spacing: -.01em;
     color: var(--light);
     background-color: var(--page);
-    background-image: url("assets/design-starry-sky.webp");
+    background-image: var(--sky-texture);
     background-position: center top;
     background-size: 100% auto;
     background-repeat: repeat-y;
@@ -60,12 +61,19 @@
   body[data-view="teacher"] .screen-teacher { display: block; }
   body[data-view="student"] .screen-student { display: block; }
 
+  .t-top, .t-tabs, .s-topbar {
+    background-image: linear-gradient(#152A4A75, #152A4A75), var(--sky-texture);
+    background-position: center top;
+    background-size: 100% auto;
+  }
+  .t-tabs { background-position: center -67px; }
+
   /* ── 교사 메인화면 ─────────────────────────────────────────── */
   .t-wrap { max-width: 1240px; margin: 0 auto; padding: 0 0 64px; }
   .t-top {
     display: flex; align-items: center; justify-content: space-between;
     gap: 14px; padding: 14px clamp(16px, 3vw, 30px);
-    background: var(--deep); border-bottom: 1px solid var(--slate-line);
+    background-color: var(--deep); border-bottom: 1px solid var(--slate-line);
   }
   .t-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .t-brand img {
@@ -82,7 +90,7 @@
   .t-top-actions button:hover { background: var(--slate-2); }
   .t-tabs {
     display: flex; gap: 22px; overflow-x: auto; scrollbar-width: none;
-    padding: 0 clamp(16px, 3vw, 30px); background: var(--deep);
+    padding: 0 clamp(16px, 3vw, 30px); background-color: var(--deep);
     border-bottom: 1px solid var(--slate-line);
   }
   .t-tabs::-webkit-scrollbar { display: none; }
@@ -195,7 +203,7 @@
   /* ── 학생 메인화면 ─────────────────────────────────────────── */
   .s-screen { max-width: 460px; margin: 0 auto; padding: 0 0 40px; }
   .s-topbar {
-    position: sticky; top: 0; z-index: 6; background: var(--deep); color: var(--light);
+    position: sticky; top: 0; z-index: 6; background-color: var(--deep); color: var(--light);
     border-bottom: 1px solid var(--slate-line); padding: 10px 14px 0;
   }
   .s-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -222,7 +230,7 @@
   .profile-class { color: var(--light); font-size: 11.5px; font-weight: 600; }
   .profile-name-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-top: 2px; }
   .profile-name { font-size: 21px; font-weight: 800; letter-spacing: -.035em; }
-  .profile-nick { display: inline-flex; align-items: center; gap: 5px; margin-top: 5px; background: var(--deep); border-radius: 999px; padding: 2px 9px; font-size: 11.5px; font-weight: 600; color: var(--light); }
+  .profile-nick { display: inline-flex; align-items: center; gap: 5px; margin-top: 5px; background-color: var(--deep); border-radius: 999px; padding: 2px 9px; font-size: 11.5px; font-weight: 600; color: var(--light); }
   .profile-score { text-align: right; flex: none; }
   .profile-score h2 { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--light); letter-spacing: 0; }
   .profile-score .ring {
@@ -235,7 +243,7 @@
   .avatar-stage img { position: relative; height: 138px; width: auto; }
   .title-pill { display: inline-flex; align-items: center; gap: 5px; background: var(--gold-light); color: #513518; border-radius: 999px; padding: 4px 11px; font-size: 11.5px; font-weight: 750; }
   .profile-controls { display: flex; justify-content: center; padding: 0 16px 12px; }
-  .profile-areas { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); background: var(--deep); text-align: center; }
+  .profile-areas { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); background-color: var(--deep); text-align: center; }
   .profile-areas div { padding: 8px 2px 9px; }
   .profile-areas div + div { border-left: 1px solid var(--slate-line); }
   .profile-areas span { display: block; font-size: 10.5px; color: var(--light); font-weight: 600; }
