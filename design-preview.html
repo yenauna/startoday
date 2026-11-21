@@ -22,9 +22,9 @@
     --page:#F7F8F6; --line:#E3E6E1; --ink:#1F2422; --muted:#6D7472;
     --accent:#4D5756; --tint:#D7E3E0; --hero:#1E2926; --action-ink:#374542;
     background-image:
-      radial-gradient(ellipse 82% 64% at 0% 0%, #DCE8E8, transparent 78%),
-      radial-gradient(ellipse 77% 60% at 100% 0%, #F4EFE5, transparent 78%),
-      radial-gradient(ellipse 92% 58% at 50% 100%, #E7E8F1, transparent 80%);
+      radial-gradient(ellipse 72% 46% at 26% 30%, #D6E7E6, transparent 78%),
+      radial-gradient(ellipse 68% 49% at 66% 74%, #E2E1F0, transparent 79%),
+      radial-gradient(ellipse 68% 45% at 81% 37%, #F3EDE0, transparent 81%);
   }
 
   body[data-theme="sky"] .hero {
@@ -36,6 +36,16 @@
     -webkit-backdrop-filter:blur(8px);
     backdrop-filter:blur(8px);
   }
+
+  body[data-theme="sky"] :is(.composer, .panel, .metric, .s-card, .card:has(.sched)) {
+    background-color:rgba(255, 255, 255, .56);
+    border:1px solid rgba(255, 255, 255, .75);
+    box-shadow:0 8px 24px rgba(31, 36, 34, .045);
+    -webkit-backdrop-filter:blur(18px) saturate(135%);
+    backdrop-filter:blur(18px) saturate(135%);
+  }
+
+  body[data-theme="sky"] .s-card.done { background-color:rgba(255, 255, 255, .34); }
 
   * { box-sizing:border-box; }
   body { margin:0; min-height:100vh; background:var(--page); color:var(--ink); font-size:15px; line-height:1.5; }
