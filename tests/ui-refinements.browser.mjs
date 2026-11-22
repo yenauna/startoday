@@ -33,7 +33,7 @@ try{
   assert.notEqual(await composer.evaluate(e=>getComputedStyle(e).position),'fixed');
   assert.equal(await page.locator('.selection-chip-name').innerText(),'1. 김가온');assert(!(await page.locator('#quick-students').innerText()).includes('우주고래'));
   assert.equal(await page.locator('#quick-text').inputValue(),'이름만 표시하고 기록은 유지');
-  assert.equal(await page.locator('.tabs button').first().evaluate(e=>getComputedStyle(e).borderRadius),'10px');
+  assert.equal(await page.locator('.tabs button').first().evaluate(e=>getComputedStyle(e).borderRadius),'999px');
   await noOverflow();await page.waitForTimeout(850);await page.screenshot({path:`/tmp/ui-refinements-selection-${width}.png`});
   await page.locator('#quick-cancel').click();
   await page.evaluate(async()=>(await import('/js/app.js')).navigate('기록'));
@@ -85,7 +85,7 @@ try{
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.evaluate(()=>{const input=document.createElement('input');input.type='checkbox';input.id='reduced-checkbox';document.body.append(input);});
   assert.equal(await page.locator('#reduced-checkbox').evaluate(e=>getComputedStyle(e,'::before').transitionDuration),'0s');
-  assert.deepEqual(errors,[]);console.log(`PASS ${width} touch=${touch}: stable composer/name-only pills, squared tabs, equal 38px pencil/bin circles and 1.4x lifted hold, custom checkboxes/exemptions, cream card and no overflow`);
+  assert.deepEqual(errors,[]);console.log(`PASS ${width} touch=${touch}: stable composer/name-only pills, pill-shaped tabs, equal 38px pencil/bin circles and 1.4x lifted hold, custom checkboxes/exemptions, cream card and no overflow`);
   await context.close();
  }
 }finally{await browser?.close();await new Promise(r=>server.close(r));}

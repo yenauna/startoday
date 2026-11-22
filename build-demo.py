@@ -30,10 +30,14 @@ for avatar_file in (root/'assets/avatar').glob('*'):
     if avatar_file.suffix not in ('.png','.svg','.webp'): continue
     js=js.replace('assets/avatar/'+avatar_file.name, 'data:'+(mimetypes.guess_type(avatar_file.name)[0] or 'image/png')+';base64,'+base64.b64encode(avatar_file.read_bytes()).decode())
 html=(root/'index.html').read_text()
-# Keep the small repeating shop decorations available in the file-open demo.
+# Embed the shop decorations and page backdrop in the file-open demo.
 def inline_style(match):
     css=(root/match.group(1)).read_text()
     css=re.sub(r"url\(['\"]?\.\./assets/shop/([^'\")]+)['\"]?\)",lambda asset:'url("data:'+(mimetypes.guess_type(asset.group(1))[0] or 'application/octet-stream')+';base64,'+base64.b64encode((root/'assets/shop'/asset.group(1)).read_bytes()).decode()+'")',css)
+    backdrop='../assets/bg-pastel-nebula.webp'
+    if backdrop in css:
+        image=base64.b64encode((root/'assets/bg-pastel-nebula.webp').read_bytes()).decode()
+        css=css.replace(backdrop,'data:image/webp;base64,'+image)
     return '<style>'+css+'</style>'
 html=re.sub(r'<link rel="stylesheet" href="([^"]+)">',inline_style,html)
 html=html.replace('<script src="config.js"></script>','<script>window.STARTODAY_CONFIG={supabaseUrl:"",supabaseKey:""};</script>')
