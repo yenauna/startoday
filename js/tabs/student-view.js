@@ -613,7 +613,7 @@ export function openKingdomCodex() {
   const snapshot = state.impersonatingStudentId && student ? studentSnapshot(store.db, student) : state.studentSnapshot;
   if (!student || !snapshot) throw Error('학생 로그인을 확인하세요.');
   const equipped = C.kingdomEquipped(student, snapshot.titleCounts, snapshot.titleConfig);
-  modal('칭호도감', `<p>같은 분야에서 칭찬 ${C.titleThresholds(snapshot.titleConfig).join('회 · ')}회마다 칭호를 얻어요.</p><div class="kingdom-current">${C.kingdomBadge(student, snapshot.titleCounts, snapshot.titleConfig)}${equipped.id ? btn('별의 주민으로 돌아가기', () => equipStudentTitle(null)) : ''}</div>${kingdomCards(snapshot.titleCounts, equipped.id, equipStudentTitle, snapshot.titleConfig, student)}`);
+  modal('칭호도감', `<p>같은 분야에서 칭찬 ${C.titleThresholds(snapshot.titleConfig).join('회 · ')}회마다 칭호를 얻어요.</p><div class="kingdom-current">${C.kingdomBadge(student, snapshot.titleCounts, snapshot.titleConfig)}${equipped.id ? btn((snapshot.titleConfig?.customTitles?.resident||'별의 주민')+'으로 돌아가기', () => equipStudentTitle(null)) : ''}</div>${kingdomCards(snapshot.titleCounts, equipped.id, equipStudentTitle, snapshot.titleConfig, student)}`);
 }
 export async function equipStudentTitle(titleId) {
   if (studentTitleSaving) return;

@@ -118,7 +118,8 @@
   }
 
   /* Dashboard only: attendance exclusions and checklist states retain their own styling. */
-  #app .shell .student[data-student-id]:not(.excluded) {
+  #app .shell .student[data-student-id]:not(.excluded),
+  #app .lockscreen .classroom-student:not(.excluded) {
     position: relative;
     isolation: isolate;
     border: 1px solid var(--student-status-edge);
@@ -127,15 +128,17 @@
     -webkit-backdrop-filter: blur(22px) saturate(160%);
     backdrop-filter: blur(22px) saturate(160%);
   }
-  #app .shell .student[data-student-id]:not(.unfinished):not(.excluded) {
-    --student-status-edge: #8DCBBC;
-    background: radial-gradient(ellipse at 100% 0%, #8DE0C585, transparent 68%),
-      linear-gradient(135deg, #E6FAF1C9, #E3F3FDB0), var(--nebula-glass);
+  #app .shell .student[data-student-id]:not(.unfinished):not(.excluded),
+  #app .lockscreen .classroom-student:not(.unfinished):not(.excluded) {
+    --student-status-edge: #52AF99;
+    background: radial-gradient(ellipse at 100% 0%, #6DDABAA8, transparent 68%),
+      linear-gradient(135deg, #D3F5EBDC, #D8EFFBE0), var(--nebula-glass);
   }
-  #app .shell .student[data-student-id].unfinished:not(.excluded) {
-    --student-status-edge: #DEA397;
-    background: radial-gradient(ellipse at 100% 0%, #F3AA987A, transparent 68%),
-      linear-gradient(135deg, #FFF0E4D1, #FADEDAB8), var(--nebula-glass) !important;
+  #app .shell .student[data-student-id].unfinished:not(.excluded),
+  #app .lockscreen .classroom-student.unfinished:not(.excluded) {
+    --student-status-edge: #D87762;
+    background: radial-gradient(ellipse at 100% 0%, #F48D74A1, transparent 68%),
+      linear-gradient(135deg, #FFE4D3E6, #F8CFC6DE), var(--nebula-glass) !important;
     /* Override the legacy important unfinished fill in dashboard.css, only on dashboard roster cards. */
   }
   #app .shell .student[data-student-id].selected:not(.excluded) {
@@ -143,27 +146,30 @@
     outline: 2px solid var(--st-selected-border);
   }
 
-  /* Keep custom subject identity in a corner bloom, a slim bar, and readable title ink. */
+  /* Custom subject identity in two aurora blooms and a full glass reflection. */
   #app :is(.slot.subject-color, .subject-color.subject-stripe, .student-task.subject-color),
   #app .lockscreen .slot.subject-color {
     --subject-title-color: color-mix(in srgb, var(--subject-accent, #527F78) 30%, #26343C);
     position: relative;
     isolation: isolate;
     background: radial-gradient(ellipse at 100% 0%,
-      color-mix(in srgb, var(--subject-accent, #527F78) 25%, transparent), transparent 68%),
+      color-mix(in srgb, var(--subject-accent, #527F78) 30%, transparent), transparent 65%),
+      radial-gradient(ellipse at 82% 18%, color-mix(in srgb, var(--subject-bg, #E3F2ED) 72%, transparent), transparent 78%),
       var(--nebula-glass);
-    border-color: var(--nebula-edge);
-    box-shadow: var(--nebula-shadow);
+    border: 1px solid color-mix(in srgb, var(--subject-accent, #527F78) 22%, #FFFFFFCC);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.78), var(--nebula-shadow);
     -webkit-backdrop-filter: blur(22px) saturate(160%);
     backdrop-filter: blur(22px) saturate(160%);
   }
   #app :is(.slot.subject-color, .subject-color.subject-stripe, .student-task.subject-color)::before {
     content: "";
     position: absolute;
-    inset: 0 auto 0 0;
-    width: 3px;
+    inset: 0;
+    width: auto;
+    z-index: -1;
     border-radius: inherit;
-    background: var(--subject-accent, #527F78);
+    background: var(--nebula-sheen);
+    opacity: var(--nebula-sheen-opacity, .45);
     pointer-events: none;
   }
   #app :is(.slot.subject-color, .subject-color.subject-stripe, .student-task.subject-color) .subject-title {
@@ -316,13 +322,7 @@
 
   #modal { box-shadow: 0 18px 48px #26363336; }
   #modal::backdrop { background: #202B2A80; }
-  #app .lockscreen { background: #F7F8F6; }
-
-  #app .lockscreen :is(.panel, .class-announcement, .classroom-student, .slot:not(.subject-color)) {
-    background: var(--nebula-readable);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
+  #app .lockscreen { background: transparent; }
 
   @media (prefers-reduced-motion: reduce) {
     .sky-layer { transform: none; }
@@ -439,3 +439,27 @@
  .title-unlock-close{display:inline-flex;align-items:center;justify-content:center;min-width:44px;padding:10px}
  .tools-overlay-close,.tools-window-close{display:inline-flex;align-items:center;justify-content:center}
 }
+
+@media screen {
+ .title-settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin:16px 0}
+ .kingdom-badge .ui-icon{width:18px;height:18px;flex:none}
+ .kingdom-domain h3 .ui-icon,.kingdom-teacher-summary .ui-icon{width:20px;height:20px;vertical-align:middle}
+ .kingdom-badge[data-title-domain=learning]{--title-tint:#C6E5FC;--title-glow:#5D9BC433}
+ .kingdom-badge[data-title-domain=tasks]{--title-tint:#F8E7B4;--title-glow:#C4A55133}
+ .kingdom-badge[data-title-domain=relationships]{--title-tint:#F5CEE1;--title-glow:#BB739733}
+ .kingdom-badge[data-title-domain=challenge]{--title-tint:#DCD0F9;--title-glow:#9574C433}
+ .kingdom-badge[data-title-domain=life]{--title-tint:#C9EED7;--title-glow:#5DAD7A33}
+ .kingdom-badge[data-title-domain=jobs]{--title-tint:#F7DCC1;--title-glow:#BD906133}
+ #app :is(.kingdom-badge,.student-home-village .student-profile-controls .kingdom-badge)[data-title-stage]{position:relative;isolation:isolate;overflow:hidden;gap:6px;border:1px solid #FFFFFFDE;background:linear-gradient(125deg,#FFFFFFB8,color-mix(in srgb,var(--title-tint,#E4F3DC) 55%,#FFFFFF99));box-shadow:inset 0 1px 0 #FFFFFFC7,0 3px 10px #59436c18;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+ #app :is(.kingdom-badge,.student-home-village .student-profile-controls .kingdom-badge)[data-title-stage="2"]{background:radial-gradient(ellipse at top right,var(--title-tint,#E4D4FA),transparent 75%),var(--nebula-glass);box-shadow:inset 0 1px 0 #FFFFFFE0,0 4px 14px var(--title-glow,#8772B333)}
+ #app :is(.kingdom-badge,.student-home-village .student-profile-controls .kingdom-badge)[data-title-stage="3"]{border:1px solid transparent;background:linear-gradient(125deg,#FFFDF1EC,#EAE1F7DE,#DCF4EFDE) padding-box,linear-gradient(120deg,#99DDC9,#D1B6F1,#F6D188,#A9D5F2) border-box;box-shadow:inset 0 1px 0 #FFFFFFE0,0 5px 16px var(--title-glow,#8772B333)}
+ .kingdom-badge[data-title-stage="3"]::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 25%,#FFFFFF99 45%,transparent 65%);background-size:250% 100%;animation:title-prism-shimmer 5s ease-in-out infinite;pointer-events:none;z-index:-1}
+ .score-star{display:inline-flex;align-items:center;vertical-align:middle}
+ .score-star .gold-star-icon{width:1.2em;height:1.2em;min-width:18px;min-height:18px}
+ .lockscreen .student-kingdom{flex:none;margin:3px 0;max-width:100%}
+ .lockscreen .kingdom-badge{font-size:clamp(10px,1vw,13px);line-height:1.25;padding:4px 8px;max-width:100%}
+ .lockscreen .kingdom-badge-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ @keyframes title-prism-shimmer{0%,25%{background-position:140% 0}80%,100%{background-position:-100% 0}}
+ @media(prefers-reduced-motion:reduce){.kingdom-badge[data-title-stage="3"]::after{animation:none;background-position:50% 0;opacity:.25}}
+}
+@media screen {.title-settings-grid .title-name-reset{justify-self:end;min-height:28px;padding:3px 8px;font-size:12px;background:transparent;box-shadow:none;color:var(--nebula-muted)}}

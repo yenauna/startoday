@@ -6,7 +6,9 @@ import mimetypes
 root=next(p for p in (Path(__file__).resolve().parent,Path(__file__).resolve().parents[1]) if (p/'index.html').exists())
 core=(root/'js/core.js').read_text()
 names=re.findall(r'export (?:const|function) (\w+)',core)
-core=core.replace('export ','')
+# Core title rendering shares the standalone-safe SVG source.
+icons=(root/'js/components/icons.js').read_text().replace('export ','')
+core=icons+'\nconst uiIcon=icon;\n'+re.sub(r'^import .*?;\n','',core,flags=re.M).replace('export ','')
 store=(root/'js/store.js').read_text()
 store=re.sub(r'^import .*?;\n','const {surveySubmitOps,TABLES,normalizeDB,initialDB,applyOps,uid,now,assignmentPolicyOps,areaMigrationOps,mergeRewardTitles,demoDB,shopBuyOps,shopRefundOps,shopUseOps,teacherGiftOps,teacherBalanceAdjustOps,shopFundGroupBuyOps,shopUseGroupBuyOps,teacherReclaimOps,teacherUndoGiftOps}=C;\n',store,flags=re.M).replace('export class Store','class Store')
 modules={}

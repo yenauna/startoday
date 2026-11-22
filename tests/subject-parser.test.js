@@ -1,3 +1,4 @@
+import {icon as uiIcon} from '../js/components/icons.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -28,7 +29,7 @@ function fixture() {
   }];
   return db;
 }
-const privateParser = vm.runInNewContext(readFileSync(new URL('../js/core.js', import.meta.url), 'utf8').replace(/^export /gm, '') + '\n({mentionRole,studentMentions})');
+const privateParser = vm.runInNewContext(readFileSync(new URL('../js/core.js', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '').replace(/^export /gm, '') + '\n({mentionRole,studentMentions})',{uiIcon});
 const ids = (text, selected = []) => C.parseInput(text, fixture(), selected).studentIds;
 test('조사 역할은 목적어·접속·주어·무조사 네 가지로 분류', () => {
   for (const suffix of ['의', '을', '를', '에게', '한테', '에게서', '한테서', '으로', '로', '에게는', '에게도', '한테서도', '으로는', '이에게', '이한테서', '이로']) assert.equal(privateParser.mentionRole(suffix), 'object', suffix);

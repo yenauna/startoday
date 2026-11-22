@@ -1,3 +1,4 @@
+import {icon as uiIcon} from './components/icons.js';
 export const DEFAULT_AREAS = ['학습', '과제', '관계', '도전', '생활', '알바'];
 export const KINDS = ['칭찬', '지도', '관찰', '추가기록'];
 export const STATUSES = ['진행중', '완료', '늦게완료', '안함', '면제'];
@@ -1262,7 +1263,7 @@ export const KINGDOM_THRESHOLDS = [15, 30, 45];
 export const KINGDOM_DOMAINS = [['learning', '학습', '📘', 'area-1', ['지식의 탐색자', '사유의 탐구자', '통찰의 현자']], ['tasks', '과제', '📋', 'area-2', ['약속의 수행자', '완수의 장인', '결실의 마스터']], ['relationships', '관계', '🤝', 'area-3', ['공감의 동행자', '신뢰의 중재자', '화합의 대사']], ['challenge', '도전', '🧭', 'area-4', ['용기의 모험가', '역경의 돌파자', '불굴의 개척자']], ['life', '생활', '🌿', 'area-5', ['자율의 길잡이', '질서의 파수꾼', '균형의 수호자']], ['jobs', '알바', '🏰', 'area-6', ['길드의 지원자', '길드의 기둥', '길드의 대들보']]].map(([id, label, icon, areaId, titles]) => ({
   id,
   label,
-  icon,
+  icon: uiIcon(({learning:'book',tasks:'check',relationships:'heart',challenge:'compass',life:'sprout',jobs:'crown'})[id]),
   areaId,
   titles
 }));
@@ -1271,9 +1272,19 @@ export function titleThresholds(config = {}) {
   if (!Number.isInteger(goal) || goal < 3 || goal > 9999) throw Error('칭호 목표는 3~9999의 정수로 입력하세요.');
   return [goal, goal * 2, goal * 3];
 }
+export function titleDefinitions(){return [{id:'resident',name:'별의 주민',domain:'resident',stage:0},...KINGDOM_DOMAINS.flatMap(d=>d.titles.map((name,i)=>({id:d.id+':'+(i+1),name,domain:d.id,stage:i+1})))];}
+export function normalizeCustomTitles(value){
+ const result={};for(const t of titleDefinitions()){const name=value?.[t.id];if(typeof name==='string'&&name.trim()&&Array.from(name.trim()).length<=40)result[t.id]=name.trim();}return result;
+}
+export function customTitleOps(database,values){
+ const customTitles={};for(const t of titleDefinitions()){const name=String(values[t.id]??t.name).trim();if(!name||Array.from(name).length>40)throw Error('칭호 이름은 1~40자로 입력하세요.');if(name!==t.name)customTitles[t.id]=name;}
+ return [{table:'settings',id:'main',data:{...database.settings[0],customTitles}}];
+}
+export function scoreStar(){return uiIcon('gold-star');}
 export function kingdomConfig(database) {
   return {
     goal: Number(database.settings?.[0]?.titleGoal ?? 15),
+    customTitles: normalizeCustomTitles(database.settings?.[0]?.customTitles),
     labels: Object.fromEntries(KINGDOM_DOMAINS.map(d => [d.id, areaRows(database, true).find(a => a.id === d.areaId)?.name || d.label]))
   };
 }
@@ -1293,7 +1304,7 @@ export function kingdomCounts(database, studentId, to = today()) {
   return counts;
 }
 export function kingdomCatalog(counts = {}, config = {}) {
-  const thresholds = titleThresholds(config);
+  const thresholds = titleThresholds(config), customTitles=normalizeCustomTitles(config.customTitles);
   return KINGDOM_DOMAINS.map(d => {
     const count = Math.max(0, Number(counts?.[d.id]) || 0),
       stage = thresholds.filter(n => count >= n).length,
@@ -1301,15 +1312,17 @@ export function kingdomCatalog(counts = {}, config = {}) {
     return {
       ...d,
       label: config.labels?.[d.id] || d.label,
+      titles: d.titles.map((name,i)=>customTitles[d.id+':'+(i+1)]||name),
       thresholds,
       count,
       stage,
       next,
       remaining: next === null ? 0 : next - count,
-      current: stage ? d.titles[stage - 1] : '아직 획득한 칭호가 없어요',
+      current: stage ? customTitles[d.id+':'+stage] || d.titles[stage - 1] : '아직 획득한 칭호가 없어요',
       unlocked: d.titles.slice(0, stage).map((name, i) => ({
         id: d.id + ':' + (i + 1),
-        name,
+        name: customTitles[d.id+':'+(i+1)]||name,
+        stage: i+1, domain:d.id,
         icon: d.icon
       }))
     };
@@ -1319,14 +1332,14 @@ export function studentRewardTitles(student) {
   return (student?.rewardTitles || []).filter(t => t && typeof t.id === 'string' && t.id.startsWith('quest:') && typeof t.name === 'string').map(t => ({
     id: t.id,
     name: t.name,
-    icon: '🏅'
+    icon: uiIcon('crown'),stage:1,domain:'reward'
   }));
 }
 export function kingdomEquipped(student, counts, config = {}) {
   return [...kingdomCatalog(counts, config).flatMap(d => d.unlocked), ...studentRewardTitles(student)].find(t => t.id === (student?.equippedTitle ?? student?.equipped_title)) || {
     id: null,
-    name: '별의 주민',
-    icon: '🌱'
+    name: normalizeCustomTitles(config.customTitles).resident || '별의 주민',
+    icon: uiIcon('sprout'),stage:0,domain:'resident'
   };
 }
 export function studentTitleOps(database, studentId, titleId) {
@@ -1348,7 +1361,7 @@ export function studentTitleOps(database, studentId, titleId) {
 }
 export function kingdomBadge(student, counts, config = {}) {
   const t = kingdomEquipped(student, counts, config);
-  return `<span class="kingdom-badge" data-equipped-title="${esc(t.id || 'resident')}">${t.icon} ${esc(t.name)}</span>`;
+  return `<span class="kingdom-badge" data-equipped-title="${esc(t.id || 'resident')}" data-title-stage="${t.stage||0}" data-title-domain="${esc(t.domain||'resident')}">${t.icon}<span class="kingdom-badge-name">${esc(t.name)}</span></span>`;
 }
 export function kingdomSummary(counts, config = {}, student = null) {
   return `<div class="kingdom-teacher-summary">${kingdomCatalog(counts, config).map(d => `<div><strong>${d.icon} ${esc(d.label)} · 칭찬 ${d.count}회</strong><span>${d.unlocked.map(t => esc(t.name)).join(' / ') || '아직 획득한 칭호가 없어요'}</span></div>`).join('')}${studentRewardTitles(student).map(t => `<div>🏅 ${esc(t.name)} · 장기과제 보상</div>`).join('')}</div>`;

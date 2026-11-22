@@ -9,7 +9,7 @@ import { studentDetail, studentEditor } from './students.js';
 import { schoolPickerFields, bindSchoolPicker } from '../components/school-picker.js';
 import { koreanPasswordField, bindKoreanPasswordFields } from '../components/korean-password.js';
 import { validateKoreanPassword } from '../shared/student-auth.js';
-const settingsCategories = ['기본 정보', '교실화면', '학사일정', '과목·전담', '분야 종류', '학생 명단', '데이터 백업'];
+const settingsCategories = ['기본 정보', '교실화면', '학사일정', '과목·전담', '분야 종류', '칭호 관리', '학생 명단', '데이터 백업'];
 let settingsCategory = '기본 정보';
 export function settingsView() {
   startRosterSync();
@@ -88,7 +88,7 @@ export function settingsView() {
     await commit([up('settings', next)]);
   })}${bindLater('settings-form', 'change', e => {
     if (e.target.name === 'springBreak') $('#spring-dates').disabled = !e.target.checked;
-  })}${areasSettings()}${bindLater('backup-input', 'change', e => importBackup(e.target.files[0]))}</div></div>${bindSettingsCategory()}${bindSchoolSettings()}`;
+  })}${areasSettings()}${titleSettings()}${bindLater('backup-input', 'change', e => importBackup(e.target.files[0]))}</div></div>${bindSettingsCategory()}${bindSchoolSettings()}`;
 }
 export function rosterPaste() {
   modal('명단 붙여넣기', `${textarea('번호 이름 · 탭/쉼표/공백 구분 모두 인식', 'roster', '')}<p class="muted">예: 1 김민준<br>51 이서연<br>이름만 붙이면 다음 번호부터 제안합니다.</p>`, async f => {
@@ -490,4 +490,9 @@ export function refreshRosterNicknames() {
     row.querySelector('.roster-nickname').textContent = list[index].nickname || list[index].alias || '';
   });
   return true;
+}
+
+function titleSettings(){
+ const config=C.kingdomConfig(db());
+ return `<section class="panel" data-settings-category="칭호 관리" hidden><h3>칭호 관리</h3><p class="muted">칭호 이름만 바꿉니다. 단계 기준과 학생의 장착 정보는 유지됩니다. 이름은 1~40자입니다.</p><div class="title-settings-grid">${C.titleDefinitions().map(t=>`<label>${esc(t.domain==='resident'?'기본 칭호':config.labels[t.domain]+' · '+t.stage+'단계')}<input data-title-id="${t.id}" aria-label="${esc(t.id)} 칭호 이름" maxlength="40" value="${esc(config.customTitles[t.id]||t.name)}">${btn('기본 이름',()=>{document.querySelector(`[data-title-id="${t.id}"]`).value=t.name;},'title-name-reset',`aria-label="${esc(t.id)} 기본 이름으로 복원"`)}</label>`).join('')}</div><div class="row">${btn('칭호 이름 저장',async()=>{const values=Object.fromEntries([...document.querySelectorAll('[data-title-id]')].map(e=>[e.dataset.titleId,e.value]));await commit(current=>C.customTitleOps(current,values));toast('칭호 이름을 저장했습니다.');render();})}${btn('기본값 복원',async()=>{if(!confirm('모든 칭호 이름을 기본값으로 복원할까요?'))return;await commit(current=>C.customTitleOps(current,{}));toast('기본 칭호 이름을 복원했습니다.');render();})}</div></section>`;
 }
