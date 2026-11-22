@@ -43,7 +43,7 @@ export function routinesView() {
     state.date = C.today();
     routineMonth = state.date.slice(0, 7);
     render();
-  })}${btn('다음 달', () => changeRoutineMonth(1))}</div></div>${routineCalendar(routines)}</section><section class="panel"><div class="toolbar"><h3>루틴 목록</h3><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input aria-label="루틴 날짜" type="date" id="routine-date" value="${state.date}"></span></div><div class="table-wrap"><table><thead><tr><th>루틴</th><th>대상</th><th>선택일 진행</th><th>관리</th></tr></thead><tbody>${routines.map(r => {
+  })}${btn('다음 달', () => changeRoutineMonth(1))}</div></div>${routineCalendar(routines)}</section><section class="panel"><div class="toolbar"><h3>루틴 목록</h3><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input aria-label="루틴 날짜" type="date" id="routine-date" value="${state.date}"></span></div><div class="table-wrap"><table class="routine-table"><thead><tr><th>루틴</th><th>대상</th><th>선택일 진행</th><th>관리</th></tr></thead><tbody>${routines.map(r => {
     const target = students().filter(s => C.targeted(r, s.id) && !C.excluded(db(), s.id, state.date)),
       done = target.filter(s => C.routineStatus(db(), r.id, state.date, s.id) === '완료').length;
     const exception = r.exceptions?.[state.date];

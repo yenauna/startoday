@@ -132,13 +132,13 @@
   }
   #app .shell .student[data-student-id]:not(.unfinished):not(.excluded),
   #app .lockscreen .classroom-student:not(.unfinished):not(.excluded) {
-    background: rgba(255,255,255,.84);
-    border-color: rgba(255,255,255,.94);
+    background: var(--nebula-glass);
+    border-color: var(--nebula-edge);
   }
   #app .shell .student[data-student-id].unfinished:not(.excluded),
   #app .lockscreen .classroom-student.unfinished:not(.excluded) {
-    background: rgba(255,212,208,.74) !important;
-    border-color: rgba(230,140,134,.65);
+    background: rgba(255,198,212,.46) !important;
+    border-color: rgba(255,226,232,.85);
     /* Override the legacy important unfinished fill in dashboard.css, only on dashboard roster cards. */
   }
   #app .shell .student[data-student-id].selected:not(.excluded) {

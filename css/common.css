@@ -1939,3 +1939,10 @@ input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-s
 @media(max-width:640px){.title-domain-grid{grid-template-columns:minmax(0,1fr);gap:14px}.title-domain-grid.title-resident-grid{max-width:none}}
 
 .student-timetable-card>:is(.slot,.student-task.subject-color){margin:11px 0}
+
+/* Narrow screens: keep the routine table readable instead of crushing cells. */
+#routine-exception>label{min-width:0;flex:1 1 200px}
+#routine-exception>label>input{width:100%;min-width:0}
+@media(max-width:640px){
+ .table-wrap>.routine-table{min-width:520px}
+}
