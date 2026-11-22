@@ -172,9 +172,12 @@
   }
 
   #app :is(.kingdom-badge, .student-home-village .student-profile-controls .kingdom-badge) {
-    background: var(--nebula-gold);
-    color: var(--nebula-gold-ink);
-    box-shadow: inset 0 0 0 1px #CAB276;
+    background: linear-gradient(125deg, #FFF1CACF, #E8DDF4C9);
+    color: #594368;
+    border: 1px solid #FFFFFFDE;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 12px #5C466C1A;
   }
 
   #app :is(.student-home-topbar, .avatar-item, .student-avatar-manager, .settings-sidebar,
@@ -297,7 +300,6 @@
   .survey-reason-tag-picker>p { margin:0 0 12px; font-weight:650; }
   .survey-reason-tag-picker>p .muted { display:block; font-weight:400; font-size:12px; }
   .survey-reason-tag-group { min-width:0; padding:0; border:0; margin:0 0 18px; }
-  .survey-reason-tag-group legend { padding:0; margin-bottom:8px; font-size:13px; font-weight:650; color:#45415f; }
   .survey-reason-tag-list { display:flex; flex-wrap:wrap; gap:8px; }
   .survey-reason-tag-list .survey-reason-tag {
     display:inline-flex; align-items:center; justify-content:center; min-height:40px;
@@ -393,4 +395,11 @@
  #app .statistics-filters{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:12px 0 16px}
  #app .statistics-filters>.statistics-sort,#app .statistics-filters>.student-period-controls,#app .statistics-filters>.student-custom-range{margin:0}
  #app .statistics-filters>.student-custom-range{padding:0;background:transparent;border:0;box-shadow:none;backdrop-filter:none}
+}
+
+@media screen {
+ #app .drawer-tabs button{display:flex;align-items:center;gap:12px}
+ #app .drawer-tabs button .ui-icon{width:20px;height:20px;flex:none}
+ .title-unlock-close{display:inline-flex;align-items:center;justify-content:center;min-width:44px;padding:10px}
+ .tools-overlay-close,.tools-window-close{display:inline-flex;align-items:center;justify-content:center}
 }

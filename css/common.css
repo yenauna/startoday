@@ -932,9 +932,9 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-timetable-card>.timeline-slot { margin:4px 0; flex-direction:row; flex-wrap:wrap; align-items:baseline; gap:4px 8px; }
 
 /* Star Kingdom: a separate praise-count collection, never a replacement for XP. */
-.kingdom-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border-radius:12px; background:#fff4d4; color:#78561b; font-size:12px; font-weight:700; max-width:100%; overflow-wrap:anywhere; }
+.kingdom-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border-radius:12px; background:linear-gradient(125deg,#fff2c9c9,#e9def6bd); color:#59466c; border:1px solid #ffffffd9; -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); box-shadow:0 3px 10px #59436c18; font-size:12px; font-weight:700; max-width:100%; overflow-wrap:anywhere; }
 .kingdom-title-button { padding:0; background:transparent; box-shadow:none; margin:4px 4px 4px 0; text-align:left; }
-.kingdom-title-button:hover .kingdom-badge,.kingdom-title-button:focus-visible .kingdom-badge { outline:2px solid #b88a35; }
+.kingdom-title-button:hover .kingdom-badge,.kingdom-title-button:focus-visible .kingdom-badge { outline:2px solid #87709e; outline-offset:3px; }
 .student-kingdom { margin:4px 0; }
 .kingdom-catalog { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
 .kingdom-domain { min-width:0; padding:16px; border-radius:18px; background:linear-gradient(140deg,#fffdf5,#f4f1fc); border:1px solid #e8e0ce; }
@@ -1130,7 +1130,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-home-village .student-home-scene-awning i{display:block;flex:1;background:var(--sh-sage);border-radius:0 0 5px 5px;box-shadow:0 2px 2px #5b6a4322}
 .student-home-village .student-home-scene-awning i:nth-child(even){background:#dee2c9}
 .student-home-village .student-home-scene-lantern{grid-area:scene;align-self:start;justify-self:end;width:12px;height:27px;margin-top:16px;background:url('../assets/shop/lantern.svg') center / contain no-repeat;pointer-events:none;z-index:2}
-.student-home-village .kingdom-badge{background:#fff8e5;border:1px solid var(--sh-brass);color:#765a2b;box-shadow:inset 0 0 0 2px #fffdf4;line-height:1.5}
+.student-home-village .kingdom-badge{line-height:1.5}
 .student-home-village .student-profile-score{border-color:#e7dcc7}.student-home-village .student-profile-star{color:#d29122}
 .student-home-village .student-profile-card .compact-codex{border-color:#bacab4;color:#526c51;background:#f5f8ef}
 .student-home-village .student-profile-areas{background:var(--sh-sky);border:1px solid #dce6ed}
@@ -1189,9 +1189,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-home-village .student-profile-nickname{font-size:13px;color:#29354f}
 .student-home-village .student-profile-card .student-profile-edit{width:30px;flex-basis:30px;min-height:34px;padding:3px}
 .student-home-village .student-profile-card .kingdom-title-button{align-self:flex-start;max-width:100%;min-height:34px;padding:2px 0;margin:6px 0 0}
-.student-home-village .kingdom-badge{position:relative;border:3px double #be9c61;border-radius:9px;padding:3px 15px;background:#fcf6e9;box-shadow:0 1px 1px #7b5b3022;font-size:14px;color:#26324e}
-.student-home-village .kingdom-badge:before,.student-home-village .kingdom-badge:after{content:'';position:absolute;top:calc(50% - 2px);width:4px;height:4px;border-radius:50%;background:#b78e45;pointer-events:none}
-.student-home-village .kingdom-badge:before{left:4px}.student-home-village .kingdom-badge:after{right:4px}
+.student-home-village .kingdom-badge{padding:5px 13px;font-size:14px}
 .student-home-village .student-profile-scorebar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:9px;margin-top:16px;padding-top:14px;border-top:1px solid #c7a46c;min-width:0}
 .student-home-village .student-profile-score{padding:0;margin:0;border:0;min-width:0}
 .student-home-village .student-profile-score h2{font-size:16px;gap:6px;align-items:center}
@@ -1306,8 +1304,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-home-village .student-avatar-stage .student-profile-image{height:250px;max-height:250px;width:100%;object-fit:contain}
 .student-profile-controls{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
 .student-home-village .student-profile-controls .kingdom-title-button{align-self:center;margin:0;padding:0;min-height:34px}
-.student-home-village .student-profile-controls .kingdom-badge{text-align:center;border:0;border-radius:999px;background:#fff4d9;padding:7px 16px;box-shadow:none}
-.student-home-village .student-profile-controls .kingdom-badge:before,.student-home-village .student-profile-controls .kingdom-badge:after{display:none}
+.student-home-village .student-profile-controls .kingdom-badge{text-align:center;border-radius:999px;padding:7px 16px}
 .student-home-village .student-profile-controls .compact-codex{border-radius:999px;border-color:#b7cfee;background:#f6faff;color:#315b91;font-size:12px;min-height:32px;padding:4px 12px}
 .student-home-village .student-profile-areas{grid-template-columns:repeat(6,minmax(0,1fr));gap:0;margin-top:14px;border-radius:14px;overflow:hidden;background:#eaf3ff;padding:9px 0}
 .student-home-village .student-profile-areas>div{flex-direction:row;flex-wrap:wrap;gap:3px;padding:2px;background:transparent!important;border-radius:0;font-size:12px;font-weight:500}

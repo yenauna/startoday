@@ -53,7 +53,7 @@ test('통계·수업도구 탭 라우팅을 지원하고 이전 학생 주소는
     bindTimetableDrag() {},
     installGlobalEvents() {}
   };
-  for (const name of ['economyView', 'dashboard', 'recordsView', 'calendarView', 'assignmentsView', 'routinesView', 'studentsView', 'seatsView', 'settingsView', 'toolsView', 'designView']) context[name] = () => name;
+  for (const name of ['economyView', 'dashboard', 'recordsView', 'calendarView', 'assignmentsView', 'routinesView', 'studentsView', 'seatsView', 'settingsView', 'toolsView']) context[name] = () => name;
   const source = readFileSync(new URL('../js/app.js', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '').replaceAll('export ', '').replace(/^boot\(\);$/m, '');
   vm.createContext(context);
   vm.runInContext(source, context);
@@ -63,6 +63,7 @@ test('통계·수업도구 탭 라우팅을 지원하고 이전 학생 주소는
   assert.equal(app.innerHTML, 'studentsView');
   assert.equal(context.document.title,'통계 · 오늘의 별');
   assert.equal(decodeURIComponent(location.hash), '#통계');
+  context.navigate('디자인');assert.equal(state.tab,'대시보드');assert.equal(app.innerHTML,'dashboard');
   context.navigate('수업도구');
   assert.equal(app.innerHTML,'toolsView');
   assert.equal(decodeURIComponent(location.hash),'#수업도구');
