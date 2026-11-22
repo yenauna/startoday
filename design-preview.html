@@ -47,27 +47,31 @@
   }
 
   .sky-light {
-    background-image:
-      radial-gradient(ellipse 72% 46% at 24% 29%, #CBE2E2, transparent 79%),
-      radial-gradient(ellipse 70% 51% at 68% 72%, #DAD8EE, transparent 80%),
-      radial-gradient(ellipse 68% 45% at 83% 40%, #EFE3D1, transparent 82%);
+    background:
+      radial-gradient(ellipse 75vw 41vh at 17vw 16vh, #9AD3D4 0%, #9AD3D49C 38%, transparent 79%),
+      radial-gradient(ellipse 69vw 37vh at 82vw 51vh, #B8B3E8 0%, #B8B3E8AD 40%, transparent 84%),
+      radial-gradient(ellipse 79vw 38vh at 24vw 88vh, #F0CBB0 0%, #F0CBB0A8 39%, transparent 84%);
   }
 
   .sky-orbits {
     background:
-      radial-gradient(ellipse 34% 20% at 65% 26%, #F9FBFF91, transparent 80%),
-      radial-gradient(ellipse 41% 32% at 28% 65%, #F5EBF977, transparent 76%);
+      radial-gradient(ellipse 34vw 20vh at 65vw 26vh, #F9FBFF91, transparent 80%),
+      radial-gradient(ellipse 41vw 32vh at 28vw 65vh, #F5EBF977, transparent 76%);
+    will-change:transform;
   }
 
-  .sky-orbits path {
+  .sky-orbits .sky-track {
     fill:none;
-    stroke:#879EAB;
+    stroke:#758DA2;
     stroke-width:1;
-    stroke-opacity:.24;
+    stroke-opacity:.5;
     vector-effect:non-scaling-stroke;
   }
 
-  .sky-orbits circle { fill:#FFFFFF; fill-opacity:.85; }
+  .sky-orbits .sky-ridge { fill:#829EB9; fill-opacity:.2; }
+  .sky-orbits .sky-cloud { fill:#FFFFFF; fill-opacity:.4; }
+  .sky-orbits circle { fill:#FFFFFF; fill-opacity:.8; }
+  .sky-orbits .sky-star-halo { fill:#FFF5DB; fill-opacity:.32; }
 
   body[data-theme="sky"] .hero {
     --hero-ink:#FFFDF6;
@@ -89,8 +93,8 @@
   body[data-theme="sky"] :is(.composer, .panel, .metric, .s-card, .card, .profile) {
     position:relative;
     isolation:isolate;
-    background:linear-gradient(135deg, rgba(255, 255, 255, .65) 0%,
-      rgba(255, 255, 255, .34) 55%, rgba(255, 255, 255, .52) 100%);
+    background:linear-gradient(135deg, rgba(255, 255, 255, .48) 0%,
+      rgba(255, 255, 255, .24) 55%, rgba(255, 255, 255, .42) 100%);
     border:1px solid rgba(255, 255, 255, .78);
     box-shadow:var(--glass-bevel), 0 12px 28px rgba(31, 36, 34, .06);
     -webkit-backdrop-filter:blur(22px) saturate(160%);
@@ -302,15 +306,22 @@
 </head>
 <body data-view="teacher" data-theme="warm">
 <div class="sky-parallax" aria-hidden="true">
-  <div class="sky-layer sky-light" data-speed="0.12"></div>
-  <svg class="sky-layer sky-orbits" data-speed="0.3" viewBox="0 0 1200 900" preserveAspectRatio="none" focusable="false">
-    <path d="M-90 385 C160 190 415 625 792 399 S1127 83 1300 287"/>
-    <path d="M-140 453 C200 255 428 692 816 447 S1130 140 1290 328"/>
-    <path d="M-70 758 C193 580 374 848 678 710 S1017 521 1282 728"/>
-    <circle cx="96" cy="178" r="2"/><circle cx="368" cy="212" r="3"/><circle cx="706" cy="112" r="2"/>
-    <circle cx="990" cy="251" r="3"/><circle cx="164" cy="432" r="3"/><circle cx="548" cy="473" r="2"/>
-    <circle cx="1076" cy="477" r="2"/><circle cx="258" cy="691" r="3"/><circle cx="777" cy="658" r="2"/>
-    <circle cx="964" cy="779" r="3"/><circle cx="571" cy="843" r="2"/>
+  <div class="sky-layer sky-light" data-speed="0"></div>
+  <svg class="sky-layer sky-orbits" data-speed="0.55" viewBox="0 0 1200 900" preserveAspectRatio="none" focusable="false">
+    <path class="sky-cloud" d="M-40 239 C102 206 118 167 198 170 S309 209 351 188 S484 142 542 185 S610 213 662 209 C533 259 273 243 -40 278Z"/>
+    <path class="sky-cloud" d="M510 586 C605 574 634 553 698 555 S773 575 822 551 S932 508 991 530 S1044 552 1230 516 L1230 603 C987 577 730 627 510 586Z"/>
+    <path class="sky-ridge" d="M-50 740 C79 708 112 660 207 675 S305 742 410 713 S535 655 628 704 S751 752 861 717 S1027 614 1240 682 L1240 827 C1034 797 948 761 831 778 S659 830 545 783 S348 749 252 775 S51 783 -50 816Z"/>
+    <path class="sky-track" d="M-90 385 C160 190 415 625 792 399 S1127 83 1300 287"/>
+    <path class="sky-track" d="M-140 453 C200 255 428 692 816 447 S1130 140 1290 328"/>
+    <path class="sky-track" d="M-70 758 C193 580 374 848 678 710 S1017 521 1282 728"/>
+    <circle class="sky-star-halo" cx="368" cy="212" r="11"/>
+    <circle class="sky-star-halo" cx="990" cy="251" r="10"/>
+    <circle class="sky-star-halo" cx="548" cy="473" r="12"/>
+    <circle class="sky-star-halo" cx="777" cy="658" r="10"/>
+    <circle cx="96" cy="178" r="3"/><circle cx="368" cy="212" r="4"/><circle cx="706" cy="112" r="3"/>
+    <circle cx="990" cy="251" r="4"/><circle cx="164" cy="432" r="4"/><circle cx="548" cy="473" r="4"/>
+    <circle cx="1076" cy="477" r="3"/><circle cx="258" cy="691" r="4"/><circle cx="777" cy="658" r="4"/>
+    <circle cx="964" cy="779" r="4"/><circle cx="571" cy="843" r="3"/>
   </svg>
 </div>
 <div class="theme-controls" role="group" aria-label="시안 테마">
