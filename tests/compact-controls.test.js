@@ -1,0 +1,10 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import * as C from '../js/core.js';
+import {icon} from '../js/components/icons.js';
+function ui(){const context={C,icon,state:{actionNo:0,actions:new Map()},document:{addEventListener(){}},setTimeout(){},clearTimeout(){}};vm.createContext(context);vm.runInContext(readFileSync(new URL('../js/shared/ui.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replaceAll('export ',''),context);return context;}
+test('닫기·수정·내보내기 아이콘은 원래 이름과 title을 유지하고 장식 SVG를 숨김',()=>{const c=ui();for(const label of ['닫기','수정','학생 선택 / 전체 내보내기']){const html=vm.runInContext(`btn(${JSON.stringify(label)},()=>{})`,c);assert.match(html,/<svg/);assert(html.includes(`aria-label="${label}"`));assert(html.includes(`title="${label}"`));assert.match(html,/aria-hidden="true"/);assert(!html.includes(`>${label}</button>`));}const custom=vm.runInContext(`btn('수정',()=>{},'', 'aria-label="내 기록 수정" title="수정 안내"')`,c);assert.equal((custom.match(/aria-label=/g)||[]).length,1);assert(custom.includes('내 기록 수정'));});
+test('필터는 라벨 행 없이 선택지·placeholder에 뜻을 담고 접근 가능한 이름 유지',()=>{const c=ui(),select=vm.runInContext(`filterSelect('학생','student',[['','전체 학생'],['s1','가온']],'s1')`,c),input=vm.runInContext(`filterInput('내용 검색','q','<검색>')`,c);assert(!select.includes('<label'));assert(select.includes('aria-label="학생"'));assert.match(select,/value="s1" selected/);assert(input.includes('placeholder="내용 검색"'));assert(!input.includes('value="<검색>"'));});
+test('한 날짜와 역순으로 고른 날짜를 포함 범위로 정렬',()=>{const c={};vm.createContext(c);vm.runInContext(readFileSync(new URL('../js/components/date-range.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replaceAll('export ',''),c);for(const [a,b,from,to] of [['2026-11-12',undefined,'2026-11-12','2026-11-12'],['2027-01-02','2026-12-30','2026-12-30','2027-01-02']]){const r=c.normalizeDateRange(a,b);assert.equal(r.from,from);assert.equal(r.to,to);}});

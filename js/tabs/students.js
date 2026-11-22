@@ -1,10 +1,12 @@
+import {dateRangeField} from '../components/date-range.js';
+import {icon} from '../components/icons.js';
 import {teacherSurveys} from './surveys.js';
 import { render } from '../app.js';
 import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, name, settings, students, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
-import { $, badge, btn, checkbox, empty, esc, input, saveFile, toast } from '../shared/ui.js';
+import { $, badge, btn, checkbox, empty, esc, input, saveFile, toast, opts } from '../shared/ui.js';
 import { recordImportDialog } from './import-records.js';
 import { taskStateEditor } from './assignments.js';
 import { recordCard, recordEditor } from './records.js';
@@ -50,10 +52,7 @@ export function studentsView() {
   });
   rows.sort((a, b) => (studentSort === 'stars' ? b.score.total - a.score.total : studentSort === 'attention' ? b.attention - a.attention : 0) || a.student.no - b.student.no);
   const change = n => `<span class="score-change ${n > 0 ? 'positive' : n < 0 ? 'negative' : 'neutral'}">(${n > 0 ? '+' : ''}${n})</span>`;
-  return navigation+`<div class="toolbar"><div><h2>통계</h2><small>누적 별 개수 · 선택 기간 변화 ${esc(C.formatDate(range.from))} ~ ${esc(C.formatDate(range.to))}</small></div><div class="row">${btn('행발 문장 변환기', () => behaviorConverter(null, range.from, range.to))}${btn('CSV 가져오기', () => recordImportDialog())}${btn('학생 선택 / 전체 내보내기', () => reportDialog(null, range.from, range.to))}</div></div><div class="statistics-summary" aria-label="이번 달 학급 요약"><span class="badge tone-yellow">이번 달 별 ${summary.total}개</span><span class="badge tone-praise">칭찬 ${summary.praise} : 조언 ${summary.advice} · 칭찬 ${summary.praisePercent}%</span><span class="badge tone-mint">칭찬 영역 TOP 1 · ${summary.topArea ? esc(summary.topArea) + ' ' + summary.topCount + '건' : '아직 없음'}</span></div><div class="statistics-sort row">${[['number', '번호순'], ['stars', '별 개수 많은 순'], ['attention', '관심 필요(조언·미완료 많은 순)']].map(([key, label]) => btn(label, () => {
-    studentSort = key;
-    render();
-  }, studentSort === key ? 'primary' : '', `aria-pressed="${studentSort === key}" title="${key === 'attention' ? '누적 조언 + 현재 미완료 과제·루틴 수' : label}"`)).join('')}</div><div class="student-period-controls row"><input type="month" id="student-month" aria-label="학생 조회 월" value="${esc(studentMonth)}">${btn('이번 달', () => {
+  return navigation+`<div class="toolbar"><div><h2>통계</h2><small>누적 별 개수 · 선택 기간 변화 ${esc(C.formatDate(range.from))} ~ ${esc(C.formatDate(range.to))}</small></div><div class="row">${btn('행발 문장 변환기', () => behaviorConverter(null, range.from, range.to))}${btn('CSV 가져오기', () => recordImportDialog())}${btn('학생 선택 / 전체 내보내기', () => reportDialog(null, range.from, range.to))}</div></div><div class="statistics-summary" aria-label="이번 달 학급 요약"><span class="badge tone-yellow">이번 달 별 ${summary.total}개</span><span class="badge tone-praise">칭찬 ${summary.praise} : 조언 ${summary.advice} · 칭찬 ${summary.praisePercent}%</span><span class="badge tone-mint">칭찬 영역 TOP 1 · ${summary.topArea ? esc(summary.topArea) + ' ' + summary.topCount + '건' : '아직 없음'}</span></div><div class="statistics-filters"><div class="statistics-sort row"><label class="sort-control">${icon('sort')}<select id="student-sort" aria-label="학생 정렬 기준">${opts([['number','번호순'],['stars','별 개수 많은 순'],['attention','관심 필요']],studentSort)}</select></label></div><div class="student-period-controls row"><input type="month" id="student-month" aria-label="학생 조회 월" value="${esc(studentMonth)}">${btn('이번 달', () => {
     selectStudentMonth(C.today().slice(0, 7));
     render();
   })}${btn('지난 달', () => {
@@ -61,7 +60,7 @@ export function studentsView() {
     d.setUTCMonth(d.getUTCMonth() - 1, 1);
     selectStudentMonth(d.toISOString().slice(0, 7));
     render();
-  })}${[1, 2].map(term => btn(term + '학기', () => selectStudentSemester(term), '', C.semesterRange(settings(), term) ? '' : 'disabled title="설정에서 학사일정을 먼저 등록하세요"')).join('')}</div><div class="row student-custom-range">${input('직접 지정 시작', 'statsFrom', range.from, 'date')}${input('직접 지정 종료', 'statsTo', range.to, 'date')}${btn('기간 적용', () => { const from=$('[name=statsFrom]').value,to=$('[name=statsTo]').value;C.dates(from,to);studentRange={from,to};studentMonth='';render(); })}</div><div class="table-wrap"><table class="student-score-table"><thead><tr><th>학생</th><th>전체</th><th>칭찬</th><th>조언</th><th>분야별</th></tr></thead><tbody>${rows.map(({
+  })}${[1, 2].map(term => btn(term + '학기', () => selectStudentSemester(term), '', C.semesterRange(settings(), term) ? '' : 'disabled title="설정에서 학사일정을 먼저 등록하세요"')).join('')}</div><div class="row student-custom-range">${dateRangeField(range.from,range.to,selected=>{studentRange=selected;studentMonth='';render();},'통계 조회 기간')}</div></div><div class="table-wrap"><table class="student-score-table"><thead><tr><th>학생</th><th>전체</th><th>칭찬</th><th>조언</th><th>분야별</th></tr></thead><tbody>${rows.map(({
     student,
     score
   }) => {
@@ -70,6 +69,7 @@ export function studentsView() {
 }
 function bindStudentMonth() {
   setTimeout(() => {
+    const sort=$('#student-sort');if(sort)sort.onchange=()=>{studentSort=sort.value;render();};
     const input = $('#student-month');
     if (input) input.onchange = () => {
       if (!input.value) return;

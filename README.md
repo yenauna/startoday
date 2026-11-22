@@ -349,3 +349,11 @@ UI의 아이템은 물건, 경험치는 분야로 통일하며 데이터 키·�
 **수파베이스 반영 필요:** `schema.sql`의 `startoday_student_payload`가 반환하는 오늘 시간표에서 `privateMemo` 키를 제거했습니다. 학생 달력 응답도 기존과 같이 공개 메모만 포함합니다. 교사가 저장한 `privateMemo`/`teacherMemo`와 인증·RLS·다른 RPC는 보존합니다. 운영 DB에는 자동 적용하지 않았으므로 최신 `schema.sql` 함수 변경을 별도로 반영해야 합니다.
 
 검증: `npm test`, `npm run check`, `npm run build`, PGlite SQL 통합 및 `tests/patch27.sql.mjs`, `tests/layout-polish.browser.mjs`(1280×800·412×891), `tests/mobile-calendar-lock.browser.mjs`. 브라우저 검증은 로컬 Playwright/Chromium으로 실행하며 `PLAYWRIGHT_MODULE`, `CHROMIUM_PATH`, `SHOT_DIR`로 경로를 지정할 수 있습니다.
+
+### 간결한 탐색·조회와 학생 로그인 안내
+
+교사 주 메뉴는 상단 햄버거 버튼의 드로어로 통합했습니다. 메뉴 선택, 바깥 클릭, Esc로 닫을 수 있습니다. 기록 필터는 입력창 안의 안내와 선택지로 표시하며, 기록·통계의 날짜 필드 하나에서 달력으로 하루 또는 기간을 선택합니다. 하루 선택 후 닫으면 하루만, 두 날짜를 선택하면 순서에 관계없이 해당 기간을 조회합니다. 초기화는 달력을 열기 전 선택으로 돌아가며, 오늘 버튼은 오늘 하루를 조회합니다.
+
+학생 로그인 오류는 비밀번호 아래에서 바로 확인하고 다시 입력할 수 있습니다. 새 비밀번호 강도는 기존 한글·숫자 규칙, 초기 비밀번호 재사용, 단순 반복 여부를 기준으로 안내합니다. 7자 이상의 한글·숫자 혼합 비밀번호는 강함으로 표시합니다. `schema.sql` 변경은 없습니다.
+
+추가 검증: `PLAYWRIGHT_MODULE=/path/to/playwright node tests/compact-ui.browser.mjs` (1280px/412px), `npm test`, `npm run check`, `npm run build`.

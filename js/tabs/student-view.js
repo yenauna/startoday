@@ -8,7 +8,7 @@ import { state, store } from '../shared/state.js';
 import { btn, esc, input, toast, run } from '../shared/ui.js';
 import { koreanPasswordField, bindKoreanPasswordFields } from '../components/korean-password.js';
 import { schoolPickerFields, bindSchoolPicker, recentStudentSchool, rememberStudentSchool } from '../components/school-picker.js';
-import { studentPasswordInfo, studentIdentityMatches, validateStudentPassword } from '../shared/student-auth.js';
+import { studentPasswordInfo, studentIdentityMatches, validateStudentPassword, studentPasswordStrength } from '../shared/student-auth.js';
 
 // Credentials stay in this module's memory only, cleared on logout; never in DOM/storage/channels.
 // Swap this source for a full-body or portrait character; contain preserves its proportions.
@@ -254,15 +254,20 @@ function requireStudentPassword(identity, previous) {
   state.studentUser = null;
   state.studentSnapshot = null;
   render();
-  modal('새 비밀번호 설정', `<p>처음 로그인했거나 비밀번호가 초기화되었습니다. 새 비밀번호를 설정해야 내 화면에 들어갈 수 있어요.</p>${koreanPasswordField('새 비밀번호', 'newPassword', '', 'required minlength="5" autocomplete="new-password"')}${koreanPasswordField('새 비밀번호 확인', 'confirmPassword', '', 'required autocomplete="new-password"')}<p class="muted">완성된 한글을 포함해 5자 이상 입력하세요. 한글과 숫자만 사용할 수 있고, 초기 비밀번호는 다시 사용할 수 없습니다. 예: 바람123</p>`, async f => {
+  modal('새 비밀번호 설정', `<p>처음 로그인했거나 비밀번호가 초기화되었습니다. 새 비밀번호를 설정해야 내 화면에 들어갈 수 있어요.</p>${koreanPasswordField('새 비밀번호', 'newPassword', '', 'required minlength="5" autocomplete="new-password"')}<div id="student-password-strength" class="password-strength" data-level="weak" role="status" aria-live="polite"><span class="password-strength-track" aria-hidden="true"></span><small>약함(사용 불가)</small></div>${koreanPasswordField('새 비밀번호 확인', 'confirmPassword', '', 'required autocomplete="new-password"')}<p class="muted">완성된 한글을 포함해 5자 이상 입력하세요. 한글과 숫자만 사용할 수 있고, 초기 비밀번호는 다시 사용할 수 없습니다. 예: 바람123</p>`, async f => {
     const password = f.get('newPassword');
     validateStudentPassword(password, previous);
+    if(!studentPasswordStrength(password,previous).usable)throw Error('단순 반복 대신 다른 한글과 숫자를 섞어 주세요.');
     if (password !== f.get('confirmPassword')) throw Error('새 비밀번호 확인이 일치하지 않습니다.');
     const snapshot = await changeStudentPassword(identity, previous, password);
     enterStudent(snapshot, identity, password);
     toast('비밀번호를 변경했습니다.');
   }, '변경하고 시작하기');
   bindKoreanPasswordFields(document.querySelector('#modal-form'));
+  const field=document.querySelector('[name=newPassword]'),meter=document.querySelector('#student-password-strength');
+  field.setAttribute('aria-describedby','student-password-strength');
+  const update=()=>{const strength=studentPasswordStrength(field.value,previous);meter.dataset.level=strength.level;meter.querySelector('small').textContent=strength.label;};
+  field.addEventListener('input',update);field.addEventListener('compositionend',()=>setTimeout(update,0));update();
 }
 export function studentLoginDialog() {
   const demo = !store.client || ['demo', 'local'].includes(store.mode);
@@ -282,7 +287,7 @@ export function studentLoginDialog() {
     form.elements.grade.value = config.grade;
     form.elements.classGroup.value = config.classGroup;
     form.elements.password.value = config.defaultStudentPassword || '바람123';
-  })}${schoolPickerFields(recent.name || (demo ? config.schoolName || '체험초등학교' : ''), recent.code || (demo ? config.schoolCode || '' : ''))}<div class="formgrid">${input('학년', 'grade', demo ? config.grade || 5 : '', 'number', 'required min="1" max="6"')}${input('반', 'classGroup', demo ? config.classGroup || '1' : '', 'text', 'required maxlength="40"')}${input('번호', 'no', '', 'number', 'required min="1" step="1"')}${koreanPasswordField('비밀번호', 'password', '', 'required autocomplete="current-password"')}</div><p class="muted">반 공통 초기 비밀번호는 선생님께 확인하세요. 새 체험 명단의 초기 비밀번호는 바람123입니다. 기존 영문 비밀번호는 선생님께 초기화를 요청하세요.</p></div>`, async f => {
+  })}${schoolPickerFields(recent.name || (demo ? config.schoolName || '체험초등학교' : ''), recent.code || (demo ? config.schoolCode || '' : ''))}<div class="formgrid">${input('학년', 'grade', demo ? config.grade || 5 : '', 'number', 'required min="1" max="6"')}${input('반', 'classGroup', demo ? config.classGroup || '1' : '', 'text', 'required maxlength="40"')}${input('번호', 'no', '', 'number', 'required min="1" step="1"')}${koreanPasswordField('비밀번호', 'password', '', 'required autocomplete="current-password" aria-describedby="student-login-error"')}<p id="student-login-error" class="field-error" role="alert" hidden></p></div><p class="muted">반 공통 초기 비밀번호는 선생님께 확인하세요. 새 체험 명단의 초기 비밀번호는 바람123입니다. 기존 영문 비밀번호는 선생님께 초기화를 요청하세요.</p></div>`, async f => {
     const identity = {
       school: (f.get('schoolCode') || f.get('schoolName')).trim(),
       grade: String(Number(f.get('grade'))),
@@ -292,7 +297,10 @@ export function studentLoginDialog() {
     if (!identity.school || !identity.classGroup || !Number.isInteger(identity.no) || identity.no < 1 || !/^[1-6]$/.test(identity.grade)) throw Error('학교, 학년, 반, 번호를 확인하세요.');
     const password = f.get('password'),
       snapshot = await authenticateStudent(identity, password);
-    if (!snapshot) throw Error('학생 로그인 정보 또는 비밀번호가 올바르지 않습니다.');
+    if (!snapshot) {
+      const field=document.querySelector('#modal [name=password]'),error=document.querySelector('#student-login-error');
+      error.textContent='비밀번호가 맞지 않거나 로그인 정보가 올바르지 않습니다. 학교·학년·반·번호도 확인해 주세요.';error.hidden=false;field.setAttribute('aria-invalid','true');field.focus();return;
+    }
     rememberStudentSchool(f.get('schoolName').trim(), f.get('schoolCode') || '');
     if (snapshot.mustChangePassword) {
       requireStudentPassword(identity, password);
@@ -300,6 +308,8 @@ export function studentLoginDialog() {
     }
     enterStudent(snapshot, identity, password);
   }, '로그인');
+  const loginPassword=document.querySelector('#modal [name=password]');
+  loginPassword.addEventListener('input',()=>{loginPassword.removeAttribute('aria-invalid');document.querySelector('#student-login-error').hidden=true;});
   bindSchoolPicker(document.querySelector('#modal-form'));
   bindKoreanPasswordFields(document.querySelector('#modal-form'));
 }

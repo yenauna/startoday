@@ -14,6 +14,6 @@ export function actionIcon(type){
 export function economyAction(type,fn,cls='',attrs=''){
  const {label}=ACTIONS[type];
  const icon=actionIcon(type);
- const accessible=/aria-label=/.test(attrs)?attrs:`aria-label="${esc(label)}" ${attrs}`;
+ const accessible=(/aria-label=/.test(attrs)?attrs:`aria-label="${esc(label)}" ${attrs}`)+(/title=/.test(attrs)?'':` title="${esc(label)}"`);
  return `<span class="economy-action economy-action-${type}">${btn(icon+`<span class="tooltip" aria-hidden="true">${label}</span><span class="economy-action-label" aria-hidden="true">${label}</span>`,fn,'economy-icon-button '+cls,accessible)}</span>`;
 }
