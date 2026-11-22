@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import http from 'node:http';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+const {chromium}=createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE||'playwright');
+const root=path.resolve(fileURLToPath(new URL('..',import.meta.url)));
+const server=http.createServer((req,res)=>{
+ const pathname=new URL(req.url,'http://localhost').pathname;
+ if(pathname==='/config.js'){res.setHeader('Content-Type','text/javascript');res.end('window.STARTODAY_CONFIG={};');return;}
+ const file=path.resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
+ if(!file.startsWith(root+path.sep)){res.writeHead(403).end();return;}
+ try{res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':file.endsWith('.png')?'image/png':file.endsWith('.svg')?'image/svg+xml':'text/html');res.end(readFileSync(file));}catch{res.writeHead(404).end();}
+});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+let browser;
+try{
+ browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+ for(const width of [1280,412]){
+  const page=await browser.newPage({viewport:{width,height:900},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(8000);await page.goto(`http://127.0.0.1:${server.address().port}`);await page.getByRole('button',{name:'가상 명단으로 먼저 살펴보기',exact:true}).click();
+  await page.evaluate(async()=>{const C=await import('/js/core.js'),{store,state}=await import('/js/shared/state.js');let d=C.initialDB();const date=C.today();d.students=[{id:'done',no:1,name:'가온'},{id:'pending',no:2,name:'나래'},{id:'excluded',no:3,name:'다온'}];d.assignments=[{id:'task',title:'국어 읽기',date,target:'all',repeat:{type:'none'}}];d.routines=[{id:'routine',title:'책상 정리',target:'all',sortOrder:1}];d.assignmentStates=[{id:'task:'+date+':done',assignmentId:'task',date,studentId:'done',status:'완료'}];d.routineStates=[{id:'routine:'+date+':done',routineId:'routine',date,studentId:'done',status:'완료'}];d.attendance=[{studentId:'excluded',date,excluded:true}];d.subject_rules.push({id:'custom',code:'새 과목',color:'#F1D6EF',accentColor:'#9B4D89'});d.timetables=[{id:'s1',date,period:1,subjectCode:'국어',publicMemo:'읽고 이야기하기'},{id:'s2',date,period:2,subjectCode:'새 과목',publicMemo:'나만의 작품 만들기'}];store.db=d;state.date=date;state.selected=[];state.compact=false;(await import('/js/app.js')).navigate('대시보드');});
+  const done=page.locator('[data-student-id=done]'),pending=page.locator('[data-student-id=pending]'),excluded=page.locator('[data-student-id=excluded]');assert(!await done.evaluate(e=>e.classList.contains('unfinished')));assert(await pending.evaluate(e=>e.classList.contains('unfinished')));assert(await excluded.evaluate(e=>e.classList.contains('excluded')));
+  const getStyle=loc=>loc.evaluate(e=>{const s=getComputedStyle(e);return{image:s.backgroundImage,border:s.borderColor,borderWidth:s.borderTopWidth,outline:s.outlineWidth,outlineColor:s.outlineColor,blur:s.backdropFilter};});const ds=await getStyle(done),ps=await getStyle(pending),xs=await getStyle(excluded);assert.notEqual(ds.image,ps.image);assert.notEqual(ds.border,ps.border);assert.match(ds.image,/radial-gradient/);assert.match(ps.image,/radial-gradient/);assert.equal(ds.borderWidth,'1px');assert.equal(ps.borderWidth,'1px');assert.match(ds.blur,/blur/);assert.notEqual(xs.image,ds.image);assert.notEqual(xs.image,ps.image);
+  await page.locator('.students').first().screenshot({path:`/tmp/aurora-students-${width}.png`});await pending.click({position:{x:12,y:12}});assert.equal(await pending.getAttribute('aria-pressed'),'true');const selected=await getStyle(pending);assert.equal(selected.outline,'2px');assert.notEqual(selected.border,ps.border);assert.equal(selected.image,ps.image);await page.keyboard.press('Tab');await page.locator('#quick-cancel').click();await done.click({position:{x:12,y:12}});const selectedDone=await getStyle(done);assert.equal(selectedDone.outline,'2px');assert.equal(selectedDone.image,ds.image);await page.locator('#quick-cancel').click();
+  const checkSubject=async loc=>{const s=await loc.evaluate(e=>{const s=getComputedStyle(e),p=getComputedStyle(e,'::before');return{image:s.backgroundImage,blur:s.backdropFilter,bar:p.width,accent:s.getPropertyValue('--subject-accent').trim(),barColor:p.backgroundColor,title:getComputedStyle(e.querySelector('.subject-title')).color};});assert.match(s.image,/radial-gradient/);assert.match(s.image,/linear-gradient/);assert.match(s.blur,/blur/);assert.equal(s.bar,'3px');return s;};
+  const slots=page.locator('.registered-schedule .slot.subject-color');assert.equal(await slots.count(),2);const original=await checkSubject(slots.nth(0)),custom=await checkSubject(slots.nth(1));assert.notEqual(custom.image,original.image);assert.notEqual(custom.barColor,original.barColor);assert.notEqual(custom.title,original.title);assert.equal(custom.accent,'#9B4D89');await page.locator('.registered-schedule').screenshot({path:`/tmp/aurora-subjects-${width}.png`});
+  await page.evaluate(async()=>(await import('/js/tabs/student-view.js')).previewStudent('done'));const studentSlots=page.locator('.student-timetable-card .student-task.subject-color');assert.equal(await studentSlots.count(),2);await checkSubject(studentSlots.nth(0));await checkSubject(studentSlots.nth(1));await page.locator('.student-timetable-card').screenshot({path:`/tmp/aurora-student-subjects-${width}.png`});await page.getByRole('button',{name:'교사 화면으로 돌아가기',exact:true}).click();
+  await page.evaluate(async()=>(await import('/js/tabs/classroom.js')).classroom());const classSlots=page.locator('.lockscreen .slot.subject-color');assert.equal(await classSlots.count(),2);await checkSubject(classSlots.nth(0));await checkSubject(classSlots.nth(1));await page.locator('.lockscreen .class-schedule').count().then(async count=>{if(count)await page.locator('.lockscreen .class-schedule').screenshot({path:`/tmp/aurora-class-subjects-${width}.png`});});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);assert.deepEqual(errors,[]);await page.close();
+ }
+ console.log('PASS: PC1280/mobile412 completed mint/pending coral/exclusions, selected outline, teacher/student/classroom aurora subjects, custom subject colors/title/3px bars, blur and no overflow');
+}finally{await browser?.close();await new Promise(r=>server.close(r));}
