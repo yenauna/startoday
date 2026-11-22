@@ -326,7 +326,11 @@ export function behaviorConverter(ids = null, from = studentRange?.from || state
     const rows=generated.map(s=>({no:s.no,label:C.studentLabel(s),count:C.behaviorSummary(db(),s.id,period.from,period.to).records.length,text:currentText(s.id)}));
     const range=`${C.formatDate(period.from)} ~ ${C.formatDate(period.to)}`,stamp=C.today().replaceAll('-','');
     if(kind==='csv'){
-      const quote=value=>`"${String(value??'').replace(/"/g,'""')}"`;
+      const quote = value => {
+        const text = String(value ?? '');
+        const escaped = /^[=+\-@\t\r]/.test(text) ? "'" + text : text;
+        return `"${escaped.replace(/"/g, '""')}"`;
+      };
       const csv='\uFEFF'+['번호,학생,기간,기록 수,초안',...rows.map(r=>[r.no,r.label,range,r.count,r.text].map(quote).join(','))].join('\r\n');
       saveFile(`행발_초안_${stamp}.csv`,csv,'text/csv;charset=utf-8');
       toast('CSV 파일로 내려받았습니다.');

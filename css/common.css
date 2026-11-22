@@ -241,6 +241,10 @@ button:hover, .btn:hover { background: #f0f3f9; }
 .top small { color: var(--st-text-muted); }
 .logo { border-color: transparent; }
 .login .logo { background: var(--st-gray-bg); color: var(--st-text); }
+.login .teacher-login-entry { background: #FFFFFF; }
+.login .teacher-login-entry:hover { background: var(--st-surface); }
+.login .student-login-entry { background: #B6E3FF; color: #173B57; }
+.login .student-login-entry:hover { background: #A4DAFC; }
 .quick-wrap { background: rgba(246, 247, 250, 0.94); }
 .tabs { border-bottom-color: var(--st-line); }
 .tabs button { border-radius: var(--st-radius-action, 10px); box-shadow: none; color: var(--st-text-muted); }

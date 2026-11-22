@@ -55,6 +55,14 @@ try {
  const txtText=readFileSync(await txtDownload.path(),'utf8');
  assert(txtText.includes(custom));
  assert(txtText.includes('1. 김가온'));
+ // 수식으로 해석될 수 있는 접두사는 CSV에서만 이스케이프한다.
+ const csvButton=page.getByRole('button',{name:'CSV로 내려받기',exact:true});
+ for(const prefix of ['=', '+', '-', '@', '\t']){
+  await draftA.fill(prefix+'한글 "초안", 쉼표');
+  const [download]=await Promise.all([page.waitForEvent('download'),csvButton.click()]);
+  assert(readFileSync(await download.path(),'utf8').includes(`"'${prefix}한글 ""초안"", 쉼표"`));
+ }
+ await draftA.fill(custom);
  await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();
 
  // 3) 새로고침 뒤에도 저장된 초안이 남고, 덮어쓰기·지우기는 확인 후에만 동작
