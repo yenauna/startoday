@@ -41,15 +41,43 @@ create unique index if not exists startoday_survey_one_response on public.starto
 do $$ begin
  if not exists(select 1 from pg_constraint where conname='startoday_response_survey_fk') then alter table public.startoday_survey_responses add constraint startoday_response_survey_fk foreign key(class_id,survey_id) references public.startoday_surveys(class_id,id) deferrable initially deferred;end if;
 end $$;
+-- Optional JSONB reason-tag catalog; no table/column migration is required.
+create or replace function public.startoday_survey_reason_tags(p_config jsonb default null)
+returns jsonb language plpgsql immutable set search_path=public,pg_temp as $$
+declare config jsonb:=p_config;result jsonb:='{}'::jsonb;grp text;labels jsonb;
+begin
+ if config is null or config='null'::jsonb then
+  config:='{"comfortable":["어렸을 때부터 친구였다","학원·방과후를 같이 다닌다","같이 놀면 재밌다","말이 잘 통한다","친절하고 잘 도와준다","같은 모둠·짝 활동이 편하다"],"uncomfortable":["장난을 많이 친다","놀리거나 기분 나쁜 말을 한다","화를 잘 내거나 까칠하다","같이 있으면 어색하다","예전에 다툰 적이 있다","아직 이야기를 많이 못 해 봤다"]}'::jsonb;
+ end if;
+ if jsonb_typeof(config) is distinct from 'object' then raise exception 'INVALID_SURVEY_REASON_TAGS';end if;
+ foreach grp in array array['comfortable','uncomfortable'] loop
+  if jsonb_typeof(config->grp) is distinct from 'array' then raise exception 'INVALID_SURVEY_REASON_TAGS';end if;
+  if jsonb_array_length(config->grp)>20 or exists(select 1 from jsonb_array_elements(config->grp) x where jsonb_typeof(x) is distinct from 'string' or length(btrim(x#>>'{}')) not between 1 and 80) then raise exception 'INVALID_SURVEY_REASON_TAGS';end if;
+  select coalesce(jsonb_agg(btrim(value#>>'{}') order by ordinal),'[]'::jsonb) into labels from jsonb_array_elements(config->grp) with ordinality x(value,ordinal);
+  result:=result||jsonb_build_object(grp,labels);
+ end loop;
+ labels:=(result->'comfortable')||(result->'uncomfortable');
+ if (select count(distinct value) from jsonb_array_elements(labels))<>jsonb_array_length(labels) then raise exception 'INVALID_SURVEY_REASON_TAGS';end if;
+ return result;
+end $$;
+revoke all on function public.startoday_survey_reason_tags(jsonb) from public,anon,authenticated;
 create or replace function public.startoday_survey_columns() returns trigger language plpgsql set search_path=public,pg_temp as $$
+declare placement jsonb;
 begin
  if tg_table_name='startoday_surveys' then
   if jsonb_typeof(new.data->'title') is distinct from 'string' or length(btrim(new.data->>'title')) not between 1 and 100 or coalesce(new.data->>'status','') not in ('open','closed') then raise exception 'INVALID_SURVEY';end if;
+  if new.data ? 'reasonTags' then perform public.startoday_survey_reason_tags(new.data->'reasonTags');end if;
   if tg_op='UPDATE' and old.status='closed' and new.data is distinct from old.data then raise exception 'SURVEY_IMMUTABLE';end if;
   new.title:=new.data->>'title';new.status:=new.data->>'status';new.created_at:=coalesce((new.data->>'createdAt')::timestamptz,new.created_at);new.closed_at:=case when new.status='closed' then coalesce((new.data->>'closedAt')::timestamptz,now()) end;
  else
   if jsonb_typeof(new.data->'placements') is distinct from 'array' or jsonb_array_length(new.data->'placements')>500 or exists(select 1 from jsonb_array_elements(new.data->'placements') p where jsonb_typeof(p->'x') is distinct from 'number' or jsonb_typeof(p->'y') is distinct from 'number' or jsonb_typeof(p->'targetId') is distinct from 'string' or jsonb_typeof(p->'reason') is distinct from 'string') then raise exception 'INVALID_PLACEMENTS';end if;
   if exists(select 1 from jsonb_array_elements(new.data->'placements') p where (p->>'x')::numeric not between 0 and 100 or (p->>'y')::numeric not between 0 and 100 or length(p->>'reason')>300) then raise exception 'INVALID_PLACEMENTS';end if;
+  for placement in select * from jsonb_array_elements(new.data->'placements') loop
+   if placement ? 'tags' and placement->'tags'<>'null'::jsonb then
+    if jsonb_typeof(placement->'tags') is distinct from 'array' then raise exception 'INVALID_SURVEY_TAGS';end if;
+    if jsonb_array_length(placement->'tags')>40 or exists(select 1 from jsonb_array_elements(placement->'tags') tag where jsonb_typeof(tag) is distinct from 'string' or length(btrim(tag#>>'{}')) not between 1 and 80) or (select count(distinct value) from jsonb_array_elements(placement->'tags'))<>jsonb_array_length(placement->'tags') then raise exception 'INVALID_SURVEY_TAGS';end if;
+   end if;
+  end loop;
   new.survey_id:=new.data->>'surveyId';new.student_id:=new.data->>'studentId';new.placements:=new.data->'placements';new.submitted_at:=coalesce((new.data->>'submittedAt')::timestamptz,now());
  end if;
  return new;
@@ -446,7 +474,7 @@ begin
    union all select distinct holiday.value,'자율휴업일','학사일정 · 재량휴업일','null'::jsonb,null::text,false,true from jsonb_array_elements_text(case when jsonb_typeof(config->'academicCalendar'->'holidays')='array' then config->'academicCalendar'->'holidays' else '[]'::jsonb end) holiday(value)
  ) e),'[]'::jsonb)) into calendar;
  result:=jsonb_build_object('avatar',jsonb_build_object('catalog',public.startoday_avatar_catalog(),'owned',case when jsonb_typeof(student->'avatarOwned')='array' then student->'avatarOwned' else '[]'::jsonb end,'equipped',case when jsonb_typeof(student->'avatarEquipped')='object' then student->'avatarEquipped' else '{}'::jsonb end),'economy',public.startoday_economy_payload(cid,sid),'student',jsonb_build_object('id',sid,'no',student->'no','name',student->>'name','equippedTitle',student->>'equippedTitle','nickname',student->>'nickname','rewardTitles',coalesce((select jsonb_agg(jsonb_build_object('id',t->>'id','name',t->>'name')) from jsonb_array_elements(coalesce(student->'rewardTitles','[]'::jsonb)) t),'[]'::jsonb)),'titleCounts',public.startoday_kingdom_counts(cid,sid),'titleConfig',public.startoday_title_config(cid),'className',coalesce(config->>'className','우리반'),'date',day,'lunchAfterPeriod',case when config->>'lunchAfterPeriod' in ('3','4','5') then (config->>'lunchAfterPeriod')::integer else 4 end,'score',totals,'praise',letters,'tasks',tasks,'routines',routines,'timetable',timetable,'calendar',calendar,'checkingAssignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title')) from public.startoday_assignments a where a.class_id=cid and a.data->>'checkerStudentId'=sid and coalesce(a.data->>'isQuest','false')<>'true' and public.startoday_assignment_occurs(a.data,day)),'[]'::jsonb));
- result:=result||jsonb_build_object('survey',(select jsonb_build_object('id',s.id,'title',s.title,'status',s.status,'submitted',exists(select 1 from public.startoday_survey_responses r where r.class_id=cid and r.survey_id=s.id and r.student_id=sid),'peers',coalesce((select jsonb_agg(jsonb_build_object('id',p.id,'name',p.data->>'name') order by (p.data->>'no')::integer) from public.startoday_students p where p.class_id=cid and p.id<>sid and p.data->>'deletedAt' is null),'[]'::jsonb)) from public.startoday_surveys s where s.class_id=cid and s.status='open' order by s.created_at desc limit 1));
+ result:=result||jsonb_build_object('survey',(select jsonb_build_object('id',s.id,'title',s.title,'status',s.status,'reasonTags',public.startoday_survey_reason_tags(s.data->'reasonTags'),'submitted',exists(select 1 from public.startoday_survey_responses r where r.class_id=cid and r.survey_id=s.id and r.student_id=sid),'peers',coalesce((select jsonb_agg(jsonb_build_object('id',p.id,'name',p.data->>'name') order by (p.data->>'no')::integer) from public.startoday_students p where p.class_id=cid and p.id<>sid and p.data->>'deletedAt' is null),'[]'::jsonb)) from public.startoday_surveys s where s.class_id=cid and s.status='open' order by s.created_at desc limit 1));
  return result;
 end $$;
 revoke all on function public.startoday_student_payload(uuid,text) from public,anon,authenticated;
@@ -897,7 +925,7 @@ create or replace function public.startoday_avatar_equip(p_school text,p_grade t
  grant execute on function public.startoday_avatar_equip(text,text,text,integer,text,text) to anon,authenticated;
 create or replace function public.startoday_student_survey_submit(p_school text,p_grade text,p_class text,p_no integer,p_password text,p_survey text,p_placements jsonb)
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
-declare verified jsonb;cid uuid;sid text;owner uuid;s public.startoday_surveys;expected integer;entry jsonb;rev bigint;rid text:=gen_random_uuid()::text;stamp text:=to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
+declare verified jsonb;cid uuid;sid text;owner uuid;s public.startoday_surveys;expected integer;entry jsonb;tag jsonb;allowed_tags jsonb;tag_config jsonb;rev bigint;rid text:=gen_random_uuid()::text;stamp text:=to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
 begin
  verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_password);
  if verified is null or verified->>'mustChangePassword'='true' then raise exception 'STUDENT_AUTH_REQUIRED';end if;
@@ -906,14 +934,23 @@ begin
  select * into s from public.startoday_surveys where class_id=cid and id=p_survey for update;
  if s.id is null or s.status<>'open' then raise exception 'SURVEY_CLOSED';end if;
  if exists(select 1 from public.startoday_survey_responses where class_id=cid and survey_id=s.id and student_id=sid) then raise exception 'SURVEY_ALREADY_SUBMITTED';end if;
+ tag_config:=public.startoday_survey_reason_tags(s.data->'reasonTags');
+ allowed_tags:=(tag_config->'comfortable')||(tag_config->'uncomfortable');
  select count(*) into expected from public.startoday_students where class_id=cid and id<>sid and data->>'deletedAt' is null;
  if jsonb_typeof(p_placements) is distinct from 'array' then raise exception 'INVALID_PLACEMENTS';end if;
  if jsonb_array_length(p_placements)<>expected or (select count(distinct value->>'targetId') from jsonb_array_elements(p_placements))<>expected then raise exception 'INVALID_PLACEMENTS';end if;
  for entry in select * from jsonb_array_elements(p_placements) loop
   if jsonb_typeof(entry) is distinct from 'object' or jsonb_typeof(entry->'x') is distinct from 'number' or jsonb_typeof(entry->'y') is distinct from 'number' or entry ? 'reason' and entry->'reason'<>'null'::jsonb and jsonb_typeof(entry->'reason') is distinct from 'string' or length(entry->>'reason')>300 or not exists(select 1 from public.startoday_students where class_id=cid and id=entry->>'targetId' and id<>sid and data->>'deletedAt' is null) then raise exception 'INVALID_PLACEMENTS';end if;
   if (entry->>'x')::numeric not between 0 and 100 or (entry->>'y')::numeric not between 0 and 100 then raise exception 'INVALID_PLACEMENTS';end if;
+  if entry ? 'tags' and entry->'tags'<>'null'::jsonb then
+   if jsonb_typeof(entry->'tags') is distinct from 'array' then raise exception 'INVALID_SURVEY_TAGS';end if;
+   if jsonb_array_length(entry->'tags')>40 or (select count(distinct value) from jsonb_array_elements(entry->'tags'))<>jsonb_array_length(entry->'tags') then raise exception 'INVALID_SURVEY_TAGS';end if;
+   for tag in select * from jsonb_array_elements(entry->'tags') loop
+    if jsonb_typeof(tag) is distinct from 'string' or not(allowed_tags ? (tag#>>'{}')) then raise exception 'INVALID_SURVEY_TAGS';end if;
+   end loop;
+  end if;
  end loop;
- insert into public.startoday_survey_responses(class_id,owner_id,id,data) values(cid,owner,rid,jsonb_build_object('id',rid,'surveyId',s.id,'studentId',sid,'placements',(select coalesce(jsonb_agg(jsonb_build_object('targetId',value->>'targetId','x',value->'x','y',value->'y','reason',coalesce(value->>'reason',''))),'[]'::jsonb) from jsonb_array_elements(p_placements)),'submittedAt',stamp));
+ insert into public.startoday_survey_responses(class_id,owner_id,id,data) values(cid,owner,rid,jsonb_build_object('id',rid,'surveyId',s.id,'studentId',sid,'placements',(select coalesce(jsonb_agg(jsonb_build_object('targetId',value->>'targetId','x',value->'x','y',value->'y','reason',coalesce(value->>'reason',''),'tags',case when jsonb_typeof(value->'tags')='array' then value->'tags' else '[]'::jsonb end)),'[]'::jsonb) from jsonb_array_elements(p_placements)),'submittedAt',stamp));
  update public.startoday_classes set revision=revision+1 where id=cid returning revision into rev;
  return jsonb_build_object('classId',cid,'revision',rev,'snapshot',public.startoday_student_payload(cid,sid));
 end $$;

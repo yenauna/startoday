@@ -824,7 +824,7 @@ async function submitStudentSurvey(surveyId,placements){
   if(!credentials||!store.client)throw Error('다시 로그인해 주세요.');
   const {data,error}=await store.client.rpc('startoday_student_survey_submit',{...studentRpcIdentity(credentials.identity),p_password:credentials.password,p_survey:surveyId,p_placements:placements});
   if(id!==state.studentUser?.id||credentials!==checkerCredentials)return;
-  if(error){const message=String(error.message||'');if(message.includes('SURVEY_CLOSED'))state.studentSnapshot.survey=null;if(message.includes('SURVEY_ALREADY_SUBMITTED')&&state.studentSnapshot.survey)state.studentSnapshot.survey.submitted=true;throw Error(message.includes('SURVEY_CLOSED')?'마감된 설문입니다.':message.includes('SURVEY_ALREADY_SUBMITTED')?'이미 제출한 설문입니다.':message.includes('INVALID_PLACEMENTS')?'모든 친구의 배치를 확인하세요.':message.includes('PGRST')||error.code==='PGRST202'?'최신 schema.sql 적용 후 다시 시도하세요.':'설문을 제출하지 못했습니다. 다시 로그인해 주세요.');}
+  if(error){const message=String(error.message||'');if(message.includes('SURVEY_CLOSED'))state.studentSnapshot.survey=null;if(message.includes('SURVEY_ALREADY_SUBMITTED')&&state.studentSnapshot.survey)state.studentSnapshot.survey.submitted=true;throw Error(message.includes('SURVEY_CLOSED')?'마감된 설문입니다.':message.includes('SURVEY_ALREADY_SUBMITTED')?'이미 제출한 설문입니다.':message.includes('INVALID_SURVEY_TAGS')?'이 설문에서 제공한 이유 태그를 다시 선택해 주세요.':message.includes('INVALID_PLACEMENTS')?'모든 친구의 배치를 확인하세요.':message.includes('PGRST')||error.code==='PGRST202'?'최신 schema.sql 적용 후 다시 시도하세요.':'설문을 제출하지 못했습니다. 다시 로그인해 주세요.');}
   if(!data?.snapshot)throw Error('다시 로그인해 주세요.');state.studentSnapshot=data.snapshot;store.signalChange('cloud',data.classId,data.revision);
  }
  toast('설문을 제출했습니다.');
