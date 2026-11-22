@@ -26,6 +26,8 @@ js='(()=>{\nconst C=(()=>{\n'+core+'\nreturn {'+','.join(names)+'};\n})();\n'+st
 # Include the default student character in the standalone file as well.
 character='data:image/png;base64,'+base64.b64encode((root/'assets/character-default.png').read_bytes()).decode()
 js=js.replace("'assets/character-default.png'", repr(character))
+logo = 'data:image/jpeg;base64,' + base64.b64encode((root/'assets/logo-icon.jpg').read_bytes()).decode()
+js=js.replace('assets/logo-icon.jpg', logo)
 for avatar_file in (root/'assets/avatar').glob('*'):
     if avatar_file.suffix not in ('.png','.svg','.webp'): continue
     js=js.replace('assets/avatar/'+avatar_file.name, 'data:'+(mimetypes.guess_type(avatar_file.name)[0] or 'image/png')+';base64,'+base64.b64encode(avatar_file.read_bytes()).decode())
