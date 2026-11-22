@@ -1,0 +1,16 @@
+{
+  "source_sha256": "750ae832b7331c4924ae6812a37a774d35ee30efe1dff2842b5fba090f04c4db",
+  "source_bbox": [
+    [
+      250.5,
+      253.5
+    ],
+    [
+      1005.5,
+      985.5
+    ]
+  ],
+  "segments": 105,
+  "mask_iou": 0.9977679941341207,
+  "svg_path_characters": 2494
+}
