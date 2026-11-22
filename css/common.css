@@ -1925,3 +1925,15 @@ input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-s
 .record .record-controls .hold-delete .hold-glyph.invert { z-index:2; color:#fff; clip-path:inset(0 100% 0 0); }
 .record .record-controls .hold-delete:is(:hover,:focus-visible):not(:disabled) { background:var(--action-tint); color:var(--action-ink); box-shadow:0 4px 10px #3042551f; transform:none; }
 @media(max-width:640px) { .record .record-controls { gap:4px; } }
+
+/* Title management keeps the three stages side by side within each domain. */
+.title-domain-row{margin:16px 0;padding:0 0 16px;border-bottom:1px solid var(--line);min-width:0}
+.title-domain-row h4{margin:0 0 10px;font-size:14px;font-weight:650}
+.title-domain-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}
+.title-domain-grid.title-resident-grid{grid-template-columns:minmax(0,1fr);max-width:360px}
+.title-name-field{display:grid;gap:6px;min-width:0}
+.title-stage-label{font-size:12px;color:var(--muted)}
+.title-preview{display:flex;align-items:center;min-height:36px;min-width:0}
+.title-name-field input{width:100%;min-width:0;min-height:40px}
+.title-name-field .title-name-reset{justify-self:end}
+@media(max-width:640px){.title-domain-grid{grid-template-columns:minmax(0,1fr);gap:14px}.title-domain-grid.title-resident-grid{max-width:none}}

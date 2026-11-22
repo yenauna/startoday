@@ -53,13 +53,14 @@ export function studentCard(s) {
     ex = C.excluded(db(), s.id, state.date),
     score = C.cumulativeScores(db(), s.id, state.date),
     routines = C.pendingRoutines(db(), s.id, state.date);
+  const unfinished = isUnfinished(s.id,state.date);
   const id = String(++state.actionNo);
   state.actions.set(id, event => {
     if(event?.target?.closest?.('button,a,input,select,textarea'))return;
     state.selected = state.selected.includes(s.id) ? state.selected.filter(x => x !== s.id) : [...state.selected, s.id];
     render();
   });
-  return `<article role="button" tabindex="0" data-student-id="${esc(s.id)}" aria-pressed="${state.selected.includes(s.id)}" data-action="${id}" class="student ${isUnfinished(s.id, state.date) ? 'unfinished' : ''} ${missing.length ? 'has-pending' : ''} ${state.selected.includes(s.id) ? 'selected' : ''} ${ex ? 'excluded' : ''}"><div class="student-head"><strong>${esc(s.no)}. ${esc(C.studentLabel(s))}</strong>${btn('⋯', () => studentDetail(s.id), 'student-detail-open', 'aria-label="' + esc(s.name) + ' 상세 보기"')}${ex ? badge('제외') : ''}</div><div class="score" aria-label="누적 별 ${score.total}개"><span class="score-star" aria-hidden="true">${C.scoreStar()}</span><strong class="score-total">별 ${score.total}개</strong> <small>${C.areaNames(db(), true).filter(a => score.areas[a]).map(a => `<span class="area-score">${esc(C.areaName(a))} ${score.areas[a]}</span>`).join(' ') || ''}</small></div><div class="pending-tasks">${missing.slice(0, 2).map(({
+  return `<article role="button" tabindex="0" data-student-id="${esc(s.id)}" aria-pressed="${state.selected.includes(s.id)}" data-action="${id}" class="student ${unfinished ? 'unfinished' : ''} ${missing.length ? 'has-pending' : ''} ${state.selected.includes(s.id) ? 'selected' : ''} ${ex ? 'excluded' : ''}"><div class="student-head"><strong>${esc(s.no)}. ${esc(C.studentLabel(s))}</strong>${!unfinished&&!ex?'<span class="student-completion-mark">완료</span>':''}${btn('⋯', () => studentDetail(s.id), 'student-detail-open', 'aria-label="' + esc(s.name) + ' 상세 보기"')}${ex ? badge('제외') : ''}</div><div class="score" aria-label="누적 별 ${score.total}개"><span class="score-star" aria-hidden="true">${C.scoreStar()}</span><strong class="score-total">별 ${score.total}개</strong> <small>${C.areaNames(db(), true).filter(a => score.areas[a]).map(a => `<span class="area-score">${esc(C.areaName(a))} ${score.areas[a]}</span>`).join(' ') || ''}</small></div><div class="pending-tasks">${missing.slice(0, 2).map(({
     assignment: a,
     date: d
   }) => btn(esc(a.title), () => taskQuickStatus(a, d, s.id), 'task ' + (d < state.date ? 'overdue' : ''))).join('')}${missing.length > 2 ? btn('+ ' + (missing.length - 2) + '개', () => studentDetail(s.id), 'task pending-more') : ''}</div>${routines.length ? `<div class="routine-indicator"><div class="routine-names">${routines.map(r => btn(esc(r.title), () => completeRoutineWithUndo(r, state.date, s), 'routine-task')).join('')}</div></div>` : ''}</article>`;
