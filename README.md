@@ -349,3 +349,9 @@ UI의 아이템은 물건, 경험치는 분야로 통일하며 데이터 키·�
 **수파베이스 반영 필요:** `schema.sql`의 `startoday_student_payload`가 반환하는 오늘 시간표에서 `privateMemo` 키를 제거했습니다. 학생 달력 응답도 기존과 같이 공개 메모만 포함합니다. 교사가 저장한 `privateMemo`/`teacherMemo`와 인증·RLS·다른 RPC는 보존합니다. 운영 DB에는 자동 적용하지 않았으므로 최신 `schema.sql` 함수 변경을 별도로 반영해야 합니다.
 
 검증: `npm test`, `npm run check`, `npm run build`, PGlite SQL 통합 및 `tests/patch27.sql.mjs`, `tests/layout-polish.browser.mjs`(1280×800·412×891), `tests/mobile-calendar-lock.browser.mjs`. 브라우저 검증은 로컬 Playwright/Chromium으로 실행하며 `PLAYWRIGHT_MODULE`, `CHROMIUM_PATH`, `SHOT_DIR`로 경로를 지정할 수 있습니다.
+
+### 마음 지도 선택형 이유 태그
+
+친구 배치 후 선택 사항인 이유 태그를 여러 개 고르고 자유 메모와 함께 제출할 수 있습니다. 편안함 좌표에 따라 두 묶음의 표시 순서만 바뀌며, 어느 묶음이든 선택할 수 있습니다. 새 설문 시작 시 기본 12개 문구를 그대로 사용하거나 묶음별 20개·문구별 80자 이내로 수정·추가할 수 있습니다. 교사 관계 분석 및 보낸/받은 응답에서 선택한 태그가 함께 표시됩니다.
+
+회차의 `data.reasonTags`와 응답 `placements[].tags`에 저장하므로 테이블·컬럼 추가나 기존 응답 변환은 없습니다. 클라우드에서는 업데이트된 `schema.sql`을 적용해야 학생 payload에 회차별 문구가 전달되고 제출 RPC가 선택 태그를 보존합니다. 태그 없는 이전 회차·응답 및 이전 클라이언트 제출은 계속 지원합니다. 학생에게는 다른 학생의 응답을 전달하지 않습니다.

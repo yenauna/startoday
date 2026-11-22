@@ -366,4 +366,18 @@ assert(!JSON.stringify(backup).includes('옛날암호7'));assert(!JSON.stringify
 await pg.exec('set role anon');await assert.rejects(pg.query('select * from public.startoday_student_secrets'),/permission denied/);
 await assert.rejects(pg.query('select public.startoday_password_hash($1)',['바람123']),/permission denied/);
 console.log('PASS: 학생 비밀번호 bcrypt 저장·레거시 평문 로그인 호환·일괄/로그인 시 마이그레이션·초기화 유지·스냅샷/백업 비노출');
+// Optional reason tags survive the authenticated RPC without exposing responses to students.
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
+const tagConfig={comfortable:['맞춤 친밀 태그','함께 활동'],uncomfortable:['맞춤 불편 태그']};
+const tagOps=C.surveyStartOps(snap.data,'태그 회차',tagConfig);await commit(tagOps);
+const tagSurvey=tagOps[0].id,tagDB=(await snapshot()).data;
+const tagPoints=tagDB.students.filter(s=>s.id!=='s1'&&!s.deletedAt).map(s=>({targetId:s.id,x:70.125,y:30,reason:'개인 메모',tags:['맞춤 친밀 태그','맞춤 불편 태그']}));
+await pg.exec('set role anon');assert.deepEqual((await schoolLogin('새암호123')).survey.reasonTags,tagConfig);
+for(const tags of [['없는 문구'],['함께 활동','함께 활동'],'잘못된 타입',[7]])await assert.rejects(submitSurvey(tagPoints.map((p,i)=>i?p:{...p,tags}),tagSurvey),/INVALID_SURVEY_TAGS/);
+const tagResult=await submitSurvey(tagPoints,tagSurvey);assert.equal(tagResult.snapshot.survey.submitted,true);assert(!JSON.stringify(tagResult).includes('개인 메모'));assert(!('placements' in tagResult.snapshot.survey));
+await pg.exec('set role authenticated');await asUser(owner);snap=await snapshot();revision=Number(snap.revision);
+assert.deepEqual(snap.data.survey_responses.find(r=>r.surveyId===tagSurvey).placements[0].tags,tagPoints[0].tags);
+const savedTagSurvey=snap.data.surveys.find(s=>s.id===tagSurvey);
+await assert.rejects(commit([{table:'surveys',id:tagSurvey,data:{...savedTagSurvey,reasonTags:{comfortable:['중복'],uncomfortable:['중복']}}}]),/INVALID_SURVEY_REASON_TAGS/);
+console.log('PASS: 회차별 이유 태그 카탈로그·다중 선택/메모 RPC 보존·미등록/중복/타입 검증·학생 응답 비노출');
 await pg.close();

@@ -290,3 +290,46 @@
     body { --nebula-sheen-duration: 0s; }
   }
 }
+
+/* Survey-only pastel glass controls; preserve the rest of the app's palette. */
+@media screen {
+  .survey-reason-tag-picker { margin:16px 0; }
+  .survey-reason-tag-picker>p { margin:0 0 12px; font-weight:650; }
+  .survey-reason-tag-picker>p .muted { display:block; font-weight:400; font-size:12px; }
+  .survey-reason-tag-group { min-width:0; padding:0; border:0; margin:0 0 18px; }
+  .survey-reason-tag-group legend { padding:0; margin-bottom:8px; font-size:13px; font-weight:650; color:#45415f; }
+  .survey-reason-tag-list { display:flex; flex-wrap:wrap; gap:8px; }
+  .survey-reason-tag-list .survey-reason-tag {
+    display:inline-flex; align-items:center; justify-content:center; min-height:40px;
+    max-width:100%; padding:8px 12px; border:1px solid #c5c1db; border-radius:18px;
+    color:#3f385d; background:linear-gradient(135deg,#fffefbf2,#ece6f7d9);
+    box-shadow:inset 0 1px 0 #ffffffeb,0 3px 8px #55446d0d;
+    -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+    font-size:13px; line-height:1.45; font-weight:550; white-space:normal;
+    overflow-wrap:anywhere; text-align:left; user-select:none;
+  }
+  .survey-reason-tag-group[data-reason-group=uncomfortable] .survey-reason-tag {
+    color:#573a49; border-color:#d4bfcc; background:linear-gradient(135deg,#fffefbf2,#f5e4edd9);
+  }
+  .survey-reason-tag-list .survey-reason-tag:hover:not(:disabled) { transform:none; border-color:#85749d; }
+  .survey-reason-tag-list .survey-reason-tag.is-selected {
+    color:#30254b; border-color:#79628f; background:linear-gradient(135deg,#e8def4,#d9e6f4);
+    box-shadow:inset 0 0 0 1px #79628f,0 3px 8px #55446d12; font-weight:550;
+  }
+  .survey-reason-tag-group[data-reason-group=uncomfortable] .survey-reason-tag.is-selected {
+    color:#4a2d3e; border-color:#96677f; background:linear-gradient(135deg,#f3dce8,#e9e0f1);
+    box-shadow:inset 0 0 0 1px #96677f,0 3px 8px #55446d12;
+  }
+  .survey-reason-tag:focus-visible { outline:3px solid #65518a; outline-offset:3px; }
+  .survey-reason-tag:active:not(:disabled) { transform:none; }
+  .survey-response-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
+  .survey-response-tag { display:inline-block; max-width:100%; padding:4px 8px; border-radius:12px; border:1px solid #d1c8df; background:#eee8f5; color:#46365f; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+  .survey-tag-editor { margin-top:14px; }
+  .survey-tag-editor summary { cursor:pointer; font-weight:600; }
+  .survey-tag-editor textarea { display:block; width:100%; min-height:150px; line-height:1.5; margin-top:6px; }
+  .survey-tag-editor label { display:block; margin:14px 0; }
+  @media(max-width:640px) {
+    .survey-reason-tag-list .survey-reason-tag { flex:1 1 calc(50% - 4px); min-height:44px; padding:8px 10px; font-size:12px; }
+    .survey-response-tag { font-size:11px; }
+  }
+}
