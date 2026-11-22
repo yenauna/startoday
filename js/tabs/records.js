@@ -1,3 +1,4 @@
+import {dateRangeField} from '../components/date-range.js';
 import { attachHoldDelete } from '../shared/hold-delete.js';
 import { actionIcon } from '../components/economy-action.js';
 import { render } from '../app.js';
@@ -5,7 +6,7 @@ import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, kindLabel, name, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
-import { $, badge, bindLater, btn, checkbox, empty, esc, input, localTime, multiple, select, textarea, toast, run, registerUndo } from '../shared/ui.js';
+import { $, badge, bindLater, btn, checkbox, empty, esc, input, localTime, multiple, select, textarea, toast, run, registerUndo, filterSelect, filterInput } from '../shared/ui.js';
 import { taskStateEditor } from './assignments.js';
 import { studentDetail } from './students.js';
 const recordDeletions = new Map();
@@ -171,7 +172,7 @@ function recordActionLabel(label) {
 }
 function recordEditAction(fn, disabled) {
   const markup = actionIcon('edit') + recordActionLabel('수정');
-  return `<span class="economy-action economy-action-edit record-icon-action">${btn(markup, fn, 'record-edit economy-icon-button', `aria-label="수정" ${disabled ? 'disabled' : ''}`)}</span>`;
+  return `<span class="economy-action economy-action-edit record-icon-action">${btn(markup, fn, 'record-edit economy-icon-button', `aria-label="수정" title="수정" ${disabled ? 'disabled' : ''}`)}</span>`;
 }
 function holdRecordDelete(record) {
   const id='hold-record-'+String(++state.actionNo);
@@ -205,7 +206,7 @@ export function recordsView() {
     render();
   })}${btn('사건 목록', incidentList)}${btn('+ 기록', () => recordEditor({
     date: state.date
-  }), 'primary')}</div></div><form id="record-filter" class="filters">${input('시작', 'from', f.from, 'date')}${input('종료', 'to', f.to, 'date')}${select('학생', 'student', [['', '전체'], ...db().students.map(s => [s.id, name(s.id)])], f.student)}${select('구분', 'kind', [['', '전체'], ...C.KINDS.map(k => [k, kindLabel(k)])], f.kind)}${select('영역', 'area', [['', '전체'], ...C.areaNames(db(), true)], f.area)}${input('내용 검색', 'q', f.q)}<button class="primary">조회</button></form><p class="muted">${list.length}건 · 제외일의 기록은 보존되며 점수 집계에서만 제외됩니다.</p>${list.map(r => recordCard(r)).join('') || empty('조건에 맞는 기록이 없습니다.', '기간이나 필터를 바꾸어 보세요.')}${bindLater('record-filter', 'submit', e => {
+  }), 'primary')}</div></div><form id="record-filter" class="filters">${dateRangeField(f.from,f.to,range=>{state.recordFilters={...Object.fromEntries(new FormData($('#record-filter'))),...range};render();})}<input type="hidden" name="from" value="${esc(f.from)}"><input type="hidden" name="to" value="${esc(f.to)}">${filterSelect('학생','student',[['','전체 학생'],...db().students.map(s=>[s.id,name(s.id)])],f.student)}${filterSelect('유형','kind',[['','전체 유형'],...C.KINDS.map(k=>[k,kindLabel(k)])],f.kind)}${filterSelect('영역','area',[['','전체 영역'],...C.areaNames(db(),true)],f.area)}${filterInput('내용 검색','q',f.q)}<button class="primary">조회</button></form><p class="muted">${list.length}건 · 제외일의 기록은 보존되며 점수 집계에서만 제외됩니다.</p>${list.map(r => recordCard(r)).join('') || empty('조건에 맞는 기록이 없습니다.', '기간이나 필터를 바꾸어 보세요.')}${bindLater('record-filter', 'submit', e => {
     e.preventDefault();
     state.recordFilters = Object.fromEntries(new FormData(e.target));
     render();

@@ -1,3 +1,4 @@
+import {dismissDateRange} from './components/date-range.js';
 import { captureSelectionMotion, animateSelectionMotion, clearSelectionMotion } from './shared/selection-motion.js';
 import { clearTitleUnlock, syncTitleUnlock } from './components/title-unlock.js';
 import { economyView, syncGroupBuyDialog } from './tabs/economy.js';
@@ -54,6 +55,7 @@ window.addEventListener('hashchange', () => {
 readTabHash();
 let lastStudentScrollKey = null;
 export function render() {
+  dismissDateRange();
   syncToolsVisibility();
   // 잠금이 걸린 화면은 새로고침 뒤에도 풀리지 않는다.
   if (state.locked) {clearSelectionMotion();return;}

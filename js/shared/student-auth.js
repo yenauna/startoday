@@ -22,3 +22,12 @@ export function validateStudentPassword(password, initial, previous = initial) {
   validateKoreanPassword(password);
   if (password === initial || password === previous) throw Error('초기 비밀번호나 이전 비밀번호를 재사용할 수 없습니다.');
 }
+
+// Guidance only: submission continues to use the same server-compatible password rules.
+export function studentPasswordStrength(password,initial,previous=initial){
+ const repeated=typeof password==='string' && /^(.+?)\1+$/u.test(password);
+ let valid=true;try{validateStudentPassword(password,initial,previous);}catch{valid=false;}
+ if(!valid||repeated)return {level:'weak',label:'약함(사용 불가)',usable:false};
+ if(Array.from(password).length>=7&&/[가-힣]/.test(password)&&/[0-9]/.test(password))return {level:'strong',label:'강함(사용 가능)',usable:true};
+ return {level:'medium',label:'보통(사용 가능)',usable:true};
+}

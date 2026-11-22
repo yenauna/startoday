@@ -1,3 +1,4 @@
+import {icon} from '../components/icons.js';
 import * as C from '../core.js';
 import { state } from './state.js';
 export const {
@@ -8,6 +9,11 @@ export const {
   esc: C.esc
 };
 export const btn = (label, fn, cls = '', attrs = '') => {
+  if (!label.includes('<') && (/^(닫기|수정)$/.test(label) || label.includes('내보내기'))) {
+    const text=label;label=icon(text==='닫기'?'close':text==='수정'?'edit':'export');cls+=' icon-button';
+    if(!attrs.includes('aria-label='))attrs+=` aria-label="${esc(text)}"`;
+    if(!attrs.includes('title='))attrs+=` title="${esc(text)}"`;
+  }
   const id = String(++state.actionNo);
   state.actions.set(id, fn);
   return `<button type="button" class="${cls}" data-action="${id}" ${attrs}>${label}</button>`;
@@ -149,3 +155,6 @@ export function quickMemoBar(save, available = () => true, initialStatus = '저�
   }
   root.append(closeButton);document.body.append(root);timeout=setTimeout(close,3000);scopeTimer=setInterval(()=>{if(!available())close();},150);return close;
 }
+
+export const filterSelect=(label,key,values,value='')=>`<select name="${esc(key)}" aria-label="${esc(label)}" title="${esc(label)}">${opts(values,value)}</select>`;
+export const filterInput=(label,key,value='')=>`<input name="${esc(key)}" aria-label="${esc(label)}" placeholder="${esc(label)}" value="${esc(value)}">`;

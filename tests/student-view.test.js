@@ -32,11 +32,13 @@ function fixture() {
       db: source,
       mode: 'demo'
     };
+  const fieldsDOM=new Map();
+  function fieldNode(selector){if(!fieldsDOM.has(selector))fieldsDOM.set(selector,{value:'',dataset:{},hidden:true,textContent:'',attributes:{},setAttribute(k,v){this.attributes[k]=v;},removeAttribute(k){delete this.attributes[k];},focus(){},addEventListener(){},querySelector(){return fieldNode('meter-label');}});return fieldsDOM.get(selector);}
   const context = {
     C,
     ...Auth,
     document: {
-      querySelector: () => null
+      querySelector: selector => /newPassword|student-password-strength|name=password|student-login-error/.test(selector)?fieldNode(selector):null
     },
     koreanPasswordField: () => '',
     bindKoreanPasswordFields: () => {},
@@ -73,6 +75,7 @@ function fixture() {
   vm.runInContext(readFileSync(new URL('../js/tabs/student-view.js', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '').replaceAll('export ', ''), context);
   return {
     source,
+    fieldsDOM,
     state,
     store,
     context,
@@ -160,6 +163,10 @@ test('학교·학년·반·번호 로그인은 잘못된 비밀번호를 거부�
   f.context.studentLoginDialog();
   const fields = new Map([['schoolName', '체험초등학교'], ['schoolCode', ''], ['grade', '5'], ['classGroup', '1'], ['no', '1'], ['password', 'wrong']]);
   await assert.rejects(f.dialog.submit(fields));
+  fields.set('password','틀린암호7');await f.dialog.submit(fields);
+  assert.equal(f.fieldsDOM.get('#student-login-error').hidden,false);
+  assert.match(f.fieldsDOM.get('#student-login-error').textContent,/비밀번호가 맞지/);
+  assert.notEqual(f.state.viewMode,'student');
   fields.set('password', '푸른바람7');
   await f.dialog.submit(fields);
   assert.equal(f.state.viewMode, 'student');
