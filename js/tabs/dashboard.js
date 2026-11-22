@@ -19,7 +19,7 @@ export function dashboard() {
   if (state.dashMode !== 'normal') return checkView();
   const list = students();
   const completed = list.filter(s => !isUnfinished(s.id, state.date) && !C.excluded(db(), s.id, state.date)).length;
-  return `<div class="toolbar"><div><h2>${esc(settings().className)}의 하루</h2><small>작은 기록이 모여 성장이 됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input aria-label="대시보드 날짜" type="date" value="${state.date}" id="dash-date"></span>${btn('오늘', () => {
+  return `<div class="toolbar class-overview"><div><h2>${esc(settings().className)}의 하루</h2><small>작은 기록이 모여 성장이 됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input aria-label="대시보드 날짜" type="date" value="${state.date}" id="dash-date"></span>${btn('오늘', () => {
     state.date = C.today();
     render();
   })}</div></div>${store.mode === 'demo' ? btn('체험 자료 초기화', () => {

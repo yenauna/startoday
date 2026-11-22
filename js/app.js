@@ -2,6 +2,7 @@ import { captureSelectionMotion, animateSelectionMotion, clearSelectionMotion } 
 import { clearTitleUnlock, syncTitleUnlock } from './components/title-unlock.js';
 import { economyView, syncGroupBuyDialog } from './tabs/economy.js';
 import { setupPwa } from './shared/pwa.js';
+import { initNebulaParallax } from './shared/nebula-parallax.js';
 import { bindQuickInput, renderLogin, renderShell } from './components/header.js';
 import { db } from './shared/data.js';
 import { installGlobalEvents } from './shared/events.js';
@@ -137,6 +138,7 @@ export async function boot() {
   }
 }
 installGlobalEvents();
+initNebulaParallax();
 setupPwa();
 boot();
 function renderTab() {

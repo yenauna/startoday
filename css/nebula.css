@@ -1,0 +1,244 @@
+@media screen {
+  :root {
+    --nebula-page: #F7F8F6;
+    --nebula-ink: #1F2422;
+    --nebula-muted: #555E5B;
+    --nebula-edge: rgba(255, 255, 255, .78);
+    --nebula-readable: rgba(255, 255, 255, .96);
+    --nebula-mint: #C5D7D0;
+    --nebula-mint-ink: #22483A;
+    --nebula-gold: #F9EAC5;
+    --nebula-gold-ink: #604718;
+    --nebula-hero: #1E2926;
+    --nebula-hero-ink: #FFFDF6;
+    --nebula-hero-muted: #DCE8DF;
+    --nebula-radius: 18px;
+    --glass-bevel:
+      inset 0 1.5px 1px rgba(255, 255, 255, .95),
+      inset 1.5px 0 2px rgba(255, 255, 255, .55),
+      inset 0 -2px 6px rgba(31, 36, 34, .04);
+    --nebula-shadow: var(--glass-bevel), 0 12px 28px rgba(31, 36, 34, .06);
+    --nebula-glass: linear-gradient(135deg, #FFFFFF7A 0%, #FFFFFF3D 55%, #FFFFFF6B 100%);
+    --nebula-sheen: linear-gradient(135deg, #FFFFFF70 0%, transparent 28%, #FFFFFF66 47%, transparent 66%);
+    --nebula-hero-light: radial-gradient(ellipse at 92% 10%, #3A5148, transparent 72%);
+  }
+
+  body {
+    isolation: isolate;
+    background: var(--nebula-page);
+    --st-text: var(--nebula-ink);
+    --st-text-muted: var(--nebula-muted);
+  }
+
+  .sky-parallax {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .sky-layer {
+    position: absolute;
+    inset: 0 0 auto;
+    height: calc(100% + var(--sky-extra, 0px));
+    transform: translate3d(0, var(--sky-offset, 0px), 0);
+  }
+
+  .sky-light {
+    background: var(--nebula-page) url("../assets/bg-pastel-nebula.webp") center / cover no-repeat;
+  }
+
+  .sky-bloom {
+    position: absolute;
+    width: clamp(140px, 26vw, 350px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    filter: blur(clamp(40px, 6vw, 84px));
+    transform: translate(-50%, -50%);
+    opacity: .56;
+  }
+
+  .sky-bloom:nth-child(1) { top: 21%; left: 74%; background: #FFFFFFAD; }
+  .sky-bloom:nth-child(2) { top: 52%; left: 26%; background: #E1DDF47D; }
+  .sky-bloom:nth-child(3) { top: 78%; left: 65%; background: #FFF3DE93; }
+
+  /* Neutral reading surfaces. Subject colors, selection, and overdue states have their own fills. */
+  #app :is(.panel:not(.praise, .advice), .card, .metric, .record:not(.praise, .advice),
+    .quick-wrap.quick-composer-card, .student-card, .student-praise, .student-long-card, .long-assignment-card,
+    .economy-item, .economy-student-card, .economy-gift-grid-panel, .village-ledger, .village-wallet,
+    .survey-analysis-card, .assignment-progress-item, .timeline-slot, .seat, .empty,
+    .class-announcement, .slot:not(.subject-color)),
+  #app .shell .student:not(.selected, .checked, .excluded, .unfinished) {
+    position: relative;
+    isolation: isolate;
+    background: var(--nebula-glass);
+    border-color: var(--nebula-edge);
+    border-radius: var(--nebula-radius);
+    box-shadow: var(--nebula-shadow);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    backdrop-filter: blur(22px) saturate(160%);
+  }
+
+  #app :is(.panel:not(.praise, .advice), .card, .metric, .record:not(.praise, .advice), .quick-wrap.quick-composer-card,
+    .student-card, .student-praise, .student-long-card, .long-assignment-card, .economy-item:not(.village-product), .economy-student-card,
+    .village-ledger, .village-wallet, .slot:not(.subject-color)),
+  #app .shell .student:not(.selected, .checked, .excluded) {
+    --nebula-sheen-opacity: 0;
+  }
+
+  #app :is(.panel:not(.praise, .advice), .card, .metric, .record:not(.praise, .advice), .quick-wrap.quick-composer-card,
+    .student-card, .student-praise, .student-long-card, .long-assignment-card, .economy-item:not(.village-product), .economy-student-card,
+    .village-ledger, .village-wallet, .slot:not(.subject-color))::before,
+  #app .shell .student:not(.selected, .checked, .excluded)::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--nebula-sheen);
+    opacity: var(--nebula-sheen-opacity);
+    pointer-events: none;
+    transition: opacity var(--nebula-sheen-duration, 220ms) ease-out;
+  }
+
+  #app :is(.panel, .card, .metric, .record, .quick-composer-card, .student-card, .student-praise, .student-long-card, .long-assignment-card,
+    .economy-item, .economy-student-card, .village-ledger, .village-wallet, .slot, .student):is(:active, :focus-within) {
+    --nebula-sheen-opacity: .85;
+  }
+
+  @media (hover: hover) {
+    #app :is(.panel, .card, .metric, .record, .quick-composer-card, .student-card, .student-praise, .student-long-card, .long-assignment-card,
+      .economy-item, .economy-student-card, .village-ledger, .village-wallet, .slot, .student):hover {
+      --nebula-sheen-opacity: .65;
+    }
+    #app .village-product:hover { background-image: var(--nebula-sheen), var(--nebula-glass); }
+  }
+
+  #app .shell .student.unfinished:not(.selected, .checked, .excluded) {
+    /* Use the existing unfinished-state gradient and keep overdue task colors. */
+    --st-pending-highlight: #FFFFFFE0;
+    --st-pending-bg: #FFFFFFAA;
+    --st-pending-shade: #FFFFFFC4;
+    isolation: isolate;
+    border-color: var(--nebula-edge);
+    box-shadow: var(--nebula-shadow);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    backdrop-filter: blur(22px) saturate(160%);
+  }
+
+  #app :is(.slot.subject-color, .record.praise, .record.advice, .panel.praise, .panel.advice) {
+    box-shadow: var(--nebula-shadow);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    backdrop-filter: blur(22px) saturate(160%);
+  }
+
+  #app .quick-composer-card .quick { background: transparent; }
+  #app .student-home-village,
+  #app .village-shop,
+  #app .village-interior { background: transparent; }
+
+  #app :is(.top, .student-home-topbar, .sticky-navigation) {
+    background: var(--nebula-readable);
+    box-shadow: var(--glass-bevel);
+  }
+
+  #app .sticky-navigation .top { background: transparent; box-shadow: none; }
+  #app .sticky-navigation .tabs button,
+  #app .student-home-topbar .economy-subtabs button {
+    border-radius: 999px;
+    box-shadow: var(--glass-bevel);
+  }
+
+  #app .student-home-topbar .economy-subtabs .active,
+  #app .record-action.record-praise,
+  #app :is(.student-tasks-card, .student-calendar-detail) .student-task.is-complete:not(.is-overdue) > span {
+    background: var(--nebula-mint);
+    color: var(--nebula-mint-ink);
+    border-color: transparent;
+  }
+
+  #app :is(.top button, .student-home-topbar button, .login button, .record-action) {
+    box-shadow: var(--glass-bevel);
+  }
+
+  #app .record-action.record-praise:hover { background: #B7CDC3; }
+  #app :is(.student-tasks-card, .student-calendar-detail) .student-task.is-complete:not(.is-overdue) {
+    background: linear-gradient(135deg, #E2EEE9CF, #F5FBF8A6);
+    color: var(--nebula-mint-ink);
+  }
+
+  #app :is(.kingdom-badge, .student-home-village .student-profile-controls .kingdom-badge) {
+    background: var(--nebula-gold);
+    color: var(--nebula-gold-ink);
+    box-shadow: inset 0 0 0 1px #CAB276;
+  }
+
+  #app .student-home-topbar .student-site-name {
+    background: transparent;
+    color: var(--nebula-ink);
+  }
+
+  #app :is(.student-brand-star, .score-star) { color: var(--nebula-gold-ink); }
+  #app .student-home-village .student-home-sign {
+    background: none;
+    border-color: var(--nebula-edge);
+    text-shadow: none;
+    box-shadow: var(--glass-bevel);
+    color: var(--nebula-ink);
+  }
+
+  #app .student-home-village .student-home-sign::before,
+  #app .student-home-village .student-home-sign::after { content: none; }
+
+  #app :is(.class-overview, .student-profile-header) {
+    background: var(--nebula-hero-light), var(--nebula-hero);
+    color: var(--nebula-hero-ink);
+    padding: clamp(10px, 2.1vw, 24px);
+    border-radius: var(--nebula-radius);
+    box-shadow: inset 0 1px 0 #FFFFFF38;
+  }
+
+  #app .class-overview h2 {
+    color: var(--nebula-hero-ink);
+    font-size: clamp(22px, 3vw, 38px);
+    letter-spacing: -.04em;
+  }
+
+  #app :is(.class-overview small, .student-profile-header .student-profile-class) { color: var(--nebula-hero-muted); }
+  #app .student-profile-header :is(.student-profile-name, .student-profile-score h2) { color: var(--nebula-hero-ink); }
+  #app .student-profile-header :is(.student-profile-star, .student-profile-score strong) { color: var(--nebula-gold); }
+  #app .student-profile-header .student-profile-nickname { background: var(--nebula-gold); color: var(--nebula-gold-ink); }
+
+  #app .login,
+  #app .panel.login,
+  #modal,
+  #modal :is(.dialog-head, .dialog-foot),
+  #app .header-more-menu,
+  #app .quick-student-results:not(:empty),
+  .format-card-picker,
+  .checker-card-picker,
+  .tools-window-head {
+    background: var(--nebula-readable);
+    color: var(--nebula-ink);
+  }
+
+  #modal { box-shadow: 0 18px 48px #26363336; }
+  #modal::backdrop { background: #202B2A80; }
+  #app .lockscreen { background: #F7F8F6; }
+  #app .lockscreen .slot.subject-color {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  #app .lockscreen :is(.panel, .class-announcement, .classroom-student, .slot:not(.subject-color)) {
+    background: var(--nebula-readable);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sky-layer { transform: none; }
+    body { --nebula-sheen-duration: 0s; }
+  }
+}
