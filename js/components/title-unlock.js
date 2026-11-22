@@ -1,3 +1,4 @@
+import {icon} from './icons.js';
 import * as C from '../core.js';
 import { revealCards } from '../shared/card-reveal.js';
 
@@ -40,8 +41,9 @@ export function syncTitleUnlock(snapshot, scope) {
   const close = document.createElement('button');
   close.type = 'button';
   close.className = 'title-unlock-close';
-  close.textContent = '닫기';
-  close.setAttribute('aria-label', '칭호 해금 알림 닫기');
+  close.innerHTML = icon('close');
+  close.title = '닫기';
+  close.setAttribute('aria-label', '닫기');
   close.onclick = () => {
     cancel?.();
     cancel = null;

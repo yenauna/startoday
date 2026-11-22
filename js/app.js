@@ -20,14 +20,12 @@ import { studentsView } from './tabs/students.js';
 import { bindTimetableDrag, calendarView } from './tabs/timetable.js';
 import { classroom } from './tabs/classroom.js';
 import { toolsView, syncToolsVisibility } from './tabs/tools.js';
-import { designView } from './tabs/design-preview.js';
 import { renderStudentShell, studentSnapshot, studentViewScrollKey } from './tabs/student-view.js';
 if (window.top !== window.self) {
   document.documentElement.innerHTML = '';
   location.replace('about:blank');
 }
-// '디자인'은 시안 확인용 임시 탭이다. 다른 화면·자료와 분리되어 있고 언제든 지울 수 있다.
-const teacherTabs = ['대시보드', '기록', '시간표·일정', '과제', '루틴', '경제', '통계', '수업도구', '디자인', '자리', '설정'];
+const teacherTabs = ['대시보드', '기록', '시간표·일정', '과제', '루틴', '경제', '통계', '수업도구', '자리', '설정'];
 export function navigate(tab) {
   state.tab = tab === '학생' ? '통계' : tab;
   if (!teacherTabs.includes(state.tab)) state.tab = '대시보드';
@@ -153,7 +151,6 @@ function renderTab() {
     '통계': studentsView,
     '경제': economyView,
     '수업도구': toolsView,
-    '디자인': designView,
     '자리': seatsView,
     '설정': settingsView
   }[state.tab]();

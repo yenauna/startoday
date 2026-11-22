@@ -1,3 +1,4 @@
+import {icon} from '../components/icons.js';
 import { revealCards } from '../shared/card-reveal.js';
 import { preferredKoreanVoice } from '../shared/tools-core.js';
 import { createFormatCards } from '../components/format-cards.js';
@@ -96,6 +97,7 @@ function toolElement(tag, cls = '', text = '') {
 function toolButton(label, handler, cls = '') {
   const b = toolElement('button', cls, label);
   b.type = 'button';
+  if(label==='닫기'||cls==='tools-window-close'){b.innerHTML=icon('close');b.setAttribute('aria-label','닫기');b.title='닫기';}
   b.onclick = handler;
   return b;
 }
@@ -264,7 +266,7 @@ function createToolWindow(type) {
   maximize.title = '캔버스 꽉 채우기/복원';
   maximize.setAttribute('aria-pressed', 'false');
   const close = toolButton('✕', () => closeToolWindow(w), 'tools-window-close');
-  close.setAttribute('aria-label', '도구 닫기');
+  close.setAttribute('aria-label', '닫기');
   head.append(maximize, close);
   w.body = toolElement('div', 'tools-window-body');
   w.status = toolElement('div', 'tools-status');

@@ -120,7 +120,7 @@ try {
     assert.equal(await reward.locator('.title-unlock-name').innerText(),'지식의 탐색자');
     const rect=await reward.boundingBox();
     assert(rect.x>=0 && rect.x+rect.width<=width && rect.y>=0 && rect.y+rect.height<=height);
-    await reward.getByRole('button',{name:'칭호 해금 알림 닫기',exact:true}).click();
+    await reward.getByRole('button',{name:'닫기',exact:true}).click();
     await page.evaluate(async()=>(await import('/js/app.js')).render());
     assert.equal(await reward.count(),0); // same snapshot never repeats
     await page.evaluate(async()=>{
