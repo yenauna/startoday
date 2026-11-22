@@ -1276,15 +1276,24 @@ export function titleDefinitions(){return [{id:'resident',name:'별의 주민',d
 export function normalizeCustomTitles(value){
  const result={};for(const t of titleDefinitions()){const name=value?.[t.id];if(typeof name==='string'&&name.trim()&&Array.from(name.trim()).length<=40)result[t.id]=name.trim();}return result;
 }
-export function customTitleOps(database,values){
+export const TITLE_ICONS=[['book','책'],['check','체크'],['heart','하트'],['compass','나침반'],['sprout','새싹'],['crown','왕관'],['gold-star','로고별'],['trophy','트로피'],['flag','깃발'],['sparkles','반짝임'],['sun','해'],['medal','메달']];
+export function defaultTitleIcon(id){return ({learning:'book',tasks:'check',relationships:'heart',challenge:'compass',life:'sprout',jobs:'crown'})[id.split(':')[0]]||'sprout';}
+export function normalizeCustomTitleIcons(value){
+ const result={},allowed=new Set(TITLE_ICONS.map(([id])=>id));for(const t of titleDefinitions())if(allowed.has(value?.[t.id]))result[t.id]=value[t.id];return result;
+}
+export function customTitleIcon(id,config={}){return uiIcon(normalizeCustomTitleIcons(config.customTitleIcons)[id]||defaultTitleIcon(id));}
+export function customTitleOps(database,values,icons){
  const customTitles={};for(const t of titleDefinitions()){const name=String(values[t.id]??t.name).trim();if(!name||Array.from(name).length>40)throw Error('칭호 이름은 1~40자로 입력하세요.');if(name!==t.name)customTitles[t.id]=name;}
- return [{table:'settings',id:'main',data:{...database.settings[0],customTitles}}];
+ let customTitleIcons=normalizeCustomTitleIcons(database.settings[0]?.customTitleIcons);
+ if(icons!==undefined){customTitleIcons={};for(const t of titleDefinitions()){const key=icons[t.id];if(key===undefined)continue;if(!TITLE_ICONS.some(([id])=>id===key))throw Error('목록에 있는 칭호 아이콘을 선택하세요.');if(key!==defaultTitleIcon(t.id))customTitleIcons[t.id]=key;}}
+ return [{table:'settings',id:'main',data:{...database.settings[0],customTitles,customTitleIcons}}];
 }
 export function scoreStar(){return uiIcon('gold-star');}
 export function kingdomConfig(database) {
   return {
     goal: Number(database.settings?.[0]?.titleGoal ?? 15),
     customTitles: normalizeCustomTitles(database.settings?.[0]?.customTitles),
+    customTitleIcons: normalizeCustomTitleIcons(database.settings?.[0]?.customTitleIcons),
     labels: Object.fromEntries(KINGDOM_DOMAINS.map(d => [d.id, areaRows(database, true).find(a => a.id === d.areaId)?.name || d.label]))
   };
 }
@@ -1323,7 +1332,7 @@ export function kingdomCatalog(counts = {}, config = {}) {
         id: d.id + ':' + (i + 1),
         name: customTitles[d.id+':'+(i+1)]||name,
         stage: i+1, domain:d.id,
-        icon: d.icon
+        icon: customTitleIcon(d.id+':'+(i+1),config)
       }))
     };
   });
@@ -1339,7 +1348,7 @@ export function kingdomEquipped(student, counts, config = {}) {
   return [...kingdomCatalog(counts, config).flatMap(d => d.unlocked), ...studentRewardTitles(student)].find(t => t.id === (student?.equippedTitle ?? student?.equipped_title)) || {
     id: null,
     name: normalizeCustomTitles(config.customTitles).resident || '별의 주민',
-    icon: uiIcon('sprout'),stage:0,domain:'resident'
+    icon: customTitleIcon('resident',config),stage:0,domain:'resident'
   };
 }
 export function studentTitleOps(database, studentId, titleId) {
