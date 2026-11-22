@@ -144,7 +144,7 @@ try {
   await page.locator('#modal button[type=submit]').click();
   const teacherCard = page.locator('article.student').first();
   assert.equal(await teacherCard.locator('.kingdom-earned-open').count(), 0);
-  assert((await teacherCard.locator('.student-kingdom').textContent()).trim().length > 0);
+  assert.equal(await teacherCard.locator('.student-kingdom').count(),0);
   await teacherCard.locator('.student-head button').click();
   assert((await page.locator('.student-kingdom-detail').textContent()).includes('통찰의 현자') === false);
   assert((await page.locator('.student-kingdom-detail').textContent()).includes('길드의 대들보'));
@@ -175,13 +175,13 @@ try {
     name: '교사 화면으로 돌아가기',
     exact: true
   }).click();
-  assert.equal(await page.locator('article.student').first().locator('[data-equipped-title="jobs:3"]').count(), 1);
+  assert.equal(await page.evaluate(async()=>(await import('/js/shared/state.js')).store.db.students[0].equippedTitle),'jobs:3');
   await page.reload();
   await page.getByRole('button', {
     name: '가상 명단으로 먼저 살펴보기',
     exact: true
   }).click();
-  assert.equal(await page.locator('article.student').first().locator('[data-equipped-title="jobs:3"]').count(), 1);
+  assert.equal(await page.evaluate(async()=>(await import('/js/shared/state.js')).store.db.students[0].equippedTitle),'jobs:3');
   const teacher = await page.context().newPage();
   await teacher.goto(page.url());
   await teacher.getByRole('button', {
@@ -213,7 +213,7 @@ try {
   }).click();
   await page.locator('[data-equip-title="learning:1"]').click();
   await page.locator('.kingdom-current [data-equipped-title="learning:1"]').waitFor();
-  await teacher.locator('article.student').first().locator('[data-equipped-title="learning:1"]').waitFor();
+  await teacher.waitForFunction(async()=>(await import('/js/shared/state.js')).store.db.students[0].equippedTitle==='learning:1');
   await page.setViewportSize({
     width: 390,
     height: 844

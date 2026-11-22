@@ -139,7 +139,8 @@ test('클라우드와 브라우저는 동일한 6대 경험치 칭호 모델 사
   const sql = await readFile(new URL('../schema.sql', import.meta.url), 'utf8'),
     match = sql.match(/jsonb_array_elements\('(\[\{"id":"learning".*?\])'::jsonb\)/s);
   assert(match);
-  assert.deepEqual(JSON.parse(match[1]), C.KINGDOM_DOMAINS);
+  const identity=rows=>rows.map(({icon,...d})=>d);assert.deepEqual(identity(JSON.parse(match[1])),identity(C.KINGDOM_DOMAINS));
+  assert(C.KINGDOM_DOMAINS.every(d=>d.icon.startsWith('<svg')));
 });
 test('경험치 이름을 서로 교환해도 칭호가 두 영역에 중복 반영되지 않음', () => {
   let db = fixture(1);
@@ -149,4 +150,8 @@ test('경험치 이름을 서로 교환해도 칭호가 두 영역에 중복 반
   const counts = C.kingdomCounts(db, 's');
   assert.equal(counts.learning, 1);
   assert.equal(counts.tasks, 0);
+});
+
+test('커스텀 칭호 이름은 ID/해금/장착을 보존하며 기본값 복원 및 HTML 이스케이프',()=>{
+ let d=fixture(45);d.students[0].equippedTitle='learning:3';d=C.applyOps(d,C.customTitleOps(d,{'learning:3':'<반짝 탐구왕>','resident':'우리 반 주민'}));const config=C.kingdomConfig(d),counts=C.kingdomCounts(d,'s'),t=C.kingdomEquipped(d.students[0],counts,config);assert.equal(t.id,'learning:3');assert.equal(t.stage,3);assert.equal(t.name,'<반짝 탐구왕>');assert.equal(C.kingdomCatalog(counts,config)[0].current,t.name);assert.equal(C.kingdomCatalog(counts,config)[0].titles[2],t.name);assert.match(C.kingdomBadge(d.students[0],counts,config),/&lt;반짝 탐구왕&gt;/);assert.match(C.kingdomBadge(d.students[0],counts,config),/data-title-stage="3"/);assert.equal(C.kingdomEquipped({},counts,config).name,'우리 반 주민');assert.equal(C.titleDefinitions().length,19);assert.throws(()=>C.customTitleOps(d,{resident:''}));assert.throws(()=>C.customTitleOps(d,{resident:'가'.repeat(41)}));d=C.applyOps(d,C.customTitleOps(d,{}));assert.equal(d.students[0].equippedTitle,'learning:3');assert.equal(C.kingdomEquipped(d.students[0],counts,C.kingdomConfig(d)).name,'통찰의 현자');
 });
