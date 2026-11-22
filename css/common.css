@@ -929,7 +929,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .assignment-matrix .remaining-notdone { font-size:11px; padding:3px 5px; min-height:24px; margin-top:4px; }
 .student-praise .record-content-line { margin-top:5px; }
 .student-praise .record-content-line .body { font-size:inherit; }
-.student-timetable-card>.timeline-slot { margin:4px 0; flex-direction:row; flex-wrap:wrap; align-items:baseline; gap:4px 8px; }
+.student-timetable-card>.timeline-slot { margin:11px 0; flex-direction:row; flex-wrap:wrap; align-items:baseline; gap:4px 8px; }
 
 /* Star Kingdom: a separate praise-count collection, never a replacement for XP. */
 .kingdom-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border-radius:12px; background:linear-gradient(125deg,#fff2c9c9,#e9def6bd); color:#59466c; border:1px solid #ffffffd9; -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); box-shadow:0 3px 10px #59436c18; font-size:12px; font-weight:700; max-width:100%; overflow-wrap:anywhere; }
@@ -1937,3 +1937,5 @@ input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-s
 .title-name-field input{width:100%;min-width:0;min-height:40px}
 .title-name-field .title-name-reset{justify-self:end}
 @media(max-width:640px){.title-domain-grid{grid-template-columns:minmax(0,1fr);gap:14px}.title-domain-grid.title-resident-grid{max-width:none}}
+
+.student-timetable-card>:is(.slot,.student-task.subject-color){margin:11px 0}
