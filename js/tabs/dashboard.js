@@ -20,9 +20,10 @@ export function dashboard() {
   if (state.dashMode !== 'normal') return checkView();
   const list = C.orderedClassStudents(db(),students(),dashboardOrder(),state.date);
   const completed = list.filter(s => !isUnfinished(s.id, state.date) && !C.excluded(db(), s.id, state.date)).length;
-  const heroControls=`<div class="row constellation-date-controls"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input aria-label="대시보드 날짜" type="date" value="${state.date}" id="dash-date"></span>${btn('오늘',()=>{state.date=C.today();render();})}</div>`;
-  const heroSummary=`<div class="constellation-summary" aria-label="오늘 학급 요약"><span>오늘 함께하는 학생 ${list.filter(s=>!C.excluded(db(),s.id,state.date)).length} / ${list.length}명</span><span>오늘 남긴 기록 ${db().records.filter(r=>r.date===state.date).length}건</span></div>`;
-  return `${constellationHero('오늘 우리 반의 별자리',completed,list.length,'명',{controls:heroControls,top:heroSummary})}${store.mode === 'demo' ? btn('체험 자료 초기화', () => {
+  const absent=list.filter(s=>C.excluded(db(),s.id,state.date)).length;
+  const heroControls=`<div class="constellation-date-controls"><span class="date-control"><span class="date-display" aria-hidden="true">${state.date===C.today()?'오늘':esc(C.formatDate(state.date))}</span><input aria-label="대시보드 날짜" type="date" value="${state.date}" id="dash-date"></span></div>`;
+  const heroSummary=`<div class="constellation-summary" aria-label="오늘 학급 요약">${heroControls}<span>오늘 함께하는 학생 ${list.length-absent}명 (결석 ${absent}명)</span><span>오늘 남긴 기록 ${db().records.filter(r=>r.date===state.date).length}건</span></div>`;
+  return `${constellationHero('오늘 우리 반의 별자리',completed,list.length,'명',{top:heroSummary})}${store.mode === 'demo' ? btn('체험 자료 초기화', () => {
     if (!confirm('가상 체험 자료를 초기 상태로 리셋하시겠습니까?')) return;
     localStorage.removeItem('startoday-demo-v1');
     store.db = null;

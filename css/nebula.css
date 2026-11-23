@@ -453,14 +453,14 @@
  #app :is(.kingdom-badge,.student-home-village .student-profile-controls .kingdom-badge)[data-title-stage="2"]{background:radial-gradient(ellipse at top right,var(--title-tint,#E4D4FA),transparent 75%),var(--nebula-glass);box-shadow:inset 0 1px 0 #FFFFFFE0,0 4px 14px var(--title-glow,#8772B333)}
  #app :is(.kingdom-badge,.student-home-village .student-profile-controls .kingdom-badge)[data-title-stage="3"]{border:1px solid transparent;background:linear-gradient(120deg,#FFF1BBA8,#F5CDE5A3,#DDCFF5B0,#C5F2E7A6,#D0E9F8AD) padding-box;box-shadow:inset 0 1px 0 #FFFFFFEB,0 3px 14px #EABB584D,0 5px 24px #BFA1E74D}
  .kingdom-badge[data-title-stage="3"]::before{content:'';position:absolute;inset:0;padding:1px;border-radius:inherit;background:linear-gradient(120deg,#F2CD75,#C4A1E8,#91DAD1,#B5D9FC,#F2CD75);-webkit-mask:linear-gradient(#FFF 0 0) content-box,linear-gradient(#FFF 0 0);mask:linear-gradient(#FFF 0 0) content-box,linear-gradient(#FFF 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
- .kingdom-badge[data-title-stage="3"]::after{content:'';position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,#FFFFFF33 39%,#FFFFFFD9 47%,#FFFFFF55 53%,transparent 65%);background-size:250% 100%;animation:title-prism-shimmer 3.6s ease-in-out infinite;pointer-events:none;z-index:-1}
+ .kingdom-badge:is([data-title-stage="2"],[data-title-stage="3"])::after{content:'';position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,#FFFFFF33 39%,#FFFFFFD9 47%,#FFFFFF55 53%,transparent 65%);background-size:250% 100%;animation:title-prism-shimmer 3.6s ease-in-out infinite;pointer-events:none;z-index:-1}
  .score-star{display:inline-flex;align-items:center;vertical-align:middle}
  .score-star .gold-star-icon{width:1.2em;height:1.2em;min-width:18px;min-height:18px}
  .lockscreen .student-kingdom{flex:none;margin:3px 0;max-width:100%}
  .lockscreen .kingdom-badge{font-size:clamp(10px,1vw,13px);line-height:1.25;padding:4px 8px;max-width:100%}
  .lockscreen .kingdom-badge-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
  @keyframes title-prism-shimmer{0%,25%{background-position:140% 0}80%,100%{background-position:-100% 0}}
- @media(prefers-reduced-motion:reduce){.kingdom-badge[data-title-stage="3"]::after{animation:none;background-position:50% 0;opacity:.25}}
+ @media(prefers-reduced-motion:reduce){.kingdom-badge:is([data-title-stage="2"],[data-title-stage="3"])::after{animation:none;background-position:50% 0;opacity:.25}}
 }
 @media screen {.title-domain-grid .title-name-reset{justify-self:end;min-height:28px;padding:3px 8px;font-size:12px;background:transparent;box-shadow:none;color:var(--nebula-muted)}}
 
@@ -663,3 +663,31 @@
 }
 
 @media screen {.survey-map-pan-hint{display:none}@media(max-width:640px){.survey-map-pan-hint{display:block;font-size:12px;margin:6px 0}}}
+
+@media screen {
+ #app .constellation-hero.is-all-complete{background:radial-gradient(ellipse at 78% 40%,#F2C45380 0%,#C99D424D 36%,#7B672326 72%,transparent 100%),#1E2926;box-shadow:inset 0 1px 0 #FFF1BDBF,0 6px 30px #D1A24A66}
+ #app .constellation-hero.is-all-complete .constellation-map{filter:drop-shadow(0 0 10px #FFE79DE6) drop-shadow(0 0 24px #F1C45B99)}
+ #app .constellation-hero.is-all-complete .orbit{stroke:#FFF0BFE6;stroke-width:1.9}
+ #app .constellation-hero.is-all-complete .orbit-axis{stroke:#FFE6A8CC;stroke-width:1.4}
+ #app .constellation-hero.is-all-complete .constellation-lit path{animation:constellation-bright-pulse 2.6s ease-in-out infinite alternate;filter:brightness(1.35) drop-shadow(0 0 24px #FFF1B2)}
+ .constellation-sparkles path{fill:#FFF2BB;animation:constellation-star-twinkle 2.4s ease-in-out infinite;animation-delay:var(--sparkle-delay,0s);filter:drop-shadow(0 0 3px #FFE3A1)}
+ #app .kingdom-badge[data-title-stage="3"] .kingdom-badge-name{padding-right:8px}
+ .kingdom-badge[data-title-stage="3"] .kingdom-badge-name::after{content:'✦';position:absolute;right:3px;top:1px;color:#FFF1AF;font-size:9px;line-height:1;pointer-events:none;text-shadow:-14px 12px 1px #FFFFFF,0 0 3px #D9B36F;animation:title-star-twinkle 2.4s ease-in-out infinite;z-index:2}
+ @keyframes constellation-bright-pulse{from{fill:#FFE4A1;filter:brightness(1.2) drop-shadow(0 0 20px #FFDF86)}to{fill:#FFF9DF;filter:brightness(1.7) drop-shadow(0 0 38px #FFF1B2)}}
+ @keyframes constellation-star-twinkle{0%,100%{opacity:.35}45%,65%{opacity:1}}
+ @keyframes title-star-twinkle{0%,100%{opacity:.35;filter:brightness(1)}45%,65%{opacity:1;filter:brightness(1.55)}}
+ @media(prefers-reduced-motion:reduce){
+  #app .constellation-hero.is-all-complete .constellation-lit path,.constellation-sparkles path,.kingdom-badge[data-title-stage="3"] .kingdom-badge-name::after{animation:none;opacity:1}
+  #app .constellation-hero.is-all-complete .constellation-lit path{filter:brightness(1.35) drop-shadow(0 0 24px #FFF1B2)}
+ }
+}
+
+@media screen {
+ .survey-network text,.survey-quadrant-map .survey-map-point text{font-size:10.5px}
+ #app .constellation-summary{flex-wrap:wrap;justify-content:flex-start;gap:6px 12px;align-items:center}
+ #app .constellation-summary>.constellation-date-controls{display:inline-flex;flex:none;margin:0}
+ #app .constellation-date-controls .date-control{min-width:0;width:auto;flex:0 0 auto;height:28px;min-height:28px;padding:0 21px 0 0}
+ #app .constellation-date-controls .date-control::after{font-size:11px;right:6px}
+ #app .constellation-date-controls .date-display{padding:4px 7px;min-height:0;font-size:12px;line-height:20px}
+ #app .constellation-date-controls input{min-height:0;height:100%;padding:0}
+}

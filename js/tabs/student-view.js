@@ -406,7 +406,7 @@ export function studentCalendarItems(calendar, date) {
     kind: 'event'
   }));
   const order = (a, b) => a.title.localeCompare(b.title, 'ko') || (a.status || a.description || '').localeCompare(b.status || b.description || '', 'ko');
-  const lessons = (calendar.timetables || []).filter(slot => slot.date === date && slot.publicMemo).sort((a, b) => a.period - b.period).map(slot => ({ title: `${slot.period}교시 ${slot.subject || ''}`, description: slot.publicMemo, kind: 'lesson' }));
+  const lessons = (calendar.timetables || []).filter(slot => slot.date === date && typeof slot.publicMemo === 'string' && slot.publicMemo.trim()).sort((a, b) => a.period - b.period).map(slot => ({ title: `${slot.period}교시 ${slot.subject || ''}`, description: slot.publicMemo, kind: 'lesson' }));
   return [...lessons, ...events.sort(order), ...tasks.sort(order)];
 }
 function studentCalendarView(data, id) {

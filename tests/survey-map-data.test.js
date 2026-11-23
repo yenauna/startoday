@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {surveyNameBox,surveyPointTone,surveyQuadrantPosition,surveyRelationship,surveyLabelPositions} from '../js/components/survey-map-data.js';
 test('이름표는 글자 폭에 맞게 축소하며 긴 이름은 안전하게 요약',()=>{
- assert.equal(surveyNameBox('가온').width,36);assert.equal(surveyNameBox('김가온').width,48);assert(surveyNameBox('김가온').width<84);assert.equal(surveyNameBox('김가온').height,24);assert(surveyNameBox('Alexander').width>surveyNameBox('A').width);assert(surveyNameBox('아주아주긴우리반친구이름입니다').text.endsWith('…'));
+ assert.equal(surveyNameBox('가온').width,27);assert.equal(surveyNameBox('김가온').width,38);assert(surveyNameBox('김가온').width<84);assert.equal(surveyNameBox('김가온').height,20);assert(surveyNameBox('Alexander').width>surveyNameBox('A').width);assert(surveyNameBox('아주아주긴우리반친구이름입니다').text.endsWith('…'));
 });
 test('개인 사분면은 원래 x와 y를 그대로 매핑하고 y축만 화면 방향으로 뒤집음',()=>{
  assert.deepEqual(surveyQuadrantPosition({x:0,y:0}),{x:52,y:368});assert.deepEqual(surveyQuadrantPosition({x:100,y:100}),{x:368,y:52});assert.deepEqual(surveyQuadrantPosition({x:50,y:50}),{x:210,y:210});
@@ -15,7 +15,11 @@ test('양방향 데이터가 있어야 관계 신호를 판정하고 미응답�
  const near={x:90,y:90},far={x:10,y:60},uncomfortable={x:80,y:10};assert.equal(surveyRelationship(near,near),'상호 친밀');assert.equal(surveyRelationship(near,far),'일방적 호감');assert.equal(surveyRelationship(near,uncomfortable),'갈등·불편 주의');assert.equal(surveyRelationship(near,null),'상대방 미응답');assert.equal(surveyRelationship(far,far),'쌍방 응답');
 });
 
-test('같은 좌표의 이름표는 분리하되 원래 점 좌표는 보존',()=>{
+test('이름은 응답 위치에 그대로 놓이고 완전히 겹칠 때만 16px 이내로 비킴',()=>{
+ const nearby=[{name:'김가온',x:50,y:50},{name:'이나래',x:52,y:50}];
+ const unchanged=surveyLabelPositions(nearby);unchanged.forEach((p,i)=>assert.deepEqual({x:p.x,y:p.y},surveyQuadrantPosition(nearby[i])));
  const points=Array.from({length:20},()=>({name:'김가온',x:80,y:75})),labels=surveyLabelPositions(points);
- for(let i=0;i<labels.length;i++){assert.deepEqual(labels[i].position,surveyQuadrantPosition(points[i]));for(let j=0;j<i;j++){const a=labels[i],b=labels[j];assert(Math.abs(a.x-b.x)>=(a.box.width+b.box.width)/2||Math.abs(a.y-b.y)>=24);}}
+ assert.deepEqual({x:labels[0].x,y:labels[0].y},labels[0].position);
+ for(const label of labels){assert.deepEqual(label.position,surveyQuadrantPosition(points[0]));assert(Math.hypot(label.x-label.position.x,label.y-label.position.y)<=16);}
+ assert.equal(new Set(labels.map(label=>`${label.x}:${label.y}`)).size,20);
 });
