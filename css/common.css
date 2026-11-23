@@ -1010,7 +1010,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-profile-name{font-size:clamp(20px,3vw,28px);line-height:1.25;margin:3px 0 5px;font-weight:800}
 .student-profile-nickname{display:flex;align-items:center;gap:4px;min-width:0;font-size:13px;color:var(--st-blue-text);line-height:1.4}
 .student-profile-nickname>span{min-width:0;overflow-wrap:anywhere}
-.student-profile-card .student-profile-edit{display:inline-flex;align-items:center;justify-content:center;flex:0 0 40px;width:40px;min-height:40px;padding:6px;background:transparent;box-shadow:none;color:var(--st-blue-text);border:0}
+.student-profile-card .student-profile-edit{display:inline-flex;align-items:center;justify-content:center;flex:0 0 26px;width:26px;min-height:26px;padding:2px 3px;background:transparent;box-shadow:none;color:var(--st-blue-text);border:0}
 .student-profile-card .kingdom-title-button{display:block;min-height:40px;max-width:100%;margin:0;padding:4px 0;white-space:normal}
 .student-profile-card .kingdom-badge{white-space:normal;overflow-wrap:anywhere;line-height:1.5;text-align:left}
 .student-profile-score{display:flex;align-items:baseline;gap:6px;border-top:1px solid #e3e2e9;padding-top:10px;margin-top:5px}
@@ -1187,7 +1187,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .student-home-village .student-profile-identity{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin:3px 0 4px;min-width:0}
 .student-home-village .student-profile-name{font-size:clamp(24px,3.2vw,36px);margin:0;line-height:1.3}
 .student-home-village .student-profile-nickname{font-size:13px;color:#29354f}
-.student-home-village .student-profile-card .student-profile-edit{width:30px;flex-basis:30px;min-height:34px;padding:3px}
+.student-home-village .student-profile-card .student-profile-edit{width:26px;flex-basis:26px;min-height:26px;padding:2px 3px}
 .student-home-village .student-profile-card .kingdom-title-button{align-self:flex-start;max-width:100%;min-height:34px;padding:2px 0;margin:6px 0 0}
 .student-home-village .kingdom-badge{padding:5px 13px;font-size:14px}
 .student-home-village .student-profile-scorebar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:9px;margin-top:16px;padding-top:14px;border-top:1px solid #c7a46c;min-width:0}
@@ -1701,7 +1701,7 @@ body:has(.quick-memo-bar) .memo-undo{bottom:82px}
 .economy-managed-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .economy-managed-item{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:0;padding:10px;border:1px solid var(--st-line);border-radius:12px;background:var(--st-surface);overflow-wrap:anywhere}
 .economy-managed-item strong{font-size:13px}.economy-holding-count{font-weight:700;color:var(--st-selected-text)}.economy-current-balance{font-size:17px;font-weight:700}
-:root{--survey-far-comfortable:#1f6f3c;--survey-close-comfortable:#b54708;--survey-far-uncomfortable:#a61b5b;--survey-close-uncomfortable:#1d4ed8}
+:root{--survey-far-comfortable:#1f6f3c;--survey-close-comfortable:#1f6f3c;--survey-far-uncomfortable:#a6374b;--survey-close-uncomfortable:#a6374b}
 .survey-far-comfortable{color:var(--survey-far-comfortable)}.survey-close-comfortable{color:var(--survey-close-comfortable)}.survey-far-uncomfortable{color:var(--survey-far-uncomfortable)}.survey-close-uncomfortable{color:var(--survey-close-uncomfortable)}
 .survey-board{background:linear-gradient(90deg,transparent calc(50% - 1px),#8e93ad 50%,transparent calc(50% + 1px)),linear-gradient(transparent calc(50% - 1px),#8e93ad 50%,transparent calc(50% + 1px)),conic-gradient(from 0deg at 50% 50%,#faebdd 0 25%,#e5effb 25% 50%,#f7e6ec 50% 75%,#e4f0e9 75% 100%)}
 .tools-board>button.tools-reveal{transform:translateX(-50%)}
@@ -1945,3 +1945,10 @@ input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-s
 @media(max-width:640px){
  .table-wrap>.routine-table{min-width:520px}
 }
+
+/* Student home follows one card-heading and a calendar / lower pair hierarchy. */
+.student-home-village>.student-calendar-card{grid-column:1/-1}
+.student-home-village>.student-long-assignments,.student-home-village>.student-praise-card{grid-column:auto;min-width:0}
+.student-profile-card .student-profile-controls{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+.student-profile-card .student-profile-controls .student-wardrobe-open{position:static;min-width:36px;min-height:36px;padding:5px;margin:0}
+.student-profile-card .student-profile-edit{width:26px;min-width:26px;min-height:26px;height:26px;padding:2px 3px;margin:0}

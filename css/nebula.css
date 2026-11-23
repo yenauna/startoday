@@ -613,3 +613,53 @@
 }
 
 @media screen {#quick-students .selected-students:empty{display:none}}
+
+@media screen {
+ #app .student-home-village>.student-card>.student-card-title{display:flex;align-items:center;gap:8px;border-bottom:1px solid #D4C8DF;border-radius:0;background:none;box-shadow:none;margin:0 0 14px;padding:0 0 10px;font-size:18px;line-height:1.5;color:var(--nebula-ink);width:100%;min-width:0}
+ #app .student-card-title::before,#app .student-card-title::after{content:none!important}
+ #app .student-card-title .ui-icon{width:22px;height:22px;flex:none;color:#7F6D9C}
+ #app .student-profile-card .student-profile-edit{flex:0 0 26px;width:26px;min-width:26px;height:26px;min-height:26px;padding:2px 3px;margin:0;font-size:17px;box-shadow:none}
+ #app .student-profile-nickname{gap:3px;padding-right:3px}
+ #app .student-home-village>.student-long-assignments,#app .student-home-village>.student-praise-card{grid-column:auto}
+ #app .student-home-village>.student-calendar-card{grid-column:1/-1}
+ #app .constellation-summary{grid-column:1/-1;display:flex;align-items:center;gap:6px 18px;font-size:12px;line-height:1.5;color:#DFE8E0;white-space:nowrap}
+ #app .constellation-summary>span{font-size:inherit;font-weight:400}
+ #app .constellation-date-controls{margin-top:10px;gap:6px}
+ #app .constellation-date-controls .date-control{font-size:12px;min-height:30px;height:30px}
+ #app .constellation-date-controls .date-display{padding:4px 9px;font-size:12px;min-height:30px}
+ #app .constellation-date-controls input{min-height:30px;height:30px;font-size:12px}
+ #app .constellation-date-controls button{min-height:30px;height:30px;padding:3px 9px;font-size:12px}
+ #app .constellation-hero.is-all-complete{background:radial-gradient(ellipse at 86% 42%,#8B6B264D,transparent 70%),#1E2926;box-shadow:inset 0 1px 0 #FFEDAF66,0 6px 26px #B58B383D}
+ #app .constellation-hero.is-all-complete .constellation-map{filter:drop-shadow(0 0 6px #FFDC7ABD) drop-shadow(0 0 17px #F4BC527A)}
+ #app .constellation-hero.is-all-complete .orbit{stroke:#FFE3A7BF;stroke-width:1.5}
+ #app .constellation-hero.is-all-complete .orbit-axis{stroke:#F8D48C8C}
+ #app .constellation-hero.is-all-complete .constellation-lit path{filter:drop-shadow(0 0 16px #FFE5A1);fill:#FFF1BF}
+ .survey-quadrant-map .survey-map-axes path{fill:none;stroke:#90849F;stroke-width:1;stroke-dasharray:4 4}
+ .survey-quadrant-map .survey-map-axes text{font-size:11px;fill:#665475}
+ .survey-quadrant-map .survey-map-point{cursor:pointer;outline:none}
+ .survey-quadrant-map .survey-map-point rect{fill:var(--survey-point-bg);stroke:var(--survey-point-edge);stroke-width:1}
+ .survey-quadrant-map .survey-map-point text{fill:var(--survey-point-ink);font-size:12px;font-weight:600}
+ .survey-quadrant-map .survey-map-point circle{fill:var(--survey-point-edge)}
+ .survey-quadrant-map .survey-map-point line{stroke:var(--survey-point-edge);stroke-width:1;opacity:.65}
+ .survey-quadrant-map .survey-map-point:focus-visible rect{stroke:#6D4C99;stroke-width:3}
+ .survey-map-detail{font-size:13px;line-height:1.6;padding:12px;margin-top:8px;border-radius:12px;background:#FFFFFF9C;min-width:0;overflow-wrap:anywhere}
+ .survey-map-detail p{margin:5px 0}
+ .survey-signal-heading.is-positive,.survey-analysis-card.is-positive>strong{color:#1F6F3C}
+ .survey-signal-heading.is-warning,.survey-analysis-card.is-warning>strong{color:#A6374B}
+ .survey-signal-heading.is-neutral,.survey-analysis-card.is-neutral>strong{color:#66568F}
+ .survey-analysis-card.is-positive{background:linear-gradient(135deg,#E2F2E54D,transparent),var(--nebula-glass)}
+ .survey-analysis-card.is-warning{background:linear-gradient(135deg,#FADDE24D,transparent),var(--nebula-glass)}
+ @media(max-width:640px){
+  #app .student-home-village>.student-card>.student-card-title{font-size:16px;gap:6px}
+  #app .constellation-summary{font-size:10px;gap:8px;justify-content:space-between;letter-spacing:-.02em}
+ }
+ @media(prefers-reduced-motion:reduce){#app .constellation-hero.is-all-complete .constellation-lit path{animation:none}}
+}
+
+@media screen {
+ .survey-network text{font-size:12px}
+ .survey-personal-viewport{max-width:100%;overflow:auto;overscroll-behavior-inline:contain;border-radius:14px}
+ .survey-personal-viewport .survey-quadrant-map{min-width:420px;max-height:none}
+}
+
+@media screen {.survey-map-pan-hint{display:none}@media(max-width:640px){.survey-map-pan-hint{display:block;font-size:12px;margin:6px 0}}}

@@ -181,7 +181,7 @@ try {
     }).count(), 1);
     assert.equal(await today.locator('.student-calendar-pill').filter({
       hasText: '일반 안내'
-    }).count(), 0);
+    }).count(), 2);
     await today.click();
     assert.ok((await page.locator('.student-calendar-detail').innerText()).includes('일반 안내'));
     const agenda = await page.locator('.student-timetable-card').innerText();
@@ -281,7 +281,7 @@ try {
   }).click();
   await page.waitForFunction(() => document.querySelectorAll('.village-holding').length === 0);
   assert.deepEqual(errors, []);
-  console.log('PASS: importance on all today views/grid-only hiding, teacher praise settings/all>50, character PNG, actual category filters and original holding category/refund');
+  console.log('PASS: important and ordinary calendar events on all views, teacher praise settings/all>50, character PNG, actual category filters and original holding category/refund');
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));
