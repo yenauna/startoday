@@ -1,3 +1,4 @@
+import {incidentsView} from './tabs/incidents.js';
 import {syncViewportPreview} from './components/viewport-preview.js';
 import {dismissDateRange} from './components/date-range.js';
 import { captureSelectionMotion, animateSelectionMotion, clearSelectionMotion } from './shared/selection-motion.js';
@@ -26,7 +27,7 @@ if (window.top !== window.self) {
   document.documentElement.innerHTML = '';
   location.replace('about:blank');
 }
-const teacherTabs = ['대시보드', '기록', '시간표·일정', '과제', '루틴', '경제', '통계', '수업도구', '자리', '설정'];
+const teacherTabs = ['대시보드', '기록', '사건', '시간표·일정', '과제', '루틴', '경제', '통계', '수업도구', '자리', '설정'];
 export function navigate(tab) {
   state.tab = tab === '학생' ? '통계' : tab;
   if (!teacherTabs.includes(state.tab)) state.tab = '대시보드';
@@ -148,6 +149,7 @@ function renderTab() {
   return {
     '대시보드': dashboard,
     '기록': recordsView,
+    '사건': incidentsView,
     '시간표·일정': calendarView,
     '과제': assignmentsView,
     '루틴': routinesView,
