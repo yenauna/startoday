@@ -543,3 +543,73 @@
  #app #settings-form>[data-settings-category="기본 정보"]{margin:0;min-width:0}
  #app #settings-form>[data-settings-category="기본 정보"]:first-child,#app #settings-form:has([data-settings-category="기본 정보"]:not([hidden]))>.settings-save{grid-column:1/-1}
 }
+
+/* One compact, dark progress surface per screen. */
+@media screen {
+ #app .constellation-hero{grid-template-columns:minmax(0,1fr) minmax(110px,210px);padding:20px 24px;gap:16px}
+ #app .constellation-copy{min-width:0}
+ #app .constellation-heading{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px}
+ #app .constellation-heading h2{font-size:clamp(18px,2.2vw,25px);margin:0}
+ #app .constellation-progress{font-size:22px;color:#F6D58C;white-space:nowrap}
+ #app .constellation-progress.is-empty{font-size:14px;color:#DCE8DF;white-space:normal}
+ #app .constellation-date-controls{margin-top:14px;gap:8px;flex-wrap:wrap}
+ #app .constellation-date-controls .date-display{color:#30443B}
+ #app .constellation-date-controls .date-control{max-width:100%}
+ #app .constellation-date-controls button{min-height:36px;padding:6px 12px}
+ #app .constellation-hero .constellation-map{width:100%;max-height:150px;filter:none}
+ #app .student-profile-header.constellation-hero{display:grid;margin:0 0 16px;border:0;border-radius:16px;background:#1E2926;grid-template-columns:minmax(0,1fr) minmax(105px,175px);width:100%;min-width:0}
+ #app .student-profile-header .constellation-heading{margin-top:14px;gap:6px 12px}
+ #app .student-profile-header .constellation-heading h2{font-size:16px}
+ #app .student-profile-topline{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:nowrap}
+ #app .student-profile-topline .student-profile-name{margin:4px 0;font-size:clamp(20px,2.8vw,29px);min-width:0;overflow-wrap:anywhere}
+ #app .student-profile-topline .student-profile-score{display:inline-flex;align-items:center;gap:4px;flex:none;position:static;padding:0;margin:0;border:0;color:#F6C344}
+ #app .student-profile-topline .student-profile-score strong{font-size:23px;color:#F6C344;line-height:1.2}
+ #app .student-profile-topline .student-wardrobe-open{position:static;flex:none;margin-left:auto;min-width:36px;min-height:36px;padding:4px}
+ #app .student-profile-star{display:inline-flex;line-height:1}
+ #app .student-profile-nickname{width:auto;justify-self:start;align-self:flex-start;display:inline-flex;align-items:center;border-radius:9px;padding:4px 8px;font-size:16px;margin-top:6px;max-width:100%;overflow-wrap:anywhere}
+ #app .student-profile-nickname>span{font-size:16px;line-height:1.4;min-width:0}
+ #app .student-head{display:flex;align-items:center;gap:6px;min-width:0}
+ #app .student-head>strong{min-width:0;flex:1;overflow-wrap:anywhere}
+ #app .student-head>.score,#app .classroom-score{display:inline-flex;align-items:center;gap:3px;flex:none;margin:0;padding:0;border:0;line-height:1}
+ #app .student-head .score-total,#app .classroom-score .score-total{font-size:16px;color:#916916;white-space:nowrap}
+ #app .student-head .score-star,#app .classroom-score .score-star{display:inline-flex;align-items:center}
+ #app .classroom-student-top{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0}
+ #app .classroom-student-top>.student-head{flex:1;min-width:0}
+ #app .student-header .student-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex:0 0 auto;grid-column:2;grid-row:1;margin-left:auto}
+ #app .student-header .student-header-actions .student-logout{position:static;margin:0;min-height:36px}
+ #app .student-notification-bell{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:40px;min-height:40px;padding:8px}
+ .student-notification-dot{position:absolute;right:5px;top:5px;width:8px;height:8px;background:#D83855;border:1.5px solid #FFF;border-radius:50%;pointer-events:none}
+ .student-notification-list{display:grid;gap:8px}
+ .student-notification-entry{display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:1px solid #DED7E8;padding:10px 0;min-width:0}
+ .student-notification-entry>div{display:grid;gap:4px;min-width:0;overflow-wrap:anywhere}
+ .student-notification-entry small,.student-notification-entry time{font-size:12px;color:#665871}
+ .student-notification-ack{min-height:40px;flex:none}
+ #quick-students .selected-students{display:flex;flex-wrap:wrap;align-items:center;align-content:flex-start;gap:5px;flex:1 1 100px;padding:0}
+ #quick-students .quick-student-chip,#quick-students .quick-student-result{width:max-content;max-width:100%;flex:0 0 auto;justify-self:start;min-height:36px}
+ #quick-students .quick-student-chip{cursor:pointer;padding:0}
+ #quick-students .selection-pill{min-height:34px;width:max-content;max-width:100%;padding:4px 8px;gap:8px;background:#EDE7F6;color:#4E3C68;border-color:#D5C6E8}
+ #quick-students .quick-student-remove{display:inline-flex;align-items:center;justify-content:center;min-width:18px;font-size:18px}
+ #quick-students .quick-student-results{display:flex;flex-wrap:wrap;gap:5px}
+ #quick-students .quick-student-result{padding:6px 10px;border-radius:999px;font-size:13px;text-align:left}
+ #quick-students .quick-cancel{font-size:20px;padding:2px 8px;min-width:36px;min-height:36px}
+ #app .constellation-hero.is-all-complete .constellation-map{filter:drop-shadow(0 0 8px #F6D58C66)}
+ #app .constellation-hero.is-all-complete .orbit{stroke:#F6D58C80}
+ #app .constellation-hero.is-all-complete .constellation-lit path{fill:#FFE9A5;animation:constellation-complete-glow 2.6s ease-in-out infinite alternate}
+ @keyframes constellation-complete-glow{from{fill:#F6D58C;opacity:.8}to{fill:#FFF3CE;opacity:1}}
+ @media(prefers-reduced-motion:reduce){#app .constellation-hero.is-all-complete .constellation-lit path{animation:none;fill:#FFE9A5}}
+ @media(max-width:760px){
+  #app .constellation-hero{padding:16px;grid-template-columns:minmax(0,1fr) 110px}
+  #app .student-profile-header.constellation-hero{padding:14px;grid-template-columns:minmax(0,1fr)}
+  #app .student-profile-header .constellation-map{max-height:105px;justify-self:center}
+  #app .student-profile-topline .student-profile-score strong{font-size:22px}
+ }
+ @media(max-width:375px){
+  #app .constellation-hero{grid-template-columns:minmax(0,1fr)}
+  #app .constellation-hero .constellation-map{max-height:100px;justify-self:center}
+  #app .student-head .score-total,#app .classroom-score .score-total{font-size:14px}
+  #app .student-head .gold-star-icon,#app .classroom-score .gold-star-icon{width:17px;height:17px}
+  #app .student-head .student-detail-open{padding:3px;min-width:24px}
+ }
+}
+
+@media screen {#quick-students .selected-students:empty{display:none}}

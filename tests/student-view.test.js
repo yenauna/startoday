@@ -1,3 +1,5 @@
+import * as Notices from '../js/components/student-notifications.js';
+import {icon} from '../js/components/icons.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -37,6 +39,7 @@ function fixture() {
   const context = {
     C,
     constellationHero:()=>'',
+    ...Notices,icon,
     ...Auth,
     document: {
       querySelector: selector => /newPassword|student-password-strength|name=password|student-login-error/.test(selector)?fieldNode(selector):null

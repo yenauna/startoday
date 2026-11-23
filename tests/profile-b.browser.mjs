@@ -88,7 +88,7 @@ try {
   assert.equal(await card.locator('.student-profile-name').innerText(), expected.no + '번 ' + expected.name);
   assert.equal(await card.locator('.student-profile-nickname>span').innerText(), '우주고래');
   assert.ok((await card.locator('.kingdom-badge').innerText()).includes('지식의 탐색자'));
-  assert.equal(await card.locator('.student-profile-score strong').innerText(), expected.total + '개');
+  assert.equal(await card.locator('.student-profile-score strong').innerText(), String(expected.total));
   assert.deepEqual(await card.locator('.student-profile-areas>div>span').allTextContents(), ['학습', '과제', '관계', '도전', '생활', '알바']);
   assert.deepEqual((await card.locator('.student-profile-areas>div>strong').allTextContents()).map(Number), ['학습', '과제', '관계', '도전', '생활', '알바'].map(a => expected.areas[a] || 0));
   assert.equal(await page.locator('.student-stars,.student-character-space').count(), 0);

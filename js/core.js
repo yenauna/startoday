@@ -2040,3 +2040,11 @@ export function surveyGraph(database,surveyId,focusId){
  const focus=roster.find(s=>s.id===focusId)||roster[0],placements=responses.find(r=>r.studentId===focus?.id)?.placements||[];
  return {nodes,links,focus,placements:placements.map((p,i)=>({...p,name:roster.find(s=>s.id===p.targetId)?.name||'이동한 학생',radius:80+(100-p.x)*.9,angle:i*2*Math.PI/Math.max(1,placements.length)}))};
 }
+
+// Screen-only privacy names; exports and source roster retain real names.
+export function screenStudentName(student,mode='number'){
+ if(mode==='real')return `${student.no}. ${student.name}`;
+ if(mode==='alias')return student.nickname||`별${student.no}`;
+ if(mode==='masked'){const name=student.name||'';return `${student.no}. ${name.length<=2?name[0]+'●':name[0]+'●'.repeat(name.length-2)+name.at(-1)}`;}
+ return `${student.no}번`;
+}

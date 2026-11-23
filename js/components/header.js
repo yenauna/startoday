@@ -178,10 +178,7 @@ function quickStudentsField() {
   quickSelectionOrder = [...added.reverse(), ...quickSelectionOrder.filter(id => state.selected.includes(id))];
   if (state.selected.length <= limit) quickSelectionExpanded = false;
   const shortName = id => {const student=db().students.find(row=>row.id===id);return student?student.no+'. '+student.name:'(나간 학생)';};
-  const chip = (id, index) => `<span class="quick-student-chip" data-selected-id="${esc(id)}" data-selected-name="${esc(shortName(id))}" ${index >= limit && !quickSelectionExpanded ? 'hidden' : ''}><span class="selection-pill"><span class="selection-chip-name" title="${esc(shortName(id))}">${esc(shortName(id))}</span>${btn('×', () => {
-    state.selected = state.selected.filter(value => value !== id);
-    render();
-  }, 'quick-student-remove', `aria-label="${esc(shortName(id))} 선택 해제"`)}</span></span>`;
+  const chip=(id,index)=>btn(`<span class="selection-pill"><span class="selection-chip-name" title="${esc(shortName(id))}">${esc(shortName(id))}</span><span class="quick-student-remove" aria-hidden="true">×</span></span>`,()=>{state.selected=state.selected.filter(value=>value!==id);render();},'quick-student-chip',`data-selected-id="${esc(id)}" data-selected-name="${esc(shortName(id))}" aria-label="${esc(shortName(id))} 선택 해제" ${index>=limit&&!quickSelectionExpanded?'hidden':''}`);
   return `<div id="quick-students"><div class="selection-summary" ${!state.selected.length?'data-empty-selection="true"':''}><span class="selection-total" role="status" aria-live="polite" aria-atomic="true"><span data-selection-count="${state.selected.length}">${state.selected.length}명 선택</span></span><span class="selection-hint"><span data-selection-hint>×로 선택 해제</span></span>${btn('전체 선택', () => {
     state.selected = C.activeStudents(db()).map(student => student.id);
     render();
@@ -189,7 +186,7 @@ function quickStudentsField() {
     quickSelectionExpanded = !quickSelectionExpanded;
     render();
     $('#quick-selection-more')?.focus({preventScroll:true});
-  }, 'selection-more', `id="quick-selection-more" aria-expanded="${quickSelectionExpanded}" aria-label="${quickSelectionExpanded ? '선택 학생 접기' : '선택 학생 ' + (state.selected.length-limit) + '명 더 보기'}"`) : ''}</div><div class="quick-student-search"><input id="quick-student-query" aria-label="대상 학생 번호 또는 이름" autocomplete="off" placeholder="번호·이름" value="${esc(quickStudentQuery)}" aria-controls="quick-student-results">${btn('학생추가', addQuickStudentQuery)}${btn('입력 취소', resetQuickDraft, 'quick-cancel', `id="quick-cancel" ${!state.selected.length && !quickText ? 'hidden' : ''}`)}</div><div id="quick-student-results" class="quick-student-results" aria-label="학생 검색 결과"></div></div>`;
+  }, 'selection-more', `id="quick-selection-more" aria-expanded="${quickSelectionExpanded}" aria-label="${quickSelectionExpanded ? '선택 학생 접기' : '선택 학생 ' + (state.selected.length-limit) + '명 더 보기'}"`) : ''}</div><div class="quick-student-search"><input id="quick-student-query" aria-label="대상 학생 번호 또는 이름" autocomplete="off" placeholder="번호·이름" value="${esc(quickStudentQuery)}" aria-controls="quick-student-results">${btn('학생추가', addQuickStudentQuery)}${btn('×', resetQuickDraft, 'quick-cancel', `aria-label="입력 취소" id="quick-cancel" ${!state.selected.length && !quickText ? 'hidden' : ''}`)}</div><div id="quick-student-results" class="quick-student-results" aria-label="학생 검색 결과"></div></div>`;
 }
 function addQuickStudent(id) {
   if (!C.activeStudents(db()).some(student => student.id === id)) throw Error('학생을 확인하세요.');
@@ -200,7 +197,9 @@ function addQuickStudent(id) {
 }
 export function addQuickStudentQuery() {
   const query = $('#quick-student-query')?.value || quickStudentQuery;
+  const candidates=quickStudentCandidates(query);
   const tokens = query.trim().split(/[,，\s]+/).filter(Boolean);
+  if(tokens.length===1&&candidates.length===1){addQuickStudent(candidates[0].id);return;}
   if (!tokens.length) throw Error('학생 번호 또는 이름을 입력하세요.');
   const ids = tokens.map(token => {
     const matches = quickStudentCandidates(token, db(), true);
