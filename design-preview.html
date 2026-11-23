@@ -298,6 +298,101 @@
   article.praise { font-size:14px; }
   article.praise .badge { margin-inline-end:5px; }
 
+  /* ── 5~7안: 움직이는 그레이니 그라디언트 ──
+     색 덩어리(블롭)만 아주 느리게 표류하고, 노이즈(그레인)는 고정한다. */
+  .sky-grainbg { position:absolute; inset:0; opacity:0; transition:opacity .6s ease; }
+  .sky-grain-noise {
+    position:absolute; inset:0; opacity:0; pointer-events:none; transition:opacity .6s ease;
+    background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="140" height="140"%3E%3Cfilter id="n"%3E%3CfeTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="3" stitchTiles="stitch"/%3E%3CfeColorMatrix type="saturate" values="0"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23n)" opacity=".5"/%3E%3C/svg%3E');
+    background-size:140px 140px; background-repeat:repeat;
+  }
+  body:is([data-theme="grainy-bg"], [data-theme="grainy-both"]) .sky-grainbg { opacity:1; }
+  body:is([data-theme="grainy-bg"], [data-theme="grainy-both"]) .sky-grain-noise { opacity:.2; }
+  body:is([data-theme="grainy-bg"], [data-theme="grainy-hero"], [data-theme="grainy-both"]) :is(.sky-light, .sky-orbits) { display:none; }
+
+  .grain-blob {
+    position:absolute; border-radius:50%; will-change:transform;
+    filter:blur(clamp(38px, 7vw, 90px));
+  }
+  .grain-blob:nth-child(1) {
+    width:70vmax; height:70vmax; top:-26vmax; left:-18vmax;
+    background:radial-gradient(circle at 50% 50%, #CFE2F0 0%, #CFE2F0 34%, rgba(207, 226, 240, 0) 68%);
+    animation:grain-drift-a 24s ease-in-out infinite alternate;
+  }
+  .grain-blob:nth-child(2) {
+    width:62vmax; height:62vmax; top:4vmax; right:-22vmax;
+    background:radial-gradient(circle at 50% 50%, #DCD6EF 0%, #DCD6EF 32%, rgba(220, 214, 239, 0) 68%);
+    animation:grain-drift-b 20s ease-in-out infinite alternate;
+  }
+  .grain-blob:nth-child(3) {
+    width:66vmax; height:66vmax; bottom:-28vmax; left:-6vmax;
+    background:radial-gradient(circle at 50% 50%, #D2E7DC 0%, #D2E7DC 32%, rgba(210, 231, 220, 0) 68%);
+    animation:grain-drift-c 22s ease-in-out infinite alternate;
+  }
+  .grain-blob:nth-child(4) {
+    width:46vmax; height:46vmax; top:34%; left:38%;
+    background:radial-gradient(circle at 50% 50%, #F0E9DC 0%, #F0E9DC 26%, rgba(240, 233, 220, 0) 66%);
+    animation:grain-drift-d 21s ease-in-out infinite alternate;
+  }
+  @keyframes grain-drift-a { from { transform:translate3d(-2.5%, -2%, 0) scale(1); } to { transform:translate3d(4.5%, 3.5%, 0) scale(1.08); } }
+  @keyframes grain-drift-b { from { transform:translate3d(3%, 2%, 0) scale(1.04); } to { transform:translate3d(-4%, -3%, 0) scale(1); } }
+  @keyframes grain-drift-c { from { transform:translate3d(-3%, 2.5%, 0) scale(1.02); } to { transform:translate3d(3.5%, -3%, 0) scale(1.1); } }
+  @keyframes grain-drift-d { from { transform:translate3d(2.5%, 3%, 0) scale(1); } to { transform:translate3d(-3%, -2.5%, 0) scale(1.07); } }
+
+  /* 히어로(별자리 창) 그레이니 */
+  .hero { position:relative; isolation:isolate; }
+  .hero > :not(.hero-grain) { position:relative; z-index:1; }
+  .hero-grain {
+    position:absolute; inset:0; z-index:0; overflow:hidden; border-radius:inherit;
+    pointer-events:none; opacity:0; transition:opacity .6s ease;
+  }
+  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .hero-grain { opacity:1; }
+  .hero-grain span {
+    position:absolute; border-radius:50%; will-change:transform;
+    filter:blur(clamp(22px, 4.5vw, 54px));
+  }
+  .hero-grain span:nth-child(1) {
+    width:78%; height:150%; left:-16%; top:-38%;
+    background:radial-gradient(circle at 50% 50%, #1E3A6E 0%, rgba(30, 58, 110, 0) 68%);
+    animation:hero-flow-a 20s ease-in-out infinite alternate;
+  }
+  .hero-grain span:nth-child(2) {
+    width:64%; height:160%; right:-20%; top:-42%;
+    background:radial-gradient(circle at 50% 50%, rgba(124, 96, 205, .6) 0%, rgba(124, 96, 205, 0) 68%);
+    animation:hero-flow-b 22s ease-in-out infinite alternate;
+  }
+  .hero-grain span:nth-child(3) {
+    width:44%; height:104%; right:-8%; bottom:-42%;
+    background:radial-gradient(circle at 50% 50%, rgba(236, 196, 122, .46) 0%, rgba(236, 196, 122, .16) 34%, rgba(236, 196, 122, 0) 68%);
+    animation:hero-flow-c 18s ease-in-out infinite alternate;
+  }
+  .hero-grain::after {
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Cfilter id="g2"%3E%3CfeTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="3" stitchTiles="stitch"/%3E%3CfeColorMatrix type="saturate" values="0"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23g2)" opacity=".55"/%3E%3C/svg%3E');
+    background-size:120px 120px; background-repeat:repeat; opacity:.17; mix-blend-mode:overlay;
+  }
+  @keyframes hero-flow-a { from { transform:translate3d(-3%, -2%, 0) scale(1); } to { transform:translate3d(5%, 4%, 0) scale(1.12); } }
+  @keyframes hero-flow-b { from { transform:translate3d(2.5%, 2%, 0) scale(1.06); } to { transform:translate3d(-4.5%, -3.5%, 0) scale(1); } }
+  @keyframes hero-flow-c { from { transform:translate3d(3%, 3%, 0) scale(1.02); } to { transform:translate3d(-3.5%, -4%, 0) scale(1.14); } }
+
+  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .hero {
+    --hero-ink:#F8F5EC;
+    --hero-muted:#C2CBE2;
+    --gold:#F4DCA6;
+    background-color:#0B1228;
+    background-image:radial-gradient(ellipse 130% 150% at 80% 6%, #1E3A6E 0%, #132449 44%, #0B1228 80%);
+    box-shadow:inset 0 1px 0 rgba(255, 255, 255, .14), 0 12px 30px rgba(11, 18, 40, .3);
+  }
+  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) :is(.orbit, .orbit-axis) { stroke:#B9C7E6; }
+  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .orbit { stroke-opacity:.2; }
+  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .orbit-axis { stroke-opacity:.13; }
+  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .star-point { fill:#5F7099; }
+  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .star-glow { fill:#EFCF92; }
+
+  @media (prefers-reduced-motion:reduce) {
+    .grain-blob, .hero-grain span { animation:none !important; }
+  }
+
   @media(max-width:640px) {
     .t-wrap,.s-screen { width:calc(100% - 24px); }
     .t-brand small { display:none; }
@@ -326,12 +421,19 @@
       <circle cx="964" cy="779" r="2.2"/>
     </svg>
   </div>
+  <div class="sky-grainbg" aria-hidden="true">
+    <span class="grain-blob"></span><span class="grain-blob"></span><span class="grain-blob"></span><span class="grain-blob"></span>
+  </div>
+  <div class="sky-grain-noise" aria-hidden="true"></div>
 </div>
 <div class="theme-controls" role="group" aria-label="시안 테마">
   <button type="button" data-theme-choice="sky" aria-pressed="true">1안: 뮤트 스카이</button>
   <button type="button" data-theme-choice="sky-stars" aria-pressed="false">2안: 뮤트 스카이+별빛</button>
   <button type="button" data-theme-choice="nebula" aria-pressed="false">3안: 파스텔 은하수</button>
   <button type="button" data-theme-choice="watercolor" aria-pressed="false">4안: 새벽하늘 구름</button>
+  <button type="button" data-theme-choice="grainy-bg" aria-pressed="false">5안: 그레이니(배경만)</button>
+  <button type="button" data-theme-choice="grainy-hero" aria-pressed="false">6안: 그레이니(히어로만)</button>
+  <button type="button" data-theme-choice="grainy-both" aria-pressed="false">7안: 그레이니(둘 다)</button>
 </div>
 
 <!-- 교사 메인화면 -->
@@ -358,6 +460,7 @@
 
     <div class="t-main">
       <section class="hero" aria-labelledby="class-constellation-title">
+        <div class="hero-grain" aria-hidden="true"><span></span><span></span><span></span></div>
         <div>
           <p>5학년 3반 · 11월 20일</p>
           <h1 id="class-constellation-title">오늘 우리 반의 별자리</h1>
@@ -504,6 +607,7 @@
 
     <main class="s-main">
       <section class="hero" aria-labelledby="my-constellation-title">
+        <div class="hero-grain" aria-hidden="true"><span></span><span></span><span></span></div>
         <div>
           <p>오늘 할 일</p>
           <h1 id="my-constellation-title">오늘 내 별자리</h1>
