@@ -20,10 +20,8 @@ export function dashboard() {
   if (state.dashMode !== 'normal') return checkView();
   const list = C.orderedClassStudents(db(),students(),dashboardOrder(),state.date);
   const completed = list.filter(s => !isUnfinished(s.id, state.date) && !C.excluded(db(), s.id, state.date)).length;
-  return `${constellationHero('오늘 우리 반의 별자리',completed,list.length)}<div class="toolbar class-overview"><div><h2>${esc(settings().className)}의 하루</h2><small>작은 기록이 모여 성장이 됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input aria-label="대시보드 날짜" type="date" value="${state.date}" id="dash-date"></span>${btn('오늘', () => {
-    state.date = C.today();
-    render();
-  })}</div></div>${store.mode === 'demo' ? btn('체험 자료 초기화', () => {
+  const heroControls=`<div class="row constellation-date-controls"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input aria-label="대시보드 날짜" type="date" value="${state.date}" id="dash-date"></span>${btn('오늘',()=>{state.date=C.today();render();})}</div>`;
+  return `${constellationHero('오늘 우리 반의 별자리',completed,list.length,'명',{controls:heroControls})}${store.mode === 'demo' ? btn('체험 자료 초기화', () => {
     if (!confirm('가상 체험 자료를 초기 상태로 리셋하시겠습니까?')) return;
     localStorage.removeItem('startoday-demo-v1');
     store.db = null;
@@ -61,7 +59,7 @@ export function studentCard(s) {
     state.selected = state.selected.includes(s.id) ? state.selected.filter(x => x !== s.id) : [...state.selected, s.id];
     render();
   });
-  return `<article role="button" tabindex="0" data-student-id="${esc(s.id)}" aria-pressed="${state.selected.includes(s.id)}" aria-description="${ex?'제외':unfinished?'미완료 과제 또는 루틴이 있습니다.':'오늘 할 일을 모두 마쳤습니다.'}" data-action="${id}" class="student ${unfinished ? 'unfinished' : ''} ${missing.length ? 'has-pending' : ''} ${state.selected.includes(s.id) ? 'selected' : ''} ${ex ? 'excluded' : ''}"><div class="student-head"><strong>${esc(s.no)}. ${esc(C.studentLabel(s))}</strong>${btn('⋯', () => studentDetail(s.id), 'student-detail-open', 'aria-label="' + esc(s.name) + ' 상세 보기"')}${ex ? badge('제외') : ''}</div><div class="score" aria-label="누적 별 ${score.total}개"><span class="score-star" aria-hidden="true">${C.scoreStar()}</span><strong class="score-total">별 ${score.total}개</strong> <small>${C.areaNames(db(), true).filter(a => score.areas[a]).map(a => `<span class="area-score">${esc(C.areaName(a))} ${score.areas[a]}</span>`).join(' ') || ''}</small></div><div class="pending-tasks">${missing.slice(0, 2).map(({
+  return `<article role="button" tabindex="0" data-student-id="${esc(s.id)}" aria-pressed="${state.selected.includes(s.id)}" aria-description="${ex?'제외':unfinished?'미완료 과제 또는 루틴이 있습니다.':'오늘 할 일을 모두 마쳤습니다.'}" data-action="${id}" class="student ${unfinished ? 'unfinished' : ''} ${missing.length ? 'has-pending' : ''} ${state.selected.includes(s.id) ? 'selected' : ''} ${ex ? 'excluded' : ''}"><div class="student-head"><strong>${esc(C.screenStudentName(s,settings().nameDisplayMode))}</strong>${btn('⋯', () => studentDetail(s.id), 'student-detail-open', 'aria-label="' + esc(s.name) + ' 상세 보기"')}${ex ? badge('제외') : ''}<span class="score" aria-label="누적 별 ${score.total}개"><span class="score-star" aria-hidden="true">${C.scoreStar()}</span><strong class="score-total">${score.total}</strong></span></div><div class="pending-tasks">${missing.slice(0, 2).map(({
     assignment: a,
     date: d
   }) => btn(esc(a.title), () => taskQuickStatus(a, d, s.id), 'task ' + (d < state.date ? 'overdue' : ''))).join('')}${missing.length > 2 ? btn('+ ' + (missing.length - 2) + '개', () => studentDetail(s.id), 'task pending-more') : ''}</div>${routines.length ? `<div class="routine-indicator"><div class="routine-names">${routines.map(r => btn(esc(r.title), () => completeRoutineWithUndo(r, state.date, s), 'routine-task')).join('')}</div></div>` : ''}</article>`;

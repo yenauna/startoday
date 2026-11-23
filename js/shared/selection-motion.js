@@ -58,7 +58,8 @@ export function animateSelectionMotion(before) {
   const count=document.querySelector('[data-selection-count]');
   if(before.focusId) {
     const same=nodes.find(el=>el.dataset.selectedId===before.focusId);
-    (same?.querySelector('button') || visible[0]?.querySelector('button') || document.querySelector('#quick-student-query'))?.focus({preventScroll:true});
+    const focusable=el=>el?.matches('button')?el:el?.querySelector('button');
+    (focusable(same)||focusable(visible[0])||document.querySelector('#quick-student-query'))?.focus({preventScroll:true});
   } else if(before.focusCard) {
     [...document.querySelectorAll('.student[data-student-id]')].find(el=>el.dataset.studentId===before.focusCard)?.focus({preventScroll:true});
   }

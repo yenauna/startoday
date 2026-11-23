@@ -174,7 +174,7 @@ try {
     });
     assert.equal(await page.locator('.student-praise').count(), count);
     assert.ok(!(await page.locator('.student-praise-card').innerText()).includes('PRIVATE_ADVICE_SECRET'));
-    assert.equal(await page.locator('.student-profile-score strong').innerText(), '64개');
+    assert.equal(await page.locator('.student-profile-score strong').innerText(), '64');
     const today = page.locator(`[data-calendar-date="${await page.evaluate(() => window.detailDay)}"]`);
     assert.equal(await today.locator('.student-calendar-pill').filter({
       hasText: '중요 안내'

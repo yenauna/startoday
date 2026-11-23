@@ -44,7 +44,7 @@ try {
     assert.equal(await page.locator('.selection-flight:not(.selection-flight-exit)').count(),1);
     assert.equal(await page.locator('[data-selected-id="pill0"] .selection-pill').evaluate(e=>getComputedStyle(e).borderRadius),'999px');
     assert.equal(await page.locator('#quick-text').inputValue(),'선택과 저장 모션 확인');
-    await page.waitForTimeout(750);
+    await page.waitForFunction(()=>document.querySelectorAll('.selection-flight').length===0);
     assert.equal(await page.locator('.selection-flight').count(),0);
     for(const value of ['2','3','4','5','6']) await add(value);
     assert.deepEqual(await selected(),['pill0','pill1','pill2','pill3','pill4','pill5']);
@@ -70,10 +70,10 @@ try {
     }else await page.screenshot({path:`/tmp/selection-pills-${width}.png`});
     await page.locator('#quick-selection-more').click();
     assert.equal(await page.locator('[data-selected-id]:visible').count(),6);
-    await page.locator('[data-selected-id="pill0"] button').focus();
+    await page.locator('button[data-selected-id="pill0"]').focus();
     await page.keyboard.press('Enter');
     assert.deepEqual(await selected(),['pill1','pill2','pill3','pill4','pill5']);
-    assert.equal(await page.locator('[data-selected-id] button:focus').count(),1);
+    assert.equal(await page.locator('button[data-selected-id]:focus').count(),1);
     await noOverflow();
     await page.locator('#quick-cancel').click();
     assert.deepEqual(await selected(),[]);
@@ -100,7 +100,7 @@ try {
     await page.emulateMedia({reducedMotion:'reduce'});
     await add('7');
     assert.equal(await page.locator('.selection-flight:not(.selection-flight-exit)').count(),0);
-    await page.waitForTimeout(900);
+    await page.waitForFunction(()=>Math.abs(Number(document.querySelector('[data-selected-id="pill6"]')?.style.getPropertyValue('--chip-pop'))-1)<.001);
     const chip=page.locator('[data-selected-id="pill6"]');
     assert(Math.abs(Number(await chip.evaluate(e=>e.style.getPropertyValue('--chip-pop')))-1)<.001);
     await noOverflow();

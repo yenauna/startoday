@@ -44,7 +44,7 @@ test('회수는 구매/선물 보유품만 1회 처리, 선택 재고 복구와 
  d.assignments=[];assert.doesNotThrow(()=>C.validateBackup(backup));
 });
 test('교실 별명 모드는 학생 nickname을 사용하고 없으면 번호 별명을 사용',()=>{
- let mode='alias';const context={settings:()=>({nameDisplayMode:mode})};
+ let mode='alias';const context={C,settings:()=>({nameDisplayMode:mode})};
  const source=readFileSync(new URL('../js/tabs/classroom.js',import.meta.url),'utf8');
  const start=source.indexOf('export function displayName'),end=source.indexOf('const dismissedCountdowns');
  vm.createContext(context);vm.runInContext(source.slice(start,end).replace('export ',''),context);
