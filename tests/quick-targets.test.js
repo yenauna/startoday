@@ -160,3 +160,11 @@ test('빠른 기록 과목 접두어는 이미 있는 경우 중복하지 않음
   assert.equal(f.saved[1], '[국어] 3교시 발표');
   assert.equal(f.saved[4].subjectCode, '국어');
 });
+
+test('모바일 모달도 기존 quick 저장 경로에 선택 스냅샷·날짜·교시·분야를 전달',async()=>{
+ const f=quickFixture();await f.context.saveQuick('칭찬',{text:'모달에서 쓴 기록',ids:['two','two'],areas:['학습'],date:'2026-11-09',period:'3교시'});
+ assert.equal(f.saved[0],'칭찬');assert.equal(f.saved[1],'모달에서 쓴 기록');assert.deepEqual(Array.from(f.saved[2]),['two']);assert.deepEqual(Array.from(f.saved[3]),['학습']);assert.equal(f.saved[4].date,'2026-11-09');assert.equal(f.saved[4].period,'3교시');assert.deepEqual(f.state.selected,['one']);
+});
+test('모달과 상단 입력창의 저장 잠금을 공유하여 연타 시 중복 저장하지 않음',async()=>{
+ const f=quickFixture();let release,calls=0;f.context.saveDirectRecords=async()=>{calls++;await new Promise(resolve=>release=resolve);};const first=f.context.saveQuick('관찰');assert.doesNotThrow(()=>f.context.openMobileQuickRecord());assert.equal(await f.context.saveQuick('관찰'),false);release();assert.equal(await first,true);assert.equal(calls,1);
+});
