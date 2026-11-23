@@ -1,8 +1,8 @@
 // Shared SVG metrics and colors; original survey coordinates remain unchanged.
-export function surveyNameBox(name){
+export function surveyNameBox(name,compact=true){
  const text=String(name||'학생'),characters=Array.from(text),display=characters.length>8?characters.slice(0,7).join('')+'…':text;
- const width=Math.ceil(Array.from(display).reduce((sum,char)=>sum+(/[\x00-\x7f]/.test(char)?5.8:10.5),0)+6);
- return {text:display,width:Math.max(20,width),height:20,fontSize:10.5};
+ const width=Math.ceil(Array.from(display).reduce((sum,char)=>sum+(/[\x00-\x7f]/.test(char)?(compact?5:5.8):(compact?9:10.5)),0)+(compact?4:6));
+ return {text:display,width:Math.max(compact?16:20,width),height:compact?15:20,fontSize:compact?9:10.5};
 }
 const channel=n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;};
 const luminance=rgb=>rgb.map(channel).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);

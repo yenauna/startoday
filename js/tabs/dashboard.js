@@ -1,3 +1,4 @@
+import {quickInput} from '../components/header.js';
 import {constellationHero} from '../components/constellation.js';
 import { createFormatCards } from '../components/format-cards.js';
 import { render } from '../app.js';
@@ -23,14 +24,14 @@ export function dashboard() {
   const absent=list.filter(s=>C.excluded(db(),s.id,state.date)).length;
   const heroControls=`<div class="constellation-date-controls"><span class="date-control"><span class="date-display" aria-hidden="true">${state.date===C.today()?'오늘':esc(C.formatDate(state.date))}</span><input aria-label="대시보드 날짜" type="date" value="${state.date}" id="dash-date"></span></div>`;
   const heroSummary=`<div class="constellation-summary" aria-label="오늘 학급 요약">${heroControls}<span>오늘 함께하는 학생 ${list.length-absent}명 (결석 ${absent}명)</span><span>오늘 남긴 기록 ${db().records.filter(r=>r.date===state.date).length}건</span></div>`;
-  return `${constellationHero('오늘 우리 반의 별자리',completed,list.length,'명',{top:heroSummary})}${store.mode === 'demo' ? btn('체험 자료 초기화', () => {
+  return `<div class="dashboard-top-grid">${constellationHero('오늘 우리 반의 별자리',completed,list.length,'명',{top:heroSummary})}${quickInput()}${announcementEditor()}<section class="panel dashboard-schedule"><div class="row between"><div class="row dashboard-today-events"><strong>오늘 일정</strong>${C.calendarEvents(db()).filter(e => e.date === state.date && C.eventTimePeriod(e) == null).map(e => btn(esc(e.title) + (e.description ? `<small class="event-description">${esc(e.description)}</small>` : ''), () => dayEditor(state.date, '일정', null, e), 'event')).join('') || '<small class="muted today-events-empty">등록된 일정이 없습니다.</small>'}${C.calendarEvents(db()).filter(e => e.isDday).sort((a, b) => a.date.localeCompare(b.date)).map(e => badge(e.title + ' ' + C.dday(e.date, state.date))).join('')}</div>${btn('+ 일정', () => dayEditor(state.date))}</div><div class="schedule registered-schedule" style="margin-top:12px">${timeSlots(state.date, false, true)}</div>${weekSummary() ? `<div class="ticker">${esc(weekSummary())}</div>` : ''}</section></div>${store.mode === 'demo' ? btn('체험 자료 초기화', () => {
     if (!confirm('가상 체험 자료를 초기 상태로 리셋하시겠습니까?')) return;
     localStorage.removeItem('startoday-demo-v1');
     store.db = null;
     store.demo();
     state.selected = [];
     render();
-  }, 'demo-reset') : ''}${announcementEditor()}<section class="panel"><div class="row between"><div class="row dashboard-today-events"><strong>오늘 일정</strong>${C.calendarEvents(db()).filter(e => e.date === state.date && C.eventTimePeriod(e) == null).map(e => btn(esc(e.title) + (e.description ? `<small class="event-description">${esc(e.description)}</small>` : ''), () => dayEditor(state.date, '일정', null, e), 'event')).join('') || '<small class="muted today-events-empty">등록된 일정이 없습니다.</small>'}${C.calendarEvents(db()).filter(e => e.isDday).sort((a, b) => a.date.localeCompare(b.date)).map(e => badge(e.title + ' ' + C.dday(e.date, state.date))).join('')}</div>${btn('+ 일정', () => dayEditor(state.date))}</div><div class="schedule registered-schedule" style="margin-top:12px">${timeSlots(state.date, false, true)}</div>${weekSummary() ? `<div class="ticker">${esc(weekSummary())}</div>` : ''}</section><div class="toolbar"><strong>우리 반 학생 <span class="muted">${list.length}명</span></strong><div class="row dashboard-student-controls">${btn(state.compact ? '자세히' : '간단히', () => {
+  }, 'demo-reset') : ''}<div class="toolbar"><strong>우리 반 학생 <span class="muted">${list.length}명</span></strong><div class="row dashboard-student-controls">${btn(state.compact ? '자세히' : '간단히', () => {
     state.compact = !state.compact;
     render();
   })}${btn('체크', () => {

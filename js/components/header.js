@@ -34,7 +34,7 @@ export function renderLogin() {
   })}<small>연결 전 체험 자료와 로그인 후 학급 자료는 별도로 관리됩니다.</small></div>`;
 }
 export function renderShell(renderTab) {
-  return `<div class="sticky-navigation">${header()}</div>${navigationDrawer()}<div class="shell">${quickInput()}${store.mode === 'demo' ? '<div class="notice">가상 명단으로 체험 중입니다. 이 모드의 자료는 이 브라우저에만 저장됩니다. 실제 학급은 클라우드 데이터베이스 연결 후 구글 로그인으로 사용하세요.</div>' : ''}${settings().lastBackupAt && Date.now() - new Date(settings().lastBackupAt) > 7 * 86400000 ? '<div class="notice">마지막 백업 후 7일이 지났습니다. 설정에서 백업 파일을 내려받으세요.</div>' : !settings().lastBackupAt ? '<div class="muted" style="margin-bottom:10px">아직 백업하지 않았습니다. 설정에서 전체 자료를 내보낼 수 있습니다.</div>' : ''}<main id="main">${renderTab()}</main></div>`;
+  return `<div class="sticky-navigation">${header()}</div>${navigationDrawer()}<div class="shell">${state.tab==='대시보드'&&state.dashMode==='normal'?'':quickInput()}${store.mode === 'demo' ? '<div class="notice">가상 명단으로 체험 중입니다. 이 모드의 자료는 이 브라우저에만 저장됩니다. 실제 학급은 클라우드 데이터베이스 연결 후 구글 로그인으로 사용하세요.</div>' : ''}${settings().lastBackupAt && Date.now() - new Date(settings().lastBackupAt) > 7 * 86400000 ? '<div class="notice">마지막 백업 후 7일이 지났습니다. 설정에서 백업 파일을 내려받으세요.</div>' : !settings().lastBackupAt ? '<div class="muted" style="margin-bottom:10px">아직 백업하지 않았습니다. 설정에서 전체 자료를 내보낼 수 있습니다.</div>' : ''}<main id="main">${renderTab()}</main></div>`;
 }
 let quickScope = '',
   quickText = '',
@@ -43,7 +43,7 @@ let quickScope = '',
   quickDate = '',
   quickAreas = [],
   saving = false;
-function quickInput() {
+export function quickInput() {
   const scope = `${store.mode}:${store.classId}:${settings().academicYear}:${state.date}`;
   if (scope !== quickScope) {
     quickScope = scope;
