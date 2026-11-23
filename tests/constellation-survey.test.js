@@ -17,3 +17,7 @@ test('관계망은 회차별 상호/단방향 연결을 구분하고 개인 거�
  const d=C.initialDB();d.students=['a','b','c','d'].map((id,i)=>({id,no:i+1,name:id}));d.survey_responses=[{surveyId:'now',studentId:'a',placements:[{targetId:'b',x:90,y:80},{targetId:'c',x:70,y:20},{targetId:'d',x:10,y:80}]},{surveyId:'now',studentId:'b',placements:[{targetId:'a',x:80,y:80}]},{surveyId:'old',studentId:'d',placements:[{targetId:'c',x:100,y:100}]}];
  const graph=C.surveyGraph(d,'now','a');assert.equal(graph.links.length,2);assert.equal(graph.links.find(l=>l.b==='b').mutual,true);assert.equal(graph.links.find(l=>l.b==='c').mutual,false);assert(graph.placements[0].radius<graph.placements[1].radius);assert(graph.placements[1].radius<graph.placements[2].radius);assert.equal(graph.placements[1].y,20);for(const n of graph.nodes){assert(n.x>=55&&n.x<=605);assert(n.y>=30&&n.y<=390);}assert.equal(C.surveyGraph(d,'now','d').placements.length,0);assert.equal(C.surveyGraph(d,'now','invalid').focus.id,'a');assert.equal(C.surveyGraph(C.initialDB(),'none').nodes.length,0);
 });
+
+test('주변 별빛은 실제 전체 완료일 때만 렌더링하고 반올림으로 100%가 되지 않음',()=>{
+ assert.match(constellationHero('나',5,5,'개'),/constellation-sparkles/);assert.doesNotMatch(constellationHero('나',0,0,'개'),/constellation-sparkles/);assert.doesNotMatch(constellationHero('나',199,200,'개'),/constellation-sparkles/);assert.match(constellationHero('나',199,200,'개'),/99% 완료/);
+});

@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import http from 'node:http';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+const {chromium}=createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE||'playwright');
+const root=path.resolve(fileURLToPath(new URL('..',import.meta.url)));
+const server=http.createServer((req,res)=>{
+ const pathname=new URL(req.url,'http://localhost').pathname;
+ if(pathname==='/config.js'){res.setHeader('Content-Type','text/javascript');res.end('window.STARTODAY_CONFIG={};');return;}
+ const file=path.resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
+ if(!file.startsWith(root+path.sep)){res.writeHead(403).end();return;}
+ try{res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':file.endsWith('.png')?'image/png':file.endsWith('.svg')?'image/svg+xml':'text/html');res.end(readFileSync(file));}catch{res.writeHead(404).end();}
+});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+
+
+
+
+let browser;
+try{
+ browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});const page=await browser.newPage({viewport:{width:1280,height:900},reducedMotion:'no-preference'}),errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(10000);await page.goto(`http://127.0.0.1:${server.address().port}`);await page.getByRole('button',{name:'가상 명단으로 먼저 살펴보기',exact:true}).click();
+ await page.evaluate(async()=>{const C=await import('/js/core.js'),{store,state}=await import('/js/shared/state.js'),date=C.today(),d=C.initialDB();d.students=[{id:'s',no:1,name:'가온',equippedTitle:'learning:3'}];d.records=Array.from({length:45},(_,i)=>({id:'p'+i,date,kind:'칭찬',areas:['학습'],studentIds:['s']}));d.assignments=[{id:'task',date,title:'달력 일반 과제',target:'all',repeat:{type:'none'}},{id:'quest',date,title:'숨겨야 할 장기과제',isQuest:true,questGoal:3,target:'all',repeat:{type:'none'}}];d.assignmentStates=[{id:C.stateId('task',date,'s'),assignmentId:'task',studentId:'s',date,status:'완료'}];d.routines=[{id:'routine',title:'달력에 없는 루틴',target:'all'}];d.routineStates=[{id:C.stateId('routine',date,'s'),routineId:'routine',studentId:'s',date,status:'완료'}];d.events=[{id:'event',date,title:'달력 일반 일정',isImportant:false}];d.timetables=[{id:'l1',date,period:1,subjectCode:'공개메모수업',publicMemo:'공개 준비물'},{id:'l2',date,period:2,subjectCode:'메모없는수업',publicMemo:''},{id:'l3',date,period:3,subjectCode:'메모2수업',privateMemo:'당일 메모'},{id:'l4',date,period:4,subjectCode:'메모3수업',teacherMemo:'비공개 메모'},{id:'l5',date,period:5,subjectCode:'공백메모수업',publicMemo:'   '}];store.db=d;state.date=date;localStorage.setItem('startoday-demo-v1',JSON.stringify(d));(await import('/js/app.js')).navigate('설정');});
+ await page.locator('[data-settings-tab="칭호 관리"]').click();const stage=n=>page.locator(`.title-preview .kingdom-badge[data-title-stage="${n}"]`).first();const after=el=>el.evaluate(e=>getComputedStyle(e,'::after').animationName);assert.equal(await after(stage(1)),'none');assert.equal(await after(stage(2)),'title-prism-shimmer');assert.equal(await after(stage(3)),'title-prism-shimmer');assert.equal(await stage(2).locator('.kingdom-badge-name').evaluate(e=>getComputedStyle(e,'::after').content),'none');assert.match(await stage(3).locator('.kingdom-badge-name').evaluate(e=>getComputedStyle(e,'::after').content),/✦/);assert.equal(await stage(3).locator('.kingdom-badge-name').evaluate(e=>getComputedStyle(e,'::after').animationName),'title-star-twinkle');await page.locator('.title-domain-row').first().screenshot({path:'/tmp/bright-title-stages-1280.png'});
+ await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await after(stage(2)),'none');assert.equal(await after(stage(3)),'none');assert.equal(await stage(3).locator('.kingdom-badge-name').evaluate(e=>getComputedStyle(e,'::after').animationName),'none');
+ await page.evaluate(async()=>(await import('/js/tabs/student-view.js')).previewStudent('s'));const hero=page.locator('.constellation-hero');assert.equal(await hero.locator('.constellation-progress').innerText(),'100% 완료');assert.equal(await hero.locator('.constellation-sparkles path').count(),5);assert.equal(await hero.locator('.constellation-lit path').first().evaluate(e=>getComputedStyle(e).animationName),'none');assert.equal(await hero.locator('.constellation-sparkles path').first().evaluate(e=>getComputedStyle(e).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});assert.equal(await hero.locator('.constellation-lit path').first().evaluate(e=>getComputedStyle(e).animationName),'constellation-bright-pulse');assert.equal(await hero.locator('.constellation-sparkles path').first().evaluate(e=>getComputedStyle(e).animationName),'constellation-star-twinkle');
+ const cell=page.locator('.student-calendar-day.is-today');assert.equal(await cell.locator('.student-calendar-pill').count(),3);const text=await cell.innerText();for(const title of ['公開','메모없는수업','메모2수업','메모3수업','공백메모수업','루틴','장기과제'])assert(!text.includes(title));for(const title of ['1교시 공개메모수업','달력 일반 일정','달력 일반 과제'])assert(text.includes(title));await cell.click();const detail=await page.locator('.student-calendar-detail').innerText();assert(detail.includes('공개 준비물'));for(const title of ['메모없는수업','메모2수업','메모3수업','공백메모수업','루틴','장기과제'])assert(!detail.includes(title));
+ for(const width of [320,375,768,1024,1280,1920]){await page.setViewportSize({width,height:width===768?1024:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);await page.locator('.student-profile-card').screenshot({path:`/tmp/bright-complete-${width}.png`});}await page.emulateMedia({reducedMotion:'reduce'});assert.deepEqual(errors,[]);console.log('PASS: strict publicMemo/event/ordinary-task calendar eligibility; complete-only bright stars and five sparkles; stage2 shimmer/stage3 extra stars; reduced motion and 320/375/768/1024/1280/1920');
+}finally{await browser?.close();await new Promise(r=>server.close(r));}

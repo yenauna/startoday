@@ -398,3 +398,12 @@ test('클라우드 아바타 RPC 실패 후 저장 잠금이 풀리고 다시 �
  await assert.rejects(f.context.studentAvatarAct('buy','hair_1'),/최신 schema.sql/);
  fail=false;await f.context.studentAvatarAct('buy','hair_1');assert.deepEqual(f.state.studentSnapshot.avatar.owned,['hair_1']);
 });
+
+test('달력은 공개 메모 수업·일정·일반 과제만 표시하고 메모2/3·빈 수업·루틴·장기과제는 제외',()=>{
+ const f=fixture(),date=C.today(),calendar={
+ timetables:[{date,period:1,subject:'국어',publicMemo:'준비물'},{date,period:2,subject:'수학',publicMemo:''},{date,period:3,subject:'체육',sameDayMemo:'당일',privateMemo:'메모2',teacherMemo:'메모3'},{date,period:4,subject:'사회',publicMemo:'   '}],
+ events:[{date,title:'일반 일정',isImportant:false}],
+ assignments:[{id:'normal',date,title:'일반 과제',repeat:{type:'none'}},{id:'quest',date,title:'장기과제',isQuest:true,repeat:{type:'none'}}],
+ routines:[{id:'routine',title:'루틴'}]};
+ const items=f.context.studentCalendarItems(calendar,date);assert.deepEqual(Array.from(items,item=>item.kind),['lesson','event','task']);assert.deepEqual(Array.from(items,item=>item.title),['1교시 국어','일반 일정','일반 과제']);
+});
