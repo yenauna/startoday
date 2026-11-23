@@ -717,3 +717,40 @@
  .survey-quadrant-map .survey-map-point text{font-size:9px}
  @media(prefers-reduced-motion:reduce){.kingdom-badge[data-title-stage="3"] .kingdom-badge-name::before,.kingdom-badge[data-title-stage="3"] .kingdom-badge-name::after{animation:none;opacity:1;filter:none}}
 }
+
+@media screen {
+ #app .teacher-header-actions{flex:none;flex-wrap:nowrap;gap:6px}
+ #app .pc-viewport-toggle{white-space:nowrap}
+ #app .pc-viewport-toggle.is-active{background:#DDD1F1;border-color:#967EB2;color:#423054;box-shadow:inset 0 1px 0 #FFFFFFBD}
+ #quick-students .selected-students{order:4;flex:1 0 100%;width:100%;display:flex;flex-wrap:wrap;gap:4px;padding:0}
+ #quick-students .selected-students:empty{display:none}
+ #quick-students .quick-student-chip{min-height:32px}
+ #quick-students .selection-pill{min-height:30px;padding:3px 6px;gap:5px;font-size:12px}
+ .mobile-record-bar[hidden]{display:none!important}
+ .mobile-record-bar{position:fixed;inset:auto 12px max(12px,env(safe-area-inset-bottom));z-index:40;align-items:center;gap:8px;padding:9px;border:1px solid #FFFFFFE0;border-radius:16px;background:#F8F4FFF5;box-shadow:0 6px 24px #48365838;backdrop-filter:blur(18px)}
+ .mobile-record-bar .mobile-record-open{flex:1;min-width:0;min-height:44px;background:#5B477B;color:#FFFFFF;font-weight:700}
+ .mobile-record-bar .mobile-record-clear{flex:none;min-height:44px;padding:6px 10px}
+ .mobile-quick-students{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px}
+ .mobile-quick-students>span{border-radius:999px;background:#EEE7F6;padding:4px 8px;font-size:12px;color:#4D3B68}
+ #mobile-quick-form>label{display:grid;gap:6px}
+ #mobile-quick-text{width:100%;min-height:100px;resize:vertical}
+ .mobile-quick-areas{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+ .mobile-quick-area{position:relative;display:inline-flex!important;align-items:center;min-height:36px;padding:6px 10px;border:1px solid #D4C6E6;border-radius:999px;background:#F8F4FC;cursor:pointer;font-size:13px;color:#4D3B68}
+ .mobile-quick-area input{position:absolute;width:1px;height:1px;opacity:0;padding:0}
+ .mobile-quick-area:has(input:checked){background:#DCD0EE;border-color:#9277AF}
+ .mobile-quick-area:has(input:focus-visible){outline:2px solid #78608F;outline-offset:2px}
+ .mobile-quick-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:10px 0}
+ .mobile-quick-fields label{display:grid;gap:6px;min-width:0}
+ .mobile-quick-fields input,.mobile-quick-fields select{width:100%;min-width:0;min-height:40px}
+ .mobile-quick-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:14px}
+ .mobile-quick-actions .record-action{min-width:0;min-height:40px;padding:6px 3px;font-size:12px;white-space:nowrap}
+ @media(max-width:760px){.mobile-record-bar:not([hidden]){display:flex}body.has-mobile-record-bar .shell{padding-bottom:88px}}
+ @media(min-width:761px){.mobile-record-bar{display:none}}
+}
+
+@media screen {
+ #mobile-quick-text{font-size:16px}
+ .mobile-quick-fields .date-control{min-width:0;width:100%;min-height:40px;padding:8px 22px 8px 8px;font-size:12px}
+ .mobile-quick-fields .date-control::after{font-size:11px;right:6px}
+ .mobile-quick-fields input{font-size:16px}
+}
