@@ -584,8 +584,13 @@ export function cumulativeScores(db, studentId, to = today()) {
 export const PERIODS = ['아침', ...Array.from({
   length: 6
 }, (_, i) => `${i + 1}교시`), '쉬는시간', '점심', '방과후'];
+// Private observation notes keep the legacy extra-record representation.
+export function quickRecordOptions(kind, privateRecord = false) {
+  const storedKind = privateRecord && kind === '관찰' ? '추가기록' : kind;
+  return {kind: storedKind, extraType: storedKind === '추가기록' ? '메모' : null, printIncluded: !privateRecord && storedKind !== '추가기록'};
+}
 export function reportRecords(db, s, a, b) {
-  return db.records.filter(r => r.date >= a && r.date <= b && r.studentIds.includes(s) && (r.kind !== '추가기록' || r.printIncluded === true)).sort((x, y) => x.date.localeCompare(y.date) || x.createdAt.localeCompare(y.createdAt));
+  return db.records.filter(r => r.date >= a && r.date <= b && r.studentIds.includes(s) && r.printIncluded !== false && (r.kind !== '추가기록' || r.printIncluded === true)).sort((x, y) => x.date.localeCompare(y.date) || x.createdAt.localeCompare(y.createdAt));
 }
 export function redact(text, db, s) {
   let out = String(text || '');

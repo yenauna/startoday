@@ -56,7 +56,7 @@ try{
   }
   await page.screenshot({path:`/tmp/actions-manager-${width}.png`});
   if(touch)await gift.locator('.economy-action-label').tap();else await gift.click();await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.shop_items.find(i=>i.id===window.actionItem).stock===1;});assert.deepEqual(await state(),{stock:1,holdings:2});
-  const reclaimAction=manager.getByRole('button',{name:'보드게임 회수',exact:true});if(touch)await reclaimAction.locator('.economy-action-label').tap();else await reclaimAction.click();await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.shop_items.find(i=>i.id===window.actionItem).stock===2;});assert.deepEqual(await state(),{stock:2,holdings:1});
+  const reclaimAction=manager.getByRole('button',{name:'보드게임 회수',exact:true});if(touch)await reclaimAction.locator('.economy-action-label').tap();else await reclaimAction.click();await page.getByRole('heading',{name:'물건 회수 확인',exact:true}).waitFor();await page.locator('#modal button[type=submit]').click();await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.shop_items.find(i=>i.id===window.actionItem).stock===2;});assert.deepEqual(await state(),{stock:2,holdings:1});
   await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();await page.getByRole('button',{name:'상점 관리',exact:true}).click();
   const card=page.locator('.economy-item').filter({has:page.getByRole('heading',{name:'보드게임',exact:true})});
   const edit=card.getByRole('button',{name:'수정',exact:true});

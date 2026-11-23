@@ -78,8 +78,9 @@ try {
     state.tab='시간표·일정';state.calendarDate=day;
     (await import('/js/app.js')).render();
   });
-  const important=page.locator('.calendar-lesson .slot-important-memo').filter({hasText:'중요 준비물'});
-  assert.equal(await important.evaluate(el=>getComputedStyle(el).textOverflow),'ellipsis');
+  const important=page.locator('.day.today .calendar-lesson').filter({has:page.locator('.slot-event-link.is-important').filter({hasText:'중요 준비물'})});
+  assert.equal(await important.locator('.slot-memos').evaluate(el=>getComputedStyle(el).display),'none');
+  assert.equal(await important.locator('.slot-memo-indicator').isVisible(),true);
   await page.locator('.day.today .calendar-day-details').click();
   assert.ok((await page.locator('#modal').innerText()).includes('일반 메모 전체 문장 확인'));
   assert.ok((await page.locator('#modal').innerText()).includes('전체 설명 확인'));
@@ -87,7 +88,7 @@ try {
   await page.setViewportSize({width:1280,height:900});
   const slot=page.locator('.day.today .calendar-lesson').first();
   const rows=await slot.evaluate(el=>{const a=el.querySelector('.slot-time').getBoundingClientRect(),b=el.querySelector('.subject-title').getBoundingClientRect(),c=el.querySelector('.slot-public-memo').getBoundingClientRect();return {a:a.y,b:b.y,c:c.y};});
-  assert.ok(Math.abs(rows.a-rows.b)<8 && Math.abs(rows.b-rows.c)<8);
+  assert.ok(Math.abs(rows.a-rows.b)<8 && rows.c>rows.b);
   await page.evaluate(async()=>{
     const {store,state}=await import('/js/shared/state.js');
     const C=await import('/js/core.js');

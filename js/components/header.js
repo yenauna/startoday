@@ -7,7 +7,7 @@ import { db, name, settings } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
 import { $, btn, esc, opts, toast, dateField } from '../shared/ui.js';
 import { classroom } from '../tabs/classroom.js';
-import { recordButtons, saveDirectRecords } from '../tabs/dashboard.js';
+import { recordButtons, saveDirectRecords, demoResetButton } from '../tabs/dashboard.js';
 import { studentLoginDialog } from '../tabs/student-view.js';
 export function header() {
  return `<header class="top"><div class="header-leading">${btn(icon('menu'),openNavigation,'navigation-toggle icon-button','id="navigation-toggle" aria-label="메뉴 열기" title="메뉴 열기" aria-haspopup="dialog" aria-controls="navigation-drawer" aria-expanded="false"')}${btn('<img src="assets/logo-icon.jpg" class="logo" data-logo-slot alt=""><strong>오늘의 별</strong><small>'+esc(settings().className)+'</small>',()=>{state.dashMode='normal';navigate('대시보드');},'brand brand-home','aria-label="오늘의 별 홈"')}</div><div class="row teacher-header-actions">${btn('pc화면',()=>{togglePcPreview();render();},'pc-viewport-toggle'+(pcPreviewActive()?' is-active':''),`aria-pressed="${pcPreviewActive()}" title="${pcPreviewActive()?'모바일 화면으로 복귀':'PC 화면 점검'}"`)}${btn('교실화면',classroom)}</div></header>`;
@@ -35,7 +35,7 @@ export function renderLogin() {
   })}<small>연결 전 체험 자료와 로그인 후 학급 자료는 별도로 관리됩니다.</small></div>`;
 }
 export function renderShell(renderTab) {
-  return `<div class="sticky-navigation">${header()}</div>${navigationDrawer()}<div class="shell">${state.tab==='대시보드'&&state.dashMode==='normal'?'':quickInput()}${store.mode === 'demo' ? '<div class="notice">가상 명단으로 체험 중입니다. 이 모드의 자료는 이 브라우저에만 저장됩니다. 실제 학급은 클라우드 데이터베이스 연결 후 구글 로그인으로 사용하세요.</div>' : ''}${settings().lastBackupAt && Date.now() - new Date(settings().lastBackupAt) > 7 * 86400000 ? '<div class="notice">마지막 백업 후 7일이 지났습니다. 설정에서 백업 파일을 내려받으세요.</div>' : !settings().lastBackupAt ? '<div class="muted" style="margin-bottom:10px">아직 백업하지 않았습니다. 설정에서 전체 자료를 내보낼 수 있습니다.</div>' : ''}<main id="main">${renderTab()}</main>${mobileRecordBar()}</div>`;
+  return `<div class="sticky-navigation">${header()}</div>${navigationDrawer()}<div class="shell">${state.tab==='대시보드'&&state.dashMode==='normal'?'':quickInput()}${store.mode === 'demo' ? `<div class="notice demo-banner"><span>가상 명단으로 체험 중입니다. 이 모드의 자료는 이 브라우저에만 저장됩니다. 실제 학급은 클라우드 데이터베이스 연결 후 구글 로그인으로 사용하세요.</span>${state.tab==='대시보드'?demoResetButton():''}</div>` : ''}${settings().lastBackupAt && Date.now() - new Date(settings().lastBackupAt) > 7 * 86400000 ? '<div class="notice">마지막 백업 후 7일이 지났습니다. 설정에서 백업 파일을 내려받으세요.</div>' : !settings().lastBackupAt ? '<div class="muted" style="margin-bottom:10px">아직 백업하지 않았습니다. 설정에서 전체 자료를 내보낼 수 있습니다.</div>' : ''}<main id="main">${renderTab()}</main>${mobileRecordBar()}</div>`;
 }
 let quickScope = '',
   quickText = '',
@@ -43,6 +43,7 @@ let quickScope = '',
   quickPeriod = '자동',
   quickDate = '',
   quickAreas = [],
+  quickPrivate = false,
   saving = false;
 export function quickInput() {
   const scope = `${store.mode}:${store.classId}:${settings().academicYear}:${state.date}`;
@@ -52,6 +53,7 @@ export function quickInput() {
     quickStudentQuery = '';
     quickPeriod = '자동';
     quickAreas = [];
+    quickPrivate = false;
     quickDate = state.date;
   }
   if (!state.selected.length && !['대시보드', '기록'].includes(state.tab)) return '';
@@ -59,7 +61,7 @@ export function quickInput() {
   return `<div class="quick-wrap quick-composer-card ${state.selected.length ? 'selection-composer' : ''}" ${state.selected.length ? 'role="region" aria-label="선택 학생 기록"' : ''}><form class="quick" id="quick-form"><div class="quick-main"><div class="quick-entry-fields">${quickStudentsField()}<textarea id="quick-text" rows="1" aria-label="빠른 기록 입력" placeholder="내용">${esc(quickText)}</textarea></div><div class="chips quick-areas" role="group" aria-label="빠른 기록 분야">${C.areaNames(db()).map(a => btn(esc(a), () => {
     quickAreas = quickAreas.includes(a) ? quickAreas.filter(x => x !== a) : [...quickAreas, a];
     render();
-  }, 'area-chip' + (quickAreas.includes(a) ? ' selected' : ''), `aria-pressed="${quickAreas.includes(a)}"`)).join('')}</div></div><div class="quick-controls"><label class="quick-date" title="기록 날짜 선택"><span>📅 ${quickDate === C.today() ? '오늘' : esc(C.formatDate(quickDate))}</span><input type="date" id="quick-date" aria-label="빠른 기록 날짜" value="${esc(quickDate)}" required></label>${btn(quickPeriodLabel(), openQuickPeriod, 'quick-period-toggle', `id="quick-period" value="${esc(quickPeriod)}" aria-haspopup="dialog" aria-label="시간·교시 선택"`)}<div class="record-actions">${recordButtons(saveQuick)}</div></div></form></div>`;
+  }, 'area-chip' + (quickAreas.includes(a) ? ' selected' : ''), `aria-pressed="${quickAreas.includes(a)}"`)).join('')}</div></div><div class="quick-controls"><label class="quick-date" title="기록 날짜 선택"><span>📅 ${quickDate === C.today() ? '오늘' : esc(C.formatDate(quickDate))}</span><input type="date" id="quick-date" aria-label="빠른 기록 날짜" value="${esc(quickDate)}" required></label>${btn(quickPeriodLabel(), openQuickPeriod, 'quick-period-toggle', `id="quick-period" value="${esc(quickPeriod)}" aria-haspopup="dialog" aria-label="시간·교시 선택"`)}<label class="quick-private"><input type="checkbox" id="quick-private" ${quickPrivate?'checked':''}>비공개</label><div class="record-actions">${recordButtons(saveQuick)}</div></div></form></div>`;
 }
 export function bindQuickInput() {
   const form = $('#quick-form');
@@ -83,6 +85,7 @@ export function bindQuickInput() {
     }
   };
   showQuickStudentResults();
+  $('#quick-private').onchange = e => { quickPrivate = e.target.checked; };
   const field = $('#quick-text');
   const resize = () => {
     field.style.height = 'auto';
@@ -121,11 +124,12 @@ export async function saveQuick(kind,draft=null) {
   const scope = quickScope;
   saving = true;
   try {
-    await saveDirectRecords(kind, recordText, ids, [...(draft?.areas||quickAreas)], parsed);
+    await saveDirectRecords(kind, recordText, ids, [...(draft?.areas||quickAreas)], {...parsed, printIncluded: !(draft?.privateRecord ?? $('#quick-private')?.checked ?? quickPrivate)});
     if (scope === quickScope && quickText.trim() === text && JSON.stringify(state.selected) === JSON.stringify(ids)) {
       quickText = '';
       quickStudentQuery = '';
       quickAreas = [];
+      quickPrivate = false;
       state.selected = [];
     }
     render();
@@ -224,6 +228,7 @@ function resetQuickDraft() {
   quickText = '';
   quickStudentQuery = '';
   quickAreas = [];
+  quickPrivate = false;
   render();
 }
 
@@ -255,19 +260,19 @@ export function openMobileQuickRecord(){
  const ids=[...new Set(state.selected)],scope=quickScope;if(!ids.length)return;
  quickText=$('#quick-text')?.value??quickText;
  let submitted=false,busy=false;
- const content=`<form id="mobile-quick-form"><p class="mobile-quick-students">${ids.map(id=>`<span>${esc(name(id))}</span>`).join('')}</p><label>내용<textarea id="mobile-quick-text" aria-label="내용" name="text" rows="3" required>${esc(quickText)}</textarea></label><div class="mobile-quick-areas" role="group" aria-label="분야">${C.areaNames(db()).map(area=>`<label class="mobile-quick-area"><input type="checkbox" name="areas" value="${esc(area)}" ${quickAreas.includes(area)?'checked':''}><span>${esc(area)}</span></label>`).join('')}</div><div class="mobile-quick-fields"><label>날짜${dateField(quickDate||state.date,'aria-label="날짜" name="date" required')}</label><label>교시<select aria-label="교시" name="period">${opts([['자동','시간 자동'],['','시간 미지정'],...C.quickPeriodChoices(settings()).map(value=>[value,value])],quickPeriod)}</select></label></div><p id="mobile-quick-error" class="field-error" role="alert" hidden></p><div class="mobile-quick-actions">${recordButtons(async kind=>{
+ const content=`<form id="mobile-quick-form"><p class="mobile-quick-students">${ids.map(id=>`<span>${esc(name(id))}</span>`).join('')}</p><label>내용<textarea id="mobile-quick-text" aria-label="내용" name="text" rows="3" required>${esc(quickText)}</textarea></label><div class="mobile-quick-areas" role="group" aria-label="분야">${C.areaNames(db()).map(area=>`<label class="mobile-quick-area"><input type="checkbox" name="areas" value="${esc(area)}" ${quickAreas.includes(area)?'checked':''}><span>${esc(area)}</span></label>`).join('')}</div><div class="mobile-quick-fields"><label>날짜${dateField(quickDate||state.date,'aria-label="날짜" name="date" required')}</label><label>교시<select aria-label="교시" name="period">${opts([['자동','시간 자동'],['','시간 미지정'],...C.quickPeriodChoices(settings()).map(value=>[value,value])],quickPeriod)}</select></label></div><p id="mobile-quick-error" class="field-error" role="alert" hidden></p><label class="quick-private mobile-quick-private"><input type="checkbox" name="privateRecord" ${quickPrivate?'checked':''}>비공개</label><div class="mobile-quick-actions">${recordButtons(async kind=>{
   const form=$('#mobile-quick-form');if(!form||busy||!form.reportValidity())return;
   const fields=new FormData(form),error=$('#mobile-quick-error');error.hidden=true;
   if(scope!==quickScope){error.hidden=false;error.textContent='학급 또는 날짜가 바뀌었습니다. 창을 닫고 다시 선택해 주세요.';return;}
-  quickText=String(fields.get('text'));quickDate=String(fields.get('date'));quickPeriod=String(fields.get('period'));quickAreas=fields.getAll('areas');
+  quickText=String(fields.get('text'));quickDate=String(fields.get('date'));quickPeriod=String(fields.get('period'));quickAreas=fields.getAll('areas');quickPrivate=fields.has('privateRecord');
   busy=true;form.querySelectorAll('.record-action').forEach(button=>button.disabled=true);
-  try{submitted=await saveQuick(kind,{text:quickText,ids,areas:[...quickAreas],date:quickDate,period:quickPeriod});if(submitted)closeModal();}
+  try{submitted=await saveQuick(kind,{text:quickText,ids,areas:[...quickAreas],date:quickDate,period:quickPeriod,privateRecord:quickPrivate});if(submitted)closeModal();}
   catch(cause){error.hidden=false;error.textContent=cause.message;}
   finally{busy=false;if(form.isConnected)form.querySelectorAll('.record-action').forEach(button=>button.disabled=false);}
  })}</div></form>`;
  const dialog=modal(`${ids.length}명 학생 기록`,content);
  const form=$('#mobile-quick-form');
- form.oninput=()=>{if(scope!==quickScope)return;const fields=new FormData(form);quickText=String(fields.get('text'));if(fields.get('date'))quickDate=String(fields.get('date'));quickPeriod=String(fields.get('period'));quickAreas=fields.getAll('areas');};
+ form.oninput=()=>{if(scope!==quickScope)return;const fields=new FormData(form);quickText=String(fields.get('text'));if(fields.get('date'))quickDate=String(fields.get('date'));quickPeriod=String(fields.get('period'));quickAreas=fields.getAll('areas');quickPrivate=fields.has('privateRecord');};
  form.onsubmit=event=>event.preventDefault();
  dialog.addEventListener('close',()=>{
   if(!submitted)render();

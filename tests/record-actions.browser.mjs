@@ -79,7 +79,7 @@ try{
    else await page.mouse.up();
   };
   // Only the press grows the bin; the pencil beside it keeps its exact size.
-  await press(holdButton,600);
+  await press(holdButton,350);
   const grown=await holdButton.evaluate(e=>{const m=new DOMMatrix(getComputedStyle(e).transform);return{scale:m.a,y:m.f};});
   assert(Math.abs(grown.scale-1.4)<.02,JSON.stringify(grown));assert(grown.y<-6,JSON.stringify(grown));
   const restEdit=await editButton.boundingBox();assert.equal(restEdit.width,38);assert.equal(restEdit.height,38);
@@ -90,8 +90,9 @@ try{
   });
   assert(inside.fill>6&&inside.fill<38,JSON.stringify(inside));assert(Math.abs(inside.fill+inside.clip-38)<.01,JSON.stringify(inside));
   assert.equal(inside.radius,'50%');assert.equal(inside.overflow,'hidden');
+  await release();
   await page.screenshot({path:`/tmp/record-actions-hold-${width}.png`});
-  await release();await page.waitForTimeout(1400);
+  await page.waitForFunction(()=>document.querySelector('[data-record-id="ra-plain"] .hold-delete')?.style.transform==='');
   assert.equal(await holdButton.evaluate(e=>e.style.transform),'');
   assert.equal(await record('ra-plain').count(),1);
   const settled=await holdButton.boundingBox();assert.equal(settled.width,38);assert.equal(settled.height,38);
