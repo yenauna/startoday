@@ -144,7 +144,7 @@
   overflow-wrap:anywhere;
 }
 @media(max-width:768px) and (orientation:portrait) {
-  .lockscreen .students.classroom-students { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .lockscreen .students.classroom-students { grid-template-columns:repeat(var(--classroom-cols,3),minmax(0,1fr)); }
   .lockscreen .classroom-student .classroom-student-name:has(.classroom-label-name) { font-size:13px; }
 }
 @media(max-height:480px) {

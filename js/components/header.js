@@ -182,14 +182,14 @@ function quickStudentsField() {
     state.selected = state.selected.filter(value => value !== id);
     render();
   }, 'quick-student-remove', `aria-label="${esc(shortName(id))} 선택 해제"`)}</span></span>`;
-  return `<div id="quick-students"><div class="selection-summary"><span class="selection-total" role="status" aria-live="polite" aria-atomic="true"><span data-selection-count="${state.selected.length}">${state.selected.length}명 선택</span></span><span class="selection-hint"><span data-selection-hint>×로 선택 해제</span></span>${btn('전체 선택', () => {
+  return `<div id="quick-students"><div class="selection-summary" ${!state.selected.length?'data-empty-selection="true"':''}><span class="selection-total" role="status" aria-live="polite" aria-atomic="true"><span data-selection-count="${state.selected.length}">${state.selected.length}명 선택</span></span><span class="selection-hint"><span data-selection-hint>×로 선택 해제</span></span>${btn('전체 선택', () => {
     state.selected = C.activeStudents(db()).map(student => student.id);
     render();
   }, 'selection-select-all')}</div><div class="chips selected-students" aria-label="선택 학생">${quickSelectionOrder.map(chip).join('')}${state.selected.length > limit ? btn(quickSelectionExpanded ? '접기' : '+' + (state.selected.length - limit), () => {
     quickSelectionExpanded = !quickSelectionExpanded;
     render();
     $('#quick-selection-more')?.focus({preventScroll:true});
-  }, 'selection-more', `id="quick-selection-more" aria-expanded="${quickSelectionExpanded}" aria-label="${quickSelectionExpanded ? '선택 학생 접기' : '선택 학생 ' + (state.selected.length-limit) + '명 더 보기'}"`) : ''}</div><div class="quick-student-search"><input id="quick-student-query" aria-label="대상 학생 번호 또는 이름" autocomplete="off" placeholder="번호나 이름 입력, 선택 가능, 여러 명 가능" value="${esc(quickStudentQuery)}" aria-controls="quick-student-results">${btn('학생추가', addQuickStudentQuery)}${btn('입력 취소', resetQuickDraft, 'quick-cancel', `id="quick-cancel" ${!state.selected.length && !quickText ? 'hidden' : ''}`)}</div><div id="quick-student-results" class="quick-student-results" aria-label="학생 검색 결과"></div></div>`;
+  }, 'selection-more', `id="quick-selection-more" aria-expanded="${quickSelectionExpanded}" aria-label="${quickSelectionExpanded ? '선택 학생 접기' : '선택 학생 ' + (state.selected.length-limit) + '명 더 보기'}"`) : ''}</div><div class="quick-student-search"><input id="quick-student-query" aria-label="대상 학생 번호 또는 이름" autocomplete="off" placeholder="번호·이름" value="${esc(quickStudentQuery)}" aria-controls="quick-student-results">${btn('학생추가', addQuickStudentQuery)}${btn('입력 취소', resetQuickDraft, 'quick-cancel', `id="quick-cancel" ${!state.selected.length && !quickText ? 'hidden' : ''}`)}</div><div id="quick-student-results" class="quick-student-results" aria-label="학생 검색 결과"></div></div>`;
 }
 function addQuickStudent(id) {
   if (!C.activeStudents(db()).some(student => student.id === id)) throw Error('학생을 확인하세요.');

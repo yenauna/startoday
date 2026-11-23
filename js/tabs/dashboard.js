@@ -1,3 +1,4 @@
+import {constellationHero} from '../components/constellation.js';
 import { createFormatCards } from '../components/format-cards.js';
 import { render } from '../app.js';
 import * as C from '../core.js';
@@ -17,9 +18,9 @@ export function weekSummary() {
 }
 export function dashboard() {
   if (state.dashMode !== 'normal') return checkView();
-  const list = students();
+  const list = C.orderedClassStudents(db(),students(),dashboardOrder(),state.date);
   const completed = list.filter(s => !isUnfinished(s.id, state.date) && !C.excluded(db(), s.id, state.date)).length;
-  return `<div class="toolbar class-overview"><div><h2>${esc(settings().className)}의 하루</h2><small>작은 기록이 모여 성장이 됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input aria-label="대시보드 날짜" type="date" value="${state.date}" id="dash-date"></span>${btn('오늘', () => {
+  return `${constellationHero('오늘 우리 반의 별자리',completed,list.length)}<div class="toolbar class-overview"><div><h2>${esc(settings().className)}의 하루</h2><small>작은 기록이 모여 성장이 됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input aria-label="대시보드 날짜" type="date" value="${state.date}" id="dash-date"></span>${btn('오늘', () => {
     state.date = C.today();
     render();
   })}</div></div>${store.mode === 'demo' ? btn('체험 자료 초기화', () => {
@@ -39,7 +40,7 @@ export function dashboard() {
   })}${btn('출결', () => {
     state.dashMode = 'attendance';
     render();
-  })}${btn('🔀 ' + (dashboardOrder() === 'number' ? '번호순' : '자리대로'), () => setDashboardOrder(dashboardOrder() === 'number' ? 'seats' : 'number'))}</div></div><section class="${state.compact ? 'compact' : ''}">${dashboardStudents(list)}</section>${!list.length ? empty('아직 등록된 학생이 없습니다.', '설정에서 명단을 붙여 넣거나 학생을 추가하세요.') : ''}${bindLater('dash-date', 'change', e => {
+  })}<label class="dashboard-order-control"><select aria-label="학생 보기 순서" id="dashboard-order">${[['number','번호순'],['stars','별 많은 순'],['attention','관심 필요'],['seats','자리대로']].map(([key,label])=>`<option value="${key}" ${dashboardOrder()===key?'selected':''}>${label}</option>`).join('')}</select></label></div></div><section class="${state.compact ? 'compact' : ''}">${dashboardStudents(list)}</section>${!list.length ? empty('아직 등록된 학생이 없습니다.', '설정에서 명단을 붙여 넣거나 학생을 추가하세요.') : ''}${bindLater('dashboard-order','change',e=>setDashboardOrder(e.target.value))}${bindLater('dash-date', 'change', e => {
     state.date = e.target.value || C.today();
     render();
   })}`;
@@ -94,7 +95,7 @@ export function renderSelectionClear() {
     render();
   }, 'selection-clear') : '';
 }
-function dashboardOrder() {
+export function dashboardOrder() {
   try {
     return localStorage.getItem(`startoday-dashboard-order:${store.mode}:${store.classId}:${settings().academicYear}`) || 'number';
   } catch {

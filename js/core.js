@@ -1272,7 +1272,7 @@ export function titleThresholds(config = {}) {
   if (!Number.isInteger(goal) || goal < 3 || goal > 9999) throw Error('칭호 목표는 3~9999의 정수로 입력하세요.');
   return [goal, goal * 2, goal * 3];
 }
-export function titleDefinitions(){return [{id:'resident',name:'별의 주민',domain:'resident',stage:0},...KINGDOM_DOMAINS.flatMap(d=>d.titles.map((name,i)=>({id:d.id+':'+(i+1),name,domain:d.id,stage:i+1})))];}
+export function titleDefinitions(){return [...KINGDOM_DOMAINS.flatMap(d=>d.titles.map((name,i)=>({id:d.id+':'+(i+1),name,domain:d.id,stage:i+1})))];}
 export function normalizeCustomTitles(value){
  const result={};for(const t of titleDefinitions()){const name=value?.[t.id];if(typeof name==='string'&&name.trim()&&Array.from(name.trim()).length<=40)result[t.id]=name.trim();}return result;
 }
@@ -1347,8 +1347,7 @@ export function studentRewardTitles(student) {
 export function kingdomEquipped(student, counts, config = {}) {
   return [...kingdomCatalog(counts, config).flatMap(d => d.unlocked), ...studentRewardTitles(student)].find(t => t.id === (student?.equippedTitle ?? student?.equipped_title)) || {
     id: null,
-    name: normalizeCustomTitles(config.customTitles).resident || '별의 주민',
-    icon: customTitleIcon('resident',config),stage:0,domain:'resident'
+    name: '',icon:'',stage:0,domain:''
   };
 }
 export function studentTitleOps(database, studentId, titleId) {
@@ -1370,7 +1369,8 @@ export function studentTitleOps(database, studentId, titleId) {
 }
 export function kingdomBadge(student, counts, config = {}) {
   const t = kingdomEquipped(student, counts, config);
-  return `<span class="kingdom-badge" data-equipped-title="${esc(t.id || 'resident')}" data-title-stage="${t.stage||0}" data-title-domain="${esc(t.domain||'resident')}">${t.icon}<span class="kingdom-badge-name">${esc(t.name)}</span></span>`;
+  if(!t.id)return '';
+  return `<span class="kingdom-badge" data-equipped-title="${esc(t.id)}" data-title-stage="${t.stage||0}" data-title-domain="${esc(t.domain)}">${t.icon}<span class="kingdom-badge-name">${esc(t.name)}</span></span>`;
 }
 export function kingdomSummary(counts, config = {}, student = null) {
   return `<div class="kingdom-teacher-summary">${kingdomCatalog(counts, config).map(d => `<div><strong>${d.icon} ${esc(d.label)} · 칭찬 ${d.count}회</strong><span>${d.unlocked.map(t => esc(t.name)).join(' / ') || '아직 획득한 칭호가 없어요'}</span></div>`).join('')}${studentRewardTitles(student).map(t => `<div>🏅 ${esc(t.name)} · 장기과제 보상</div>`).join('')}</div>`;
@@ -2018,4 +2018,25 @@ export function surveyAnalysis(database,surveyId,previousId=null){
   const preferred=[...received].filter(s=>s.received).sort((a,b)=>b.positive-a.positive||b.average-a.average||tie(a,b)).slice(0,5);
   const nonpreferred=[...received].filter(s=>s.received).sort((a,b)=>b.uncomfortable-a.uncomfortable||a.averageY-b.averageY||tie(a,b)).slice(0,5);
   return {pairs,attention,changes,received,preferred,nonpreferred,submitted:rows.map(r=>r.studentId),missing:roster.filter(s=>!rows.some(r=>r.studentId===s.id))};
+}
+
+export function studentTodayProgress(snapshot){
+ const tasks=[...(snapshot.tasks||snapshot.assignments||[]).filter(a=>!a.isQuest&&!a.overdue&&a.date===snapshot.date),...(snapshot.routines||[])].filter(a=>a.status!=='면제');
+ return {total:tasks.length,done:tasks.filter(a=>['완료','늦게완료'].includes(a.status)).length};
+}
+export function orderedClassStudents(database,list,mode='number',date=today()){
+ const score=s=>cumulativeScores(database,s.id,date).total,attention=s=>studentScoreSummary(database,s.id,date,'',date).advice+dashboardPending(database,s.id,date).length+pendingRoutines(database,s.id,date).length;
+ return [...list].sort((a,b)=>(mode==='stars'?score(b)-score(a):mode==='attention'?attention(b)-attention(a):mode==='seats'?(Number(!a.seat)-Number(!b.seat))||((a.seat?.row??99)-(b.seat?.row??99))*(database.settings?.[0]?.frontTop===false?-1:1)||((a.seat?.col??99)-(b.seat?.col??99)):0)||a.no-b.no);
+}
+export function surveyGraph(database,surveyId,focusId){
+ const roster=activeStudents(database),responses=(database.survey_responses||[]).filter(r=>r.surveyId===surveyId),links=[];
+ const point=(a,b)=>responses.find(r=>r.studentId===a)?.placements.find(p=>p.targetId===b);
+ const nodes=roster.map((s,i)=>({id:s.id,name:s.name,x:330+240*Math.cos(i*2*Math.PI/Math.max(1,roster.length)),y:210+155*Math.sin(i*2*Math.PI/Math.max(1,roster.length))}));
+ for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){const ab=point(nodes[i].id,nodes[j].id),ba=point(nodes[j].id,nodes[i].id);if(ab?.x>=65||ba?.x>=65)links.push({a:nodes[i].id,b:nodes[j].id,mutual:ab?.x>=65&&ba?.x>=65,closeness:((ab?.x??ba.x)+(ba?.x??ab.x))/2});}
+ for(let k=0;k<70;k++)for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
+  const a=nodes[i],b=nodes[j],dx=b.x-a.x,dy=b.y-a.y,dist=Math.max(1,Math.hypot(dx,dy)),link=links.find(l=>l.a===a.id&&l.b===b.id),ideal=link?70+(100-link.closeness)*2:150,force=link?(dist-ideal)*.012:dist<100?(dist-100)*.025:0;
+  const fx=force*dx/dist,fy=force*dy/dist;a.x=Math.max(55,Math.min(605,a.x+fx));a.y=Math.max(30,Math.min(390,a.y+fy));b.x=Math.max(55,Math.min(605,b.x-fx));b.y=Math.max(30,Math.min(390,b.y-fy));
+ }
+ const focus=roster.find(s=>s.id===focusId)||roster[0],placements=responses.find(r=>r.studentId===focus?.id)?.placements||[];
+ return {nodes,links,focus,placements:placements.map((p,i)=>({...p,name:roster.find(s=>s.id===p.targetId)?.name||'이동한 학생',radius:80+(100-p.x)*.9,angle:i*2*Math.PI/Math.max(1,placements.length)}))};
 }

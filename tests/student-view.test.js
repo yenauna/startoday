@@ -36,6 +36,7 @@ function fixture() {
   function fieldNode(selector){if(!fieldsDOM.has(selector))fieldsDOM.set(selector,{value:'',dataset:{},hidden:true,textContent:'',attributes:{},setAttribute(k,v){this.attributes[k]=v;},removeAttribute(k){delete this.attributes[k];},focus(){},addEventListener(){},querySelector(){return fieldNode('meter-label');}});return fieldsDOM.get(selector);}
   const context = {
     C,
+    constellationHero:()=>'',
     ...Auth,
     document: {
       querySelector: selector => /newPassword|student-password-strength|name=password|student-login-error/.test(selector)?fieldNode(selector):null

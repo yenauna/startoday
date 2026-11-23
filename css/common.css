@@ -1930,13 +1930,12 @@ input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-s
 .title-domain-row{margin:16px 0;padding:0 0 16px;border-bottom:1px solid var(--line);min-width:0}
 .title-domain-row h4{margin:0 0 10px;font-size:14px;font-weight:650}
 .title-domain-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}
-.title-domain-grid.title-resident-grid{grid-template-columns:minmax(0,1fr);max-width:360px}
 .title-name-field{display:grid;gap:6px;min-width:0}
 .title-stage-label{font-size:12px;color:var(--muted)}
 .title-preview{display:flex;align-items:center;min-height:36px;min-width:0}
 .title-name-field input{width:100%;min-width:0;min-height:40px}
 .title-name-field .title-name-reset{justify-self:end}
-@media(max-width:640px){.title-domain-grid{grid-template-columns:minmax(0,1fr);gap:14px}.title-domain-grid.title-resident-grid{max-width:none}}
+@media(max-width:640px){.title-domain-grid{grid-template-columns:minmax(0,1fr);gap:14px}}
 
 .student-timetable-card>:is(.slot,.student-task.subject-color){margin:11px 0}
 

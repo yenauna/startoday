@@ -152,7 +152,7 @@ try {
     name: '👁️ 학생 화면으로 보기',
     exact: true
   }).click();
-  assert.equal(await page.locator('.student-shell [data-equipped-title=resident]').count(), 1);
+  assert.equal(await page.locator('.student-shell .kingdom-badge').count(), 0);
   await page.getByRole('button', {
     name: '칭호도감 열기',
     exact: true

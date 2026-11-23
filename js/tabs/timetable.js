@@ -115,6 +115,7 @@ export function dayEditor(d, mode = '일정', period = 1, event = null) {
     assignmentEditor(null, d);
     return;
   }
+  if(mode==='수업'){modal(C.formatDate(d)+' · 수업 추가',`<p>수업을 추가할 교시를 선택하세요.</p><div class="row">${[1,2,3,4,5,6].map(p=>btn(p+'교시',()=>timetableEditor(d,p))).join('')}</div>`);return;}
   if (mode === '시간표') {
     timetableEditor(d, Number(period) || 1);
     return;
@@ -128,7 +129,7 @@ export function dayEditor(d, mode = '일정', period = 1, event = null) {
     isDday: false,
     createdAt: C.now()
   };
-  modal(C.formatDate(d) + ' · 일정 등록', `<div class="row event-entry-tabs" style="margin-bottom:18px">${['일정', '과제'].map(t => btn(t, () => dayEditor(d, t, period), mode === t ? 'primary' : '')).join('')}</div><div class="formgrid">${input('일정 이름', 'title', r.title, 'text', 'required')}${select('시간', 'period', [['', '종일'], [0, '아침'], ...[1, 2, 3, 4, 5, 6].map(p => [p, p + '교시']), [7, '점심'], [8, '방과후']], C.eventTimePeriod(r) ?? '')}<div class="span2">${textarea('설명', 'description', r.description)}</div>${checkbox('D-Day 표시', 'isDday', r.isDday)}${checkbox('중요 안내 (달력 알약 표시)', 'isImportant', r.isImportant !== false)}</div>`, async f => {
+  modal(C.formatDate(d) + ' · 일정 등록', `<div class="row event-entry-tabs" style="margin-bottom:18px">${['일정', '수업', '과제'].map(t => btn(t, () => dayEditor(d, t, period), mode === t ? 'primary' : '')).join('')}</div><div class="formgrid">${input('일정 이름', 'title', r.title, 'text', 'required')}${select('시간', 'period', [['', '종일'], [0, '아침'], ...[1, 2, 3, 4, 5, 6].map(p => [p, p + '교시']), [7, '점심'], [8, '방과후']], C.eventTimePeriod(r) ?? '')}<div class="span2">${textarea('설명', 'description', r.description)}</div>${checkbox('D-Day 표시', 'isDday', r.isDday)}${checkbox('중요 안내 (달력 알약 표시)', 'isImportant', r.isImportant !== false)}</div>`, async f => {
     const title = f.get('title').trim();
     if (!title) throw Error('일정 이름을 입력하세요.');
     await commit([up('events', {

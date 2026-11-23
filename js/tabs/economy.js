@@ -246,14 +246,13 @@ async function economyInlineAction(action, studentId, target, amount = 0) {
     render();
     refreshEconomyManager(studentId);
     if (action === 'gift') showGiftUndo(transactionId, studentId);else toast(name(studentId) + ' · 물품을 회수했습니다.');
-  } catch (error) { toast(economyMessage(error)); }
+    return true;
+  } catch (error) { toast(economyMessage(error)); return false; }
   finally { economyInlineBusy = false; }
 }
-async function economyReclaim(studentId, tx) {
-  if (!confirm(tx.itemName + ' 물품을 회수할까요? 포인트 잔액은 변경하지 않습니다.')) return;
-  const item = db().shop_items.find(i => i.id === tx.itemId);
-  const restore = item && item.stock !== null ? confirm('상점 재고를 1개 복구할까요? 확인: 복구 / 취소: 재고 복구 없이 회수') : false;
-  await economyInlineAction('reclaim', studentId, tx.id, restore ? 1 : 0);
+async function economyReclaim(studentId,tx){
+ const item=db().shop_items.find(i=>i.id===tx.itemId),limited=item&&item.stock!==null;
+ modal('물건 회수 확인',`<p>${esc(name(studentId))} 학생의 <strong>${esc(tx.itemName)}</strong> 1개를 회수할까요?</p><p class="muted">포인트 잔액은 변경하지 않습니다.</p>${limited?checkbox('상점 재고 1개 복구','restoreStock',true):''}`,async f=>{if(await economyInlineAction('reclaim',studentId,tx.id,limited&&f.has('restoreStock')?1:0)){const student=students().find(s=>s.id===studentId);if(student)economyGiftDialog(student);else closeModal();}},'회수');
 }
 function economyStudentManager(student) {
   const items=db().shop_items.filter(item=>!item.deletedAt&&!item.isGroupBuy),groups=new Map();
