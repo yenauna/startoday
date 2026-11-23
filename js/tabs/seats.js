@@ -1,142 +1,52 @@
-import { render } from '../app.js';
+import {render} from '../app.js';
 import * as C from '../core.js';
-import { commit, db, name, settings, students } from '../shared/data.js';
-import { store } from '../shared/state.js';
-import { bindLater, btn, esc, run } from '../shared/ui.js';
-let movingStudent = null,
-  seatScope = '',
-  initializing = false,
-  pointerDrag = null,
-  swallowUntil = 0;
-function scope() {
-  return `${store.mode}:${store.classId}:${db()?.settings?.[0]?.academicYear}`;
+import {commit,db,settings,students} from '../shared/data.js';
+import {store} from '../shared/state.js';
+import {btn,esc,input,select,checkbox,$,run,toast} from '../shared/ui.js';
+import {modal,closeModal} from '../components/modal.js';
+let seatPickerRoot=null;
+function closeSeatPicker(){seatPickerRoot?.remove();seatPickerRoot=null;}
+let seatScope='',seatLocked=true,seatMoving=null,seatPainting=false,seatBrush='desk',seatPointer=null,seatSwallow=0;
+const seatNames=s=>s.no+'. '+s.name;
+function seatSetting(data){return commit([{table:'settings',id:settings().id,data:{...settings(),seatManual:true,...data}}]);}
+export function seatsView(){
+ closeSeatPicker();
+ const scope=store.mode+':'+store.classId+':'+settings().academicYear;if(scope!==seatScope){seatScope=scope;seatLocked=true;seatPainting=false;seatMoving=null;}
+ const st=settings(),map=C.seatDeskMap(db()),list=students(),placed=s=>s.seat&&map[s.seat.row]?.[s.seat.col];
+ const order=Array.from({length:map.length},(_,i)=>st.frontTop?i:map.length-1-i);
+ return `<div class="toolbar"><div><h2>자리</h2><p>${seatLocked?'잠김 · 자리를 바꾸려면 잠금을 해제하세요.':'빈 책상에서 학생을 고르거나 오른쪽 카드를 끌어 놓으세요.'}</p></div><div class="row">${btn(seatLocked?'🔒 잠김':'🔓 잠금 해제',()=>{seatLocked=!seatLocked;seatMoving=null;seatPainting=false;render();},'seat-lock',`aria-pressed="${seatLocked}"`)}${btn('비우기',()=>modal('자리 비우기','<p>현재 학생을 모두 미배치 상태로 옮길까요?</p>',async()=>{await commit([{table:'settings',id:settings().id,data:{...settings(),seatManual:true}},...list.map(s=>({table:'students',id:s.id,data:{...s,seat:null}}))]);closeModal();render();}),'',seatLocked?'disabled':'')}${btn('책상 배치',()=>{seatPainting=!seatPainting;seatMoving=null;render();},'',seatLocked?'disabled':'')}${btn('규칙',seatRulesDialog)}${btn('배치도 저장',seatSaveDialog)}${btn('저장된 배치도',seatHistoryDialog)}${btn('교실 앞 '+(st.frontTop?'아래로':'위로'),()=>seatSetting({frontTop:!st.frontTop}))}</div></div>${seatPainting?`<div class="panel seat-paint-tools"><strong>칸을 눌러 책상·통로를 그리세요</strong>${['desk','aisle','남','여',''].map(value=>btn(({desk:'책상',aisle:'빈칸(통로)','':'성별 무관'})[value]||value,()=>{seatBrush=value;render();},seatBrush===value?'primary':'')).join('')}${btn('격자 크기',seatSizeDialog)}${btn('배치 완료',()=>{seatPainting=false;render();})}</div>`:''}<div class="seating-workspace"><div class="seat-canvas">${st.frontTop?'<div class="front">교실 앞</div>':''}<div id="seat-grid" class="seats free-seats" style="grid-template-columns:repeat(${map[0].length},minmax(86px,1fr));min-width:${map[0].length*94}px">${order.flatMap(row=>map[row].map((desk,col)=>{
+ const s=list.find(s=>s.seat?.row===row&&s.seat?.col===col),label=desk?(s?seatNames(s):'빈 책상'):'통로';
+ return btn(esc(label)+(desk?.gender?`<small>${desk.gender}</small>`:''),()=>seatCell(row,col,s),`seat seat-cell ${desk?'':'seat-aisle'} ${s?'occupied':''} ${seatMoving===s?.id?'selected':''}`,`data-row="${row}" data-col="${col}" data-student="${esc(s?.id||'')}" draggable="${!seatLocked&&!seatPainting&&!!s}" aria-label="${esc(label)}" ${seatLocked?'aria-disabled="true"':''}`);
+ })).join('')}</div>${!st.frontTop?'<div class="front">교실 앞</div>':''}</div><aside class="seat-unplaced panel"><h3>미배치 학생</h3><div class="seat-student-cards">${list.filter(s=>!placed(s)).map(s=>btn(esc(seatNames(s)),()=>{if(seatLocked)return;seatMoving=s.id;render();},'seat-student-card',`data-seat-source="${esc(s.id)}" draggable="${!seatLocked}" ${seatLocked?'disabled':''}`)).join('')||'<p>모두 배치되었습니다.</p>'}</div></aside></div>`;
 }
-export function seatsView() {
-  if (seatScope !== scope()) {
-    seatScope = scope();
-    movingStudent = null;
-  }
-  const ops = C.autoSeatOps(db());
-  if (ops.length && !initializing) {
-    initializing = true;
-    setTimeout(() => run(async () => {
-      try {
-        await commit(C.autoSeatOps(db()), '');
-      } finally {
-        initializing = false;
-      }
-    }), 0);
-  }
-  const st = settings(),
-    rows = Number(st.seatRows),
-    cols = Number(st.seatCols);
-  const order = Array.from({
-    length: rows
-  }, (_, i) => st.frontTop ? i : rows - 1 - i);
-  return `<div class="toolbar"><div><h2>자리</h2><small>학생을 끌거나, 학생 선택 후 빈칸·다른 학생을 눌러 이동하세요.</small></div><div class="row">${movingStudent ? btn('선택 취소', () => {
-    movingStudent = null;
-    render();
-  }) : ''}${btn('교실 앞 ' + (st.frontTop ? '아래로' : '위로'), () => commit([{
-    table: 'settings',
-    id: st.id,
-    data: {
-      ...st,
-      frontTop: !st.frontTop
-    }
-  }]))}</div></div>${st.frontTop ? '<div class="front">교실 앞</div>' : ''}<div class="seat-canvas"><div id="seat-grid" class="seats free-seats" style="grid-template-columns:repeat(${cols},minmax(100px,1fr));min-width:${cols * 110}px">${order.flatMap(row => Array.from({
-    length: cols
-  }, (_, col) => {
-    const student = students().find(s => s.seat?.row === row && s.seat?.col === col);
-    return btn(student ? esc(name(student.id)) : '', () => chooseSeat(row, col, student?.id), 'seat seat-cell' + (student ? ' occupied' : ' empty') + (movingStudent === student?.id ? ' selected' : ''), `data-row="${row}" data-col="${col}" data-student="${esc(student?.id || '')}" draggable="${!!student}" aria-label="${student ? esc(name(student.id)) : '빈자리'}" aria-pressed="${!!student && movingStudent === student.id}"`);
-  })).join('')}</div></div>${!st.frontTop ? '<div class="front">교실 앞</div>' : ''}${bindLater('seat-grid', 'keydown', e => {
-    if (e.key === 'Escape') {
-      movingStudent = null;
-      render();
-    }
-  })}`;
+async function seatCell(row,col,student){
+ if(seatLocked||performance.now()<seatSwallow)return;
+ if(seatPainting){const layout=C.seatDeskMap(db());layout[row][col]=seatBrush==='aisle'?null:{gender:['남','여'].includes(seatBrush)?seatBrush:''};await commit([{table:'settings',id:settings().id,data:{...settings(),seatLayout:layout}},...(student&&(seatBrush==='aisle'||['남','여'].includes(seatBrush)&&student.gender!==seatBrush)?[{table:'students',id:student.id,data:{...student,seat:null}}]:[])]);return;}
+ if(seatMoving){if(student?.id===seatMoving){seatMoving=null;render();return;}return moveTo(row,col);}
+ if(student){seatMoving=student.id;render();return;}
+ const desk=C.seatDeskMap(db())[row]?.[col];if(!desk)return;
+ const map=C.seatDeskMap(db()),available=students().filter(s=>!(s.seat&&map[s.seat.row]?.[s.seat.col])&&(!desk.gender||s.gender===desk.gender));
+ const cell=document.querySelector('#seat-grid [data-row="'+row+'"][data-col="'+col+'"]'),rect=cell.getBoundingClientRect();closeSeatPicker();const el=document.createElement('div');seatPickerRoot=el;el.className='seat-picker';el.setAttribute('popover','auto');el.setAttribute('role','dialog');el.setAttribute('aria-label','이 책상에 앉힐 학생');el.innerHTML='<strong>이 책상에 앉힐 학생</strong><div class="seat-student-cards">'+(available.map(s=>btn(esc(seatNames(s)),()=>moveTo(row,col,s.id),'seat-student-card')).join('')||'<p>조건에 맞는 미배치 학생이 없습니다. 학생 명단의 성별을 확인하세요.</p>')+'</div>';document.body.append(el);el.style.left=Math.max(8,Math.min(rect.left,innerWidth-300))+'px';el.style.top=Math.max(8,Math.min(rect.bottom+6,innerHeight-240))+'px';el.showPopover();el.querySelector('button')?.focus();
 }
-function chooseSeat(row, col, id) {
-  if (performance.now() < swallowUntil) return;
-  if (movingStudent) {
-    if (movingStudent === id) {
-      movingStudent = null;
-      render();
-    } else return moveTo(row, col);
-  } else if (id) {
-    movingStudent = id;
-    render();
-  }
+export async function moveTo(row,col,id=seatMoving){
+ if(seatLocked||seatPainting||!id)return;
+ closeSeatPicker();
+ const result=C.seatPlacementOps(db(),id,row,col);
+ const save=async()=>{await commit(result.ops);seatMoving=null;closeModal();render();};
+ if(result.warnings.length){modal('자리 배치 경고',`<p>다음 규칙을 확인하세요.</p>${result.warnings.map(w=>`<p>${esc(w)}</p>`).join('')}`,save,'확인 후 배치');return;}
+ await save();
 }
-export async function moveTo(row, col, id = movingStudent) {
-  if (!id) return;
-  const ops = C.seatMoveOps(db(), id, row, col);
-  if (ops.length) await commit(ops, '');
-  movingStudent = null;
-  render();
+function seatSizeDialog(){modal('교실 격자 크기',input('세로 칸','rows',settings().seatRows,'number','min="1" max="12" required')+input('가로 칸','cols',settings().seatCols,'number','min="1" max="12" required'),async f=>{const rows=Number(f.get('rows')),cols=Number(f.get('cols'));if(!Number.isInteger(rows)||!Number.isInteger(cols)||rows<1||cols<1||rows>12||cols>12)throw Error('1~12칸을 입력하세요.');await commit([{table:'settings',id:settings().id,data:{...settings(),seatRows:rows,seatCols:cols}},...students().filter(s=>s.seat&&(s.seat.row>=rows||s.seat.col>=cols)).map(s=>({table:'students',id:s.id,data:{...s,seat:null}}))]);closeModal();render();});}
+function seatRulesDialog(){
+ const st=settings(),choices=[['','학생 선택'],...students().map(s=>[s.id,seatNames(s)])];
+ modal('자리 규칙',`<div class="formgrid">${select('학생 1','a',choices)}${select('학생 2','b',choices)}${select('분리 조건','type',[['pair','짝 금지'],['near','같은 분단 앞뒤·대각선 금지']])}${checkbox('동성 짝 제한','different',st.seatDifferentGender)}${input('같은 짝 누적 N회 이상 경고 (0: 해제)','total',st.seatPairTotal||0,'number','min="0" max="100"')}${input('같은 짝 연속 N회 이상 경고 (0: 해제)','streak',st.seatPairStreak||0,'number','min="0" max="100"')}</div><p>규칙은 배치 전 경고로 알려 줍니다. 성별 지정 책상은 조건이 맞아야 배치할 수 있습니다.</p>${(st.seatRules||[]).map((r,i)=>`<p>${esc(students().find(s=>s.id===r.a)?.name||'나간 학생')} · ${esc(students().find(s=>s.id===r.b)?.name||'나간 학생')} · ${r.type==='pair'?'짝 금지':'앞뒤·대각선 금지'} ${btn('삭제',async()=>{await seatSetting({seatRules:settings().seatRules.filter((_,j)=>j!==i)});seatRulesDialog();})}</p>`).join('')}`,async f=>{const rules=[...(settings().seatRules||[])],a=f.get('a'),b=f.get('b');if(a||b){if(!a||!b||a===b)throw Error('서로 다른 학생 두 명을 선택하세요.');if(!rules.some(r=>[r.a,r.b].includes(a)&&[r.a,r.b].includes(b)&&r.type===f.get('type')))rules.push({a,b,type:f.get('type')});}await seatSetting({seatRules:rules,seatDifferentGender:f.has('different'),seatPairTotal:Number(f.get('total')),seatPairStreak:Number(f.get('streak'))});closeModal();render();});
 }
-document.addEventListener('dragstart', e => {
-  const cell = e.target.closest?.('#seat-grid [data-student]');
-  if (!cell?.dataset.student) return;
-  movingStudent = cell.dataset.student;
-  e.dataTransfer.setData('application/x-startoday-student', movingStudent);
-  e.dataTransfer.effectAllowed = 'move';
-  cell.classList.add('dragging');
-});
-document.addEventListener('dragover', e => {
-  if (e.target.closest?.('#seat-grid .seat-cell')) e.preventDefault();
-});
-document.addEventListener('drop', e => {
-  const cell = e.target.closest?.('#seat-grid .seat-cell'),
-    id = e.dataTransfer.getData('application/x-startoday-student');
-  if (!cell || !id) return;
-  e.preventDefault();
-  run(() => moveTo(Number(cell.dataset.row), Number(cell.dataset.col), id));
-});
-document.addEventListener('dragend', () => document.querySelectorAll('.seat.dragging').forEach(el => el.classList.remove('dragging')));
-document.addEventListener('pointerdown', e => {
-  const cell = e.target.closest?.('#seat-grid .occupied');
-  if (!cell || e.pointerType !== 'touch') return;
-  pointerDrag = {
-    id: cell.dataset.student,
-    x: e.clientX,
-    y: e.clientY,
-    active: false,
-    scope: scope(),
-    pointerId: e.pointerId,
-    cell
-  };
-});
-document.addEventListener('pointermove', e => {
-  const drag = pointerDrag;
-  if (!drag || drag.pointerId !== e.pointerId) return;
-  if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 8) drag.active = true;
-  if (!drag.active) return;
-  e.preventDefault();
-  drag.cell.classList.add('dragging');
-  if (!drag.ghost) {
-    drag.ghost = document.createElement('div');
-    drag.ghost.className = 'seat-drag-ghost';
-    drag.ghost.textContent = name(drag.id);
-    document.body.append(drag.ghost);
-  }
-  drag.ghost.style.left = e.clientX + 12 + 'px';
-  drag.ghost.style.top = e.clientY + 12 + 'px';
-  document.querySelectorAll('.seat.drop-target').forEach(el => el.classList.remove('drop-target'));
-  document.elementFromPoint(e.clientX, e.clientY)?.closest('#seat-grid .seat-cell')?.classList.add('drop-target');
-}, {
-  passive: false
-});
-function endPointer(e, cancel = false) {
-  const drag = pointerDrag;
-  if (!drag || drag.pointerId !== e.pointerId) return;
-  pointerDrag = null;
-  drag.ghost?.remove();
-  document.querySelectorAll('.seat.dragging,.seat.drop-target').forEach(el => el.classList.remove('dragging', 'drop-target'));
-  if (!drag.active) return;
-  swallowUntil = performance.now() + 600;
-  e.preventDefault();
-  const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest('#seat-grid .seat-cell');
-  if (!cancel && cell && drag.scope === scope()) run(() => moveTo(Number(cell.dataset.row), Number(cell.dataset.col), drag.id));
-}
-document.addEventListener('pointerup', e => endPointer(e));
-document.addEventListener('pointercancel', e => endPointer(e, true));
+function seatSaveDialog(){modal('배치도 저장',input('배치도 이름','title','','text','required maxlength="50"'),async f=>{if(!f.get('title').trim())throw Error('배치도 이름을 입력하세요.');await seatSetting({seatHistory:[...(settings().seatHistory||[]),{id:C.uid(),title:f.get('title').trim(),createdAt:C.now(),rows:settings().seatRows,cols:settings().seatCols,layout:C.seatDeskMap(db()),seats:Object.fromEntries(students().map(s=>[s.id,s.seat||null]))}]});closeModal();render();});}
+function seatHistoryDialog(){modal('저장된 배치도',`<div class="seat-history">${(settings().seatHistory||[]).map(h=>`<article><strong>${esc(h.title)}</strong><small>${esc(C.formatTimestamp(h.createdAt))}</small>${btn('열람',()=>{modal(h.title,`<div class="table-wrap"><div class="seat-snapshot" style="grid-template-columns:repeat(${h.cols},minmax(78px,1fr))">${Array.from({length:h.rows*h.cols},(_,i)=>{const r=Math.floor(i/h.cols),c=i%h.cols,s=students().find(s=>h.seats[s.id]?.row===r&&h.seats[s.id]?.col===c);return `<span>${h.layout?.[r]?.[c]===null?'통로':esc(s?seatNames(s):'빈 책상')}</span>`;}).join('')}</div></div>${btn('이 배치로 복원',async()=>{if(seatLocked){toast('잠금을 해제한 뒤 복원하세요.');return;}const ops=[{table:'settings',id:settings().id,data:{...settings(),seatRows:h.rows,seatCols:h.cols,seatLayout:h.layout}},...students().map(s=>({table:'students',id:s.id,data:{...s,seat:h.seats[s.id]||null}}))],next=C.applyOps(db(),ops);for(const s of students()){const pos=h.seats[s.id];if(pos){const desk=C.seatDeskMap(next)[pos.row]?.[pos.col];if(!desk||desk.gender&&s.gender!==desk.gender)throw Error(s.name+' 학생의 현재 성별·책상 조건을 확인하세요.');}}const save=async()=>{await commit(ops);closeModal();render();},warnings=C.seatPlacementWarnings(next);if(warnings.length)modal('자리 배치 경고',warnings.map(w=>'<p>'+esc(w)+'</p>').join(''),save,'확인 후 복원');else await save();})}`);})}</article>`).join('')||'<p>저장된 배치도가 없습니다.</p>'}</div>`);}
+document.addEventListener('dragstart',e=>{const cell=e.target.closest?.('[data-seat-source],#seat-grid [data-student]');if(!cell)return;if(seatLocked||seatPainting){e.preventDefault();return;}const id=cell.dataset.seatSource||cell.dataset.student;if(!id)return;e.dataTransfer.setData('application/x-startoday-student',id);});
+document.addEventListener('dragover',e=>{if(!seatLocked&&e.target.closest?.('#seat-grid .seat-cell:not(.seat-aisle)'))e.preventDefault();});
+document.addEventListener('drop',e=>{const cell=e.target.closest?.('#seat-grid .seat-cell:not(.seat-aisle)');if(!cell||seatLocked)return;e.preventDefault();run(()=>moveTo(Number(cell.dataset.row),Number(cell.dataset.col),e.dataTransfer.getData('application/x-startoday-student')));});
+document.addEventListener('pointerdown',e=>{const cell=e.target.closest?.('[data-seat-source],#seat-grid .occupied');if(seatLocked||seatPainting||e.pointerType!=='touch'||!cell)return;seatPointer={id:cell.dataset.seatSource||cell.dataset.student,x:e.clientX,y:e.clientY,scope:seatScope,pointer:e.pointerId,active:false};});
+document.addEventListener('pointermove',e=>{const p=seatPointer;if(!p||e.pointerId!==p.pointer)return;if(Math.hypot(e.clientX-p.x,e.clientY-p.y)>8)p.active=true;if(p.active)e.preventDefault();},{passive:false});
+document.addEventListener('pointerup',e=>{const p=seatPointer;seatPointer=null;if(!p?.active||p.scope!==seatScope||seatLocked)return;seatSwallow=performance.now()+600;e.preventDefault();const cell=document.elementFromPoint(e.clientX,e.clientY)?.closest('#seat-grid .seat-cell:not(.seat-aisle)');if(cell)run(()=>moveTo(Number(cell.dataset.row),Number(cell.dataset.col),p.id));});
+document.addEventListener('pointercancel',()=>seatPointer=null);

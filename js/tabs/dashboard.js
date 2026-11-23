@@ -81,16 +81,19 @@ export async function saveDirectRecords(kind, text, ids, areas = [], seed = {}) 
   const recordDate = seed.date || state.date;
   if (!ids.length || ids.some(id => !students().some(s => s.id === id))) throw Error('학생을 선택하거나 번호를 확인하세요.');
   if (ids.some(id => C.excluded(db(), id, recordDate))) throw Error('출결 제외 학생은 기록 대상에서 해제하세요.');
+  const incident=seed.incidentId?db().incidents.find(i=>i.id===seed.incidentId):null;
+  if(seed.incidentId&&!incident)throw Error('연결할 사건을 다시 선택하세요.');
   const privacy = C.quickRecordOptions(kind, seed.printIncluded === false);
   const validAreas = areas.filter(a => C.areaNames(db()).includes(a));
-  await commit([...new Set(ids)].map(id => up('records', newRecord({
+  const recordOps=[...new Set(ids)].map(id => up('records', newRecord({
     ...seed,
     studentIds: [id],
     text: text.trim(),
     action: C.replaceStudentNumbers(seed.action || '', db()),
     ...privacy,
     areas: validAreas
-  }))));
+  })));
+  await commit([...recordOps,...(incident?[up('incidents',{...incident,studentIds:[...new Set([...(incident.studentIds||[]),...ids])],updatedAt:C.now()})]:[])]);
 }
 export function renderSelectionClear() {
   return state.selected.length ? btn('✕ ' + state.selected.length + '명 선택 취소', () => {

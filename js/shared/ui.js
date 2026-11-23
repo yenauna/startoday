@@ -9,8 +9,8 @@ export const {
   esc: C.esc
 };
 export const btn = (label, fn, cls = '', attrs = '') => {
-  if (!label.includes('<') && (/^(닫기|수정)$/.test(label) || label.includes('내보내기'))) {
-    const text=label;label=icon(text==='닫기'?'close':text==='수정'?'edit':'export');cls+=' icon-button';
+  if (!label.includes('<') && (/^(닫기|.*수정|.*삭제)$/.test(label) || label.includes('내보내기'))) {
+    const text=label;label=icon(text==='닫기'?'close':text.endsWith('수정')?'edit':text.endsWith('삭제')?'delete':'export');cls+=' icon-button';
     if(!attrs.includes('aria-label='))attrs+=` aria-label="${esc(text)}"`;
     if(!attrs.includes('title='))attrs+=` title="${esc(text)}"`;
   }

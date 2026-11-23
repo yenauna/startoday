@@ -154,12 +154,13 @@ export function studentEditor(s = null) {
     studentCode: '',
     createdAt: C.now()
   };
-  modal(s ? '학생 수정' : '학생 추가', `<div class="formgrid">${input('번호', 'no', row.no, 'number', 'min="1" required')}${input('이름', 'name', row.name, 'text', 'required')}${input('별명', 'alias', row.nickname || row.alias || '')}</div>${s ? btn('비밀번호 초기화', () => resetStudentPassword(row.id), 'danger') : ''}<p class="muted">개별 설정 전에는 반 공통 초기 비밀번호가 적용됩니다. 학생은 첫 로그인 시 새 비밀번호를 설정합니다. 비밀번호는 암호화되어 저장되므로 선생님도 볼 수 없고, 초기화만 할 수 있습니다.</p>`, async f => {
+  modal(s ? '학생 수정' : '학생 추가', `<div class="formgrid">${input('번호', 'no', row.no, 'number', 'min="1" required')}${input('이름', 'name', row.name, 'text', 'required')}<label>성별<select name="gender">${opts([['','미지정'],['남','남'],['여','여']],row.gender||'')}</select></label>${input('별명', 'alias', row.nickname || row.alias || '')}</div>${s ? btn('비밀번호 초기화', () => resetStudentPassword(row.id), 'danger') : ''}<p class="muted">개별 설정 전에는 반 공통 초기 비밀번호가 적용됩니다. 학생은 첫 로그인 시 새 비밀번호를 설정합니다. 비밀번호는 암호화되어 저장되므로 선생님도 볼 수 없고, 초기화만 할 수 있습니다.</p>`, async f => {
     const next = {
       ...(db().students.find(current => current.id === row.id) || row),
       no: Number(f.get('no')),
       name: f.get('name').trim(),
       alias: f.get('alias'),
+      gender: ['남','여'].includes(f.get('gender'))?f.get('gender'):'',
       ...(String(f.get('alias') || '') !== (row.nickname || row.alias || '') ? { nickname: /^[가-힣]{1,8}$/.test(String(f.get('alias') || '')) ? f.get('alias') : null } : {}),
       deletedAt: null
     };

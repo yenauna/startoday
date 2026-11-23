@@ -991,7 +991,7 @@ export function studentScoreSummary(db, id, date = today(), from = date.slice(0,
 export function autoSeatOps(db) {
   const list = activeStudents(db),
     st = db.settings[0];
-  if (!list.length) return [];
+  if (!list.length || st.seatManual || Array.isArray(st.seatLayout)) return [];
   const side = Math.min(10, Math.max(1, Math.ceil(Math.sqrt(list.length))));
   const occupied = new Set(),
     unplaced = [];
@@ -2087,4 +2087,45 @@ export function screenStudentName(student,mode='number'){
  if(mode==='alias')return student.nickname||`별${student.no}`;
  if(mode==='masked'){const name=student.name||'';return `${student.no}. ${name.length<=2?name[0]+'●':name[0]+'●'.repeat(name.length-2)+name.at(-1)}`;}
  return `${student.no}번`;
+}
+
+export function seatDeskMap(database) {
+ const st=database.settings[0],rows=Math.max(1,Math.min(12,Number(st.seatRows)||6)),cols=Math.max(1,Math.min(12,Number(st.seatCols)||8));
+ return Array.from({length:rows},(_,r)=>Array.from({length:cols},(_,c)=>st.seatLayout?.[r]?.[c]===null?null:{gender:st.seatLayout?.[r]?.[c]?.gender||''}));
+}
+export function seatPair(database,a,b) {
+ if(!a||!b||a.row!==b.row||Math.abs(a.col-b.col)!==1)return false;
+ const map=seatDeskMap(database),left=Math.min(a.col,b.col);if(!map[a.row]?.[left]||!map[a.row]?.[left+1])return false;
+ let start=left;while(start>0&&map[a.row][start-1])start--;
+ return (left-start)%2===0;
+}
+export function seatNearby(database,a,b) {
+ if(!a||!b||Math.abs(a.row-b.row)!==1||Math.abs(a.col-b.col)>1)return false;
+ const map=seatDeskMap(database);
+ for(let r=Math.min(a.row,b.row);r<=Math.max(a.row,b.row);r++)for(let c=Math.min(a.col,b.col);c<=Math.max(a.col,b.col);c++)if(!map[r]?.[c])return false;
+ return true;
+}
+export function seatPlacementWarnings(database,changedIds=[]) {
+ const st=database.settings[0],list=activeStudents(database),warnings=[];
+ for(let i=0;i<list.length;i++)for(let j=i+1;j<list.length;j++){
+  const a=list[i],b=list[j];if(changedIds.length&&!changedIds.includes(a.id)&&!changedIds.includes(b.id))continue;
+  const pair=seatPair(database,a.seat,b.seat),near=seatNearby(database,a.seat,b.seat),label=a.name+' · '+b.name;
+  for(const rule of st.seatRules||[])if([rule.a,rule.b].includes(a.id)&&[rule.a,rule.b].includes(b.id)&&a.id!==b.id&&(rule.type==='pair'?pair:near))warnings.push(label+' : '+(rule.type==='pair'?'짝 금지':'앞뒤·대각선 금지'));
+  if(pair&&st.seatDifferentGender&&a.gender&&a.gender===b.gender)warnings.push(label+' : 동성 짝 제한');
+  if(!pair)continue;
+  const history=st.seatHistory||[],matches=history.map(h=>seatPair({...database,settings:[{...st,seatRows:h.rows,seatCols:h.cols,seatLayout:h.layout}]},h.seats?.[a.id],h.seats?.[b.id]));
+  const total=matches.filter(Boolean).length;let streak=0;for(let k=matches.length-1;k>=0&&matches[k];k--)streak++;
+  if(Number(st.seatPairTotal)>0&&total+1>=Number(st.seatPairTotal))warnings.push(label+' : 같은 짝 누적 '+(total+1)+'회');
+  if(Number(st.seatPairStreak)>0&&streak+1>=Number(st.seatPairStreak))warnings.push(label+' : 같은 짝 연속 '+(streak+1)+'회');
+ }
+ return [...new Set(warnings)];
+}
+export function seatPlacementOps(database,id,row,col) {
+ const desk=seatDeskMap(database)[row]?.[col],student=activeStudents(database).find(s=>s.id===id);
+ if(!desk)throw Error('통로에는 학생을 배치할 수 없습니다.');
+ if(!student)throw Error('학생을 찾지 못했습니다.');
+ if(desk.gender&&student.gender!==desk.gender)throw Error('이 책상의 성별 조건과 맞지 않습니다.');
+ const ops=seatMoveOps(database,id,row,col);if(!ops.length)return {ops:[],warnings:[]};const next=applyOps(database,ops);
+ for(const op of ops){const s=op.data;if(s.seat){const target=seatDeskMap(next)[s.seat.row]?.[s.seat.col];if(!target||target.gender&&s.gender!==target.gender)throw Error('교환할 학생의 책상 성별 조건과 맞지 않습니다.');}}
+ return {ops:[...ops,{table:'settings',id:database.settings[0].id,data:{...database.settings[0],seatManual:true}}],warnings:seatPlacementWarnings(next,ops.map(op=>op.id))};
 }
