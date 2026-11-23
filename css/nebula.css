@@ -492,3 +492,54 @@
   content:'';position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--nebula-sheen);opacity:.35;pointer-events:none;
  }
 }
+
+/* Live constellation progress, adapted from design-preview.html. */
+@media screen {
+ #app .constellation-hero{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(140px,1fr);align-items:center;gap:16px;padding:24px 28px;margin-bottom:16px;border-radius:20px;background:#1E2926;color:#FFFDF6;overflow:hidden;grid-column:1/-1;min-width:0}
+ #app .constellation-hero h2{font-size:clamp(21px,2.5vw,32px);color:#FFFDF6;margin:0 0 8px}
+ #app .constellation-hero p,.constellation-hero small{color:#DCE8DF}
+ .constellation-progress{font-size:32px;color:#F1D493;font-variant-numeric:tabular-nums}.constellation-progress small{font-size:14px}.constellation-empty{display:block;margin-top:8px}
+ .constellation-hero svg{width:100%;max-height:165px;justify-self:end}.orbit{fill:none;stroke:#E1EBE03B;stroke-width:1}.orbit-axis{fill:none;stroke:#E1EBE026;stroke-dasharray:3 5}
+ #app .quick-composer-card .quick-areas{background:transparent;gap:6px;padding:0}
+ #app .quick-composer-card .area-chip{border:1px solid #FFFFFFBD;background:#FFFFFF7A;box-shadow:inset 0 1px 0 #FFFFFFD9;border-radius:999px;padding:5px 10px;color:#47566A}
+ #app .quick-composer-card .area-chip.selected{background:#DEEAF7;border-color:#88A8C5;color:#244C70}
+ #app .record-action.record-praise{background:#DCEBFA;color:#295B87}#app .record-action.record-praise:hover{background:#C4DCF4}
+ #quick-students{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0;padding:5px 7px}
+ #quick-students .selection-summary,#quick-students .quick-student-search{display:contents}
+ #quick-students .selection-hint{display:none}
+ #quick-students .selection-total{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+ #quick-students #quick-student-query{order:0;flex:0 1 130px;width:130px;min-width:85px;padding:5px 7px;font-size:14px}
+ #quick-students .selected-students{order:1;flex:1 1 80px;min-width:0;gap:4px}
+ #quick-students .quick-student-search button{order:2;min-height:30px;font-size:12px;padding:4px 7px}
+ #quick-students .selection-select-all{order:3;min-height:28px;font-size:12px;margin:0}
+ #quick-students .quick-student-results{order:5;flex-basis:100%}#quick-students .quick-student-results:empty{display:none}
+ #app .quick-composer-card .quick-entry-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);align-items:start;gap:8px}
+ #app .economy-assets-table,#app .roster-table{font-size:15px}#app .economy-assets-table :is(td,th),#app .roster-table :is(td,th){padding:8px 10px;font-size:14px;line-height:1.4}
+ #app .economy-asset-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}#app .economy-student-card{padding:10px;line-height:1.3}#app .economy-student-card h3{margin:0 0 4px}#app .economy-student-card p{margin:3px 0 7px}
+ #app [data-settings-category="기본 정보"]{padding:12px;margin-bottom:10px}#app [data-settings-category="기본 정보"] h3{margin-bottom:8px}
+ #app [data-settings-category="기본 정보"] .formgrid{gap:8px 12px}#app [data-settings-category="기본 정보"] label{display:grid;grid-template-columns:minmax(75px,110px) minmax(0,1fr);align-items:center;gap:8px;margin:4px 0}
+ #app [data-settings-category="기본 정보"] input,#app [data-settings-category="기본 정보"] select{min-height:36px;padding:6px 8px}
+ .title-icon-picker{position:relative;width:100%;max-width:210px}.title-icon-picker summary{display:flex;gap:7px;align-items:center;cursor:pointer;min-height:36px;font-size:12px;padding:5px 8px;border:1px solid #D5CDE2;border-radius:10px;background:#FFFFFF80}
+ .title-icon-picker summary svg{width:20px;height:20px}.title-icon-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:8px;margin-top:6px;background:#FCFAFFF0;border:1px solid #DDD4E7;border-radius:12px}
+ .title-icon-option{display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;min-width:0;min-height:54px;padding:5px;font-size:10px}.title-icon-option[aria-pressed=true]{background:#E4D9F2;border-color:#8D74AD}.title-icon-option svg{width:22px;height:22px}
+ #app :is(.kingdom-badge,.student-home-village .student-profile-controls .kingdom-badge)[data-title-stage="1"]{background:color-mix(in srgb,var(--title-tint,#D9EAF5) 35%,#FFFFFF99);box-shadow:inset 0 1px 0 #FFFFFFDB,0 2px 7px #5B486B0D}
+ #app :is(.kingdom-badge,.student-home-village .student-profile-controls .kingdom-badge)[data-title-stage="2"]{border-color:color-mix(in srgb,var(--title-tint,#D9EAF5) 75%,#76608C);background:linear-gradient(125deg,color-mix(in srgb,var(--title-tint,#D9EAF5) 80%,#FFFFFF99),#D9D3F5BD);box-shadow:inset 0 1px 0 #FFFFFFE0,0 4px 14px var(--title-glow,#8772B34D)}
+ .survey-visualizations{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:20px;margin:20px 0}.survey-visualizations>div{min-width:0}.survey-visualizations svg{display:block;width:100%;height:auto;max-height:450px;background:#FFFFFF70;border-radius:14px}
+ .survey-network line{stroke:#91AFA4;stroke-width:2}.survey-network .one-way{stroke:#B8A3C6;stroke-dasharray:5 5;stroke-width:1.5}.survey-network rect{fill:#FAFDFA;stroke:#94B8A8}.survey-network g{cursor:pointer}.survey-network g:focus rect{stroke:#5D4888;stroke-width:3}.survey-visualizations text{font-size:12px;fill:#293E35}.distance-ring{fill:none;stroke:#B5C9BE;stroke-dasharray:3 4}.distance-center{fill:#D6EADC;stroke:#799E89}.survey-distance .comfortable rect{fill:#DBEEDB;stroke:#7BA486}.survey-distance .uncomfortable rect{fill:#F5DDE5;stroke:#B7788F}
+ @media(max-width:1100px){.survey-visualizations{grid-template-columns:minmax(0,1fr)}#app .quick-composer-card .quick-entry-fields{grid-template-columns:minmax(0,1fr)}}
+ @media(max-width:760px){#app .constellation-hero{padding:18px;grid-template-columns:minmax(0,1fr) 125px;gap:8px}#app .constellation-hero h2{font-size:20px}.constellation-progress{font-size:27px}#app [data-settings-category="기본 정보"] .formgrid{grid-template-columns:minmax(0,1fr)}}
+ @media(max-width:375px){#app .constellation-hero{grid-template-columns:minmax(0,1fr)}.constellation-hero svg{max-height:100px;justify-self:center}.student-header{min-width:0}}
+}
+
+@media screen {
+ .survey-graph-viewport{max-width:100%;overflow:auto;overscroll-behavior-inline:contain;border-radius:14px}
+ .survey-graph-viewport .survey-network{min-width:580px;max-height:none}
+ .survey-focus-label{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}
+ .survey-focus-label select{min-height:40px;width:auto;max-width:100%}
+ @media(max-width:640px){.survey-distance text{font-size:15px}.survey-network text{font-size:14px}}
+}
+@media screen and (min-width:960px) {
+ #app #settings-form:has([data-settings-category="기본 정보"]:not([hidden])){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start}
+ #app #settings-form>[data-settings-category="기본 정보"]{margin:0;min-width:0}
+ #app #settings-form>[data-settings-category="기본 정보"]:first-child,#app #settings-form:has([data-settings-category="기본 정보"]:not([hidden]))>.settings-save{grid-column:1/-1}
+}

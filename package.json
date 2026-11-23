@@ -7,7 +7,8 @@
     "test": "node --test tests/*.test.js",
     "check": "node --check js/app.js && node --check js/core.js && node --check js/store.js",
     "test:sql": "node tests/sql.integration.mjs",
-    "build": "python3 build-demo.py"
+    "build": "python3 build-demo.py",
+    "test:responsive": "node tests/eight-width-responsive.browser.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.15"

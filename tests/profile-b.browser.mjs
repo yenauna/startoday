@@ -106,8 +106,8 @@ try {
     exact: true
   }).click();
   await page.locator('#modal .kingdom-current [data-equipped-title="learning:1"]').waitFor();
-  await page.getByRole('button', { name: '별의 주민으로 돌아가기', exact: true }).click();
-  await page.locator('#modal .kingdom-current [data-equipped-title="resident"]').waitFor();
+  await page.getByRole('button', { name: '칭호 해제', exact: true }).click();
+  await page.locator('#modal .kingdom-current .kingdom-badge').waitFor({state:'hidden'});
   await page.locator('#modal [data-equip-title="learning:1"]').click();
   await page.locator('#modal .kingdom-current [data-equipped-title="learning:1"]').waitFor();
   await card.locator('[data-equipped-title="learning:1"]').waitFor();

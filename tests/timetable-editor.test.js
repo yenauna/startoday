@@ -128,7 +128,7 @@ test('일반 일정 등록은 일정/과제만 제공하고 종일 행사 및 �
   const f = editorFixture(),
     date = '2026-11-07';
   f.open(date);
-  assert.deepEqual(f.buttons.map(b => b.label), ['일정', '과제']);
+  assert.deepEqual(f.buttons.map(b => b.label), ['일정', '수업', '과제']);
   await f.dialog.submit(new Map([['title', ' 운동회 '], ['period', ''], ['description', '운동장'], ['isDday', 'on']]));
   assert.equal(f.database.events[0].title, '운동회');
   assert.equal(f.database.events[0].date, date);
