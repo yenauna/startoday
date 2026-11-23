@@ -15,7 +15,7 @@ const server=http.createServer((req,res)=>{
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const base=`http://127.0.0.1:${server.address().port}`;
-const sizes=[[320,640],[375,812],[414,896],[768,1024],[1024,768],[1280,800],[1440,900],[1920,1080]];
+const sizes=[[320,640],[360,800],[375,812],[412,891],[414,896],[768,1024],[1024,768],[1280,800],[1440,900],[1920,1080]];
 const teacherTabs=['대시보드','기록','시간표·일정','과제','루틴','경제','통계','수업도구','자리','설정'];
 let browser;
 try{
@@ -71,5 +71,5 @@ try{
   assert.deepEqual(errors,[],`${width}px page errors`);
   await page.close();
  }
- console.log('PASS: 320/375/414/768(iPad portrait)/1024(iPad landscape)/1280/1440/1920 teacher tabs, settings titles, student home/economy/survey/avatar and classroom have no horizontal scroll, no controls outside the viewport, readable student cards and top bar; 768/1024 unfinished cards stay cool pink glass');
+ console.log('PASS: 320/360/375/412/414/768(iPad portrait)/1024(iPad landscape)/1280/1440/1920 teacher tabs, settings titles, student home/economy/survey/avatar and classroom have no horizontal scroll, no controls outside the viewport, readable student cards and top bar; 768/1024 unfinished cards stay cool pink glass');
 }finally{await browser?.close();await new Promise(r=>server.close(r));}

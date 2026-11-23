@@ -24,7 +24,7 @@ try {
   d=C.applyOps(d,C.teacherBalanceAdjustOps(d,d.students[0].id,15));localStorage.setItem('startoday-demo-v1',JSON.stringify(d));store.db=d;state.date=date;state.compact=false;state.dashboardOrder='number';(await import('/js/app.js')).navigate('대시보드');return{date,title,id:d.students[0].id};
  });
  for(const width of [1280,1440]){
-  await page.setViewportSize({width,height:900});assert.equal(await page.locator('.summary').isVisible(),true);assert.equal(await page.locator('.summary .metric').count(),3);
+  await page.setViewportSize({width,height:900});assert.equal(await page.locator('.summary').count(),0);assert.equal(await page.locator('.constellation-summary').isVisible(),true);assert.equal(await page.locator('.constellation-summary>span').count(),2);
   const card=page.locator(`article.student[data-student-id="${seed.id}"]`);const measures=await card.evaluate(e=>({w:e.getBoundingClientRect().width,name:parseFloat(getComputedStyle(e.querySelector('.student-head>strong')).fontSize),task:parseFloat(getComputedStyle(e.querySelector('.pending-tasks .task')).fontSize),wrap:getComputedStyle(e.querySelector('.pending-tasks .task')).whiteSpace}));assert(measures.w>=220,JSON.stringify(measures));assert(measures.name>measures.task);assert.equal(measures.wrap,'normal');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
  }
  assert.equal(await page.locator('.today-events-empty').innerText(),'등록된 일정이 없습니다.');
