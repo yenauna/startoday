@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {surveyNameBox,surveyPointTone,surveyQuadrantPosition,surveyRelationship,surveyLabelPositions} from '../js/components/survey-map-data.js';
 test('이름표는 글자 폭에 맞게 축소하며 긴 이름은 안전하게 요약',()=>{
- assert.equal(surveyNameBox('가온').width,27);assert.equal(surveyNameBox('김가온').width,38);assert(surveyNameBox('김가온').width<84);assert.equal(surveyNameBox('김가온').height,20);assert(surveyNameBox('Alexander').width>surveyNameBox('A').width);assert(surveyNameBox('아주아주긴우리반친구이름입니다').text.endsWith('…'));
+ assert.equal(surveyNameBox('가온').width,22);assert.equal(surveyNameBox('김가온').width,31);assert(surveyNameBox('김가온').width<84);assert.equal(surveyNameBox('김가온').height,15);assert(surveyNameBox('Alexander').width>surveyNameBox('A').width);assert(surveyNameBox('아주아주긴우리반친구이름입니다').text.endsWith('…'));assert.equal(surveyNameBox('김가온').fontSize,9);assert.equal(surveyNameBox('김가온',false).width,38);
 });
 test('개인 사분면은 원래 x와 y를 그대로 매핑하고 y축만 화면 방향으로 뒤집음',()=>{
  assert.deepEqual(surveyQuadrantPosition({x:0,y:0}),{x:52,y:368});assert.deepEqual(surveyQuadrantPosition({x:100,y:100}),{x:368,y:52});assert.deepEqual(surveyQuadrantPosition({x:50,y:50}),{x:210,y:210});
