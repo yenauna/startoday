@@ -16,26 +16,29 @@ export function surveyPointTone(value){
 }
 export function surveyQuadrantPosition(point){return {x:52+Math.max(0,Math.min(100,point.x))*3.16,y:368-Math.max(0,Math.min(100,point.y))*3.16};}
 export function surveyRelationship(point,reverse){
+ if(!point)return reverse?'내 응답 없음':'응답 없음';
  if(!reverse)return '상대방 미응답';
- const near=p=>p.x>=65&&p.y>=65;
- if(point.y<40&&reverse.y<40||near(point)&&reverse.y<40||near(reverse)&&point.y<40)return '갈등·불편 주의';
+ const near=p=>p.x>=65&&p.y>=50;
+ if(point.y<40||reverse.y<40||point.x>=50&&point.y<50||reverse.x>=50&&reverse.y<50)return '갈등·불편 주의';
  if(near(point)&&near(reverse))return '상호 친밀';
  if(near(point)!==near(reverse))return '일방적 호감';
  return '쌍방 응답';
 }
-export function surveyLabelPositions(points){
+export function surveyLabelPositions(points,extraPoints=[]){
  const occupied=[],offsets=[];
- // Start exactly at the response. Only nearly covered names get a small nudge.
- for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++)if(Math.hypot(dx*4,dy*4)<=16)offsets.push({x:dx*4,y:dy*4});
+ for(let dy=-40;dy<=40;dy++)for(let dx=-40;dx<=40;dx++)offsets.push({x:dx*4,y:dy*4});
  offsets.sort((a,b)=>a.x*a.x+a.y*a.y-(b.x*b.x+b.y*b.y));
+ const markers=[...points,...extraPoints].map(surveyQuadrantPosition).map(p=>({left:p.x-5,right:p.x+5,top:p.y-5,bottom:p.y+5}));
  return points.map(point=>{
-  const box=surveyNameBox(point.name),position=surveyQuadrantPosition(point);let best=null;
-  for(const offset of offsets){
-   const x=Math.max(box.width/2+2,Math.min(418-box.width/2,position.x+offset.x)),y=position.y+offset.y,rect={left:x-box.width/2,right:x+box.width/2,top:y-box.height/2,bottom:y+box.height/2};
-   const coverage=occupied.reduce((max,r)=>Math.max(max,Math.max(0,Math.min(rect.right,r.right)-Math.max(rect.left,r.left))*Math.max(0,Math.min(rect.bottom,r.bottom)-Math.max(rect.top,r.top))/Math.min(box.width*box.height,(r.right-r.left)*(r.bottom-r.top))),0);
-   const score=coverage*10000+offset.x**2+offset.y**2;
+  const box=surveyNameBox(point.name),position=surveyQuadrantPosition(point),preferredX=position.x+(position.x+box.width+8>368?-1:1)*(box.width/2+8);let best=null;
+  const candidates=[...offsets.map(o=>({x:preferredX+o.x,y:position.y+o.y}))];
+  for(let y=52+box.height/2+2;y<368-box.height/2;y+=box.height+4)for(let x=52+box.width/2+2;x<368-box.width/2;x+=box.width+4)candidates.push({x,y});
+  for(const candidate of candidates){
+   const x=Math.max(54+box.width/2,Math.min(366-box.width/2,candidate.x)),y=Math.max(54+box.height/2,Math.min(366-box.height/2,candidate.y)),rect={left:x-box.width/2-1,right:x+box.width/2+1,top:y-box.height/2-1,bottom:y+box.height/2+1};
+   const overlap=[...occupied,...markers].reduce((sum,r)=>sum+Math.max(0,Math.min(rect.right,r.right)-Math.max(rect.left,r.left))*Math.max(0,Math.min(rect.bottom,r.bottom)-Math.max(rect.top,r.top)),0);
+   const score=overlap*100000+(x-position.x)**2+(y-position.y)**2;
    if(!best||score<best.score)best={x,y,rect,score};
-   if(coverage<.92){best={x,y,rect,score};break;}
+   if(!overlap){best={x,y,rect,score};break;}
   }
   occupied.push(best.rect);return {box,position,x:best.x,y:best.y};
  });

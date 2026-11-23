@@ -15,11 +15,14 @@ test('양방향 데이터가 있어야 관계 신호를 판정하고 미응답�
  const near={x:90,y:90},far={x:10,y:60},uncomfortable={x:80,y:10};assert.equal(surveyRelationship(near,near),'상호 친밀');assert.equal(surveyRelationship(near,far),'일방적 호감');assert.equal(surveyRelationship(near,uncomfortable),'갈등·불편 주의');assert.equal(surveyRelationship(near,null),'상대방 미응답');assert.equal(surveyRelationship(far,far),'쌍방 응답');
 });
 
-test('이름은 응답 위치에 그대로 놓이고 완전히 겹칠 때만 16px 이내로 비킴',()=>{
- const nearby=[{name:'김가온',x:50,y:50},{name:'이나래',x:52,y:50}];
- const unchanged=surveyLabelPositions(nearby);unchanged.forEach((p,i)=>assert.deepEqual({x:p.x,y:p.y},surveyQuadrantPosition(nearby[i])));
+test('밀집 이름표는 점의 실제 위치를 보존하며 서로·응답 점과 겹치지 않고 보드 안에 배치',()=>{
  const points=Array.from({length:20},()=>({name:'김가온',x:80,y:75})),labels=surveyLabelPositions(points);
- assert.deepEqual({x:labels[0].x,y:labels[0].y},labels[0].position);
- for(const label of labels){assert.deepEqual(label.position,surveyQuadrantPosition(points[0]));assert(Math.hypot(label.x-label.position.x,label.y-label.position.y)<=16);}
+ for(const [i,label] of labels.entries()){
+  assert.deepEqual(label.position,surveyQuadrantPosition(points[i]));
+  assert(label.x-label.box.width/2>=52&&label.x+label.box.width/2<=368);
+  assert(label.y-label.box.height/2>=52&&label.y+label.box.height/2<=368);
+  assert(Math.abs(label.x-label.position.x)>label.box.width/2+3.6||Math.abs(label.y-label.position.y)>label.box.height/2+3.6);
+  for(const other of labels.slice(0,i))assert(Math.abs(label.x-other.x)>=(label.box.width+other.box.width)/2||Math.abs(label.y-other.y)>=(label.box.height+other.box.height)/2);
+ }
  assert.equal(new Set(labels.map(label=>`${label.x}:${label.y}`)).size,20);
 });

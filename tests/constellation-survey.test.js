@@ -13,9 +13,9 @@ test('학생 보기 순서는 번호·별·관심·자리 방향을 안정적으
  const ids=mode=>C.orderedClassStudents(d,d.students,mode,date).map(s=>s.id);
  assert.deepEqual(ids('number'),['a','b','c']);assert.deepEqual(ids('stars'),['b','a','c']);assert.deepEqual(ids('attention'),['c','a','b']);d.settings[0].frontTop=true;assert.deepEqual(ids('seats'),['a','b','c']);d.settings[0].frontTop=false;assert.deepEqual(ids('seats'),['b','a','c']);assert.deepEqual(d.students.map(s=>s.id),['a','b','c']);
 });
-test('관계망은 회차별 상호/단방향 연결을 구분하고 개인 거리 반지름은 가까움에 반비례',()=>{
+test('관계망은 회차별 긍정·갈등 연결을 구분하고 원래 개인 응답 좌표를 보존',()=>{
  const d=C.initialDB();d.students=['a','b','c','d'].map((id,i)=>({id,no:i+1,name:id}));d.survey_responses=[{surveyId:'now',studentId:'a',placements:[{targetId:'b',x:90,y:80},{targetId:'c',x:70,y:20},{targetId:'d',x:10,y:80}]},{surveyId:'now',studentId:'b',placements:[{targetId:'a',x:80,y:80}]},{surveyId:'old',studentId:'d',placements:[{targetId:'c',x:100,y:100}]}];
- const graph=C.surveyGraph(d,'now','a');assert.equal(graph.links.length,2);assert.equal(graph.links.find(l=>l.b==='b').mutual,true);assert.equal(graph.links.find(l=>l.b==='c').mutual,false);assert(graph.placements[0].radius<graph.placements[1].radius);assert(graph.placements[1].radius<graph.placements[2].radius);assert.equal(graph.placements[1].y,20);for(const n of graph.nodes){assert(n.x>=55&&n.x<=605);assert(n.y>=30&&n.y<=390);}assert.equal(C.surveyGraph(d,'now','d').placements.length,0);assert.equal(C.surveyGraph(d,'now','invalid').focus.id,'a');assert.equal(C.surveyGraph(C.initialDB(),'none').nodes.length,0);
+ const graph=C.surveyGraph(d,'now','a');assert.equal(graph.links.length,2);assert.equal(graph.links.find(l=>l.b==='b').mutual,true);assert.equal(graph.links.find(l=>l.b==='c').mutual,false);assert.equal(graph.links.find(l=>l.b==='c').kind,'warning');assert.equal(graph.views.length,3);assert.equal(graph.placements[1].y,20);for(const n of graph.nodes){assert(n.x>=0&&n.x<=graph.width);assert(n.y>=0&&n.y<=graph.height);}assert.equal(C.surveyGraph(d,'now','d').placements.length,0);assert.equal(C.surveyGraph(d,'now','invalid').focus.id,'a');assert.equal(C.surveyGraph(C.initialDB(),'none').nodes.length,0);
 });
 
 test('주변 별빛은 실제 전체 완료일 때만 렌더링하고 반올림으로 100%가 되지 않음',()=>{

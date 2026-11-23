@@ -2028,17 +2028,52 @@ export function orderedClassStudents(database,list,mode='number',date=today()){
  const score=s=>cumulativeScores(database,s.id,date).total,attention=s=>studentScoreSummary(database,s.id,date,'',date).advice+dashboardPending(database,s.id,date).length+pendingRoutines(database,s.id,date).length;
  return [...list].sort((a,b)=>(mode==='stars'?score(b)-score(a):mode==='attention'?attention(b)-attention(a):mode==='seats'?(Number(!a.seat)-Number(!b.seat))||((a.seat?.row??99)-(b.seat?.row??99))*(database.settings?.[0]?.frontTop===false?-1:1)||((a.seat?.col??99)-(b.seat?.col??99)):0)||a.no-b.no);
 }
+export const SURVEY_VIEW_CELL=100/6;
+export function surveyEdgeKind(ab,ba){
+ const uneasy=p=>p&&(p.y<40||p.x>=50&&p.y<50);
+ if(uneasy(ab)||uneasy(ba))return 'warning';
+ if(ab?.x>=65&&ba?.x>=65)return 'positive';
+ if(ab?.x>=65||ba?.x>=65)return 'asymmetric';
+ return null;
+}
+export function surveyPerspective(sent,received){
+ const distance=sent&&received?Math.hypot(sent.x-received.x,sent.y-received.y):null;
+ return {sent,received,distance,split:distance!==null&&distance>SURVEY_VIEW_CELL};
+}
 export function surveyGraph(database,surveyId,focusId){
  const roster=activeStudents(database),responses=(database.survey_responses||[]).filter(r=>r.surveyId===surveyId),links=[];
- const point=(a,b)=>responses.find(r=>r.studentId===a)?.placements.find(p=>p.targetId===b);
- const nodes=roster.map((s,i)=>({id:s.id,name:s.name,x:330+240*Math.cos(i*2*Math.PI/Math.max(1,roster.length)),y:210+155*Math.sin(i*2*Math.PI/Math.max(1,roster.length))}));
- for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){const ab=point(nodes[i].id,nodes[j].id),ba=point(nodes[j].id,nodes[i].id);if(ab?.x>=65||ba?.x>=65)links.push({a:nodes[i].id,b:nodes[j].id,mutual:ab?.x>=65&&ba?.x>=65,closeness:((ab?.x??ba.x)+(ba?.x??ab.x))/2});}
- for(let k=0;k<70;k++)for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
-  const a=nodes[i],b=nodes[j],dx=b.x-a.x,dy=b.y-a.y,dist=Math.max(1,Math.hypot(dx,dy)),link=links.find(l=>l.a===a.id&&l.b===b.id),ideal=link?70+(100-link.closeness)*2:150,force=link?(dist-ideal)*.012:dist<100?(dist-100)*.025:0;
-  const fx=force*dx/dist,fy=force*dy/dist;a.x=Math.max(55,Math.min(605,a.x+fx));a.y=Math.max(30,Math.min(390,a.y+fy));b.x=Math.max(55,Math.min(605,b.x-fx));b.y=Math.max(30,Math.min(390,b.y-fy));
+ const valid=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&p.x>=0&&p.x<=100&&p.y>=0&&p.y<=100;
+ const point=(a,b)=>{const p=responses.find(r=>r.studentId===a)?.placements?.find(p=>p.targetId===b);return valid(p)?p:null;};
+ const nodes=roster.map(s=>({id:s.id,name:s.name,positiveDegree:0,x:0,y:0})),byId=new Map(nodes.map(n=>[n.id,n]));
+ for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
+  const a=nodes[i].id,b=nodes[j].id,ab=point(a,b),ba=point(b,a),kind=surveyEdgeKind(ab,ba);if(!kind)continue;
+  links.push({a,b,kind,mutual:kind==='positive',ab,ba});
+  if(kind==='positive'){byId.get(a).positiveDegree++;byId.get(b).positiveDegree++;}
  }
- const focus=roster.find(s=>s.id===focusId)||roster[0],placements=responses.find(r=>r.studentId===focus?.id)?.placements||[];
- return {nodes,links,focus,placements:placements.map((p,i)=>({...p,name:roster.find(s=>s.id===p.targetId)?.name||'이동한 학생',radius:80+(100-p.x)*.9,angle:i*2*Math.PI/Math.max(1,placements.length)}))};
+ // Group only supported mutual connections. A sparse area is a cue to check,
+ // never a diagnosis; missing responses must not be interpreted as rejection.
+ const eligible=new Set(nodes.filter(n=>n.positiveDegree>=2).map(n=>n.id)),visited=new Set(),groups=[];
+ for(const id of eligible){if(visited.has(id))continue;const members=[],queue=[id];visited.add(id);
+  while(queue.length){const current=queue.shift();members.push(current);for(const link of links.filter(l=>l.kind==='positive'&&(l.a===current||l.b===current))){const other=link.a===current?link.b:link.a;if(eligible.has(other)&&!visited.has(other)){visited.add(other);queue.push(other);}}}
+  groups.push({id:'group-'+groups.length,clustered:members.length>=2,label:members.length>=2?'무리 '+String.fromCharCode(65+groups.filter(g=>g.clustered).length):'연결 중심',members});
+ }
+ const grouped=new Set(groups.flatMap(g=>g.members)),sparse=nodes.filter(n=>!grouped.has(n.id));
+ const width=760,leftWidth=groups.length?(sparse.length?548:736):0,groupColumns=groups.length>1?2:1,groupWidth=(leftWidth-16*(groupColumns-1))/groupColumns;
+ let groupBottom=12;
+ for(let start=0;start<groups.length;start+=groupColumns){let rowHeight=0;
+  for(let offset=0;offset<groupColumns&&start+offset<groups.length;offset++){
+   const group=groups[start+offset],cols=Math.max(1,Math.floor((groupWidth-24)/100)),rows=Math.ceil(group.members.length/cols);
+   Object.assign(group,{x:12+offset*(groupWidth+16),y:groupBottom,width:groupWidth,height:52+rows*34});rowHeight=Math.max(rowHeight,group.height);
+   group.members.forEach((id,i)=>Object.assign(byId.get(id),{groupId:group.id,x:group.x+12+(i%cols+.5)*(group.width-24)/cols,y:group.y+50+Math.floor(i/cols)*34,maxLabelWidth:(group.width-24)/cols-8}));
+  }groupBottom+=rowHeight+16;
+ }
+ const zoneX=groups.length?584:12,zoneWidth=groups.length?164:736,sparseCols=groups.length?2:Math.max(1,Math.floor((zoneWidth-24)/100)),zoneHeight=sparse.length?64+Math.ceil(sparse.length/sparseCols)*30:0;
+ const sparseZone=sparse.length?{x:zoneX,y:12,width:zoneWidth,height:zoneHeight}:null;
+ sparse.forEach((node,i)=>Object.assign(node,{sparse:true,x:zoneX+12+(i%sparseCols+.5)*(zoneWidth-24)/sparseCols,y:68+Math.floor(i/sparseCols)*30,maxLabelWidth:(zoneWidth-24)/sparseCols-8}));
+ const height=Math.max(280,groupBottom+4,sparseZone?sparseZone.y+sparseZone.height+12:0);
+ const focus=roster.find(s=>s.id===focusId)||roster[0],placements=roster.filter(s=>s.id!==focus?.id&&point(focus?.id,s.id)).map(s=>({...point(focus.id,s.id),name:s.name}));
+ const views=focus?roster.filter(s=>s.id!==focus.id).map(s=>({targetId:s.id,name:s.name,...surveyPerspective(point(focus.id,s.id),point(s.id,focus.id))})).filter(v=>v.sent||v.received):[];
+ return {width,height,nodes,links,groups,sparseZone,focus,placements,views};
 }
 
 // Screen-only privacy names; exports and source roster retain real names.
