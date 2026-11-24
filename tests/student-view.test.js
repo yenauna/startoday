@@ -260,7 +260,8 @@ test('개인 비밀번호는 반 공통 초기값 변경 시 유지되고 초기
   };
   assert.equal(Auth.studentPasswordInfo({
     id: 'new'
-  }, config).password, '13579');  const changed = {
+  }, config).password, '13579');
+  const changed = {
     password: '나의별7',
     passwordChanged: true
   };
