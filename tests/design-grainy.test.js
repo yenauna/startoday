@@ -115,3 +115,45 @@ test('8·9안 그림 레이어는 1.1배 이상 키워 14~16초 동안 대각선
 test('prefers-reduced-motion에서 그레이니·배경 그림 애니메이션을 멈춘다', () => {
   assert.match(page, /@media \(prefers-reduced-motion:reduce\) \{\s*\.grain-blob, \.hero-grain span, \.sky-art, \.sky-dust\.is-twinkle \{ animation:none !important; \}\s*\}/);
 });
+
+/* ── 본 앱 히어로 적용(6안) ── */
+const heroCss = readFileSync(path.join(root, 'css/nebula.css'), 'utf8');
+const heroJs = readFileSync(path.join(root, 'js/components/constellation.js'), 'utf8');
+
+test('본 앱 히어로가 6안의 밤하늘 팔레트와 그레인 층을 쓴다', () => {
+  for (const color of ['#0A1026', '#16305C', '#D4B06A', '#F0D79A', '#F2DCA8', '#F8F6EE']) {
+    assert.ok(heroCss.includes(color), color);
+  }
+  // 히어로 안쪽에만 그레인·별가루 층을 둔다
+  assert.match(heroCss, /#app \.constellation-hero>\.hero-grain\{position:absolute;inset:0;z-index:0/);
+  assert.match(heroCss, /#app \.constellation-hero>\.hero-grain span:nth-child\(4\)/);
+  assert.match(heroCss, /#app \.constellation-hero>\.constellation-sky\{position:absolute;inset:0;z-index:0/);
+  assert.match(heroCss, /#app \.constellation-hero>\.constellation-grain|#app \.constellation-hero>\.hero-grain::after\{/);
+  // 별자리: 금빛 후광·연결선·점등 별
+  assert.match(heroCss, /\.constellation-line\{fill:none;stroke:#D4B06A/);
+  assert.match(heroCss, /\.constellation-halo\{fill:none;stroke:#F0D79A/);
+  assert.match(heroCss, /\.constellation-map \.star-point\.is-lit\{fill:#F4DCA6/);
+  assert.match(heroJs, /const CLASS_SKY = \[/);
+  assert.match(heroJs, /class="hero-grain"/);
+  assert.match(heroJs, /class="constellation-sky"/);
+  assert.match(heroJs, /class="constellation-map" viewBox="0 0 380 200"/);
+  assert.match(heroJs, /data-progress-done="\$\{complete\}"/);
+});
+
+test('하늘 움직임은 닫힌 고리로 이어지고 별가루도 따로 표류한다', () => {
+  // 왕복(alternate) 대신 0%/100%가 같은 고리 키프레임이라 다시 시작할 때 끊기지 않는다
+  for (const name of ['hero-flow-a', 'hero-flow-b', 'hero-flow-c', 'hero-flow-d', 'hero-band']) {
+    assert.match(heroCss, new RegExp(`@keyframes ${name}\\{0%,100%\\{`), name);
+  }
+  const durations = [...heroCss.matchAll(/animation:hero-(?:flow-[a-d]|band) (\d+)s/g)].map(m => Number(m[1]));
+  assert.equal(durations.length, 5);
+  for (const seconds of durations) assert.ok(seconds >= 30, String(seconds));
+  // 별가루는 두 겹으로 서로 다른 속도로 흐르고, 일부만 반짝인다
+  assert.match(heroCss, /\.constellation-dust\.is-far\{animation:dust-drift-far 118s/);
+  assert.match(heroCss, /\.constellation-dust\.is-near\{animation:dust-drift-near 76s/);
+  assert.match(heroCss, /\.dust\.is-twinkle\{animation:dust-twinkle/);
+  assert.match(heroCss, /@keyframes dust-twinkle\{from\{opacity:\.18\}to\{opacity:\.95\}\}/);
+  // 움직임을 줄이면 히어로 애니메이션을 모두 멈춘다
+  assert.ok(heroCss.includes('#app .constellation-hero>.hero-grain span,#app .constellation-hero>.hero-grain::before,'));
+  assert.match(heroCss, /animation:none!important\}/);
+});
