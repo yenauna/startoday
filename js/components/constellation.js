@@ -13,6 +13,15 @@ const CLASS_SKY = [
 const MY_SKY = [[214,58],[268,44],[316,74],[338,120],[292,140],[238,132],[186,104],[150,72],[172,36],[224,22],[282,18],[332,40],[352,86],[342,158],[286,176],[218,166]];
 const SPARKLES = [[348,44,8],[124,76,5.6],[330,182,6.2],[58,40,4.4],[300,16,5]];
 
+/* 내 별자리: MY_SKY 좌표를 순서대로 이어 마지막 별에서 다시 첫 별로 닫는 고리 별자리다.
+   오늘 별이 몇 개든 켜지는 별은 언제나 이 별자리의 앞쪽 좌표 위에 하나씩 놓인다. */
+function personalEdges(count) {
+  const edges = [];
+  for (let i = 1; i < count; i += 1) edges.push([i - 1, i]);
+  if (count >= MY_SKY.length) edges.push([MY_SKY.length - 1, 0]);
+  return edges;
+}
+
 function personalSky(count) {
   const stars = [];
   for (let i = 0; i < count; i += 1) {
@@ -20,9 +29,13 @@ function personalSky(count) {
     const [x, y] = MY_SKY[i % MY_SKY.length];
     stars.push({x: x + layer * 4, y: y + layer * 6});
   }
-  const edges = [];
-  for (let i = 1; i < count; i += 1) edges.push([i - 1, i]);
-  return {stars, edges};
+  return {stars, edges: personalEdges(count)};
+}
+
+/* 바탕 별자리 틀: 오늘 별이 적어도 윤곽이 보이도록 내 별자리 전체를 같은 좌표에 흐릿하게 깐다.
+   켜지는 별은 이 틀의 좌표 위에 정확히 겹치므로 바탕 모양과 별이 뜬 모양이 어긋나지 않는다. */
+function personalFrame(count) {
+  return personalSky(Math.max(MY_SKY.length, count));
 }
 
 function classSky(count) {
@@ -108,10 +121,8 @@ export function constellationHero(title, done, total, unit = '명', options = {}
     ? (n ? `${Math.min(allDone ? 100 : 99, Math.round(complete / n * 100))}% 완료` : '오늘 등록된 과제가 없어요')
     : `${complete}명 완료`;
   const sky = student ? personalSky(n) : classSky(n);
-  // 학생 화면에서는 내 별자리 뒤로 먼 별자리 두 무리를 흐릿하게 깔아 하늘을 채운다.
-  const faint = student
-    ? CLASS_SKY.slice(1).map(cluster => clusterMarkup({stars: cluster.stars.map(([x, y]) => ({x, y})), edges: cluster.edges}, 0, true)).join('')
-    : '';
+  // 학생 화면의 바탕은 내 별자리 전체 윤곽이다. 다른 무리를 깔지 않아 별이 뜨는 자리와 1:1로 맞는다.
+  const faint = student && n ? clusterMarkup(personalFrame(n), 0, true) : '';
   const sparkles = allDone
     ? `<g class="constellation-sparkles" aria-hidden="true">${SPARKLES.map(([x, y, size], i) => `<path d="${sparklePath(x, y, size)}" style="--sparkle-delay:${(i * 0.37).toFixed(2)}s"/>`).join('')}</g>`
     : '';

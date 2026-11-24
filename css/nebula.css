@@ -906,29 +906,31 @@
   box-shadow:inset 0 1px 0 #FFFFFF1F,0 14px 32px #060D1E57;
  }
  #app .constellation-hero>.hero-grain{position:absolute;inset:0;z-index:0;overflow:hidden;border-radius:inherit;pointer-events:none}
- /* 은하수 띠: 아주 느리게 넓게 흐르는 빛 */
+ /* 은하수 띠: 넓게 흐르는 빛. 15초에 한 바퀴 돌아 눈으로 흐름이 보인다. */
  #app .constellation-hero>.hero-grain::before{
-  content:"";position:absolute;inset:-26% -14%;pointer-events:none;
-  background:radial-gradient(ellipse 48% 30% at 58% 44%, #7C9AC880 0%, #7C9AC800 68%);
+  content:"";position:absolute;inset:-30% -12%;pointer-events:none;
+  background:radial-gradient(ellipse 46% 28% at 56% 46%, #7C9AC880 0%, #7C9AC800 68%);
   filter:blur(16px);
-  animation:hero-band 79s cubic-bezier(.42,0,.58,1) infinite;
+  animation:hero-band 15s cubic-bezier(.45,0,.55,1) infinite;
  }
  #app .constellation-hero>.hero-grain span{position:absolute;border-radius:50%;will-change:transform;filter:blur(clamp(16px,2.6vw,40px))}
- #app .constellation-hero>.hero-grain span:nth-child(1){width:80%;height:154%;left:-18%;top:-40%;background:radial-gradient(circle at 50% 50%,#16305C 0%,#16305C00 68%);animation:hero-flow-a 34s cubic-bezier(.42,0,.58,1) infinite}
- #app .constellation-hero>.hero-grain span:nth-child(2){width:64%;height:162%;right:-20%;top:-44%;background:radial-gradient(circle at 50% 50%,#5D7EA8AD 0%,#5D7EA800 68%);animation:hero-flow-b 43s cubic-bezier(.42,0,.58,1) infinite}
- #app .constellation-hero>.hero-grain span:nth-child(3){width:44%;height:108%;right:-8%;bottom:-44%;background:radial-gradient(circle at 50% 50%,#D4B06A80 0%,#D4B06A33 34%,#D4B06A00 68%);animation:hero-flow-c 57s cubic-bezier(.42,0,.58,1) infinite}
- #app .constellation-hero>.hero-grain span:nth-child(4){width:52%;height:118%;left:18%;bottom:-52%;background:radial-gradient(circle at 50% 50%,#2F5490A6 0%,#2F549000 70%);animation:hero-flow-d 71s cubic-bezier(.42,0,.58,1) infinite}
+ #app .constellation-hero>.hero-grain span:nth-child(1){width:88%;height:168%;left:-20%;top:-44%;background:radial-gradient(circle at 50% 50%,#16305C 0%,#16305C00 68%);animation:hero-flow-a 13s cubic-bezier(.45,0,.55,1) infinite}
+ #app .constellation-hero>.hero-grain span:nth-child(2){width:70%;height:176%;right:-22%;top:-48%;background:radial-gradient(circle at 50% 50%,#5D7EA8AD 0%,#5D7EA800 68%);animation:hero-flow-b 16s cubic-bezier(.45,0,.55,1) infinite}
+ #app .constellation-hero>.hero-grain span:nth-child(3){width:50%;height:122%;right:-9%;bottom:-48%;background:radial-gradient(circle at 50% 50%,#D4B06A80 0%,#D4B06A33 34%,#D4B06A00 68%);animation:hero-flow-c 19s cubic-bezier(.45,0,.55,1) infinite}
+ #app .constellation-hero>.hero-grain span:nth-child(4){width:58%;height:130%;left:16%;bottom:-56%;background:radial-gradient(circle at 50% 50%,#2F5490A6 0%,#2F549000 70%);animation:hero-flow-d 22s cubic-bezier(.45,0,.55,1) infinite}
  #app .constellation-hero>.hero-grain::after{
   content:"";position:absolute;inset:0;pointer-events:none;opacity:.17;mix-blend-mode:overlay;
   background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Cfilter id="g2"%3E%3CfeTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="3" stitchTiles="stitch"/%3E%3CfeColorMatrix type="saturate" values="0"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23g2)" opacity=".55"/%3E%3C/svg%3E');
   background-size:120px 120px;background-repeat:repeat;
  }
- /* 닫힌 고리 키프레임이라 다시 시작할 때 끊기지 않는다. */
- @keyframes hero-flow-a{0%,100%{transform:translate3d(-7%,-5%,0) scale(1)}25%{transform:translate3d(1%,2%,0) scale(1.09)}50%{transform:translate3d(8%,7%,0) scale(1.16)}75%{transform:translate3d(-1%,4%,0) scale(1.05)}}
- @keyframes hero-flow-b{0%,100%{transform:translate3d(6%,5%,0) scale(1.1)}25%{transform:translate3d(-1%,6%,0) scale(1.03)}50%{transform:translate3d(-8%,-6%,0) scale(1)}75%{transform:translate3d(2%,-3%,0) scale(1.13)}}
- @keyframes hero-flow-c{0%,100%{transform:translate3d(4%,6%,0) scale(1.04)}25%{transform:translate3d(-3%,3%,0) scale(1.13)}50%{transform:translate3d(-8%,-8%,0) scale(1.2)}75%{transform:translate3d(0%,-1%,0) scale(1.09)}}
- @keyframes hero-flow-d{0%,100%{transform:translate3d(-4%,3%,0) scale(1.02)}25%{transform:translate3d(3%,-4%,0) scale(1.11)}50%{transform:translate3d(6%,5%,0) scale(1.04)}75%{transform:translate3d(-5%,5%,0) scale(1.13)}}
- @keyframes hero-band{0%,100%{transform:translate3d(-8%,3%,0) scale(1)}33%{transform:translate3d(4%,-4%,0) scale(1.08)}66%{transform:translate3d(9%,4%,0) scale(1.03)}}
+ /* 닫힌 고리 키프레임이라 다시 시작할 때 끊기지 않는다.
+    주기를 13~22초로 당기고 이동 폭을 12~24%로 키워 넓고 낮은 교사 히어로에서도 빛이 흐르는 게 보인다.
+    금빛 덩어리(hero-flow-c)는 밤하늘 색이 쏠리지 않도록 12% 정도만 움직인다. */
+ @keyframes hero-flow-a{0%,100%{transform:translate3d(-9%,-6%,0) scale(.985)}25%{transform:translate3d(2%,4%,0) scale(1.05)}50%{transform:translate3d(12%,11%,0) scale(1.11)}75%{transform:translate3d(-2%,5%,0) scale(1.02)}}
+ @keyframes hero-flow-b{0%,100%{transform:translate3d(11%,8%,0) scale(1.1)}25%{transform:translate3d(-2%,9%,0) scale(1.03)}50%{transform:translate3d(-13%,-9%,0) scale(.975)}75%{transform:translate3d(4%,-5%,0) scale(1.08)}}
+ @keyframes hero-flow-c{0%,100%{transform:translate3d(6%,7%,0) scale(1.02)}25%{transform:translate3d(-3%,4%,0) scale(1.06)}50%{transform:translate3d(-6%,-8%,0) scale(1.09)}75%{transform:translate3d(2%,-1%,0) scale(1.04)}}
+ @keyframes hero-flow-d{0%,100%{transform:translate3d(-7%,5%,0) scale(.99)}25%{transform:translate3d(5%,-7%,0) scale(1.07)}50%{transform:translate3d(10%,9%,0) scale(1.02)}75%{transform:translate3d(-8%,8%,0) scale(1.1)}}
+ @keyframes hero-band{0%,100%{transform:translate3d(-8%,4%,0) scale(1)}33%{transform:translate3d(3%,-9%,0) scale(1.07)}66%{transform:translate3d(10%,6%,0) scale(1.03)}}
 
  #app .constellation-hero>.constellation-sky{position:absolute;inset:0;z-index:0;width:100%;height:100%;pointer-events:none;overflow:visible}
  #app .constellation-copy{position:relative;z-index:2}
@@ -939,10 +941,10 @@
  #app .constellation-sky .dust.is-near{fill:#F8F6EE;opacity:.78}
  #app .constellation-sky .dust.is-gold{fill:#D4B06A;opacity:.62}
  #app .constellation-sky .dust.is-twinkle{animation:dust-twinkle var(--dust-duration,4.6s) ease-in-out var(--dust-delay,0s) infinite alternate}
- #app .constellation-sky .constellation-dust.is-far{animation:dust-drift-far 118s ease-in-out infinite}
- #app .constellation-sky .constellation-dust.is-near{animation:dust-drift-near 76s ease-in-out infinite}
- @keyframes dust-drift-far{0%,100%{transform:translate3d(-5px,3px,0)}50%{transform:translate3d(7px,-5px,0)}}
- @keyframes dust-drift-near{0%,100%{transform:translate3d(6px,-4px,0)}50%{transform:translate3d(-7px,5px,0)}}
+ #app .constellation-sky .constellation-dust.is-far{animation:dust-drift-far 32s ease-in-out infinite;will-change:transform}
+ #app .constellation-sky .constellation-dust.is-near{animation:dust-drift-near 24s ease-in-out infinite;will-change:transform}
+ @keyframes dust-drift-far{0%,100%{transform:translate3d(-16px,9px,0)}50%{transform:translate3d(24px,-15px,0)}}
+ @keyframes dust-drift-near{0%,100%{transform:translate3d(22px,-16px,0)}50%{transform:translate3d(-26px,18px,0)}}
  @keyframes dust-twinkle{from{opacity:.18}to{opacity:.95}}
 
  #app .constellation-map .constellation-line{fill:none;stroke:#D4B06A;stroke-opacity:.46;stroke-width:.9;stroke-linecap:round}
@@ -951,7 +953,7 @@
  #app .constellation-map .star-point{fill:#B9CBE8;opacity:.42}
  #app .constellation-map .star-point.is-lit{fill:#F4DCA6;opacity:1}
  #app .constellation-map .star-glow{fill:#F0D79A;opacity:.22;filter:blur(.9px)}
- #app .constellation-map .constellation-cluster.is-faint{opacity:.16}
+ #app .constellation-map .constellation-cluster.is-faint{opacity:.3}
  #app .constellation-hero h2,#app .student-profile-header .constellation-heading h2{color:var(--hero-ink)}
  #app .constellation-hero p,#app .constellation-hero small{color:var(--hero-muted)}
  #app .constellation-progress{color:var(--hero-gold)}
