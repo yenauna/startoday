@@ -65,12 +65,36 @@
     --sky-art:url("assets/bg-watercolor-stars.webp");
     --sky-art-position:68% top;
   }
-
-  @media (min-aspect-ratio:4/3) {
-    body[data-theme="watercolor"] { --sky-art-position:68% 26%; }
+  body[data-theme="nebula-motion"] { --sky-art:url("assets/bg-pastel-nebula.webp"); }
+  body[data-theme="watercolor-motion"] {
+    --sky-art:url("assets/bg-watercolor-stars.webp");
+    --sky-art-position:68% top;
   }
 
-  body:is([data-theme="nebula"], [data-theme="watercolor"]) .sky-bloom { opacity:.56; }
+  @media (min-aspect-ratio:4/3) {
+    body:is([data-theme="watercolor"], [data-theme="watercolor-motion"]) { --sky-art-position:68% 26%; }
+  }
+
+  body:is([data-theme="nebula"], [data-theme="watercolor"], [data-theme="nebula-motion"], [data-theme="watercolor-motion"]) .sky-bloom { opacity:.56; }
+
+  /* ── 8~9안: 기존 배경 그림을 천천히 떠다니게 (1.1배 키워 화면 끝이 비지 않게) ── */
+  .sky-art {
+    position:absolute; inset:0; opacity:0; transition:opacity .6s ease;
+    background-image:var(--sky-art); background-size:cover;
+    background-position:var(--sky-art-position, center); background-repeat:no-repeat;
+    transform:scale(1.12); transform-origin:50% 50%; will-change:transform;
+  }
+  body:is([data-theme="nebula-motion"], [data-theme="watercolor-motion"]) .sky-art { opacity:1; }
+  body[data-theme="nebula-motion"] .sky-art { animation:art-drift-nebula 14s ease-in-out infinite alternate; }
+  body[data-theme="watercolor-motion"] .sky-art { animation:art-drift-watercolor 16s ease-in-out infinite alternate; }
+  @keyframes art-drift-nebula {
+    from { transform:scale(1.12) translate3d(-2.6%, 2.2%, 0); }
+    to { transform:scale(1.16) translate3d(2.6%, -2.2%, 0); }
+  }
+  @keyframes art-drift-watercolor {
+    from { transform:scale(1.12) translate3d(2.4%, 2.6%, 0); }
+    to { transform:scale(1.18) translate3d(-2.4%, -2.6%, 0); }
+  }
 
   .sky-bloom {
     position:absolute;
@@ -190,21 +214,37 @@
   .t-main,.s-main { display:grid; gap:14px; }
 
   .hero {
-    display:grid; grid-template-columns:minmax(0,1.6fr) minmax(128px,1fr); align-items:center;
-    min-height:205px; gap:12px; padding:clamp(16px,3vw,34px); border-radius:20px;
-    color:var(--hero-ink); background:var(--hero); overflow:hidden;
+    --hero-pad:clamp(16px,3vw,34px);
+    position:relative; isolation:isolate; overflow:hidden;
+    display:flex; flex-direction:column; justify-content:center;
+    min-height:205px; padding:var(--hero-pad); border-radius:20px;
+    color:var(--hero-ink); background:var(--hero);
   }
+  .hero-copy { position:relative; z-index:2; max-width:min(100%, 620px); }
   .hero h1 { font-size:clamp(24px,4vw,42px); }
   .hero p { margin-bottom:8px; color:var(--hero-muted); font-size:13px; font-weight:650; }
   .hero-progress { display:block; margin:9px 0 0; font-size:clamp(23px,4vw,36px); font-variant-numeric:tabular-nums; color:var(--gold); }
   .hero-progress small { font-size:14px; color:var(--hero-muted); }
-  .hero svg { width:100%; max-width:330px; justify-self:end; height:auto; max-height:205px; overflow:visible; }
-  .orbit { fill:none; stroke:#E1EBE0; stroke-opacity:.23; stroke-width:1; }
-  .orbit-axis { stroke:#E1EBE0; stroke-opacity:.14; stroke-dasharray:3 5; }
-  .star-point { fill:var(--dim-star); }
-  .star-point.is-lit { fill:var(--gold); }
-  .star-point.is-lit:nth-of-type(3n) { fill:#FFF2D3; }
-  .star-glow { fill:#F1D493; opacity:.12; }
+
+  /* ── 히어로 밤하늘: 동심원 궤도 대신 자유롭게 이어진 별자리 + 별가루 ── */
+  .hero-sky {
+    position:absolute; top:calc(var(--hero-pad) * -1); left:calc(var(--hero-pad) * -1);
+    z-index:0; width:calc(100% + var(--hero-pad) + var(--hero-pad)); height:calc(100% + var(--hero-pad) + var(--hero-pad));
+    pointer-events:none;
+  }
+  .hero-constellation {
+    position:absolute; top:calc(var(--hero-pad) * -1); right:0;
+    z-index:1; width:min(40%, 400px); height:calc(100% + var(--hero-pad) + var(--hero-pad));
+    pointer-events:none; overflow:visible;
+  }
+  .sky-dust { fill:#F8F6EE; }
+  .sky-dust.is-twinkle { animation:star-shimmer 4.6s ease-in-out infinite alternate; }
+  .constellation-line { fill:none; stroke:#D4B06A; stroke-opacity:.46; stroke-width:.8; stroke-linecap:round; }
+  .constellation-halo { fill:none; stroke:#F0D79A; stroke-opacity:.11; stroke-width:3.2; stroke-linecap:round; }
+  .star-point { fill:#C3D0E6; opacity:.4; }
+  .star-point.is-lit { fill:#F4DCA6; opacity:1; }
+  .star-point.is-lit:nth-of-type(3n) { fill:#FFF6E2; }
+  .star-glow { fill:#F1D493; opacity:.14; }
 
   .composer,.panel,.metric,.card,.profile,.s-card {
     background:var(--card); border:1px solid var(--line); border-radius:var(--radius); min-width:0;
@@ -316,32 +356,32 @@
   }
   .grain-blob:nth-child(1) {
     width:70vmax; height:70vmax; top:-26vmax; left:-18vmax;
-    background:radial-gradient(circle at 50% 50%, #CFE2F0 0%, #CFE2F0 34%, rgba(207, 226, 240, 0) 68%);
-    animation:grain-drift-a 24s ease-in-out infinite alternate;
+    background:radial-gradient(circle at 50% 50%, #C3DCEE 0%, #C3DCEE 34%, rgba(195, 220, 238, 0) 68%);
+    animation:grain-drift-a 11s ease-in-out infinite alternate;
   }
   .grain-blob:nth-child(2) {
     width:62vmax; height:62vmax; top:4vmax; right:-22vmax;
-    background:radial-gradient(circle at 50% 50%, #DCD6EF 0%, #DCD6EF 32%, rgba(220, 214, 239, 0) 68%);
-    animation:grain-drift-b 20s ease-in-out infinite alternate;
+    background:radial-gradient(circle at 50% 50%, #D6CDEE 0%, #D6CDEE 32%, rgba(214, 205, 238, 0) 68%);
+    animation:grain-drift-b 12s ease-in-out infinite alternate;
   }
   .grain-blob:nth-child(3) {
     width:66vmax; height:66vmax; bottom:-28vmax; left:-6vmax;
-    background:radial-gradient(circle at 50% 50%, #D2E7DC 0%, #D2E7DC 32%, rgba(210, 231, 220, 0) 68%);
-    animation:grain-drift-c 22s ease-in-out infinite alternate;
+    background:radial-gradient(circle at 50% 50%, #C6E4D5 0%, #C6E4D5 32%, rgba(198, 228, 213, 0) 68%);
+    animation:grain-drift-c 13s ease-in-out infinite alternate;
   }
   .grain-blob:nth-child(4) {
     width:46vmax; height:46vmax; top:34%; left:38%;
-    background:radial-gradient(circle at 50% 50%, #F0E9DC 0%, #F0E9DC 26%, rgba(240, 233, 220, 0) 66%);
-    animation:grain-drift-d 21s ease-in-out infinite alternate;
+    background:radial-gradient(circle at 50% 50%, #F2E8D6 0%, #F2E8D6 26%, rgba(242, 232, 214, 0) 66%);
+    animation:grain-drift-d 10.5s ease-in-out infinite alternate;
   }
-  @keyframes grain-drift-a { from { transform:translate3d(-2.5%, -2%, 0) scale(1); } to { transform:translate3d(4.5%, 3.5%, 0) scale(1.08); } }
-  @keyframes grain-drift-b { from { transform:translate3d(3%, 2%, 0) scale(1.04); } to { transform:translate3d(-4%, -3%, 0) scale(1); } }
-  @keyframes grain-drift-c { from { transform:translate3d(-3%, 2.5%, 0) scale(1.02); } to { transform:translate3d(3.5%, -3%, 0) scale(1.1); } }
-  @keyframes grain-drift-d { from { transform:translate3d(2.5%, 3%, 0) scale(1); } to { transform:translate3d(-3%, -2.5%, 0) scale(1.07); } }
+  @keyframes grain-drift-a { from { transform:translate3d(-6%, -6%, 0) scale(1); } to { transform:translate3d(7%, 6%, 0) scale(1.12); } }
+  @keyframes grain-drift-b { from { transform:translate3d(6%, 5%, 0) scale(1.08); } to { transform:translate3d(-7%, -6%, 0) scale(1); } }
+  @keyframes grain-drift-c { from { transform:translate3d(-6%, 4%, 0) scale(1.02); } to { transform:translate3d(6%, -6%, 0) scale(1.14); } }
+  @keyframes grain-drift-d { from { transform:translate3d(4%, 6%, 0) scale(1); } to { transform:translate3d(-7%, -5%, 0) scale(1.1); } }
 
   /* 히어로(별자리 창) 그레이니 */
   .hero { position:relative; isolation:isolate; }
-  .hero > :not(.hero-grain) { position:relative; z-index:1; }
+  .hero > .hero-copy { position:relative; z-index:2; }
   .hero-grain {
     position:absolute; inset:0; z-index:0; overflow:hidden; border-radius:inherit;
     pointer-events:none; opacity:0; transition:opacity .6s ease;
@@ -353,44 +393,49 @@
   }
   .hero-grain span:nth-child(1) {
     width:78%; height:150%; left:-16%; top:-38%;
-    background:radial-gradient(circle at 50% 50%, #1E3A6E 0%, rgba(30, 58, 110, 0) 68%);
-    animation:hero-flow-a 20s ease-in-out infinite alternate;
+    background:radial-gradient(circle at 50% 50%, #16305C 0%, rgba(22, 48, 92, 0) 68%);
+    animation:hero-flow-a 12s ease-in-out infinite alternate;
   }
   .hero-grain span:nth-child(2) {
     width:64%; height:160%; right:-20%; top:-42%;
-    background:radial-gradient(circle at 50% 50%, rgba(124, 96, 205, .6) 0%, rgba(124, 96, 205, 0) 68%);
-    animation:hero-flow-b 22s ease-in-out infinite alternate;
+    background:radial-gradient(circle at 50% 50%, rgba(93, 126, 168, .68) 0%, rgba(93, 126, 168, 0) 68%);
+    animation:hero-flow-b 11s ease-in-out infinite alternate;
   }
   .hero-grain span:nth-child(3) {
     width:44%; height:104%; right:-8%; bottom:-42%;
-    background:radial-gradient(circle at 50% 50%, rgba(236, 196, 122, .46) 0%, rgba(236, 196, 122, .16) 34%, rgba(236, 196, 122, 0) 68%);
-    animation:hero-flow-c 18s ease-in-out infinite alternate;
+    background:radial-gradient(circle at 50% 50%, rgba(212, 176, 106, .5) 0%, rgba(212, 176, 106, .2) 34%, rgba(212, 176, 106, 0) 68%);
+    animation:hero-flow-c 13s ease-in-out infinite alternate;
   }
   .hero-grain::after {
     content:""; position:absolute; inset:0; pointer-events:none;
     background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Cfilter id="g2"%3E%3CfeTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="3" stitchTiles="stitch"/%3E%3CfeColorMatrix type="saturate" values="0"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23g2)" opacity=".55"/%3E%3C/svg%3E');
     background-size:120px 120px; background-repeat:repeat; opacity:.17; mix-blend-mode:overlay;
   }
-  @keyframes hero-flow-a { from { transform:translate3d(-3%, -2%, 0) scale(1); } to { transform:translate3d(5%, 4%, 0) scale(1.12); } }
-  @keyframes hero-flow-b { from { transform:translate3d(2.5%, 2%, 0) scale(1.06); } to { transform:translate3d(-4.5%, -3.5%, 0) scale(1); } }
-  @keyframes hero-flow-c { from { transform:translate3d(3%, 3%, 0) scale(1.02); } to { transform:translate3d(-3.5%, -4%, 0) scale(1.14); } }
+  @keyframes hero-flow-a { from { transform:translate3d(-7%, -6%, 0) scale(1); } to { transform:translate3d(8%, 7%, 0) scale(1.16); } }
+  @keyframes hero-flow-b { from { transform:translate3d(6%, 5%, 0) scale(1.1); } to { transform:translate3d(-8%, -6%, 0) scale(1); } }
+  @keyframes hero-flow-c { from { transform:translate3d(5%, 6%, 0) scale(1.04); } to { transform:translate3d(-8%, -8%, 0) scale(1.2); } }
 
   body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .hero {
-    --hero-ink:#F8F5EC;
-    --hero-muted:#C2CBE2;
-    --gold:#F4DCA6;
-    background-color:#0B1228;
-    background-image:radial-gradient(ellipse 130% 150% at 80% 6%, #1E3A6E 0%, #132449 44%, #0B1228 80%);
-    box-shadow:inset 0 1px 0 rgba(255, 255, 255, .14), 0 12px 30px rgba(11, 18, 40, .3);
+    --hero-ink:#F8F6EE;
+    --hero-muted:#B9C8E2;
+    --gold:#F2DCA8;
+    background-color:#0A1026;
+    background-image:
+      radial-gradient(ellipse 32% 84% at 96% 8%, #D4B06A26 0%, #D4B06A00 70%),
+      radial-gradient(ellipse 30% 82% at 58% 100%, #5D7EA875 0%, #5D7EA800 72%),
+      radial-gradient(ellipse 40% 120% at 82% 16%, #254A7AEB 0%, #254A7A00 68%),
+      radial-gradient(ellipse 70% 130% at 16% 58%, #142B52E6 0%, #142B5200 74%),
+      linear-gradient(112deg, #0A1026 0%, #0E1B38 46%, #16305C 100%);
+    box-shadow:inset 0 1px 0 rgba(255, 255, 255, .12), 0 14px 32px rgba(6, 13, 30, .34);
   }
-  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) :is(.orbit, .orbit-axis) { stroke:#B9C7E6; }
-  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .orbit { stroke-opacity:.2; }
-  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .orbit-axis { stroke-opacity:.13; }
-  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .star-point { fill:#5F7099; }
-  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .star-glow { fill:#EFCF92; }
+  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .star-point { fill:#B9CBE8; opacity:.42; }
+  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .star-point.is-lit { fill:#F4DCA6; opacity:1; }
+  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .star-glow { fill:#F0D79A; }
+  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .constellation-line { stroke:#E2BE78; stroke-opacity:.64; }
+  body:is([data-theme="grainy-hero"], [data-theme="grainy-both"]) .constellation-halo { stroke:#F0D79A; stroke-opacity:.16; }
 
   @media (prefers-reduced-motion:reduce) {
-    .grain-blob, .hero-grain span { animation:none !important; }
+    .grain-blob, .hero-grain span, .sky-art, .sky-dust.is-twinkle { animation:none !important; }
   }
 
   @media(max-width:640px) {
@@ -398,7 +443,9 @@
     .t-brand small { display:none; }
     .t-top-actions button { padding-inline:8px; }
     .t-tabs button,.s-subtabs button { padding-inline:9px; min-height:36px; }
-    .hero { grid-template-columns:minmax(0,1.45fr) minmax(92px,1fr); min-height:152px; padding:14px; gap:5px; }
+    .hero { --hero-pad:14px; min-height:156px; }
+    .hero-copy { max-width:64%; }
+    .hero-constellation { width:min(62%, 250px); }
     .hero h1 { font-size:clamp(19px,5.7vw,26px); }
     .hero p { font-size:12px; margin-bottom:5px; }
     .hero-progress { margin-top:4px; }
@@ -411,7 +458,7 @@
 </head>
 <body data-view="teacher" data-theme="sky">
 <div class="sky-parallax" aria-hidden="true">
-  <div class="sky-layer sky-light" data-speed="0.08"></div>
+  <div class="sky-layer sky-light" data-speed="0.08"><span class="sky-art"></span></div>
   <div class="sky-layer sky-orbits" data-speed="0.45">
     <span class="sky-bloom"></span><span class="sky-bloom"></span><span class="sky-bloom"></span>
     <svg class="sky-stars" viewBox="0 0 1200 900" preserveAspectRatio="none" focusable="false">
@@ -434,6 +481,8 @@
   <button type="button" data-theme-choice="grainy-bg" aria-pressed="false">5안: 그레이니(배경만)</button>
   <button type="button" data-theme-choice="grainy-hero" aria-pressed="false">6안: 그레이니(히어로만)</button>
   <button type="button" data-theme-choice="grainy-both" aria-pressed="false">7안: 그레이니(둘 다)</button>
+  <button type="button" data-theme-choice="nebula-motion" aria-pressed="false">8안: 파스텔 은하수(움직임)</button>
+  <button type="button" data-theme-choice="watercolor-motion" aria-pressed="false">9안: 새벽하늘 구름(움직임)</button>
 </div>
 
 <!-- 교사 메인화면 -->
@@ -461,12 +510,13 @@
     <div class="t-main">
       <section class="hero" aria-labelledby="class-constellation-title">
         <div class="hero-grain" aria-hidden="true"><span></span><span></span><span></span></div>
-        <div>
+        <svg class="hero-sky" viewBox="0 0 1200 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"></svg>
+        <svg id="class-orbits" class="hero-constellation" viewBox="0 0 380 200" preserveAspectRatio="xMaxYMid meet" role="img" aria-label="우리 반 별자리. 별 24개 가운데 17개가 켜져 있어요"></svg>
+        <div class="hero-copy">
           <p>5학년 3반 · 11월 20일</p>
           <h1 id="class-constellation-title">오늘 우리 반의 별자리</h1>
           <strong class="hero-progress">17 <small>/ 24명 완료</small></strong>
         </div>
-        <svg id="class-orbits" viewBox="0 0 270 180" role="img" aria-label="24명 중 17명 완료. 켜진 별 17개, 흐린 점 7개"></svg>
       </section>
       <section class="composer" aria-label="빠른 기록">
         <div class="composer-row">
@@ -608,12 +658,13 @@
     <main class="s-main">
       <section class="hero" aria-labelledby="my-constellation-title">
         <div class="hero-grain" aria-hidden="true"><span></span><span></span><span></span></div>
-        <div>
+        <svg class="hero-sky" viewBox="0 0 1200 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"></svg>
+        <svg id="my-orbits" class="hero-constellation" viewBox="0 0 380 200" preserveAspectRatio="xMaxYMid meet" role="img"></svg>
+        <div class="hero-copy">
           <p>오늘 할 일</p>
           <h1 id="my-constellation-title">오늘 내 별자리</h1>
           <strong class="hero-progress"><span id="my-star-count"></span> <small id="my-star-total"></small></strong>
         </div>
-        <svg id="my-orbits" viewBox="0 0 270 180" role="img"></svg>
       </section>
       <section class="profile" aria-label="내 프로필">
         <div class="profile-top">
@@ -729,40 +780,111 @@
   document.body.dataset.view = view;
   document.title = (view === 'student' ? '학생 메인화면' : '교사 메인화면') + ' · 오늘의 별 시안';
 
-  function drawConstellation(svg, groups, isLit) {
-    const ns = 'http://www.w3.org/2000/svg';
-    const add = (name, attributes) => {
-      const node = document.createElementNS(ns, name);
-      for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
-      svg.append(node);
-    };
-    const cx = 142, cy = 90;
-    add('path', {d:'M 24 90 H 260 M 142 10 V 170', class:'orbit-axis'});
-    const points = [];
-    for (const [r, count, start] of groups) {
-      add('circle', {cx, cy, r, class:'orbit'});
-      for (let index = 0; index < count; index++) {
-        const angle = start + index * Math.PI * 2 / count;
-        points.push([cx + r * Math.cos(angle), cy + r * Math.sin(angle)]);
-      }
+  /* ── 히어로 밤하늘 그리기 ──
+     동심원 궤도는 쓰지 않는다. 별가루를 깔고, 실제 별자리처럼 자유로운 좌표의
+     별들을 가는 금빛 선으로 이어 붙인다. */
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function addNode(parent, name, attributes, style) {
+    const node = document.createElementNS(SVG_NS, name);
+    for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+    if (style) for (const [key, value] of Object.entries(style)) node.style.setProperty(key, value);
+    parent.append(node);
+    return node;
+  }
+
+  // 별 24개 = 우리 반 학생. lit는 오늘 할 일을 마친 별(17개)
+  const CONSTELLATIONS = [
+    {
+      stars: [[196,52],[232,38],[268,46],[296,70],[262,84],[228,74],[204,88],[250,104],[292,96]],
+      edges: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[5,7],[7,8]],
+      lit: [1,1,1,1,1,0,1,1,0],
+    },
+    {
+      stars: [[96,140],[132,132],[146,158],[108,168],[70,126],[54,104],[62,82],[152,112]],
+      edges: [[0,1],[1,2],[2,3],[3,0],[0,4],[4,5],[5,6],[1,7]],
+      lit: [1,1,1,0,1,0,1,0],
+    },
+    {
+      stars: [[196,150],[232,166],[272,156],[306,172],[338,158],[268,138],[300,132]],
+      edges: [[0,1],[1,2],[2,3],[3,4],[2,5],[5,6]],
+      lit: [1,1,1,1,1,0,0],
+    },
+  ];
+
+  function drawCluster(parent, cluster, opacity) {
+    const group = addNode(parent, 'g', opacity === 1 ? {} : {opacity});
+    for (const [from, to] of cluster.edges) {
+      const a = cluster.stars[from], b = cluster.stars[to];
+      if (!a || !b) continue;
+      const d = `M ${a[0]} ${a[1]} L ${b[0]} ${b[1]}`;
+      addNode(group, 'path', {d, class:'constellation-halo'});
+      addNode(group, 'path', {d, class:'constellation-line'});
     }
-    points.forEach(([x, y], index) => {
-      const lit = isLit(index);
-      if (lit) add('circle', {cx:x, cy:y, r:7, class:'star-glow', 'aria-hidden':'true'});
-      add('circle', {cx:x, cy:y, r:lit ? 3 : 2.6, class:lit ? 'star-point is-lit' : 'star-point', 'aria-hidden':'true'});
+    cluster.stars.forEach(([x, y], index) => {
+      const lit = cluster.lit[index];
+      if (lit) addNode(group, 'circle', {cx:x, cy:y, r:5.6, class:'star-glow'});
+      addNode(group, 'circle', {cx:x, cy:y, r:lit ? 2.6 : 1.7, class:lit ? 'star-point is-lit' : 'star-point'});
     });
   }
 
-  drawConstellation(document.getElementById('class-orbits'),
-    [[29,6,.3], [52,8,-.72], [77,10,-1.08]], index => (index * 5) % 24 < 17);
+  // 네 갈래 반짝임(✦)
+  function drawSparkle(parent, x, y, size, opacity) {
+    const t = size * 0.12;
+    const d = `M ${x} ${y - size} C ${x + t} ${y - t} ${x + t} ${y - t} ${x + size} ${y} `
+      + `C ${x + t} ${y + t} ${x + t} ${y + t} ${x} ${y + size} `
+      + `C ${x - t} ${y + t} ${x - t} ${y + t} ${x - size} ${y} `
+      + `C ${x - t} ${y - t} ${x - t} ${y - t} ${x} ${y - size} Z`;
+    addNode(parent, 'path', {d, fill:'#F6E3B4', opacity});
+  }
+
+  function drawDust(svg, count, seed) {
+    let state = seed;
+    const random = () => (state = (state * 1664525 + 1013904223) % 4294967296) / 4294967296;
+    for (let index = 0; index < count; index++) {
+      const x = +(random() * 1200).toFixed(1);
+      const y = +(random() * 240).toFixed(1);
+      const size = +(0.4 + Math.pow(random(), 2.4) * 1.4).toFixed(2);
+      const gold = random() < 0.14;
+      const twinkle = random() < 0.16;
+      addNode(svg, 'circle', {
+        cx:x, cy:y, r:size,
+        fill:gold ? '#D4B06A' : '#F8F6EE',
+        opacity:+(0.16 + random() * 0.58).toFixed(2),
+        class:twinkle ? 'sky-dust is-twinkle' : 'sky-dust',
+      }, twinkle ? {'animation-delay':`${(-random() * 5).toFixed(2)}s`, 'animation-duration':`${(3.6 + random() * 3).toFixed(2)}s`} : null);
+    }
+  }
+
+  /* 교사 화면: 별 24개짜리 별자리 세 무리 */
+  drawDust(document.querySelector('.screen-teacher .hero-sky'), 340, 20261124);
+  const classSky = document.getElementById('class-orbits');
+  CONSTELLATIONS.forEach(cluster => drawCluster(classSky, cluster, 1));
+  drawSparkle(classSky, 348, 44, 8, .85);
+  drawSparkle(classSky, 124, 76, 5.6, .62);
+  drawSparkle(classSky, 330, 182, 6.2, .7);
+  drawSparkle(classSky, 60, 40, 4.4, .5);
+
+  /* 학생 화면: 내 할 일 개수만큼의 별이 하나의 별자리로 이어진다 */
   const tasks = document.querySelectorAll('.s-main .tasks > div');
   const completed = [...tasks].filter(task => task.classList.contains('is-done')).length;
   document.getElementById('my-star-count').textContent = completed;
   document.getElementById('my-star-total').textContent = `/ ${tasks.length}개 완료`;
-  const personalOrbit = document.getElementById('my-orbits');
-  personalOrbit.setAttribute('aria-label', `할 일 ${tasks.length}개 중 ${completed}개 완료`);
-  drawConstellation(personalOrbit, [[29,0,0], [52,0,0], [77,tasks.length,-2.42]],
-    index => index < completed);
+  const personalSky = document.getElementById('my-orbits');
+  personalSky.setAttribute('aria-label', `내 별자리. 할 일 ${tasks.length}개 중 ${completed}개 완료`);
+  drawDust(document.querySelector('.screen-student .hero-sky'), 260, 20261109);
+  // 뒤편에 흐릿하게 깔리는 먼 별자리 (꾸밈)
+  drawCluster(personalSky, {...CONSTELLATIONS[1], lit: CONSTELLATIONS[1].lit.map(() => 0)}, .16);
+  drawCluster(personalSky, {...CONSTELLATIONS[2], lit: CONSTELLATIONS[2].lit.map(() => 0)}, .16);
+  const myStars = [[214,58],[268,44],[316,74],[338,120],[292,140],[238,132],[186,104]];
+  const myTotal = Math.max(1, tasks.length);
+  const myCluster = {
+    stars: myStars.slice(0, myTotal),
+    edges: myStars.slice(0, myTotal).map((_, index) => [index, index + 1]).filter(([, to]) => to < myTotal),
+    lit: myStars.slice(0, myTotal).map((_, index) => (index < completed ? 1 : 0)),
+  };
+  drawCluster(personalSky, myCluster, 1);
+  drawSparkle(personalSky, 356, 158, 7, .8);
+  drawSparkle(personalSky, 168, 40, 5, .55);
 </script>
 </body>
 </html>
