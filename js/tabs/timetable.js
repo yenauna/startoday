@@ -1,10 +1,11 @@
-import { render } from '../app.js';
+import { render, setScheduleManage } from '../app.js';
 import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, settings, students, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
 import { $, badge, btn, checkbox, esc, input, opts, run, select, textarea, toast, undoToast, quickMemoBar } from '../shared/ui.js';
-import { assignmentEditor } from './assignments.js';
+import { assignmentActions, assignmentEditor, assignmentsView, completeAll, scheduleAssignmentsCard } from './assignments.js';
+import { routinesView, scheduleRoutinesCard } from './routines.js';
 export function periodInfo(slot) {
   const catalog = C.subjectCatalog(db());
   const rule = db().subject_rules.find(x => x.code === slot?.subjectCode) || [...catalog.regular, ...catalog.special].find(x => x.code === slot?.subjectCode);
@@ -21,6 +22,8 @@ export function periodInfo(slot) {
   };
 }
 export function timeSlots(d, calendar = false, registeredOnly = false, audience = 'teacher') {
+  // 좁은 달력 칸에서는 수업이 있는 교시만 한 줄로 보여 준다. '자세히'를 켜면 교시별 전체 줄이 나온다.
+  const compact = calendar && !state.calendarFilters.detail;
   const lessonSlots = Array.from({
     length: 6
   }, (_, i) => {
@@ -29,12 +32,14 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
       info = periodInfo(slot),
       events = C.calendarEvents(db()).filter(e => e.date === d && e.period === p);
     if (registeredOnly && !slot && !events.length) return '';
+    // 달력 칸에는 실제 수업만 그린다. 빈 교시는 오른쪽 시간표 카드에서 채운다.
+    if (calendar && !slot && !events.length) return '';
     const memo = slot?.publicMemo ?? slot?.memo ?? '';
     const privateMemo = audience === 'teacher' ? slot?.privateMemo || '' : C.sameDayMemo(slot, d);
     const teacherMemo = audience === 'teacher' ? slot?.teacherMemo || '' : '';
     const subject = slot ? calendar && !state.calendarFilters.detail ? info.rule?.label || slot.subjectCode[0] : slot.subjectCode : '';
     const time = settings().periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i];
-    const periodRow = `<div class="slot-period-row"><span class="slot-time">${p}교시</span><small class="slot-clock">${esc(C.formatTimeRange(time))}</small></div>`;
+    const periodRow = compact ? `<span class="slot-period-row"><span class="slot-time">${p}</span></span>` : `<div class="slot-period-row"><span class="slot-time">${p}교시</span><small class="slot-clock">${esc(C.formatTimeRange(time))}</small></div>`;
     const memoIndicator = calendar && (memo || privateMemo || teacherMemo || events.length) ? '<sup class="slot-memo-indicator" aria-label="메모 있음">*</sup>' : '';
     const subjectTitle = subject ? `<strong class="subject-title">${esc(subject)}${memoIndicator}</strong>` : '';
     const memoHtml = `${memo ? `<span class="slot-public-memo">${audience === 'teacher' ? '📢 ' : ''}${esc(memo)}</span>` : ''}${privateMemo ? `<span class="slot-same-day-memo">${esc(privateMemo)}</span>` : ''}${teacherMemo ? `<span class="slot-teacher-memo">🔒 ${esc(teacherMemo)}</span>` : ''}`;
@@ -44,7 +49,7 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
       dayEditor(d,'시간표',p);
     },'slot-main');
     const eventLinks = events.map(event => event.id && db().events.some(row=>row.id===event.id) ? btn(esc(event.title)+(event.description ? `<small>${esc(event.description)}</small>` : ''),()=>dayEditor(d,'일정',null,event),'slot-event-link timeline-event'+(event.isImportant!==false?' is-important':' is-ordinary')) : `<span class="slot-event-label">${esc(event.title)}</span>`).join('');
-    return `<div class="slot${calendar ? ' calendar-lesson' : ''}${slot ? ' subject-color subject-stripe' : ''}" ${slot ? `style="${C.subjectColorStyle(info.rule || slot.subjectCode)}"` : ''} title="${esc(slot?.subjectCode || '')}" draggable="${!!slot}" data-drag="${d}:${p}" data-drop="${d}:${p}">${calendar ? '' : periodRow}<div class="slot-subject-row">${main}<div class="slot-memos">${memoHtml}${eventLinks}</div></div></div>`;
+    return `<div class="slot${calendar ? ' calendar-lesson' : ''}${compact ? ' calendar-lesson-chip' : ''}${slot ? ' subject-color subject-stripe' : ''}" ${slot ? `style="${C.subjectColorStyle(info.rule || slot.subjectCode)}"` : ''} title="${esc(slot?.subjectCode || '')}" draggable="${!!slot}" data-drag="${d}:${p}" data-drop="${d}:${p}">${calendar ? '' : periodRow}<div class="slot-subject-row">${main}<div class="slot-memos">${memoHtml}${eventLinks}</div></div></div>`;
   });
   return C.dayTimeline(db(), d).map(part => part.type === 'lesson' ? lessonSlots[part.period - 1] : part.events.length && (!calendar || state.calendarFilters.events) ? `<div class="timeline-slot timeline-${part.period}" data-timeline-period="${part.period}"><strong>${{
     0: '아침',
@@ -56,50 +61,131 @@ function calendarDayDetails(date) {
   const events = C.calendarEvents(db()).filter(event => event.date === date);
   modal(C.formatDate(date) + ' · 시간표와 메모', timeSlots(date) + events.map(event => btn(esc(event.title) + (event.description ? `<small>${esc(event.description)}</small>` : ''), () => dayEditor(date, '일정', null, event), 'event')).join(''));
 }
+const SCHEDULE_FILTERS = [['time', '시간표'], ['events', '행사'], ['tasks', '과제'], ['routines', '루틴'], ['detail', '자세히']];
+export function selectScheduleDay(d) {
+  state.date = d;
+  state.calendarDate = d;
+  render();
+}
+function questDayTag(a, d) {
+  if (a.endDate && d === a.endDate) return '마감';
+  if (d === a.date) return '진행';
+  return '';
+}
+function eventPeriodLabel(period) {
+  return period == null ? '' : period === 0 ? '아침' : period === 7 ? '점심' : period === 8 ? '방과후' : period + '교시';
+}
+function calendarEventPill(d, event) {
+  return btn(esc(event.title) + (event.description ? `<small class="event-description">${esc(event.description)}</small>` : '') + (event.isDday ? ' ' + badge(C.dday(event.date)) : ''), () => dayEditor(d, '일정', null, event), 'event' + (event.isImportant !== false ? ' is-important' : ' is-ordinary'));
+}
+function calendarTaskPill(d, a) {
+  const targets = students().filter(s => C.targeted(a, s.id) && !C.excluded(db(), s.id, d)),
+    done = targets.filter(s => ['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, d, s.id))).length;
+  return `<div class="taskline">${btn(esc(a.title) + ` <small>${done}/${targets.length}</small>`, () => {
+    state.date = d;
+    state.calendarDate = d;
+    render();
+    assignmentActions(a, d);
+  }, 'task calendar-task' + (done < targets.length ? ' has-incomplete' : ''))}</div>`;
+}
+function calendarQuestPill(d, a) {
+  return `<div class="schedule-quest-line">${btn(`🏅 ${esc(a.title)} <small>${questDayTag(a, d)}</small>`, () => {
+    state.date = d;
+    state.calendarDate = d;
+    render();
+    assignmentActions(a, d);
+  }, 'calendar-task calendar-quest')}</div>`;
+}
+function scheduleDayCell(d) {
+  const filters = state.calendarFilters,
+    events = C.calendarEvents(db()).filter(e => e.date === d && C.eventTimePeriod(e) == null),
+    tasks = filters.tasks ? db().assignments.filter(a => !a.deletedAt && !a.isQuest && C.occurs(a, d)) : [],
+    quests = filters.tasks ? db().assignments.filter(a => !a.deletedAt && a.isQuest && questDayTag(a, d)) : [],
+    exempt = filters.routines ? db().routines.filter(r => !r.deletedAt && r.exceptions?.[d]?.exempt) : [];
+  return `<div class="day schedule-day${d.slice(0, 7) !== state.calendarDate.slice(0, 7) ? ' faded' : ''}${d === C.today() ? ' today' : ''}${d === state.date ? ' selected-day' : ''}" data-schedule-date="${d}">
+    <div class="schedule-day-top">${btn(`<span>${Number(d.slice(-2))}${state.calendarMode === 'week' ? '일' : ''}</span>`, () => selectScheduleDay(d), 'day-head schedule-day-select', `aria-label="${esc(C.formatDate(d))} 선택" aria-pressed="${d === state.date}"`)}${btn('메모', () => calendarDayDetails(d), 'calendar-day-details', 'aria-label="메모 상세" title="메모 상세"')}${btn('＋', () => dayEditor(d), 'calendar-day-add', `aria-label="${esc(C.formatDate(d))} 일정 추가" title="일정 추가"`)}</div>
+    ${filters.events ? events.map(e => calendarEventPill(d, e)).join('') : ''}
+    ${filters.time ? timeSlots(d, true) : ''}
+    ${tasks.map(a => calendarTaskPill(d, a)).join('')}
+    ${quests.map(a => calendarQuestPill(d, a)).join('')}
+    ${exempt.length ? `<div class="routine-exempt-line">🚫 루틴 쉬는 날${exempt.length > 1 ? ` <small>${exempt.length}</small>` : ''}</div>` : ''}
+  </div>`;
+}
+function scheduleEventRow(d, e) {
+  const when = eventPeriodLabel(C.eventTimePeriod(e)) || '종일';
+  return btn(`<span class="schedule-event-when">${when}</span><span class="schedule-event-body"><strong>${esc(e.title)}</strong>${e.description ? `<small>${esc(e.description)}</small>` : ''}</span>${e.isDday ? badge(C.dday(e.date)) : ''}`, () => dayEditor(d, '일정', null, e), 'schedule-event-row' + (e.isImportant !== false ? ' is-important' : ' is-ordinary'));
+}
+// 오른쪽 첫 카드: 선택 날짜의 행사와 교시별 시간표·메모.
+function scheduleEventsCard() {
+  const d = state.date,
+    events = C.calendarEvents(db()).filter(e => e.date === d).sort((a, b) => (C.eventTimePeriod(a) ?? -1) - (C.eventTimePeriod(b) ?? -1));
+  const periods = Array.from({ length: 6 }, (_, i) => i + 1).map(p => {
+    const slot = db().timetables.find(t => t.date === d && t.period === p),
+      info = periodInfo(slot),
+      time = settings().periodTimes?.[p - 1] || C.DEFAULT_PERIOD_TIMES[p - 1],
+      memo = slot?.publicMemo ?? slot?.memo ?? '',
+      sameDayMemo = slot?.privateMemo || '',
+      teacherMemo = slot?.teacherMemo || '';
+    return `<div class="schedule-period${slot ? ' has-lesson' : ''}" data-drop="${d}:${p}" ${slot ? `data-drag="${d}:${p}" draggable="true"` : ''}>${btn(`<span class="schedule-period-no">${p}</span><strong>${slot ? esc(slot.subjectCode) : '수업 없음'}</strong><small class="schedule-period-time">${esc(C.formatTimeRange(time))}</small>`, () => {
+      if (state.dragSlot) {
+        const from = state.dragSlot;
+        state.dragSlot = null;
+        swapSlots(from, `${d}:${p}`);
+        return;
+      }
+      timetableEditor(d, p);
+    }, 'schedule-period-main' + (slot ? '' : ' is-empty'), slot ? `style="${C.subjectColorStyle(info.rule || slot.subjectCode)}"` : '')}${slot && (memo || sameDayMemo || teacherMemo) ? `<div class="schedule-period-memos">${memo ? `<span class="schedule-memo public" title="메모1 · 학생 공개">📢 ${esc(memo)}</span>` : ''}${sameDayMemo ? `<span class="schedule-memo same-day" title="메모2 · 당일 공개">🗒 ${esc(sameDayMemo)}</span>` : ''}${teacherMemo ? `<span class="schedule-memo teacher" title="메모3 · 교사 전용">🔒 ${esc(teacherMemo)}</span>` : ''}</div>` : ''}</div>`;
+  }).join('');
+  return `<section class="panel schedule-card schedule-card-events" aria-labelledby="schedule-events-title"><div class="schedule-card-head"><h3 id="schedule-events-title">일정 <small>${esc(C.formatDate(d))}</small></h3><div class="row schedule-card-actions">${btn('+ 일정', () => dayEditor(d), 'primary schedule-add')}</div></div>
+    <div class="schedule-event-list">${events.map(e => scheduleEventRow(d, e)).join('') || '<p class="muted schedule-empty">등록된 일정이 없습니다.</p>'}</div>
+    <h4 class="schedule-subhead">시간표</h4>
+    <div class="schedule-periods">${periods}</div>
+  </section>`;
+}
+function scheduleManagePanel() {
+  const manage = state.scheduleManage;
+  if (manage !== '과제' && manage !== '루틴') return '';
+  return `<div class="schedule-manage" id="schedule-manage"><div class="schedule-manage-bar"><small>${esc(manage)} 전체 목록과 날짜별 관리 화면입니다. 닫으면 일정 화면으로 돌아갑니다.</small>${btn('닫기', () => setScheduleManage(''), 'schedule-manage-close')}</div>${manage === '과제' ? assignmentsView(true) : routinesView(true)}</div>`;
+}
 export function calendarView() {
   const first = state.calendarDate.slice(0, 7) + '-01',
     start = state.calendarMode === 'month' ? C.addDays(first, -((C.weekday(first) + 6) % 7)) : C.addDays(state.calendarDate, -((C.weekday(state.calendarDate) + 6) % 7)),
     days = state.calendarMode === 'month' ? 42 : 5;
   const heads = state.calendarMode === 'month' ? ['월', '화', '수', '목', '금', '토', '일'] : ['월', '화', '수', '목', '금'];
-  return `<div class="toolbar"><div><h2>일정</h2><small>종일 일정 · 교시별 수업과 행사 · 마감 과제</small></div><div class="row">${btn('‹', () => {
-    if (state.calendarMode === 'week') state.calendarDate = C.addDays(state.calendarDate, -7);else {
-      const dt = new Date(first + 'T12:00Z');
-      dt.setUTCMonth(dt.getUTCMonth() - 1);
-      state.calendarDate = dt.toISOString().slice(0, 10);
-    }
+  const shiftMonth = amount => {
+    const dt = new Date(first + 'T12:00Z');
+    dt.setUTCMonth(dt.getUTCMonth() + amount);
+    state.calendarDate = dt.toISOString().slice(0, 10);
     render();
-  })}<strong>${esc(state.calendarMode === 'month' ? state.calendarDate.slice(0, 7).replace('-', '.') : C.formatDate(start) + ' 주간')}</strong>${btn('›', () => {
-    if (state.calendarMode === 'week') state.calendarDate = C.addDays(state.calendarDate, 7);else {
-      const dt = new Date(first + 'T12:00Z');
-      dt.setUTCMonth(dt.getUTCMonth() + 1);
-      state.calendarDate = dt.toISOString().slice(0, 10);
-    }
-    render();
-  })}${btn('오늘', () => {
+  };
+  return `<div class="toolbar schedule-toolbar"><div><h2>일정</h2><small>시간표·행사·과제·루틴을 한 화면에서 봅니다. 날짜를 누르면 오른쪽 카드가 그 날짜로 바뀝니다.</small></div><div class="row schedule-toolbar-nav">${btn('‹', () => {
+    if (state.calendarMode === 'week') {
+      state.calendarDate = C.addDays(state.calendarDate, -7);
+      render();
+    } else shiftMonth(-1);
+  }, 'schedule-nav', 'aria-label="이전 기간"')}<strong class="schedule-period-title">${esc(state.calendarMode === 'month' ? state.calendarDate.slice(0, 7).replace('-', '.') : C.formatDate(start) + ' 주간')}</strong>${btn('›', () => {
+    if (state.calendarMode === 'week') {
+      state.calendarDate = C.addDays(state.calendarDate, 7);
+      render();
+    } else shiftMonth(1);
+  }, 'schedule-nav', 'aria-label="다음 기간"')}${btn('오늘', () => {
     state.calendarDate = C.today();
+    state.date = C.today();
     render();
   })}${btn(state.calendarMode === 'month' ? '주간 보기' : '월간 보기', () => {
     state.calendarMode = state.calendarMode === 'month' ? 'week' : 'month';
     render();
-  })}${btn('기본안 일괄 배포', bulkTimetable)}${btn('시수 계산', hoursDialog)}</div></div><div class="row" style="margin-bottom:14px">${[['events', '종일 일정'], ['time', '시간표'], ['tasks', '과제'], ['detail', '자세히 보기']].map(([key, label]) => btn((state.calendarFilters[key] ? '✓ ' : '') + label, () => {
+  })}${btn('기본안 일괄 배포', bulkTimetable)}${btn('시수 계산', hoursDialog)}</div></div>
+  <div class="row schedule-filters" role="group" aria-label="달력에 표시할 항목">${SCHEDULE_FILTERS.map(([key, label]) => btn((state.calendarFilters[key] ? '✓ ' : '') + label, () => {
     state.calendarFilters[key] = !state.calendarFilters[key];
     render();
-  }, state.calendarFilters[key] ? 'primary' : '')).join('')}<small>수업을 드래그해 교체 · 터치는 길게 누른 후 대상 교시 선택</small></div>${C.calendarEvents(db()).some(event => event.date === C.today()) ? '' : '<div class="empty-calendar-notice" style="color:var(--st-text-muted); font-size:13px; padding:8px 0;">오늘 등록된 일정이 없습니다.</div>'}<div class="table-wrap"><div class="calendar ${state.calendarMode === 'week' ? 'week' : ''}">${heads.map(h => `<div class="weekday">${h}</div>`).join('')}${Array.from({
-    length: days
-  }, (_, i) => {
-    const d = C.addDays(start, i),
-      events = C.calendarEvents(db()).filter(e => e.date === d && C.eventTimePeriod(e) == null),
-      tasks = db().assignments.filter(a => C.occurs(a, d));
-    return `<div class="day ${d.slice(0, 7) !== state.calendarDate.slice(0, 7) ? 'faded' : ''} ${d === C.today() ? 'today' : ''}">${btn(`<span>${Number(d.slice(-2))}${state.calendarMode === 'week' ? '일' : ''}</span><small>＋</small>`, () => dayEditor(d), 'day-head')}${btn('메모 상세', () => calendarDayDetails(d), 'calendar-day-details')}${state.calendarFilters.events ? events.map(e => btn(esc(e.title) + (e.description ? `<small class="event-description">${esc(e.description)}</small>` : '') + (e.isDday ? ' ' + badge(C.dday(e.date)) : ''), () => dayEditor(d, '일정', null, e), 'event' + (e.isImportant !== false ? ' is-important' : ' is-ordinary'))).join('') : ''}${state.calendarFilters.time ? timeSlots(d, true) : ''}${state.calendarFilters.tasks ? tasks.map(a => {
-      const targets = students().filter(s => C.targeted(a, s.id) && !C.excluded(db(), s.id, d)),
-        done = targets.filter(s => ['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, d, s.id))).length;
-      return `<div class="taskline">${btn(esc(a.title) + ` <small>${done}/${targets.length}</small>`, () => {
-        state.date = d;
-        state.tab = '과제';
-        render();
-      }, 'task calendar-task' + (done < targets.length ? ' has-incomplete' : ''))}</div>`;
-    }).join('') : ''}</div>`;
-  }).join('')}</div></div>`;
+  }, 'schedule-filter' + (state.calendarFilters[key] ? ' is-on' : ''), `aria-pressed="${!!state.calendarFilters[key]}"`)).join('')}<small class="schedule-filter-hint">${state.calendarFilters.detail ? '수업을 드래그해 교체 · 터치는 길게 누른 후 대상 교시 선택' : '수업 칩을 끌어 교체 · 날짜를 눌러 오른쪽 카드에서 메모 확인'}</small></div>
+  <p class="schedule-mobile-hint">달력은 옆으로 넘겨서 볼 수 있어요. 날짜를 누르면 아래 카드가 그 날짜로 바뀝니다.</p>
+  <div class="schedule-unified${state.calendarMode === 'week' ? ' is-week' : ''}">
+    <section class="panel schedule-calendar-panel" aria-label="통합 달력"><div class="table-wrap"><div class="calendar ${state.calendarMode === 'week' ? 'week' : ''}">${heads.map(h => `<div class="weekday">${h}</div>`).join('')}${Array.from({ length: days }, (_, i) => scheduleDayCell(C.addDays(start, i))).join('')}</div></div></section>
+    <div class="schedule-side">${scheduleEventsCard()}${scheduleAssignmentsCard()}${scheduleRoutinesCard()}</div>
+    ${scheduleManagePanel()}
+  </div>`;
 }
 export function dayEditor(d, mode = '일정', period = 1, event = null) {
   if (event?.academic) {

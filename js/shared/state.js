@@ -20,8 +20,13 @@ export const state = {
     events: true,
     time: true,
     tasks: true,
+    routines: true,
     detail: true
   },
+  // '' | '과제' | '루틴' — the old full screens now open inside the unified 일정 tab.
+  scheduleManage: '',
+  scheduleTaskOpen: {},
+  scheduleRoutineOpen: {},
   recordFilters: {
     from: C.today(),
     to: C.today(),

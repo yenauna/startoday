@@ -12,27 +12,43 @@ import { installGlobalEvents } from './shared/events.js';
 import { state, store } from './shared/state.js';
 import { classroomLocked } from './shared/classroom-lock.js';
 import { $, toast } from './shared/ui.js';
-import { assignmentsView } from './tabs/assignments.js';
 import { dashboard } from './tabs/dashboard.js';
 import { recordsView } from './tabs/records.js';
-import { routinesView } from './tabs/routines.js';
 import { seatsView } from './tabs/seats.js';
 import { settingsView, refreshRosterNicknames } from './tabs/settings.js';
 import { studentsView } from './tabs/students.js';
 import { bindTimetableDrag, calendarView } from './tabs/timetable.js';
 import { classroom } from './tabs/classroom.js';
+import { designView } from './tabs/design-preview.js';
 import { toolsView, syncToolsVisibility } from './tabs/tools.js';
 import { renderStudentShell, studentSnapshot, studentViewScrollKey } from './tabs/student-view.js';
 if (window.top !== window.self) {
   document.documentElement.innerHTML = '';
   location.replace('about:blank');
 }
-const teacherTabs = ['대시보드', '기록', '사건', '시간표·일정', '과제', '루틴', '경제', '통계', '수업도구', '자리', '설정'];
+// 일정·과제·루틴은 하나의 '일정' 탭으로 합쳤다. 옛 주소(#시간표·일정, #과제, #루틴)는 같은 탭으로 이어진다.
+const teacherTabs = ['대시보드', '기록', '사건', '일정', '경제', '통계', '수업도구', '자리', '설정', '디자인'];
+const legacyTabAliases = {
+  '시간표·일정': '일정',
+  '과제': '일정',
+  '루틴': '일정'
+};
 export function navigate(tab) {
-  state.tab = tab === '학생' ? '통계' : tab;
-  if (!teacherTabs.includes(state.tab)) state.tab = '대시보드';
-  history.pushState(null, '', '#' + encodeURIComponent(state.tab === '시간표·일정' ? '일정' : state.tab));
+  if (tab === '학생') tab = '통계';
+  const manage = tab === '과제' || tab === '루틴' ? tab : '';
+  const resolved = legacyTabAliases[tab] || tab;
+  state.tab = teacherTabs.includes(resolved) ? resolved : '대시보드';
+  state.scheduleManage = state.tab === '일정' ? manage : '';
+  history.pushState(null, '', '#' + encodeURIComponent(manage || state.tab));
   render();
+}
+// The 전체 관리 panel lives inside the 일정 tab; opening it keeps the tab address in place.
+export function setScheduleManage(manage = '') {
+  state.scheduleManage = manage === '과제' || manage === '루틴' ? manage : '';
+  state.tab = '일정';
+  history.replaceState(null, '', '#' + encodeURIComponent(state.scheduleManage || '일정'));
+  render();
+  if (state.scheduleManage) requestAnimationFrame?.(() => document.getElementById?.('schedule-manage')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
 }
 function readTabHash() {
   let tab;
@@ -42,9 +58,11 @@ function readTabHash() {
     return;
   }
   if (tab === '학생') tab = '통계';
-  if (tab === '일정') tab = '시간표·일정';
-  if (teacherTabs.includes(tab)) {
-    state.tab = tab;
+  const manage = tab === '과제' || tab === '루틴' ? tab : '';
+  const resolved = legacyTabAliases[tab] || tab;
+  if (teacherTabs.includes(resolved)) {
+    state.tab = resolved;
+    if (resolved === '일정') state.scheduleManage = manage;
     if (tab === '통계') history.replaceState(null, '', '#' + encodeURIComponent('통계'));
   }
 }
@@ -94,6 +112,11 @@ export function render() {
     return;
   }
   document.title = state.tab === '통계' ? '통계 · 오늘의 별' : '오늘의 별';
+  // 합치기 전 탭 이름으로 상태를 잡은 화면이나 저장된 상태도 같은 일정 화면으로 이어진다.
+  if (state.tab === '시간표·일정' || state.tab === '과제' || state.tab === '루틴') {
+    state.scheduleManage = state.tab === '과제' || state.tab === '루틴' ? state.tab : state.scheduleManage || '';
+    state.tab = '일정';
+  }
   const selectionBefore = captureSelectionMotion();
   $('#app').innerHTML = renderShell(renderTab);
   bindQuickInput();
@@ -146,17 +169,16 @@ initNebulaParallax();
 setupPwa();
 boot();
 function renderTab() {
-  return {
+  return ({
     '대시보드': dashboard,
     '기록': recordsView,
     '사건': incidentsView,
-    '시간표·일정': calendarView,
-    '과제': assignmentsView,
-    '루틴': routinesView,
+    '일정': calendarView,
     '통계': studentsView,
     '경제': economyView,
     '수업도구': toolsView,
     '자리': seatsView,
-    '설정': settingsView
-  }[state.tab]();
+    '설정': settingsView,
+    '디자인': designView
+  }[state.tab] || dashboard)();
 }

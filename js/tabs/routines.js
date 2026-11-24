@@ -1,4 +1,4 @@
-import { render } from '../app.js';
+import { render, setScheduleManage } from '../app.js';
 import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, name, students, up } from '../shared/data.js';
@@ -36,10 +36,10 @@ export async function setRoutine(r, d, s, status) {
   await commit([up('routineStates', row)], '');
 }
 let routineMonth = '';
-export function routinesView() {
+export function routinesView(embedded = false) {
   const routines = db().routines.filter(r => !r.deletedAt).sort((a, b) => a.sortOrder - b.sortOrder);
   if (!routineMonth) routineMonth = state.date.slice(0, 7);
-  return `<div class="toolbar"><div><h2>루틴</h2><small>반복할 루틴과 날짜별 예외를 관리합니다. 점수에는 영향을 주지 않습니다.</small></div>${btn('+ 루틴', () => routineEditor(), 'primary')}</div><section class="panel"><div class="toolbar"><h3>${esc(routineMonth.replace('-', '.'))}</h3><div class="row">${btn('이전 달', () => changeRoutineMonth(-1))}${btn('오늘', () => {
+  return `<div class="toolbar"><div>${embedded ? '<h3>루틴 전체 목록</h3>' : '<h2>루틴</h2>'}<small>반복할 루틴과 날짜별 예외를 관리합니다. 점수에는 영향을 주지 않습니다.</small></div>${btn('+ 루틴', () => routineEditor(), 'primary')}</div><section class="panel"><div class="toolbar"><h3>${esc(routineMonth.replace('-', '.'))}</h3><div class="row">${btn('이전 달', () => changeRoutineMonth(-1))}${btn('오늘', () => {
     state.date = C.today();
     routineMonth = state.date.slice(0, 7);
     render();
@@ -86,7 +86,7 @@ function routineCalendar(routines) {
     }, 'routine-day' + (d === state.date ? ' selected' : '') + (d.slice(0, 7) !== routineMonth ? ' faded' : ''), `aria-label="${C.formatDate(d)} 루틴 예외" aria-pressed="${d === state.date}"`);
   }).join('')}</div>`;
 }
-async function bulkRoutine(r, status) {
+export async function bulkRoutine(r, status) {
   if (!confirm(`${r.title}: ${C.formatDate(state.date)} 대상 학생 전체를 ${status}으로 바꿀까요?`)) return;
   const target = students().filter(s => C.targeted(r, s.id) && !C.excluded(db(), s.id, state.date));
   if (r.exceptions?.[state.date]?.exempt) return toast('쉬는 날에는 기존 체크 이력을 변경하지 않습니다.');
@@ -123,4 +123,47 @@ function exceptionEditor(routines) {
       exceptions
     })]);
   })}</section>`;
+}
+
+// 선택 날짜의 루틴을 일정 탭 오른쪽 카드에서 바로 체크한다.
+export async function saveRoutineException(r, d, exempt, memo = '') {
+  const exceptions = { ...r.exceptions };
+  if (exempt) exceptions[d] = { exempt: true, memo: memo || '' };
+  else delete exceptions[d];
+  await commit([up('routines', { ...r, exceptions })]);
+}
+export function routineExceptionDialog(r, d) {
+  const current = r.exceptions?.[d];
+  modal(`${r.title} · ${C.formatDate(d)} 예외`, `<p class="muted">쉬는 날로 정하면 그 날짜의 루틴은 자동 면제되고, 이미 저장된 체크 이력은 바뀌지 않습니다.</p><label class="inline"><input type="checkbox" name="exempt" ${current?.exempt ? 'checked' : ''}>쉬는 날로 설정</label>${input('사유', 'memo', current?.memo || '', 'text', 'placeholder="체험학습 등"')}`, async f => {
+    await saveRoutineException(r, d, !!f.get('exempt'), String(f.get('memo') || '').trim());
+    closeModal();
+  }, '저장');
+}
+function routineRow(r, d, expanded) {
+  const exception = r.exceptions?.[d],
+    target = students().filter(s => C.targeted(r, s.id) && !C.excluded(db(), s.id, d)),
+    done = target.filter(s => C.routineStatus(db(), r.id, d, s.id) === '완료').length,
+    exempt = !!exception?.exempt;
+  return `<article class="schedule-routine${exempt ? ' is-exempt' : ''}" data-schedule-routine="${esc(r.id)}">
+    <div class="schedule-routine-head"><strong>${esc(r.title)}</strong><span class="schedule-routine-count">${exempt ? '🚫 쉬는 날' : '완료 ' + done + '/' + target.length}</span></div>
+    <div class="row schedule-routine-actions">${exempt ? btn('쉬는 날 해제', () => saveRoutineException(r, d, false)) : [btn('전체 완료', () => bulkRoutine(r, '완료')), btn('전체 면제', () => bulkRoutine(r, '면제')), btn('리셋', () => bulkRoutine(r, '진행중'))].join('')}${btn(exempt ? '사유 보기' : '쉬는 날', () => routineExceptionDialog(r, d), 'schedule-routine-exempt')}${btn(expanded ? '학생 접기' : '학생 체크', () => {
+    state.scheduleRoutineOpen = { ...(state.scheduleRoutineOpen || {}), [r.id]: !expanded };
+    render();
+  }, 'schedule-task-toggle', `aria-expanded="${expanded}"`)}</div>
+    ${exception?.memo ? `<small class="muted schedule-routine-memo">${esc(exception.memo)}</small>` : ''}
+    ${expanded ? `<div class="schedule-routine-students">${target.map(student => {
+    const status = C.routineStatus(db(), r.id, d, student.id);
+    return btn(`${student.no}. ${esc(student.name)}`, () => setRoutine(r, d, student.id, status === '완료' ? '진행중' : '완료'), 'routine-student' + (status === '완료' ? ' is-done' : ''), `aria-pressed="${status === '완료'}" data-routine-student="${esc(student.id)}"`);
+  }).join('') || '<p class="muted">대상 학생이 없습니다.</p>'}</div>` : ''}
+  </article>`;
+}
+export function scheduleRoutinesCard() {
+  const d = state.date,
+    open = state.scheduleRoutineOpen || {},
+    manage = state.scheduleManage === '루틴',
+    routines = db().routines.filter(r => !r.deletedAt).sort((a, b) => a.sortOrder - b.sortOrder);
+  return `<section class="panel schedule-card schedule-card-routines" aria-labelledby="schedule-routines-title">
+    <div class="schedule-card-head"><h3 id="schedule-routines-title">루틴 <small>${esc(C.formatDate(d))}</small></h3><div class="row schedule-card-actions">${btn('+ 루틴', () => routineEditor(), 'primary schedule-add')}${btn(manage ? '전체 관리 닫기' : '전체 관리', () => setScheduleManage(manage ? '' : '루틴'), 'schedule-manage-toggle' + (manage ? ' is-active' : ''), `aria-expanded="${manage}" aria-controls="schedule-manage"`)}</div></div>
+    <div class="schedule-routine-list">${routines.map(r => routineRow(r, d, !!open[r.id])).join('') || '<p class="muted schedule-empty">등록된 루틴이 없습니다. + 루틴으로 추가하세요.</p>'}</div>
+  </section>`;
 }

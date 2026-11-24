@@ -1952,3 +1952,135 @@ input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-s
 .student-profile-card .student-profile-controls{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
 .student-profile-card .student-profile-controls .student-wardrobe-open{position:static;min-width:36px;min-height:36px;padding:5px;margin:0}
 .student-profile-card .student-profile-edit{width:26px;min-width:26px;min-height:26px;height:26px;padding:2px 3px;margin:0}
+
+/* ── 일정 탭: 통합 달력 + 일정·과제·루틴 카드 ─────────────────────────── */
+.schedule-toolbar{margin-bottom:10px}
+.schedule-toolbar-nav{gap:6px}
+.schedule-period-title{min-width:86px;text-align:center;font-size:15px}
+.schedule-nav{min-width:34px;padding:6px 9px}
+.schedule-filters{gap:6px;margin:0 0 14px}
+.schedule-filter{min-height:32px;padding:4px 12px;font-size:13px;border-radius:var(--st-radius-pill);border-color:transparent;background:var(--st-gray-bg);color:var(--st-gray-text);box-shadow:none}
+.schedule-filter.is-on{background:var(--st-blue-bg);color:var(--st-blue-text);box-shadow:var(--st-surface-light),0 0 0 2px var(--st-selected-ring)}
+.schedule-filter-hint{margin-left:auto;color:var(--st-text-muted);font-size:12px}
+.schedule-unified{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+@media(min-width:1101px){
+  .schedule-unified{grid-template-columns:minmax(0,1fr) minmax(320px,380px)}
+}
+.schedule-unified .schedule-calendar-panel{margin:0;padding:12px}
+.schedule-unified .schedule-calendar-panel .calendar{min-width:0;width:100%}
+.schedule-unified .schedule-calendar-panel .day{min-height:118px;padding:5px}
+.schedule-unified .schedule-calendar-panel .day.selected-day{background:var(--st-blue-bg);box-shadow:inset 0 0 0 2px var(--st-selected-border)}
+.schedule-day-top{display:flex;align-items:center;gap:2px;margin-bottom:2px}
+.schedule-day-top .day-head{flex:0 0 auto;width:auto;min-width:24px;min-height:24px;padding:1px 3px;font-size:12px;justify-content:flex-start;gap:2px}
+.schedule-day-top .schedule-day-select{font-weight:700}
+.schedule-day-top .calendar-day-details,
+.schedule-day-top .calendar-day-add{min-height:22px;min-width:22px;width:auto;padding:0 4px;font-size:10px;line-height:1;color:var(--st-text-muted);background:transparent;border:0;box-shadow:none;flex:0 0 auto}
+.schedule-day-top .calendar-day-add{margin-left:auto;font-size:12px}
+.schedule-day-top .calendar-day-details:hover,
+.schedule-day-top .calendar-day-add:hover{background:var(--st-gray-bg);box-shadow:none;transform:none}
+.schedule-unified .day .slot.calendar-lesson-chip{display:inline-flex;flex-direction:row;align-items:center;gap:0;width:auto;min-height:19px;height:auto;padding:0 4px 0 2px;margin:2px 2px 0 0;border-radius:6px;vertical-align:top;box-shadow:inset 0 0 0 1px var(--st-line)}
+.schedule-unified .calendar-lesson-chip .slot-subject-row{flex-wrap:nowrap;overflow:hidden;min-width:0}
+.schedule-unified .calendar-lesson-chip .slot-main{display:inline-flex;align-items:center;gap:3px;min-height:0;padding:1px 0;border:0;background:transparent;box-shadow:none;font-size:10px;line-height:1.25}
+.schedule-unified .calendar-lesson-chip .slot-main:hover{background:transparent;box-shadow:none;transform:none}
+.schedule-unified .calendar-lesson-chip .slot-period-row{display:inline;margin:0}
+.schedule-unified .calendar-lesson-chip .slot-time{font-size:9px;font-weight:700;color:var(--st-text-muted)}
+.schedule-unified .calendar-lesson-chip .subject-title{font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.schedule-unified .calendar-lesson-chip .slot-memo-indicator{font-size:9px;line-height:1}
+.schedule-unified .calendar-lesson-chip .slot-memos{display:none}
+.schedule-unified .calendar-lesson-chip.subject-stripe::before{width:2px}
+.schedule-unified .taskline{padding:3px 1px 0;border-top:0;font-size:10px}
+.schedule-unified .taskline .calendar-task{width:100%;min-height:0;padding:2px 5px;font-size:10px;line-height:1.3;border-radius:6px}
+.schedule-unified .schedule-quest-line .calendar-task{font-size:10px;min-height:0;padding:2px 5px;border-radius:6px}
+.schedule-unified .routine-exempt-line{margin-top:3px;padding:2px 5px;border-radius:6px;background:var(--st-yellow-bg);color:var(--st-yellow-text);font-size:10px;line-height:1.3}
+.schedule-unified .routine-exempt-line small{font-size:9px}
+
+.schedule-side{display:grid;gap:12px;min-width:0}
+.schedule-card{margin:0;padding:14px;border-radius:var(--st-radius-card)}
+.schedule-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.schedule-card-head h3{display:flex;align-items:baseline;gap:6px;margin:0;font-size:15px}
+.schedule-card-head h3 small{font-weight:500;color:var(--st-text-muted);font-size:11px}
+.schedule-card-actions{gap:6px}
+.schedule-card-actions button{min-height:32px;padding:5px 10px;font-size:12px}
+.schedule-subhead{margin:12px 0 6px;font-size:12px;color:var(--st-text-muted);font-weight:600}
+.schedule-empty{margin:2px 0 2px;font-size:12px}
+.schedule-event-list{display:grid;gap:4px}
+.schedule-event-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:6px 9px;min-height:32px;border-radius:10px;background:var(--st-lavender-bg);color:var(--st-lavender-text);border:0;font-size:12px;box-shadow:none}
+.schedule-event-row.is-ordinary{background:var(--st-gray-bg);color:var(--st-gray-text)}
+.schedule-event-when{flex:0 0 auto;min-width:32px;font-size:10px;font-weight:700;opacity:.85}
+.schedule-unified .event-time{display:inline-block;margin-right:3px;padding:0 3px;border-radius:4px;background:rgba(255,255,255,.55);font-size:9px;font-weight:700;vertical-align:baseline}
+.schedule-event-body{display:flex;flex-direction:column;gap:1px;min-width:0}
+.schedule-event-body strong{font-size:12px;font-weight:600;overflow-wrap:anywhere}
+.schedule-event-body small{font-size:10px;opacity:.85;overflow-wrap:anywhere}
+.schedule-periods{display:grid;gap:3px}
+.schedule-period{min-width:0}
+.schedule-period-main{display:grid;grid-template-columns:20px minmax(0,1fr) auto;align-items:center;gap:6px;width:100%;text-align:left;padding:5px 8px;min-height:30px;border-radius:10px;border:1px solid transparent;background:var(--subject-bg,var(--st-gray-bg));box-shadow:none;font-size:12px}
+.schedule-period-main.is-empty{background:transparent;border:1px dashed var(--st-line);color:var(--st-text-muted)}
+.schedule-period-no{font-size:10px;font-weight:700;color:var(--st-text-muted)}
+.schedule-period-main strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.schedule-period-time{font-size:10px;color:var(--st-text-muted);white-space:nowrap}
+.schedule-period-memos{display:grid;gap:2px;padding:2px 6px 3px 28px}
+.schedule-memo{font-size:11px;line-height:1.35;overflow-wrap:anywhere;color:var(--st-text-muted)}
+.schedule-memo.teacher{color:var(--st-rose-text)}
+.schedule-task-list,.schedule-quest-list,.schedule-routine-list{display:grid;gap:6px}
+.schedule-task,.schedule-quest,.schedule-routine{border:1px solid var(--st-line);border-radius:12px;padding:8px 10px;background:var(--st-surface);min-width:0}
+.schedule-task-head,.schedule-quest-head,.schedule-routine-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.schedule-task-head strong,.schedule-quest-head strong,.schedule-routine-head strong{font-size:12.5px;line-height:1.4;overflow-wrap:anywhere}
+.schedule-task-count{flex:0 0 auto;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;color:var(--st-rose-text);background:var(--st-rose-bg);white-space:nowrap}
+.schedule-task-count.is-complete{color:var(--st-mint-text);background:var(--st-mint-bg)}
+.schedule-task-actions,.schedule-quest-actions,.schedule-routine-actions{gap:4px;margin-top:6px}
+.schedule-task-actions button,.schedule-quest-actions button,.schedule-routine-actions button{min-height:28px;padding:3px 8px;font-size:11px}
+.schedule-task-grid{margin-top:8px;max-height:210px;overflow:auto;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:5px}
+.schedule-task-grid .assignment-progress-item{min-height:0;padding:6px 7px;font-size:11px}
+.schedule-routine-count{flex:0 0 auto;font-size:11px;font-weight:700;color:var(--st-blue-text);white-space:nowrap}
+.schedule-routine.is-exempt{background:var(--st-yellow-bg);border-color:transparent}
+.schedule-routine-memo{display:block;margin-top:4px;font-size:11px}
+.schedule-routine-students{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;max-height:190px;overflow:auto}
+.routine-student{font-size:11px;padding:3px 8px;min-height:26px;border-radius:999px;background:var(--st-gray-bg);color:var(--st-gray-text);box-shadow:none}
+.routine-student.is-done{background:var(--st-mint-bg);color:var(--st-mint-text);font-weight:600}
+.schedule-mobile-hint{display:none;margin:-6px 0 8px;font-size:11px;color:var(--st-text-muted)}
+.schedule-manage .calendar{min-width:0}
+.calendar.week .day .slot.calendar-lesson{display:flex;flex-direction:column;align-items:stretch;gap:2px}
+.calendar.week .calendar-lesson .slot-subject-row{flex-wrap:wrap;overflow:visible}
+.calendar.week .calendar-lesson .slot-main{flex:1 1 100%;max-width:100%}
+.calendar.week .calendar-lesson .slot-memos{flex:1 1 100%;width:100%}
+.calendar.week .calendar-lesson .slot-public-memo{white-space:normal;overflow:visible;text-overflow:clip}
+.schedule-manage{scroll-margin-top:80px;grid-column:1/-1;margin-top:4px;padding:14px;border:1px solid var(--st-line);border-radius:var(--st-radius-card);background:var(--st-surface);min-width:0}
+.schedule-manage .panel{margin-bottom:12px}
+.schedule-manage-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.schedule-manage-bar small{font-size:12px}
+.schedule-manage-close{min-height:32px}
+@media(max-width:1100px){
+  .schedule-side{gap:10px}
+}
+@media(max-width:760px){
+  .schedule-unified{gap:10px}
+  .schedule-unified .schedule-calendar-panel .day{min-height:86px;padding:3px}
+  .schedule-filter-hint{display:none}
+  .schedule-side{gap:10px}
+  .schedule-card{padding:12px}
+  .schedule-toolbar-nav{gap:4px}
+  .schedule-toolbar-nav button{font-size:11px;padding:5px 7px;min-height:30px}
+  .schedule-period-title{min-width:0;font-size:15px}
+  .schedule-unified .day .slot.calendar-lesson-chip{min-height:17px}
+}
+/* 좁은 화면에서는 달력 칸이 너무 좁아 제목이 뭉개지므로 달력만 옆으로 넘겨 본다. */
+@media(max-width:640px){
+  .schedule-unified .schedule-calendar-panel .calendar{min-width:560px}
+  .schedule-unified .schedule-calendar-panel{padding:8px}
+  .schedule-unified .schedule-calendar-panel .day{min-height:104px;padding:2px}
+  .schedule-day-top{gap:0;margin-bottom:1px}
+  .schedule-day-top .day-head{font-size:11px;min-height:20px;padding:0 2px}
+  .schedule-day-top .calendar-day-details{font-size:0;padding:0 2px;min-width:18px}
+  .schedule-day-top .calendar-day-details::after{content:'⋯';font-size:12px;line-height:1}
+  .schedule-day-top .calendar-day-add{font-size:11px;padding:0 2px;min-width:18px}
+  .schedule-unified .event{font-size:10px;padding:2px 4px;min-height:0;line-height:1.3}
+  .schedule-unified .event-time{font-size:9px;margin-right:2px}
+  .schedule-unified .event-description{font-size:9px}
+  .schedule-unified .taskline{padding:2px 0 0}
+  .schedule-unified .taskline .calendar-task{font-size:10px;padding:2px 3px}
+  .schedule-unified .calendar-lesson-chip .slot-time{display:none}
+  .schedule-unified .calendar-lesson-chip{padding:0 3px 0 1px;margin:1px 1px 0 0}
+  .schedule-unified .calendar-lesson-chip .subject-title{font-size:10px}
+  .schedule-unified .routine-exempt-line{font-size:9px;padding:2px 3px}
+  .schedule-mobile-hint{display:block}
+}

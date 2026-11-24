@@ -1,4 +1,4 @@
-import { render } from '../app.js';
+import { render, setScheduleManage } from '../app.js';
 import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, name, students, up } from '../shared/data.js';
@@ -114,9 +114,9 @@ export function assignmentEditor(a = null, d = state.date) {
   repeat.onchange = update;
   update();
 }
-export function assignmentsView() {
+export function assignmentsView(embedded = false) {
   const assignments = db().assignments.filter(a => !a.deletedAt);
-  return `<div class="toolbar"><div><h2>과제</h2><small>과제 × 날짜 × 학생마다 상태가 독립적으로 저장됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input id="assignment-date" aria-label="과제 날짜" type="date" value="${state.date}"></span>${btn('+ 과제', () => assignmentEditor(), 'primary')}</div></div>${assignmentCalendar(assignments.filter(a => !a.isQuest))}${longAssignmentsPanel(assignments.filter(a => a.isQuest))}${bindLater('assignment-date', 'change', e => {
+  return `<div class="toolbar"><div>${embedded ? '<h3>과제 전체 목록</h3>' : '<h2>과제</h2>'}<small>과제 × 날짜 × 학생마다 상태가 독립적으로 저장됩니다.</small></div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(state.date)) || '날짜 선택'}</span><input id="assignment-date" aria-label="과제 날짜" type="date" value="${state.date}"></span>${btn('+ 과제', () => assignmentEditor(), 'primary')}</div></div>${assignmentCalendar(assignments.filter(a => !a.isQuest))}${longAssignmentsPanel(assignments.filter(a => a.isQuest))}${bindLater('assignment-date', 'change', e => {
     state.date = e.target.value || C.today();
     assignmentMonth = state.date.slice(0, 7);
     render();
@@ -293,7 +293,7 @@ for (const type of ['dblclick', 'contextmenu']) document.addEventListener(type, 
     taskStateEditor(assignment, date, student, position ? () => assignmentActions(assignment, date, position) : null);
   }
 });
-async function completeAll(a, date) {
+export async function completeAll(a, date) {
   const scope = assignmentScope();
   for (const s of students()) cancelTaskToggle(C.stateId(a.id, date, s.id));
   await persistAssignment(async () => {
@@ -355,7 +355,7 @@ function moveAssignmentMonth(amount) {
   assignmentMonth = date.toISOString().slice(0, 7);
   render();
 }
-function assignmentActions(a, date, scrollPosition = null) {
+export function assignmentActions(a, date, scrollPosition = null) {
   const info = C.assignmentPublicInfo(db(), a);
   modal('과제 관리', `<h3>${esc(a.title)}</h3>${a.noStar ? badge('단순 체크리스트 · 별 0개') : ''}${info.memo ? `<p class="assignment-public-memo">${esc(info.memo)}</p>` : ''}<p class="assignment-checker">🔍 확인 : ${info.checkerName ? esc(info.checkerName.replace(/^\d+\.\s*/, '')) : '선생님'}</p><p class="muted">${esc(C.formatDate(date))} · ${a.repeat.type === 'none' ? '1회' : a.repeat.type === 'daily' ? '매일' : '매주 ' + (a.repeat.weekdays || []).map(day => '일월화수목금토'[day]).join('·')}</p><div class="row">${btn('수정', () => assignmentEditor(a))}${btn('복사', () => assignmentEditor({
     ...a,
@@ -389,6 +389,7 @@ function restoreAssignmentProgressScroll(position) {
   if (body) body.scrollTop = position.body;
 }
 function refreshAssignmentProgress(a, date) {
+  refreshScheduleTaskCount(a, date);
   if (!document.querySelector?.('#modal')?.open) return;
   const section = document.querySelector?.('#modal .assignment-progress');
   if (!section || section.dataset.assignmentId !== a.id || section.dataset.date !== date) return;
@@ -471,4 +472,60 @@ async function deleteLongAssignment(a) {
   if (!confirm('이 장기과제를 삭제할까요? 학생들의 스탬프 기록도 함께 삭제됩니다.')) return;
   await commit(C.deleteLongAssignmentOps(db(), a.id));
   closeModal();
+}
+
+// 선택 날짜의 과제·장기과제를 일정 탭 오른쪽 카드에 요약한다.
+function scheduleTaskProgress(a, date) {
+  const targets = students().filter(s => C.targeted(a, s.id) && !C.excluded(db(), s.id, date));
+  const done = targets.filter(s => ['완료', '늦게완료', '면제'].includes(C.assignmentStatus(db(), a.id, date, s.id))).length;
+  return { targets, done };
+}
+function refreshScheduleTaskCount(a, date) {
+  const nodes = document.querySelectorAll?.('[data-schedule-task-count]');
+  if (!nodes?.length) return;
+  const { targets, done } = scheduleTaskProgress(a, date);
+  for (const node of nodes) {
+    if (node.dataset?.scheduleTaskCount !== a.id) continue;
+    node.textContent = `완료 ${done}/${targets.length}`;
+    node.classList?.toggle('is-complete', targets.length > 0 && done === targets.length);
+  }
+}
+export function scheduleAssignmentsCard() {
+  const date = state.date,
+    open = state.scheduleTaskOpen || {},
+    manage = state.scheduleManage === '과제',
+    tasks = db().assignments.filter(a => !a.deletedAt && !a.isQuest && C.occurs(a, date)),
+    quests = db().assignments.filter(a => !a.deletedAt && a.isQuest);
+  return `<section class="panel schedule-card schedule-card-assignments" aria-labelledby="schedule-assignments-title">
+    <div class="schedule-card-head"><h3 id="schedule-assignments-title">과제 <small>${esc(C.formatDate(date))}</small></h3><div class="row schedule-card-actions">${btn('+ 과제', () => assignmentEditor(null, date), 'primary schedule-add')}${btn('+ 장기과제', () => assignmentEditor({ id: C.uid(), title: '', date: C.today(), repeat: { type: 'none' }, target: 'all', isQuest: true, questGoal: 10, questTitle: '', createdAt: C.now() }), 'schedule-add')}${btn(manage ? '전체 관리 닫기' : '전체 관리', () => setScheduleManage(manage ? '' : '과제'), 'schedule-manage-toggle' + (manage ? ' is-active' : ''), `aria-expanded="${manage}" aria-controls="schedule-manage"`)}</div></div>
+    <div class="schedule-task-list">${tasks.map(a => scheduleTaskRow(a, date, !!open[a.id])).join('') || '<p class="muted schedule-empty">이 날짜에 마감되는 과제가 없습니다.</p>'}</div>
+    <h4 class="schedule-subhead">진행 중인 장기과제</h4>
+    <div class="schedule-quest-list">${quests.map(a => scheduleQuestRow(a, date)).join('') || '<p class="muted schedule-empty">진행 중인 장기과제가 없습니다.</p>'}</div>
+  </section>`;
+}
+function scheduleTaskRow(a, date, expanded) {
+  const { targets, done } = scheduleTaskProgress(a, date),
+    allDone = targets.length > 0 && done === targets.length;
+  return `<article class="schedule-task" data-assignment-id="${esc(a.id)}">
+    <div class="schedule-task-head"><strong>${esc(a.title)}</strong><span class="schedule-task-count${allDone ? ' is-complete' : ''}" data-schedule-task-count="${esc(a.id)}">완료 ${done}/${targets.length}</span></div>
+    <div class="row schedule-task-actions">${btn(allDone ? '↩ 전원 되돌리기' : '✓ 전원 완료', async () => {
+    await completeAll(a, date);
+    refreshScheduleTaskCount(a, date);
+  }, 'complete-all', targets.length ? '' : 'disabled')}${btn(expanded ? '학생 접기' : '학생 체크', () => {
+    state.scheduleTaskOpen = { ...(state.scheduleTaskOpen || {}), [a.id]: !expanded };
+    render();
+  }, 'schedule-task-toggle', `aria-expanded="${expanded}"`)}${btn('관리', () => assignmentActions(a, date))}</div>
+    ${expanded ? `<div class="assignment-progress-grid schedule-task-grid">${targets.map(student => {
+    const status = C.assignmentStatus(db(), a.id, date, student.id);
+    return btn(`<span class="assignment-progress-name">${esc(student.no)}. ${esc(student.name)}</span><span class="assignment-progress-status">${esc(status)}</span>`, event => queueTaskToggle(a, date, student.id, event.target.closest('button')), 'assignment-progress-item ' + taskStatusClass(status), `data-student-id="${esc(student.id)}" data-task-assignment="${esc(a.id)}" data-task-student="${esc(student.id)}" data-task-date="${esc(date)}" title="클릭: 상태 변경 · 길게 누르기/우클릭: 상세 수정"`);
+  }).join('') || '<p class="muted">대상 학생이 없습니다.</p>'}</div>` : ''}
+  </article>`;
+}
+function scheduleQuestRow(a, date) {
+  const targets = students().filter(s => C.targeted(a, s.id)),
+    complete = targets.filter(s => C.questProgress(db(), a, s.id).status === '완료').length;
+  return `<article class="schedule-quest" data-assignment-id="${esc(a.id)}">
+    <div class="schedule-quest-head"><strong>🏅 ${esc(a.title)}</strong><span class="schedule-task-count${targets.length && complete === targets.length ? ' is-complete' : ''}">완료 ${complete}/${targets.length}</span></div>
+    <div class="row schedule-quest-actions"><small class="muted">${a.endDate ? '마감 ' + esc(C.formatShortDate(a.endDate)) : '기한 없음'}${a.questTitle ? ' · 보상 ' + esc(a.questTitle) : ''}</small>${btn('진행도/도장판', () => assignmentActions(a, date))}</div>
+  </article>`;
 }
