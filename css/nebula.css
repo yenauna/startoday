@@ -1,31 +1,31 @@
 @media screen {
   :root {
-    --nebula-page: #F7F8F6;
-    --nebula-ink: #1F2422;
-    --nebula-muted: #555E5B;
-    --nebula-edge: rgba(255, 255, 255, .78);
-    --nebula-reading-glass: linear-gradient(145deg, #FFFEFCDF, #F3F9F6BB);
-    --nebula-table-head: #E1EBE6;
-    --nebula-table-line: #22483A24;
-    --nebula-readable: rgba(255, 255, 255, .96);
-    --nebula-mint: #C5D7D0;
-    --nebula-mint-ink: #22483A;
-    --nebula-gold: #F9EAC5;
-    --nebula-gold-ink: #604718;
-    --nebula-hero: #1E2926;
-    --nebula-hero-ink: #FFFDF6;
-    --nebula-hero-muted: #DCE8DF;
+    --nebula-page: #D5DFEB;
+    --nebula-ink: #1C2B42;
+    --nebula-muted: #53647B;
+    --nebula-edge: rgba(255, 255, 255, .86);
+    --nebula-reading-glass: linear-gradient(145deg, #F4F7FCE8, #E1E8F3D1);
+    --nebula-table-head: #E4EBF5;
+    --nebula-table-line: rgba(167, 183, 205, .35);
+    --nebula-readable: rgba(234, 240, 248, .72);
+    --nebula-mint: #D3DEED;
+    --nebula-mint-ink: #193452;
+    --nebula-gold: #F3E7CB;
+    --nebula-gold-ink: #6B5320;
+    --nebula-hero: #10274A;
+    --nebula-hero-ink: #F5F7FC;
+    --nebula-hero-muted: #CDD9EA;
     --nebula-radius: 18px;
     --glass-bevel:
       inset 0 1.5px 1px rgba(255, 255, 255, .95),
       inset 1.5px 0 2px rgba(255, 255, 255, .55),
-      inset 0 -2px 6px rgba(31, 36, 34, .04);
-    --nebula-shadow: var(--glass-bevel), 0 12px 28px rgba(31, 36, 34, .06);
-    --nebula-clear-glass: rgba(255,255,255,.54);
-    --nebula-clear-edge: rgba(255,255,255,.78);
-    --nebula-glass: linear-gradient(135deg, #FFFFFF7A 0%, #FFFFFF3D 55%, #FFFFFF6B 100%);
+      inset 0 -2px 6px rgba(38, 61, 96, .04);
+    --nebula-shadow: var(--glass-bevel), 0 16px 40px rgba(38, 61, 96, .11);
+    --nebula-clear-glass: rgba(244, 247, 252, .55);
+    --nebula-clear-edge: rgba(255, 255, 255, .86);
+    --nebula-glass: linear-gradient(135deg, #F4F7FCC7 0%, #E9EEF7B8 55%, #E1E8F3A6 100%);
     --nebula-sheen: linear-gradient(135deg, #FFFFFF70 0%, transparent 28%, #FFFFFF66 47%, transparent 66%);
-    --nebula-hero-light: radial-gradient(ellipse at 92% 10%, #3A5148, transparent 72%);
+    --nebula-hero-light: radial-gradient(ellipse at 92% 10%, #466382, transparent 72%);
   }
 
   body {
@@ -51,7 +51,29 @@
   }
 
   .sky-light {
-    background: var(--nebula-page) url("../assets/bg-pastel-nebula.webp") center / cover no-repeat;
+    background-color: #D5DFEB;
+    /* 여러 radial-gradient를 넓게 겹쳐 경계가 보이지 않는 저채도 블루그레이 하늘을 만든다.
+       좌상단은 조금 더 깊은 더스티 블루, 우하단은 은은하게 따뜻한 로즈그레이, 위에서 아래로 갈수록 밝아진다. */
+    background-image:
+      radial-gradient(ellipse 64% 62% at -4% -6%, #9BAFCB 0%, #9BAFCBE6 24%, #9BAFCB00 68%),
+      radial-gradient(ellipse 62% 54% at 44% -8%, #B8C9DF 0%, #B8C9DFE6 26%, #B8C9DF00 70%),
+      radial-gradient(ellipse 56% 50% at 104% -4%, #CED9E8 0%, #CED9E8E6 26%, #CED9E800 70%),
+      radial-gradient(ellipse 96% 82% at 50% 52%, #C4D2E3 0%, #C4D2E3DB 38%, #C4D2E300 78%),
+      radial-gradient(ellipse 70% 58% at -2% 104%, #CDD3E7 0%, #CDD3E7E6 30%, #CDD3E700 70%),
+      radial-gradient(ellipse 66% 56% at 102% 102%, #EAE2E3 0%, #EAE2E3E6 30%, #EAE2E300 68%),
+      linear-gradient(178deg, #C2D1E5 0%, #D5DFEB 50%, #DFE4EC 100%);
+  }
+
+  /* 배경 레이어에만 얇고 고른 필름 그레인을 7%로 깔아 안개 낀 하늘 질감을 준다. */
+  .sky-light::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: .085;
+    background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="160" height="160"%3E%3Cfilter id="n"%3E%3CfeTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" stitchTiles="stitch"/%3E%3CfeColorMatrix type="saturate" values="0"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23n)"/%3E%3C/svg%3E');
+    background-size: 160px 160px;
+    background-repeat: repeat;
   }
 
   .sky-bloom {
@@ -64,9 +86,9 @@
     opacity: .56;
   }
 
-  .sky-bloom:nth-child(1) { top: 21%; left: 74%; background: #FFFFFFAD; }
-  .sky-bloom:nth-child(2) { top: 52%; left: 26%; background: #E1DDF47D; }
-  .sky-bloom:nth-child(3) { top: 78%; left: 65%; background: #FFF3DE93; }
+  .sky-bloom:nth-child(1) { top: 21%; left: 74%; background: #FFFFFF4D; }
+  .sky-bloom:nth-child(2) { top: 52%; left: 26%; background: #C7D3E759; }
+  .sky-bloom:nth-child(3) { top: 78%; left: 65%; background: #EAE2E34D; }
 
   /* Neutral reading surfaces; task status and subject accents have their own glass tints. */
   #app :is(.panel:not(.praise, .advice), .card, .metric, .record:not(.praise, .advice),
@@ -77,9 +99,9 @@
     position: relative;
     isolation: isolate;
     background: var(--nebula-glass);
-    border-color: var(--nebula-edge);
+    border: 0;
     border-radius: var(--nebula-radius);
-    box-shadow: var(--nebula-shadow);
+    box-shadow: var(--nebula-shadow), inset 0 0 0 1px var(--nebula-edge);
     -webkit-backdrop-filter: blur(22px) saturate(160%);
     backdrop-filter: blur(22px) saturate(160%);
   }
@@ -137,8 +159,8 @@
   }
   #app .shell .student[data-student-id].unfinished:not(.excluded),
   #app .lockscreen .classroom-student.unfinished:not(.excluded) {
-    background: rgba(255,198,212,.46) !important;
-    border-color: rgba(255,226,232,.85);
+    background: rgba(242, 219, 230, .82) !important;
+    border-color: rgba(255, 255, 255, .86);
     /* Override the legacy important unfinished fill in dashboard.css, only on dashboard roster cards. */
   }
   #app .shell .student[data-student-id].selected:not(.excluded) {
@@ -211,19 +233,19 @@
     box-shadow: var(--glass-bevel);
   }
 
-  #app .record-action.record-praise:hover { background: #B7CDC3; }
+  #app .record-action.record-praise:hover { background: #B7CFEA; }
   #app :is(.student-tasks-card, .student-calendar-detail) .student-task.is-complete:not(.is-overdue) {
     background: rgba(255,255,255,.84);
     color: var(--st-text);
   }
 
   #app :is(.kingdom-badge, .student-home-village .student-profile-controls .kingdom-badge) {
-    background: linear-gradient(125deg, #FFF1CACF, #E8DDF4C9);
-    color: #594368;
+    background: linear-gradient(125deg, #F7EFDCD9, #F0E3C4D1);
+    color: var(--nebula-gold-ink);
     border: 1px solid #FFFFFFDE;
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
-    box-shadow: 0 4px 12px #5C466C1A;
+    box-shadow: 0 4px 12px #6B53201A;
   }
 
   #app :is(.student-home-topbar, .avatar-item, .student-avatar-manager, .settings-sidebar,
@@ -272,7 +294,7 @@
   #app .student-score-table { font-variant-numeric: tabular-nums; }
 
   #app .tools-board > .tools-canvas {
-    background: linear-gradient(145deg, #F4F8F5, #ECF2EF 62%, #F7F1E7);
+    background: linear-gradient(145deg, #F5F8FD, #EAF0F9 62%, #F2EEEF);
     border-color: var(--nebula-table-line);
   }
 
@@ -320,8 +342,8 @@
     color: var(--nebula-ink);
   }
 
-  #modal { box-shadow: 0 18px 48px #26363336; }
-  #modal::backdrop { background: #202B2A80; }
+  #modal { box-shadow: 0 18px 48px #263D6026; }
+  #modal::backdrop { background: #1B2A3F80; }
   #app .lockscreen { background: transparent; }
 
   @media (prefers-reduced-motion: reduce) {
@@ -339,29 +361,29 @@
   .survey-reason-tag-list { display:flex; flex-wrap:wrap; gap:8px; }
   .survey-reason-tag-list .survey-reason-tag {
     display:inline-flex; align-items:center; justify-content:center; min-height:40px;
-    max-width:100%; padding:8px 12px; border:1px solid #c5c1db; border-radius:18px;
-    color:#3f385d; background:linear-gradient(135deg,#fffefbf2,#ece6f7d9);
-    box-shadow:inset 0 1px 0 #ffffffeb,0 3px 8px #55446d0d;
+    max-width:100%; padding:8px 12px; border:1px solid #C3D1E3; border-radius:18px;
+    color:#263B55; background:linear-gradient(135deg,#fbfdfff2,#e7eef7d9);
+    box-shadow:inset 0 1px 0 #ffffffeb,0 3px 8px #263d600d;
     -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
     font-size:13px; line-height:1.45; font-weight:550; white-space:normal;
     overflow-wrap:anywhere; text-align:left; user-select:none;
   }
   .survey-reason-tag-group[data-reason-group=uncomfortable] .survey-reason-tag {
-    color:#573a49; border-color:#d4bfcc; background:linear-gradient(135deg,#fffefbf2,#f5e4edd9);
+    color:#5E3B4B; border-color:#D8C3CE; background:linear-gradient(135deg,#fffefbf2,#f5e4edd9);
   }
-  .survey-reason-tag-list .survey-reason-tag:hover:not(:disabled) { transform:none; border-color:#85749d; }
+  .survey-reason-tag-list .survey-reason-tag:hover:not(:disabled) { transform:none; border-color:#6D8DB4; }
   .survey-reason-tag-list .survey-reason-tag.is-selected {
-    color:#30254b; border-color:#79628f; background:linear-gradient(135deg,#e8def4,#d9e6f4);
-    box-shadow:inset 0 0 0 1px #79628f,0 3px 8px #55446d12; font-weight:550;
+    color:#193452; border-color:#6D8DB4; background:linear-gradient(135deg,#DCE7F4,#D3DEED);
+    box-shadow:inset 0 0 0 1px #6D8DB4,0 3px 8px #263d6012; font-weight:550;
   }
   .survey-reason-tag-group[data-reason-group=uncomfortable] .survey-reason-tag.is-selected {
-    color:#4a2d3e; border-color:#96677f; background:linear-gradient(135deg,#f3dce8,#e9e0f1);
-    box-shadow:inset 0 0 0 1px #96677f,0 3px 8px #55446d12;
+    color:#4A2D3E; border-color:#8E6478; background:linear-gradient(135deg,#F3E2EA,#E7E1EC);
+    box-shadow:inset 0 0 0 1px #8E6478,0 3px 8px #263d6012;
   }
-  .survey-reason-tag:focus-visible { outline:3px solid #65518a; outline-offset:3px; }
+  .survey-reason-tag:focus-visible { outline:3px solid #6D8DB4; outline-offset:3px; }
   .survey-reason-tag:active:not(:disabled) { transform:none; }
   .survey-response-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
-  .survey-response-tag { display:inline-block; max-width:100%; padding:4px 8px; border-radius:12px; border:1px solid #d1c8df; background:#eee8f5; color:#46365f; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+  .survey-response-tag { display:inline-block; max-width:100%; padding:4px 8px; border-radius:12px; border:1px solid #C9D6E6; background:#E8EEF7; color:#263B55; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
   .survey-tag-editor { margin-top:14px; }
   .survey-tag-editor summary { cursor:pointer; font-weight:600; }
   .survey-tag-editor textarea { display:block; width:100%; min-height:150px; line-height:1.5; margin-top:6px; }
@@ -397,15 +419,15 @@
  #app .date-range-trigger span{overflow-wrap:anywhere}
  #app .sort-control{display:inline-flex;gap:8px;align-items:center}
  #app .sort-control select{min-height:40px;padding:8px 30px 8px 10px;max-width:220px}
- .date-range-popover{inset:auto;margin:0;width:328px;max-width:calc(100vw - 16px);border:1px solid #d4cce3;border-radius:16px;padding:14px;background:#fcfafff5;color:#343047;box-shadow:0 12px 36px #39304d2b;backdrop-filter:blur(20px);z-index:100}
+ .date-range-popover{inset:auto;margin:0;width:328px;max-width:calc(100vw - 16px);border:1px solid #C5D2E4;border-radius:16px;padding:14px;background:#F7FAFEF5;color:#1C2B42;box-shadow:0 12px 36px #263D6022;backdrop-filter:blur(20px);z-index:100}
  .range-heading,.range-footer{display:flex;justify-content:space-between;align-items:center;gap:8px}
  .range-heading button{min-width:40px;min-height:40px}
- .range-hint{font-size:12px;margin:10px 0;color:#625a73}
+ .range-hint{font-size:12px;margin:10px 0;color:#53647B}
  .range-days,.range-weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;text-align:center}
- .range-weekdays{font-size:12px;color:#625a73;margin-bottom:6px}
+ .range-weekdays{font-size:12px;color:#53647B;margin-bottom:6px}
  .range-day{min-height:40px;padding:5px 0;background:transparent;border-color:transparent;box-shadow:none;font-variant-numeric:tabular-nums}
- .range-day.is-selected{background:#e0d8f0;color:#37294e;border-color:#9e8db7}
- .range-footer{margin-top:12px;padding-top:10px;border-top:1px solid #ddd5e7}
+ .range-day.is-selected{background:#D3DEED;color:#193452;border-color:#6D8DB4}
+ .range-footer{margin-top:12px;padding-top:10px;border-top:1px solid #C9D5E5}
  .field-error{font-size:13px;color:#9f2345;line-height:1.5;margin:5px 0 0;grid-column:1/-1}
  .field-error[hidden]{display:none}
  [aria-invalid=true]{border-color:#b52e50!important}
@@ -503,7 +525,7 @@
  #app .quick-composer-card .quick-areas{background:transparent;gap:6px;padding:0}
  #app .quick-composer-card .area-chip{border:1px solid #FFFFFFBD;background:#FFFFFF7A;box-shadow:inset 0 1px 0 #FFFFFFD9;border-radius:999px;padding:5px 10px;color:#47566A}
  #app .quick-composer-card .area-chip.selected{background:#DEEAF7;border-color:#88A8C5;color:#244C70}
- #app .record-action.record-praise{background:#DCEBFA;color:#295B87}#app .record-action.record-praise:hover{background:#C4DCF4}
+ #app .record-action.record-praise{background:#C9DDF5;color:#295581}#app .record-action.record-praise:hover{background:#B7CFEA}
  #quick-students{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0;padding:5px 7px}
  #quick-students .selection-summary,#quick-students .quick-student-search{display:contents}
  #quick-students .selection-hint{display:none}
@@ -525,7 +547,7 @@
  #app :is(.kingdom-badge,.student-home-village .student-profile-controls .kingdom-badge)[data-title-stage="1"]{background:color-mix(in srgb,var(--title-tint,#D9EAF5) 35%,#FFFFFF99);box-shadow:inset 0 1px 0 #FFFFFFDB,0 2px 7px #5B486B0D}
  #app :is(.kingdom-badge,.student-home-village .student-profile-controls .kingdom-badge)[data-title-stage="2"]{border-color:color-mix(in srgb,var(--title-tint,#D9EAF5) 75%,#76608C);background:linear-gradient(125deg,color-mix(in srgb,var(--title-tint,#D9EAF5) 80%,#FFFFFF99),#D9D3F5BD);box-shadow:inset 0 1px 0 #FFFFFFE0,0 4px 14px var(--title-glow,#8772B34D)}
  .survey-visualizations{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:20px;margin:20px 0}.survey-visualizations>div{min-width:0}.survey-visualizations svg{display:block;width:100%;height:auto;max-height:450px;background:#FFFFFF70;border-radius:14px}
- .survey-network line{stroke:#91AFA4;stroke-width:2}.survey-network .one-way{stroke:#B8A3C6;stroke-dasharray:5 5;stroke-width:1.5}.survey-network rect{fill:#FAFDFA;stroke:#94B8A8}.survey-network g{cursor:pointer}.survey-network g:focus rect{stroke:#5D4888;stroke-width:3}.survey-visualizations text{font-size:12px;fill:#293E35}.distance-ring{fill:none;stroke:#B5C9BE;stroke-dasharray:3 4}.distance-center{fill:#D6EADC;stroke:#799E89}.survey-distance .comfortable rect{fill:#DBEEDB;stroke:#7BA486}.survey-distance .uncomfortable rect{fill:#F5DDE5;stroke:#B7788F}
+ .survey-network line{stroke:#A8BCD6;stroke-width:2}.survey-network .one-way{stroke:#8FA8C6;stroke-dasharray:5 5;stroke-width:1.5}.survey-network rect{fill:#F8FAFE;stroke:#A8BCD6}.survey-network g{cursor:pointer}.survey-network g:focus rect{stroke:#6D8DB4;stroke-width:3}.survey-visualizations text{font-size:12px;fill:#1C2B42}.distance-ring{fill:none;stroke:#B7C6DA;stroke-dasharray:3 4}.distance-center{fill:#DCE6F3;stroke:#8FA8C6}.survey-distance .comfortable rect{fill:#DBEEDB;stroke:#7BA486}.survey-distance .uncomfortable rect{fill:#F5DDE5;stroke:#B7788F}
  @media(max-width:1100px){.survey-visualizations{grid-template-columns:minmax(0,1fr)}#app .quick-composer-card .quick-entry-fields{grid-template-columns:minmax(0,1fr)}}
  @media(max-width:760px){#app .constellation-hero{padding:18px;grid-template-columns:minmax(0,1fr) 125px;gap:8px}#app .constellation-hero h2{font-size:20px}.constellation-progress{font-size:27px}#app [data-settings-category="기본 정보"] .formgrid{grid-template-columns:minmax(0,1fr)}}
  @media(max-width:375px){#app .constellation-hero{grid-template-columns:minmax(0,1fr)}.constellation-hero svg{max-height:100px;justify-self:center}.student-header{min-width:0}}
@@ -617,7 +639,7 @@
 @media screen {
  #app .student-home-village>.student-card>.student-card-title{display:flex;align-items:center;gap:8px;border-bottom:1px solid #D4C8DF;border-radius:0;background:none;box-shadow:none;margin:0 0 14px;padding:0 0 10px;font-size:18px;line-height:1.5;color:var(--nebula-ink);width:100%;min-width:0}
  #app .student-card-title::before,#app .student-card-title::after{content:none!important}
- #app .student-card-title .ui-icon{width:22px;height:22px;flex:none;color:#7F6D9C}
+ #app .student-card-title .ui-icon{width:22px;height:22px;flex:none;color:#31577F}
  #app .student-profile-card .student-profile-edit{flex:0 0 26px;width:26px;min-width:26px;height:26px;min-height:26px;padding:2px 3px;margin:0;font-size:17px;box-shadow:none}
  #app .student-profile-nickname{gap:3px;padding-right:3px}
  #app .student-home-village>.student-long-assignments,#app .student-home-village>.student-praise-card{grid-column:auto}
@@ -737,8 +759,8 @@
  .mobile-quick-areas{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
  .mobile-quick-area{position:relative;display:inline-flex!important;align-items:center;min-height:36px;padding:6px 10px;border:1px solid #D4C6E6;border-radius:999px;background:#F8F4FC;cursor:pointer;font-size:13px;color:#4D3B68}
  .mobile-quick-area input{position:absolute;width:1px;height:1px;opacity:0;padding:0}
- .mobile-quick-area:has(input:checked){background:#DCD0EE;border-color:#9277AF}
- .mobile-quick-area:has(input:focus-visible){outline:2px solid #78608F;outline-offset:2px}
+ .mobile-quick-area:has(input:checked){background:#D3DEED;border-color:#6D8DB4}
+ .mobile-quick-area:has(input:focus-visible){outline:2px solid #6D8DB4;outline-offset:2px}
  .mobile-quick-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:10px 0}
  .mobile-quick-fields label{display:grid;gap:6px;min-width:0}
  .mobile-quick-fields input,.mobile-quick-fields select{width:100%;min-width:0;min-height:40px}
@@ -760,7 +782,7 @@
  .survey-network-section,.survey-personal-section{min-width:0}
  .survey-personal-section{scroll-margin-top:90px}
  .survey-personal-section>h3:focus-visible{outline:2px solid #8A74A5;outline-offset:4px;border-radius:4px}
- .survey-network-group rect{fill:#DFEEE97A;stroke:#B3CEC1;stroke-width:1}
+ .survey-network-group rect{fill:#E4EBF57A;stroke:#BCCBDD;stroke-width:1}
  .survey-network-group.group-tone-1 rect{fill:#E8E1F478;stroke:#CBBBDD}
  .survey-network-group.group-tone-2 rect{fill:#F4E9D17A;stroke:#DAC99F}
  .survey-network .survey-network-group text,.survey-network .survey-sparse-zone text{font-size:12px;font-weight:700;fill:#4B5261}
@@ -768,7 +790,7 @@
  .survey-network .survey-network-edge.positive{stroke:#2F7D4A;stroke-width:2;stroke-dasharray:none}
  .survey-network .survey-network-edge.asymmetric{stroke:#A77A08;stroke-width:2;stroke-dasharray:5 4}
  .survey-network .survey-network-edge.warning{stroke:#B4384B;stroke-width:3;stroke-dasharray:6 4}
- .survey-network .survey-network-node rect{fill:#FFFEF8;stroke:#94B8A8}
+ .survey-network .survey-network-node rect{fill:#F8FAFE;stroke:#A8BCD6}
  .survey-network .survey-network-node.is-sparse rect{fill:#FFF9F5;stroke:#B99B9C}
  .survey-network .survey-network-node:focus-visible rect{stroke:#71518F;stroke-width:3}
  .survey-network-legend,.survey-personal-legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:10px 0;font-size:12px;line-height:1.6;color:#51475F}
@@ -850,8 +872,8 @@
  #app .constellation-hero .constellation-dim{fill:#7E9FC9;stroke:#B7CFEE;stroke-width:.5}
  #app .constellation-hero.is-all-complete .constellation-trail{stroke:#F0D79A;filter:drop-shadow(0 0 4px #F0D79A)}
  #app .constellation-date-controls .date-control{background:#FFFFFF12;color:#E3ECFA;border-color:#A7BBD95C}
- #app .constellation-summary{color:#DFE9F8}
- #modal{background:linear-gradient(140deg,#FFFC,#F4EEFFEB);border:1px solid var(--nebula-edge);box-shadow:0 18px 60px #37305033;backdrop-filter:blur(24px) saturate(150%);border-radius:20px;color:#38334A}
+ #app .constellation-summary{color:#CDD9EA}
+ #modal{background:linear-gradient(140deg,rgba(250,252,255,.97),rgba(233,239,247,.93));border:1px solid var(--nebula-edge);box-shadow:0 18px 60px #263D6026;backdrop-filter:blur(24px) saturate(150%);border-radius:20px;color:#1C2B42}
  #modal .dialog-head,#modal .dialog-body,#modal .dialog-foot,#modal .panel{background:transparent}
  #app :is(.toolbar,.statistics-filters,.settings-content,.economy-assets) button:not(.icon-button):not(.economy-icon-button):not(.record-action),#modal button:not(.icon-button):not(.economy-icon-button):not(.record-action){min-height:40px;border-radius:11px}
  #app .icon-button,#modal .icon-button{display:inline-flex;align-items:center;justify-content:center;width:36px;min-height:36px;padding:7px;border-radius:11px;flex:none}
@@ -860,8 +882,8 @@
  .quick-extra-options input[type=text],#quick-counsel-text{flex:1;min-width:120px;width:auto;min-height:36px}
  .mobile-quick-options{margin:8px 0}.mobile-quick-options summary{cursor:pointer;font-size:13px;padding:8px}
  .survey-student-picker,.seat-student-cards{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
- .survey-student-choice,.seat-student-card{min-height:36px;border-radius:9px;padding:6px 10px;background:#FFFFFFA6;color:#4D435B;border:1px solid #D9CEE6}
- .survey-student-choice[aria-pressed=true]{background:#E8DDF5;border-color:#8C74AB;color:#493462;box-shadow:inset 0 1px 0 #FFF}
+ .survey-student-choice,.seat-student-card{min-height:36px;border-radius:9px;padding:6px 10px;background:#F6F9FDA6;color:#263B55;border:1px solid #C9D6E6}
+ .survey-student-choice[aria-pressed=true]{background:#D3DEED;border-color:#6D8DB4;color:#193452;box-shadow:inset 0 1px 0 #FFF}
  .incident-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:14px}
  .incident-record-picker{display:grid;gap:8px;max-height:55vh;overflow:auto}
  .incident-record-picker>label{display:flex;align-items:start;gap:8px;padding:9px;border-radius:10px;background:#FFFFFF80}
@@ -869,15 +891,15 @@
  .seating-workspace{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:16px;align-items:start}
  .seating-workspace .seat-canvas{min-width:0;overflow:auto;border-radius:16px;background:#FFFFFF4D;padding:12px}
  #app #seat-grid .seat-cell{height:46px;min-height:46px;aspect-ratio:auto;padding:5px 8px;font-size:13px;border-radius:9px;display:flex;align-items:center;justify-content:center;gap:6px}
- #app #seat-grid .seat-cell small{font-size:10px;color:#6E5A82}
- #app #seat-grid .seat-aisle{background:transparent;border:1px dashed #C5B8D14D;box-shadow:none;color:#8C809B}
+ #app #seat-grid .seat-cell small{font-size:10px;color:#53647B}
+ #app #seat-grid .seat-aisle{background:transparent;border:1px dashed #BCCBDD66;box-shadow:none;color:#7C899B}
  #app .seat-paint-tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px}
  .seat-unplaced{position:sticky;top:85px}.seat-unplaced h3{margin:0}
  .seat-student-card{touch-action:none;cursor:grab}
- .seat-lock[aria-pressed=true]{background:#E5DDF0}
- .seat-snapshot{display:grid;gap:6px;min-width:550px}.seat-snapshot span{padding:8px;border:1px solid #D4C9E0;border-radius:7px;background:#FFFFFF80}
+ .seat-lock[aria-pressed=true]{background:#D3DEED}
+ .seat-snapshot{display:grid;gap:6px;min-width:550px}.seat-snapshot span{padding:8px;border:1px solid #C9D6E6;border-radius:7px;background:#F6F9FD80}
  .seat-history article{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}
- #app .settings-content :is(input:not([type=checkbox]):not([type=color]),select,textarea){background:#FFFFFF9C;border:1px solid #D9CEE4;border-radius:10px;min-width:0;box-shadow:inset 0 1px 0 #FFF}
+ #app .settings-content :is(input:not([type=checkbox]):not([type=color]),select,textarea){background:#F3F6FB;border:1px solid #B7C6DA;border-radius:10px;min-width:0;box-shadow:inset 0 1px 0 #FFF}
  #app .settings-content .formgrid{gap:10px 14px}#app .settings-content label{gap:5px}
  @media(max-width:800px){.seating-workspace{grid-template-columns:minmax(0,1fr)}.seat-unplaced{position:static}.seat-unplaced .seat-student-cards{max-height:210px;overflow:auto}}
  @media(max-width:480px){#app .settings-content .row{flex-wrap:wrap}.settings-content .formgrid{grid-template-columns:minmax(0,1fr)}.quick-extra-options{gap:6px}.survey-student-choice{flex:0 1 auto}}
@@ -886,38 +908,38 @@
  #app .statistics-filters button{height:38px}
  #app .demo-banner>span{flex:1 1 250px}
 }
-.seat-picker{position:fixed;inset:auto;margin:0;width:284px;max-width:calc(100vw - 16px);max-height:230px;overflow:auto;padding:14px;background:#F9F5FFFA;border:1px solid #D9CEE6;border-radius:14px;box-shadow:0 12px 32px #30253C26;color:#493F56;backdrop-filter:blur(18px)}
+.seat-picker{position:fixed;inset:auto;margin:0;width:284px;max-width:calc(100vw - 16px);max-height:230px;overflow:auto;padding:14px;background:#F6F9FDF5;border:1px solid #C5D2E4;border-radius:14px;box-shadow:0 12px 32px #263D6022;color:#263B55;backdrop-filter:blur(18px)}
 
 /* ── 6안(그레이니 히어로): 시안의 밤하늘·그레이니 그라디언트·별자리를 본 앱 히어로에 옮겼다.
    히어로 안에서만 움직이고, 나머지 화면 배경·카드는 그대로 둔다. ── */
 @media screen {
- #app .constellation-hero,#app .student-profile-header,#app .constellation-hero.is-all-complete{
-  --hero-ink:#F8F6EE;--hero-muted:#B9C8E2;--hero-gold:#F2DCA8;
-  --nebula-hero:#0A1026;--nebula-hero-ink:#F8F6EE;--nebula-hero-muted:#B9C8E2;
+ #app .constellation-hero,#app .student-profile-header,#app .student-profile-header.constellation-hero,#app .constellation-hero.is-all-complete{
+  --hero-ink:#F5F7FC;--hero-muted:#CDD9EA;--hero-gold:#F5D78E;
+  --nebula-hero:#10274A;--nebula-hero-ink:#F5F7FC;--nebula-hero-muted:#CDD9EA;
   position:relative;isolation:isolate;overflow:hidden;
-  background-color:#0A1026;
+  background-color:#09152D;
   background-image:
-   radial-gradient(ellipse 32% 84% at 96% 8%, #D4B06A26 0%, #D4B06A00 70%),
-   radial-gradient(ellipse 30% 82% at 58% 100%, #5D7EA875 0%, #5D7EA800 72%),
-   radial-gradient(ellipse 40% 120% at 82% 16%, #254A7AEB 0%, #254A7A00 68%),
-   radial-gradient(ellipse 70% 130% at 16% 58%, #142B52E6 0%, #142B5200 74%),
-   linear-gradient(112deg, #0A1026 0%, #0E1B38 46%, #16305C 100%);
+   radial-gradient(ellipse 58% 94% at 100% 100%, #466382B8 0%, #46638200 72%),
+   radial-gradient(ellipse 46% 112% at 88% 16%, #25466EE6 0%, #25466E00 70%),
+   radial-gradient(ellipse 72% 128% at 14% 56%, #10274AEB 0%, #10274A00 74%),
+   linear-gradient(104deg, #09152D 0%, #0C1B36 44%, #1B3A5E 76%, #25466E 100%);
   color:var(--hero-ink);
-  box-shadow:inset 0 1px 0 #FFFFFF1F,0 14px 32px #060D1E57;
+  border:0;
+  box-shadow:inset 0 0 0 1px #FFFFFF26,inset 0 1px 0 #FFFFFF1F,0 14px 32px #263D6033;
  }
  #app .constellation-hero>.hero-grain{position:absolute;inset:0;z-index:0;overflow:hidden;border-radius:inherit;pointer-events:none}
  /* 은하수 띠: 넓게 흐르는 빛. 15초에 한 바퀴 돌아 눈으로 흐름이 보인다. */
  #app .constellation-hero>.hero-grain::before{
   content:"";position:absolute;inset:-30% -12%;pointer-events:none;
-  background:radial-gradient(ellipse 46% 28% at 56% 46%, #7C9AC880 0%, #7C9AC800 68%);
+  background:radial-gradient(ellipse 46% 28% at 56% 46%, #7C9AC866 0%, #7C9AC800 68%);
   filter:blur(16px);
   animation:hero-band 15s cubic-bezier(.45,0,.55,1) infinite;
  }
  #app .constellation-hero>.hero-grain span{position:absolute;border-radius:50%;will-change:transform;filter:blur(clamp(16px,2.6vw,40px))}
- #app .constellation-hero>.hero-grain span:nth-child(1){width:88%;height:168%;left:-20%;top:-44%;background:radial-gradient(circle at 50% 50%,#16305C 0%,#16305C00 68%);animation:hero-flow-a 13s cubic-bezier(.45,0,.55,1) infinite}
- #app .constellation-hero>.hero-grain span:nth-child(2){width:70%;height:176%;right:-22%;top:-48%;background:radial-gradient(circle at 50% 50%,#5D7EA8AD 0%,#5D7EA800 68%);animation:hero-flow-b 16s cubic-bezier(.45,0,.55,1) infinite}
- #app .constellation-hero>.hero-grain span:nth-child(3){width:50%;height:122%;right:-9%;bottom:-48%;background:radial-gradient(circle at 50% 50%,#D4B06A80 0%,#D4B06A33 34%,#D4B06A00 68%);animation:hero-flow-c 19s cubic-bezier(.45,0,.55,1) infinite}
- #app .constellation-hero>.hero-grain span:nth-child(4){width:58%;height:130%;left:16%;bottom:-56%;background:radial-gradient(circle at 50% 50%,#2F5490A6 0%,#2F549000 70%);animation:hero-flow-d 22s cubic-bezier(.45,0,.55,1) infinite}
+ #app .constellation-hero>.hero-grain span:nth-child(1){width:88%;height:168%;left:-20%;top:-44%;background:radial-gradient(circle at 50% 50%,#0D2144 0%,#0D214400 68%);animation:hero-flow-a 13s cubic-bezier(.45,0,.55,1) infinite}
+ #app .constellation-hero>.hero-grain span:nth-child(2){width:70%;height:176%;right:-22%;top:-48%;background:radial-gradient(circle at 50% 50%,#46638299 0%,#46638200 68%);animation:hero-flow-b 16s cubic-bezier(.45,0,.55,1) infinite}
+ #app .constellation-hero>.hero-grain span:nth-child(3){width:50%;height:122%;right:-9%;bottom:-48%;background:radial-gradient(circle at 50% 50%,#6E88A880 0%,#6E88A833 34%,#6E88A800 68%);animation:hero-flow-c 19s cubic-bezier(.45,0,.55,1) infinite}
+ #app .constellation-hero>.hero-grain span:nth-child(4){width:58%;height:130%;left:16%;bottom:-56%;background:radial-gradient(circle at 50% 50%,#1C3A60A6 0%,#1C3A6000 70%);animation:hero-flow-d 22s cubic-bezier(.45,0,.55,1) infinite}
  #app .constellation-hero>.hero-grain::after{
   content:"";position:absolute;inset:0;pointer-events:none;opacity:.17;mix-blend-mode:overlay;
   background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Cfilter id="g2"%3E%3CfeTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="3" stitchTiles="stitch"/%3E%3CfeColorMatrix type="saturate" values="0"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23g2)" opacity=".55"/%3E%3C/svg%3E');
@@ -936,7 +958,7 @@
  #app .constellation-copy{position:relative;z-index:2}
  #app .constellation-hero>.constellation-map{position:relative;z-index:2}
  #app .constellation-hero>.constellation-summary{position:relative;z-index:2}
- #app .constellation-sky .dust{fill:#F8F6EE}
+ #app .constellation-sky .dust{fill:#F5F7FC}
  #app .constellation-sky .dust.is-far{fill:#CFDCF4;opacity:.45}
  #app .constellation-sky .dust.is-near{fill:#F8F6EE;opacity:.78}
  #app .constellation-sky .dust.is-gold{fill:#D4B06A;opacity:.62}
@@ -947,19 +969,19 @@
  @keyframes dust-drift-near{0%,100%{transform:translate3d(22px,-16px,0)}50%{transform:translate3d(-26px,18px,0)}}
  @keyframes dust-twinkle{from{opacity:.18}to{opacity:.95}}
 
- #app .constellation-map .constellation-line{fill:none;stroke:#D4B06A;stroke-opacity:.46;stroke-width:.9;stroke-linecap:round}
- #app .constellation-map .constellation-line.is-lit{stroke:#F2DCA8;stroke-opacity:.92;filter:drop-shadow(0 0 2px #D4B06A)}
+ #app .constellation-map .constellation-line{fill:none;stroke:#D4B06A;stroke-opacity:.5;stroke-width:.9;stroke-linecap:round}
+ #app .constellation-map .constellation-line.is-lit{stroke:#D4B06A;stroke-opacity:1;filter:drop-shadow(0 0 3px #F0D79A)}
  #app .constellation-map .constellation-halo{fill:none;stroke:#F0D79A;stroke-opacity:.11;stroke-width:3.6;stroke-linecap:round}
  #app .constellation-map .star-point{fill:#B9CBE8;opacity:.42}
- #app .constellation-map .star-point.is-lit{fill:#F4DCA6;opacity:1}
- #app .constellation-map .star-glow{fill:#F0D79A;opacity:.22;filter:blur(.9px)}
+ #app .constellation-map .star-point.is-lit{fill:#FFF1C4;opacity:1}
+ #app .constellation-map .star-glow{fill:#F0D79A;opacity:.26;filter:blur(.9px)}
  #app .constellation-map .constellation-cluster.is-faint{opacity:.3}
  #app .constellation-hero h2,#app .student-profile-header .constellation-heading h2{color:var(--hero-ink)}
  #app .constellation-hero p,#app .constellation-hero small{color:var(--hero-muted)}
  #app .constellation-progress{color:var(--hero-gold)}
  #app .constellation-progress.is-empty{color:var(--hero-muted)}
- #app .constellation-summary{color:#D8E4F6}
- #app .constellation-date-controls :is(.date-display,input,.date-control){color:#E3ECFA}
+ #app .constellation-summary{color:#CDD9EA}
+ #app .constellation-date-controls :is(.date-display,input,.date-control){color:#CDD9EA}
  #app .constellation-hero .constellation-map{max-height:150px}
  #app .dashboard-top-grid .constellation-map{max-height:140px}
  /* 넓은 화면에서는 별자리 창을 조금 더 넓게 내준다(글자 영역은 그대로). */
@@ -978,4 +1000,32 @@
   #app .constellation-hero.is-all-complete .star-glow,.constellation-sparkles path{animation:none!important}
   #app .constellation-hero.is-all-complete .star-glow{opacity:.45}
  }
+}
+
+/* ── Misty Blue(별빛이 남아 있는 하늘) 마무리: 카드 제목·비활성 글씨·아이콘 색을 시안 값에 맞춘다.
+   기능 색(과목·상태·분야)은 건드리지 않는다. ── */
+@media screen {
+  body {
+    --mist-icon-bg: #D5E2F3;
+    --mist-icon-ink: #31577F;
+  }
+  #app :is(.panel, .card, .student-card, .record, .metric, .quick-wrap) :is(h2, h3) { color: #172943; }
+  #app :is(button:disabled, [aria-disabled="true"]) { color: #7C899B; }
+  #app .icon-button { color: var(--mist-icon-ink); }
+  #app .icon-button:hover { background: var(--mist-icon-bg); }
+  #app .icon-button.is-active { background: var(--mist-icon-bg); color: #193452; }
+  /* 히어로 안의 아이콘·보조 정보는 밝은 유리 위에서도 읽히게 유지한다. */
+  #app .constellation-hero :is(.ui-icon, .icon-button) { color: var(--hero-ink, #F5F7FC); }
+  #app .constellation-hero .icon-button:hover { background: #FFFFFF1F; }
+}
+@media screen {
+  /* 메뉴 서랍은 긴 목록을 읽는 면이라 상단 메뉴바보다 조금 더 불투명하게 둔다. */
+  #app .navigation-drawer {
+    background: linear-gradient(160deg, #F6F9FD, #E7EEF7);
+    border-right: 1px solid rgba(255, 255, 255, .92);
+    box-shadow: 8px 0 32px rgba(38, 61, 96, .16);
+  }
+  #app .navigation-drawer::backdrop { background: #1B2A3F4D; }
+  #app .drawer-tabs button { color: #263B55; }
+  #app .drawer-tabs button.active { background: #D3DEED; color: #193452; }
 }

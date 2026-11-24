@@ -120,8 +120,8 @@ test('prefers-reduced-motion에서 그레이니·배경 그림 애니메이션�
 const heroCss = readFileSync(path.join(root, 'css/nebula.css'), 'utf8');
 const heroJs = readFileSync(path.join(root, 'js/components/constellation.js'), 'utf8');
 
-test('본 앱 히어로가 6안의 밤하늘 팔레트와 그레인 층을 쓴다', () => {
-  for (const color of ['#0A1026', '#16305C', '#D4B06A', '#F0D79A', '#F2DCA8', '#F8F6EE']) {
+test('본 앱 히어로가 미스티 블루 밤하늘 팔레트와 그레인 층을 쓴다', () => {
+  for (const color of ['#09152D', '#10274A', '#25466E', '#466382', '#D4B06A', '#F0D79A', '#F5D78E', '#F5F7FC', '#CDD9EA', '#FFF1C4']) {
     assert.ok(heroCss.includes(color), color);
   }
   // 히어로 안쪽에만 그레인·별가루 층을 둔다
@@ -129,15 +129,36 @@ test('본 앱 히어로가 6안의 밤하늘 팔레트와 그레인 층을 쓴�
   assert.match(heroCss, /#app \.constellation-hero>\.hero-grain span:nth-child\(4\)/);
   assert.match(heroCss, /#app \.constellation-hero>\.constellation-sky\{position:absolute;inset:0;z-index:0/);
   assert.match(heroCss, /#app \.constellation-hero>\.constellation-grain|#app \.constellation-hero>\.hero-grain::after\{/);
+  // 배너 테두리는 흰색 15% (레이아웃을 흔들지 않게 안쪽 링으로 그린다)
+  assert.match(heroCss, /box-shadow:inset 0 0 0 1px #FFFFFF26/);
   // 별자리: 금빛 후광·연결선·점등 별
   assert.match(heroCss, /\.constellation-line\{fill:none;stroke:#D4B06A/);
   assert.match(heroCss, /\.constellation-halo\{fill:none;stroke:#F0D79A/);
-  assert.match(heroCss, /\.constellation-map \.star-point\.is-lit\{fill:#F4DCA6/);
+  assert.match(heroCss, /\.constellation-map \.star-point\.is-lit\{fill:#FFF1C4/);
   assert.match(heroJs, /const CLASS_SKY = \[/);
   assert.match(heroJs, /class="hero-grain"/);
   assert.match(heroJs, /class="constellation-sky"/);
   assert.match(heroJs, /class="constellation-map" viewBox="0 0 380 200"/);
   assert.match(heroJs, /data-progress-done="\$\{complete\}"/);
+});
+
+test('전체 배경이 민트·초록 그라디언트 대신 미스티 블루 그라디언트와 필름 그레인을 쓴다', () => {
+  // 기존 민트/초록 배경 그림을 걷어냈다
+  assert.ok(!heroCss.includes('bg-pastel-nebula.webp'), 'mint nebula image');
+  assert.ok(!heroCss.includes('bg-watercolor-stars.webp'), 'watercolor image');
+  assert.ok(!/#C5D7D0|#22483A|#F7F8F6|#E1EBE6/i.test(heroCss), 'mint tokens');
+  // 시안의 여섯 방향 radial-gradient를 넓게 겹친다
+  for (const color of ['#9BAFCB', '#B8C9DF', '#CED9E8', '#C4D2E3', '#CDD3E7', '#EAE2E3', '#D5DFEB']) {
+    assert.ok(heroCss.includes(color), color);
+  }
+  // 배경 레이어에만 6~9% 그레인을 깐다
+  const grain = heroCss.match(/\.sky-light::after \{[^}]*\}/)[0];
+  const opacity = Number('0.' + grain.match(/opacity: \.(\d+)/)[1]);
+  assert.ok(opacity >= 0.06 && opacity <= 0.09, String(opacity));
+  assert.match(grain, /feTurbulence/);
+  // 카드 유리는 시안의 반투명 블루글레이 그라디언트
+  assert.match(heroCss, /--nebula-glass: linear-gradient\(135deg, #F4F7FCC7 0%, #E9EEF7B8 55%, #E1E8F3A6 100%\)/);
+  assert.match(heroCss, /--nebula-reading-glass: linear-gradient\(145deg, #F4F7FCE8, #E1E8F3D1\)/);
 });
 
 test('하늘 움직임은 닫힌 고리로 이어지고 별가루도 따로 표류한다', () => {
