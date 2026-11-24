@@ -1,4 +1,4 @@
-import { surveySubmitOps, TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps, mergeRewardTitles, demoDB, shopBuyOps, shopRefundOps, shopUseOps, teacherGiftOps, teacherBalanceAdjustOps, shopFundGroupBuyOps, shopUseGroupBuyOps, teacherReclaimOps, teacherUndoGiftOps } from './core.js';
+import { surveySubmitOps, TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps, mergeRewardTitles, demoDB, DEMO_INITIAL_PASSWORD, shopBuyOps, shopRefundOps, shopUseOps, teacherGiftOps, teacherBalanceAdjustOps, shopFundGroupBuyOps, shopUseGroupBuyOps, teacherReclaimOps, teacherUndoGiftOps } from './core.js';
 export class Store {
   async submitLocalSurvey(studentId,surveyId,placements){
     if(!['demo','local'].includes(this.mode))throw Error('로컬 모드가 아닙니다.');
@@ -210,7 +210,7 @@ export class Store {
       schoolName: config.schoolName || '체험초등학교',
       grade: config.grade || 5,
       classGroup: config.classGroup || '1',
-      defaultStudentPassword: config.defaultStudentPassword || '바람123'
+      defaultStudentPassword: config.defaultStudentPassword || DEMO_INITIAL_PASSWORD
     });
     const areaMigration = areaMigrationOps(this.db);
     normalizeDB(this.db);

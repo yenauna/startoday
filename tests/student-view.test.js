@@ -260,8 +260,7 @@ test('개인 비밀번호는 반 공통 초기값 변경 시 유지되고 초기
   };
   assert.equal(Auth.studentPasswordInfo({
     id: 'new'
-  }, config).password, '13579');
-  const changed = {
+  }, config).password, '13579');  const changed = {
     password: '나의별7',
     passwordChanged: true
   };
@@ -278,6 +277,18 @@ test('개인 비밀번호는 반 공통 초기값 변경 시 유지되고 초기
   assert.equal(Auth.studentPasswordInfo({
     password: '12345'
   }, config).mustChangePassword, true);
+});
+test('반 공통 초기 비밀번호에는 내장 기본값이 없고 저장된 값만 쓰인다', () => {
+  const empty = Auth.studentPasswordInfo({ id: 'new' }, {});
+  assert.equal(empty.initial, '');
+  assert.equal(empty.password, '');
+  assert.equal(empty.mustChangePassword, true);
+  const unset = Auth.studentPasswordInfo({ id: 'new' }, undefined);
+  assert.equal(unset.initial, '');
+  assert.equal(unset.mustChangePassword, true);
+  assert.equal(Auth.studentPasswordInfo({ id: 'new' }, { defaultStudentPassword: '우리반별빛7' }).password, '우리반별빛7');
+  assert.equal(Auth.studentPasswordInfo({ password: '나의별빛7', passwordChanged: true }, {}).password, '나의별빛7');
+  assert.equal(Auth.studentPasswordInfo({ password: '나의별빛7', passwordChanged: true }, {}).mustChangePassword, false);
 });
 test('새 비밀번호는 완성된 한글과 숫자만 5자 이상이며 초기값과 이전값 재사용 금지', () => {
   for (const value of ['12345', '바람12', '행복5', 'ㄱㄴㄷ123', '바람abc123', 'Star77', '바람!123', '바람 123']) {

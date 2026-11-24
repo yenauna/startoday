@@ -133,7 +133,8 @@ function bindStudentRecordSearch(records) {
 export async function resetStudentPassword(id) {
   const student = db().students.find(row => row.id === id);
   if (!student) return;
-  const password = settings().defaultStudentPassword || '바람123';
+  const password = String(settings().defaultStudentPassword || '');
+  if (!password) throw Error('먼저 [초기화 비밀번호 설정]에서 반 공통 초기 비밀번호를 정해야 학생 비밀번호를 초기화할 수 있습니다.');
   validateKoreanPassword(password);
   if (!confirm(`${student.no}. ${student.name} 학생의 비밀번호를 반 공통 초기 비밀번호로 초기화할까요?`)) return;
   await commit([up('students', {

@@ -31,7 +31,7 @@ export function settingsView() {
   })}</div><div id="holiday-dates" class="chips">${(calendar.holidays || []).map(holidayChip).join('')}</div></div></div><p class="muted">개학식·방학식·종업식·자율휴업일은 일정 달력에 자동 반영됩니다.</p></section><button class="primary settings-save">설정 저장</button></form><section class="panel" data-settings-category="데이터 백업" hidden><h3>백업과 복원</h3><p class="muted">${store.mode === 'cloud' ? '학생의 텍스트 자료는 클라우드 데이터베이스에 저장됩니다.' : '체험 모드 자료는 현재 브라우저에만 저장됩니다.'}</p><p>학급 데이터 약 <strong>${(bytes / 1024).toFixed(1)} KB</strong><br><small>텍스트 JSON 기준 추정치입니다. 실제 DB·백업·인증 저장량은 클라우드 관리 화면에서 확인하세요.</small></p><p class="muted">마지막 파일 백업: ${st.lastBackupAt ? esc(localTime(st.lastBackupAt)) : '없음'}</p><div class="row">${btn('전체 JSON 내려받기', downloadBackup, 'primary')}${btn('JSON 가져오기', () => $('#backup-input').click())}${btn('클라우드에 한 벌 더 저장', async () => {
     await store.cloudBackup();
     toast('클라우드 백업을 저장했습니다. 최근 2세대를 보관합니다.');
-  })}${btn('클라우드 백업 복구', cloudRestore)}</div><input id="backup-input" type="file" accept="application/json,.json" hidden><div class="notice">사진·음성은 저장하지 않습니다. 백업 파일에는 학생 기록이 포함되므로 안전한 곳에 보관하세요.</div><h3 style="margin-top:22px">학년도 전환</h3><p class="muted">현재 학생을 새 고유 ID로 복제합니다. 지난 기록은 보존하고 새 학생에게는 연결하지 않습니다.</p>${btn('다음 학년으로 이어 가기', rollover)}</section><section class="panel" data-settings-category="학생 명단" hidden><div class="toolbar"><h3>학생 명단</h3><div class="row">${btn('초기화 비밀번호 설정', initialStudentPasswordDialog)}${btn('명단 붙여넣기', rosterPaste, 'primary')}${btn('+ 학생', () => studentEditor())}${btn('나간 학생 보기', removedStudents)}</div></div><div class="table-wrap"><table class="roster-table"><thead><tr><th>번호</th><th>이름</th><th>별명</th><th>성별</th><th></th></tr></thead><tbody>${students().map(s => `<tr data-roster-student="${esc(s.id)}"><td>${s.no}</td><td>${esc(C.studentLabel(s))}</td><td class="roster-nickname">${esc(s.nickname || s.alias || '')}</td><td>${esc(s.gender||'미지정')}</td><td><div class="row">${btn('수정', () => studentEditor(db().students.find(current => current.id === s.id) || s))}${btn('삭제', async () => {
+  })}${btn('클라우드 백업 복구', cloudRestore)}</div><input id="backup-input" type="file" accept="application/json,.json" hidden><div class="notice">사진·음성은 저장하지 않습니다. 백업 파일에는 학생 기록이 포함되므로 안전한 곳에 보관하세요.</div><h3 style="margin-top:22px">학년도 전환</h3><p class="muted">현재 학생을 새 고유 ID로 복제합니다. 지난 기록은 보존하고 새 학생에게는 연결하지 않습니다.</p>${btn('다음 학년으로 이어 가기', rollover)}</section><section class="panel" data-settings-category="학생 명단" hidden><div class="toolbar"><h3>학생 명단</h3><div class="row">${btn('초기화 비밀번호 설정', initialStudentPasswordDialog)}${btn('명단 붙여넣기', rosterPaste, 'primary')}${btn('+ 학생', () => studentEditor())}${btn('나간 학생 보기', removedStudents)}</div></div>${settings().defaultStudentPassword ? `<p class="muted">반 공통 초기 비밀번호를 설정했습니다. 새로 들어오거나 비밀번호를 초기화한 학생은 이 값으로 로그인해 자기 비밀번호를 정합니다.</p>` : `<p class="field-error" role="status">반 공통 초기 비밀번호가 아직 없습니다. 이 상태에서는 새로 들어오거나 비밀번호를 초기화한 학생이 로그인할 수 없습니다. [초기화 비밀번호 설정]에서 먼저 정해 주세요.</p>`}<div class="table-wrap"><table class="roster-table"><thead><tr><th>번호</th><th>이름</th><th>별명</th><th>성별</th><th></th></tr></thead><tbody>${students().map(s => `<tr data-roster-student="${esc(s.id)}"><td>${s.no}</td><td>${esc(C.studentLabel(s))}</td><td class="roster-nickname">${esc(s.nickname || s.alias || '')}</td><td>${esc(s.gender||'미지정')}</td><td><div class="row">${btn('수정', () => studentEditor(db().students.find(current => current.id === s.id) || s))}${btn('삭제', async () => {
     if (confirm(`${s.name} 학생을 명단에서 뺄까요? 기록과 과제 상태는 보존합니다.`)) await commit([up('students', {
       ...s,
       deletedAt: C.now(),
@@ -57,7 +57,10 @@ export function settingsView() {
       schoolCode: f.get('schoolCode') || '',
       grade: Number(f.get('grade')),
       classGroup: f.get('classGroup').trim(),
-      defaultStudentPassword: settings().defaultStudentPassword || '바람123',
+      // 저장된 초기 비밀번호가 있을 때만 함께 보냅니다. 없으면 비워 두어 아무도 기본값으로 들어올 수 없게 합니다.
+      ...(settings().defaultStudentPassword ? {
+        defaultStudentPassword: settings().defaultStudentPassword
+      } : {}),
       nameDisplayMode: f.get('nameDisplayMode'),
       classroomShowScores: !!f.get('classroomShowScores'),
       reportPrintMode: f.get('reportPrintMode'),
@@ -306,6 +309,10 @@ export function rollover() {
         seat: null,
         createdAt: C.now(),
         studentCode: '',
+        // 새 학년도 학생은 반 공통 초기 비밀번호로 시작해 첫 로그인에서 새 비밀번호를 정한다.
+        passwordChanged: false,
+        passwordResetRequired: false,
+        passwordChangedAt: null,
         deletedAt: null
       }));
     }
@@ -442,7 +449,8 @@ function bindSchoolSettings() {
   return '';
 }
 export function initialStudentPasswordDialog() {
-  modal('초기화 비밀번호 설정', `${koreanPasswordField('반 공통 초기 비밀번호', 'defaultStudentPassword', settings().defaultStudentPassword || '바람123', 'required minlength="5" autocomplete="new-password"')}<p class="muted">완성된 한글을 포함해 5자 이상, 한글과 숫자만 사용하세요. 학생이 변경한 개인 비밀번호는 유지됩니다.</p>`, async f => {
+  const current = settings().defaultStudentPassword || '';
+  modal('초기화 비밀번호 설정', `${koreanPasswordField('반 공통 초기 비밀번호', 'defaultStudentPassword', current, 'required minlength="5" autocomplete="new-password" placeholder="예: 우리반별빛7"')}<p class="muted">완성된 한글을 포함해 5자 이상, 한글과 숫자만 사용하세요. 학생이 변경한 개인 비밀번호는 유지됩니다. 비워 두면 새로 들어온 학생과 비밀번호를 초기화한 학생은 로그인할 수 없습니다.</p>${!current ? '<p class="field-error" role="status">아직 반 공통 초기 비밀번호가 없습니다. 새 학생·초기화한 학생이 로그인하려면 지금 정해 주세요.</p>' : current === '바람123' ? '<p class="field-error" role="status">예전 기본값(바람123)을 그대로 쓰고 있습니다. 반 아이들이 아는 값이라 이대로면 다른 학생 계정으로도 들어갈 수 있으니 새 값으로 바꾸는 것을 권합니다.</p>' : ''}`, async f => {
     const password = f.get('defaultStudentPassword');
     validateKoreanPassword(password);
     await commit([up('settings', {

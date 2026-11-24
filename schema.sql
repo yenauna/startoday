@@ -500,7 +500,8 @@ begin
  and (trim(p_school)=cfg.data->>'schoolName' or trim(p_school)=nullif(cfg.data->>'schoolCode',''))
  and cfg.data->>'grade'=p_grade and trim(cfg.data->>'classGroup')=trim(p_class);
  if student is null then return null;end if;
- initial:=coalesce(nullif(config->>'defaultStudentPassword',''),'바람123');
+ -- Fail closed: a class that never set its own initial password has no shared value to fall back on.
+ initial:=nullif(btrim(coalesce(config->>'defaultStudentPassword','')),'');
  select x.password_hash,x.must_change into v_hash,v_temporary from public.startoday_student_secrets x where x.class_id=cid and x.student_id=sid;
  insert into public.startoday_student_login_attempts(class_id,student_id) values(cid,sid) on conflict do nothing;
  select a.failures,a.window_start into v_failures,started from public.startoday_student_login_attempts a where a.class_id=cid and a.student_id=sid for update;
@@ -553,8 +554,11 @@ declare verified jsonb; cid uuid; sid text; initial text; rev bigint; owner uuid
 begin
  verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_old_password);
  if verified is null then return null;end if;
- initial:=coalesce(nullif(verified->'config'->>'defaultStudentPassword',''),'바람123');
- if p_new_password is null or char_length(p_new_password)<5 or char_length(p_new_password)>200 or p_new_password !~ '[가-힣]' or p_new_password ~ '[^가-힣0-9]' or p_new_password=initial or p_new_password=p_old_password then raise exception 'INVALID_STUDENT_PASSWORD';end if;
+ initial:=nullif(btrim(coalesce(verified->'config'->>'defaultStudentPassword','')),'');
+ -- The class initial password is one-shot: it may only open a change for a student who has none yet.
+ -- A student who already set a personal password can only be changed with that personal password.
+ if verified->>'mustChangePassword' is distinct from 'true' and initial is not null and p_old_password=initial then raise exception 'INITIAL_PASSWORD_REVOKED';end if;
+ if p_new_password is null or char_length(p_new_password)<5 or char_length(p_new_password)>200 or p_new_password !~ '[가-힣]' or p_new_password ~ '[^가-힣0-9]' or p_new_password is not distinct from initial or p_new_password=p_old_password then raise exception 'INVALID_STUDENT_PASSWORD';end if;
  cid:=(verified->>'cid')::uuid;sid:=verified->>'sid';
  insert into public.startoday_student_secrets(class_id,student_id,password_hash,must_change,updated_at) values(cid,sid,public.startoday_password_hash(p_new_password),false,now()) on conflict(class_id,student_id) do update set password_hash=excluded.password_hash,must_change=false,updated_at=now();
  update public.startoday_students set data=(data-'password')||jsonb_build_object('passwordChanged',true,'passwordResetRequired',false,'passwordChangedAt',to_char(now() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),updated_at=now() where class_id=cid and id=sid;
@@ -961,7 +965,7 @@ grant execute on function public.startoday_student_survey_submit(text,text,text,
 do $$ declare r record; initial text; expected text;
 begin
  for r in select s.class_id,s.id,s.data,cfg.data as cfg from public.startoday_students s join public.startoday_settings cfg on cfg.class_id=s.class_id and cfg.id='main' where s.data ? 'password' loop
-  initial:=coalesce(nullif(r.cfg->>'defaultStudentPassword',''),'바람123');
+  initial:=nullif(btrim(coalesce(r.cfg->>'defaultStudentPassword','')),'');
   expected:=case when r.data->>'passwordResetRequired'='true' or r.data->>'passwordChanged'='false'
   or (coalesce(r.data->>'passwordChanged','false')<>'true' and (r.data->>'password' is null or r.data->>'password'='12345'))
   then initial else coalesce(r.data->>'password',initial) end;

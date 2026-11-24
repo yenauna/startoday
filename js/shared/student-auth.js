@@ -1,6 +1,8 @@
 // Shared, side-effect-free rules for local login and password changes.
+// The class initial password is whatever the teacher saved; there is no built-in default,
+// so a class without one cannot log in until the teacher sets it.
 export function studentPasswordInfo(student, config) {
-  const initial = String(config.defaultStudentPassword || '바람123');
+  const initial = String(config?.defaultStudentPassword || '');
   const inherited = student.passwordResetRequired === true || student.passwordChanged === false || student.passwordChanged !== true && (student.password == null || String(student.password) === '12345');
   const password = inherited ? initial : String(student.password ?? initial);
   return {
