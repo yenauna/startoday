@@ -90,6 +90,28 @@ let view=await changePassword('바람123','별빛123');
 assert.equal(view.mustChangePassword,false);assert.equal(view.student.name,'가상학생');assert.equal(view.praise.length,2);assert.equal(view.score.total,1);assert.equal(view.tasks.find(t=>t.date===day&&t.title==='연산').status,'완료');assert.equal(view.routines[0].status,'면제');assert.equal(view.timetable[0].location,'우리 교실');assert.equal(view.timetable[0].privateMemo,'당일 공개 수업 안내');assert(!JSON.stringify(view.calendar).includes('당일 공개 수업 안내'));assert.equal(view.timetable[0].publicMemo,'[준비물] 태블릿\n15분에 이동');assert(view.calendar.assignments.some(a=>a.id==='a1'));assert(view.calendar.states.some(s=>s.status==='완료'));assert(view.calendar.states.every(state=>!Object.hasOwn(state,'memo')));assert.equal(view.tasks.find(t=>t.date===day&&t.title==='연산').memo,'공개 준비물\n교과서');assert.equal(view.tasks.find(t=>t.date===day&&t.title==='연산').checkerName,'2. 다른학생');assert.equal(view.calendar.assignments.find(a=>a.id==='a1').checkerName,'2. 다른학생');assert.equal(view.timetable[0].periodTime,config.periodTimes[0]);assert(view.calendar.assignments.some(a=>a.id==='future-own'));assert(!JSON.stringify(view).includes('OTHER_TASK_SECRET'));assert(!JSON.stringify(view).includes('PRIVATE_ASSIGNMENT'));assert(!JSON.stringify(view).includes('PRIVATE_EVENT'));assert(view.calendar.events.some(e=>e.title==='운동회'));assert(view.calendar.events.some(e=>e.title==='개학식'));assert(view.calendar.events.some(e=>e.title==='자율휴업일'));assert.equal(view.timetable[0].color,'#E8F4F0');assert.equal(view.timetable[0].accentColor,'#20604A');assert.equal(view.timetable[0].colorSource,'custom');
 for(const hidden of ['SECRET_ADVICE','SECRET_TASK_MEMO','SECRET_ROUTINE_MEMO','PRIVATE_ACTION','OTHER_STUDENT','owner_id','password','바람123','별빛123'])assert(!JSON.stringify(view).includes(hidden));
 assert.equal(await schoolLogin('바람123'),null);assert.equal((await schoolLogin('별빛123')).student.id,'s1');
+// 반 공통 초기 비밀번호는 한 번만 쓰인다: 이미 개인 비밀번호를 정한 학생은 그 값으로 다시 덮어쓸 수 없다.
+await pg.exec('set role authenticated');await asUser(owner);revision=Number((await snapshot()).revision);
+await commit([{table:'settings',id:'main',data:{...config,defaultStudentPassword:'별빛123'}}]);
+await pg.exec('set role anon');
+assert.equal((await schoolLogin('별빛123')).student.id,'s1');
+await assert.rejects(changePassword('별빛123','고유한암호9'),/INITIAL_PASSWORD_REVOKED/);
+assert.equal((await schoolLogin('별빛123')).student.id,'s1');
+// 초기 비밀번호를 정하지 않은 학급은 기본값으로 누구도 들어올 수 없다.
+await pg.exec('set role authenticated');await asUser(owner);revision=Number((await snapshot()).revision);
+const {defaultStudentPassword: omittedInitial,...configNoInitial}=config;
+await commit([{table:'settings',id:'main',data:{...configNoInitial}}]);
+await pg.exec('set role anon');
+assert.equal(await schoolLogin('바람123'),null);
+assert.equal(await schoolLogin('바람123','NEIS001','5','오',2),null);
+assert.equal((await schoolLogin('별빛123')).student.id,'s1');
+await pg.exec('set role authenticated');await asUser(owner);revision=Number((await snapshot()).revision);
+await commit([{table:'settings',id:'main',data:{...config}}]);
+await pg.exec('set role anon');
+assert.deepEqual(await schoolLogin('바람123','NEIS001','5','오',2),{mustChangePassword:true});
+// 개인 비밀번호를 가진 학생은 자기 비밀번호로는 평소처럼 바꿀 수 있다.
+assert.equal((await changePassword('별빛123','고유한암호9')).student.id,'s1');assert.equal((await changePassword('고유한암호9','별빛123')).student.id,'s1');
+assert.equal((await schoolLogin('별빛123')).student.id,'s1');
 await assert.rejects(pg.query('select * from public.startoday_student_login_attempts'),/permission denied/);
 await pg.exec('set role authenticated');await asUser(owner);
 await assert.rejects(commit([],teacherRevision),/REVISION_CONFLICT/);revision=Number((await snapshot()).revision);
@@ -107,7 +129,7 @@ await changePassword('행복한5반','새암호123');
 await pg.exec('set role authenticated');await asUser(other);
 await pg.query('select public.startoday_commit($1,$2,$3::jsonb)',[otherSnap.class_id,0,JSON.stringify([{table:'settings',id:'main',data:{...config,schoolName:'가상초등학교',schoolCode:'NEIS002'}},{table:'students',id:'same',data:{id:'same',no:1,name:'가상학생'}}])]);
 await pg.exec('set role anon');assert.equal((await schoolLogin('새암호123')).student.id,'s1');assert.deepEqual(await schoolLogin('바람123','NEIS002'),{mustChangePassword:true});assert.equal(await schoolLogin('새암호123','가상초등학교'),null);
-console.log('PASS: 학교·학년·반·번호 식별, 초기 비밀번호 데이터 차단, 문자 포함 새 비밀번호, 변경/초기화/잠금 해제, revision 충돌, 익명 권한 및 민감 필드 비노출');
+console.log('PASS: 학교·학년·반·번호 식별, 초기 비밀번호 데이터 차단, 초기 비밀번호 1회용·내장 기본값 없음, 문자 포함 새 비밀번호, 변경/초기화/잠금 해제, revision 충돌, 익명 권한 및 민감 필드 비노출');
 
 // Peer checker RPCs authenticate each request and never grant general student writes.
 await pg.exec('set role authenticated');await asUser(owner);revision=Number((await snapshot()).revision);

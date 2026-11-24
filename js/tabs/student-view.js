@@ -161,7 +161,9 @@ export function studentSnapshot(source, student, date = C.today()) {
 }
 function studentRpcError(error) {
   if (error?.code === 'PGRST202' || error?.code === '42883') throw Error('학생 로그인을 준비 중입니다. 선생님이 최신 schema.sql을 적용해야 합니다.');
-  if (error) throw Error(error.message?.includes('INVALID_STUDENT_PASSWORD') ? '새 비밀번호는 초기 비밀번호와 다르게, 완성된 한글을 포함해 5자 이상 입력하세요.' : '학생 로그인에 연결하지 못했습니다. 잠시 후 다시 시도하세요.');
+  if (!error) return;
+  if (error.message?.includes('INITIAL_PASSWORD_REVOKED')) throw Error('반 공통 초기 비밀번호는 처음 한 번만 쓸 수 있습니다. 지금 쓰는 개인 비밀번호를 입력해 주세요.');
+  throw Error(error.message?.includes('INVALID_STUDENT_PASSWORD') ? '새 비밀번호는 초기 비밀번호와 다르게, 완성된 한글을 포함해 5자 이상 입력하세요.' : '학생 로그인에 연결하지 못했습니다. 잠시 후 다시 시도하세요.');
 }
 function studentRpcIdentity(identity) {
   return {
@@ -218,6 +220,8 @@ export async function changeStudentPassword(identity, previous, password) {
   if (!student) return null;
   const info = studentPasswordInfo(student, store.db.settings[0]);
   if (info.password !== previous) return null;
+  // 체험·로컬 모드에서도 반 공통 초기 비밀번호는 아직 비밀번호가 없는 학생에게만 쓰입니다.
+  if (!info.mustChangePassword && info.initial && previous === info.initial) throw Error('이미 바꾼 비밀번호는 반 공통 초기 비밀번호로 다시 변경할 수 없습니다. 지금 쓰는 개인 비밀번호를 입력하세요.');
   validateStudentPassword(password, info.initial, previous);
   await store.commit([{
     table: 'students',
@@ -257,7 +261,7 @@ function requireStudentPassword(identity, previous) {
   state.studentUser = null;
   state.studentSnapshot = null;
   render();
-  modal('새 비밀번호 설정', `<p>처음 로그인했거나 비밀번호가 초기화되었습니다. 새 비밀번호를 설정해야 내 화면에 들어갈 수 있어요.</p>${koreanPasswordField('새 비밀번호', 'newPassword', '', 'required minlength="5" autocomplete="new-password"')}<div id="student-password-strength" class="password-strength" data-level="weak" role="status" aria-live="polite"><span class="password-strength-track" aria-hidden="true"></span><small>약함(사용 불가)</small></div>${koreanPasswordField('새 비밀번호 확인', 'confirmPassword', '', 'required autocomplete="new-password"')}<p class="muted">완성된 한글을 포함해 5자 이상 입력하세요. 한글과 숫자만 사용할 수 있고, 초기 비밀번호는 다시 사용할 수 없습니다. 예: 바람123</p>`, async f => {
+  modal('새 비밀번호 설정', `<p>처음 로그인했거나 비밀번호가 초기화되었습니다. 새 비밀번호를 설정해야 내 화면에 들어갈 수 있어요.</p>${koreanPasswordField('새 비밀번호', 'newPassword', '', 'required minlength="5" autocomplete="new-password"')}<div id="student-password-strength" class="password-strength" data-level="weak" role="status" aria-live="polite"><span class="password-strength-track" aria-hidden="true"></span><small>약함(사용 불가)</small></div>${koreanPasswordField('새 비밀번호 확인', 'confirmPassword', '', 'required autocomplete="new-password"')}<p class="muted">완성된 한글을 포함해 5자 이상 입력하세요. 한글과 숫자만 사용할 수 있고, 초기 비밀번호는 다시 사용할 수 없습니다. 예: 우리반별빛7</p>`, async f => {
     const password = f.get('newPassword');
     validateStudentPassword(password, previous);
     if(!studentPasswordStrength(password,previous).usable)throw Error('단순 반복 대신 다른 한글과 숫자를 섞어 주세요.');
@@ -289,8 +293,8 @@ export function studentLoginDialog() {
     form.elements.schoolCode.value = config.schoolCode || '';
     form.elements.grade.value = config.grade;
     form.elements.classGroup.value = config.classGroup;
-    form.elements.password.value = config.defaultStudentPassword || '바람123';
-  })}${schoolPickerFields(recent.name || (demo ? config.schoolName || '체험초등학교' : ''), recent.code || (demo ? config.schoolCode || '' : ''))}<div class="formgrid">${input('학년', 'grade', demo ? config.grade || 5 : '', 'number', 'required min="1" max="6"')}${input('반', 'classGroup', demo ? config.classGroup || '1' : '', 'text', 'required maxlength="40"')}${input('번호', 'no', '', 'number', 'required min="1" step="1"')}${koreanPasswordField('비밀번호', 'password', '', 'required autocomplete="current-password" aria-describedby="student-login-error"')}<p id="student-login-error" class="field-error" role="alert" hidden></p></div><p class="muted">반 공통 초기 비밀번호는 선생님께 확인하세요. 새 체험 명단의 초기 비밀번호는 바람123입니다. 기존 영문 비밀번호는 선생님께 초기화를 요청하세요.</p></div>`, async f => {
+    form.elements.password.value = config.defaultStudentPassword || C.DEMO_INITIAL_PASSWORD;
+  })}${schoolPickerFields(recent.name || (demo ? config.schoolName || '체험초등학교' : ''), recent.code || (demo ? config.schoolCode || '' : ''))}<div class="formgrid">${input('학년', 'grade', demo ? config.grade || 5 : '', 'number', 'required min="1" max="6"')}${input('반', 'classGroup', demo ? config.classGroup || '1' : '', 'text', 'required maxlength="40"')}${input('번호', 'no', '', 'number', 'required min="1" step="1"')}${koreanPasswordField('비밀번호', 'password', '', 'required autocomplete="current-password" aria-describedby="student-login-error"')}<p id="student-login-error" class="field-error" role="alert" hidden></p></div><p class="muted">반 공통 초기 비밀번호는 선생님께 확인하세요. 새 체험 명단의 초기 비밀번호는 ${C.DEMO_INITIAL_PASSWORD}입니다. 기존 영문 비밀번호는 선생님께 초기화를 요청하세요.</p></div>`, async f => {
     const identity = {
       school: (f.get('schoolCode') || f.get('schoolName')).trim(),
       grade: String(Number(f.get('grade'))),

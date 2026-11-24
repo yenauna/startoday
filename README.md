@@ -3,6 +3,8 @@
 
 ### 보안 기준 (2026-11-20)
 - **학생 비밀번호**: 서버가 `pgcrypto` bcrypt 해시(`startoday_student_secrets`, 교사·익명 모두 SELECT 불가)로만 보관합니다. 로그인·변경은 서버에서 해시로 비교하며, 교사 스냅샷·학생 payload·백업에는 비밀번호도 해시도 나오지 않습니다. 교사 화면은 기존처럼 **비밀번호 초기화**만 제공합니다(해시는 복원 불가).
+- **반 공통 초기 비밀번호**: 코드에 내장된 기본값이 없습니다. 교사가 설정 → 학생 명단 → 초기화 비밀번호 설정에서 저장한 값만 쓰이고, 그 값은 아직 비밀번호를 정하지 않은 학생(신규·초기화)에게만 유효합니다. 이미 개인 비밀번호를 정한 학생은 반 공통 초기 비밀번호로 덮어쓸 수 없고 지금 쓰는 개인 비밀번호를 넣어야 바꿀 수 있습니다(`INITIAL_PASSWORD_REVOKED`). 초기 비밀번호를 정하지 않은 학급은 신규·초기화 학생이 로그인할 수 없으며 교사 화면에 안내가 뜰니다.
+- **적용**: 이전 버전 DB는 최신 `schema.sql`의 `startoday_student_authenticate`·`startoday_student_change_password` 정의를 다시 실행해야 새 규칙이 적용됩니다.
 - **기존 데이터 호환**: 최신 `schema.sql`을 한 번 실행하면 저장된 평문 비밀번호가 같은 값의 해시로 바뀌므로 학생들은 원래 비밀번호로 그대로 로그인합니다. 반 공통 초기 비밀번호를 쓰던 학생은 설정을 바꾸면 새 초기 비밀번호를 따릅니다.
 - **외부 스크립트**: Supabase SDK는 저장소 안 `vendor/supabase-js-2.49.8.min.js`(SRI `sha384` 검증)로만 로드하고, Pretendard CSS도 `vendor/`에서 제공합니다(폰트 파일만 jsDelivr).
 - **CSP**: `index.html`의 `Content-Security-Policy`가 스크립트를 `'self'`로 제한하고, Supabase·NEIS·폰트 호스트만 허용하며 `object-src 'none'`, `base-uri 'self'`를 강제합니다. 인라인 `<script>`·인라인 핸들러는 동작하지 않습니다.

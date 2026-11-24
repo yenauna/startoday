@@ -1751,6 +1751,8 @@ export function studentEconomySnapshot(database, studentId) {
     }))
   };
 }
+// 체험(demo) 시드 전용 값입니다. 클라우드 학급 인증에는 쓰지 않으며, 교사가 정한 반 공통 초기 비밀번호만 인증에 쓰입니다.
+export const DEMO_INITIAL_PASSWORD = '바람123';
 export function demoDB() {
   const database = initialDB(),
     year = Number(today().slice(0, 4)),
@@ -1759,7 +1761,7 @@ export function demoDB() {
     schoolName: '체험초등학교',
     grade: 5,
     classGroup: '1',
-    defaultStudentPassword: '바람123',
+    defaultStudentPassword: DEMO_INITIAL_PASSWORD,
     allowRefund: true,
     titleGoal: 15
   });
