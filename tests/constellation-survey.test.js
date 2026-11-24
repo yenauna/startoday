@@ -21,3 +21,33 @@ test('관계망은 회차별 긍정·갈등 연결을 구분하고 원래 개인
 test('주변 별빛은 실제 전체 완료일 때만 렌더링하고 반올림으로 100%가 되지 않음',()=>{
  assert.match(constellationHero('나',5,5,'개'),/constellation-sparkles/);assert.doesNotMatch(constellationHero('나',0,0,'개'),/constellation-sparkles/);assert.doesNotMatch(constellationHero('나',199,200,'개'),/constellation-sparkles/);assert.match(constellationHero('나',199,200,'개'),/99% 완료/);
 });
+
+test('학생 별자리는 바탕 틀 위에 같은 좌표로 별이 켜져 모양이 어긋나지 않음',()=>{
+ const html=constellationHero('내 별자리',2,4,'개');
+ const clusters=[...html.matchAll(/<g class="constellation-cluster( is-faint)?" data-stars="(\d+)" data-lit="(\d+)"[^>]*>(.*?)<\/g>/gs)];
+ const frame=clusters.find(match=>match[1]),sky=clusters.find(match=>!match[1]);
+ assert.ok(frame&&sky,'학생 화면은 바탕 틀과 실제 별자리를 모두 그린다');
+ const coords=markup=>[...markup.matchAll(/<circle class="star-point[^"]*" cx="([\d.]+)" cy="([\d.]+)"/g)].map(match=>`${match[1]},${match[2]}`);
+ const frameCoords=new Set(coords(frame[4])),skyCoords=coords(sky[4]);
+ assert.equal(Number(frame[2]),16);assert.equal(Number(frame[3]),0);
+ assert.equal(skyCoords.length,4);assert.equal(Number(sky[3]),2);
+ // 켜지거나 꺼진 별까지 모두 바탕 틀의 좌표 위에 있다
+ assert.equal(new Set(skyCoords).size,4);
+ for(const coord of skyCoords) assert.ok(frameCoords.has(coord),coord);
+ // 교사 화면에는 학생용 바탕 틀을 깔지 않는다
+ assert.doesNotMatch(constellationHero('우리 반',3,22),/is-faint/);
+ // 오늘 할 일이 없으면 바탕 틀도 그리지 않는다
+ assert.doesNotMatch(constellationHero('나',0,0,'개'),/is-faint/);
+ // 별 개수가 달라도 켜지는 별은 언제나 바탕 틀 좌표 위에 있다
+ for(const [done,total] of [[1,1],[1,2],[2,3],[5,7],[16,16],[13,20]]){
+  const markup=constellationHero('내 별자리',done,total,'개');
+  const groups=[...markup.matchAll(/<g class="constellation-cluster( is-faint)?" data-stars="(\d+)" data-lit="(\d+)"[^>]*>(.*?)<\/g>/gs)];
+  const frameGroup=groups.find(match=>match[1]),skyGroup=groups.find(match=>!match[1]);
+  const points=markupText=>[...markupText.matchAll(/<circle class="star-point[^"]*" cx="([\d.]+)" cy="([\d.]+)"/g)].map(match=>`${match[1]},${match[2]}`);
+  const frameSet=new Set(points(frameGroup[4]));
+  assert.equal(Number(skyGroup[2]),total,total);
+  assert.equal(Number(skyGroup[3]),done,`${done}/${total}`);
+  assert.equal(points(skyGroup[4]).length,total);
+  for(const coord of points(skyGroup[4])) assert.ok(frameSet.has(coord),`${done}/${total} ${coord}`);
+ }
+});

@@ -145,12 +145,40 @@ test('하늘 움직임은 닫힌 고리로 이어지고 별가루도 따로 표�
   for (const name of ['hero-flow-a', 'hero-flow-b', 'hero-flow-c', 'hero-flow-d', 'hero-band']) {
     assert.match(heroCss, new RegExp(`@keyframes ${name}\\{0%,100%\\{`), name);
   }
+  // 주기는 12~24초로 당겨 정지 화면처럼 보이지 않게 한다
   const durations = [...heroCss.matchAll(/animation:hero-(?:flow-[a-d]|band) (\d+)s/g)].map(m => Number(m[1]));
   assert.equal(durations.length, 5);
-  for (const seconds of durations) assert.ok(seconds >= 30, String(seconds));
+  for (const seconds of durations) assert.ok(seconds >= 12 && seconds <= 24, String(seconds));
+  // 이동 폭도 키워 넓고 낮은 교사 히어로에서 흐름이 보이게 한다.
+  // 금빛 덩어리(hero-flow-c)는 히어로 색이 흔들리지 않게 작게만 움직인다.
+  const span = (values) => Math.max(...values) - Math.min(...values);
+  const movesOf = (name) => {
+    const line = heroCss.split('\n').find(text => text.includes(`@keyframes ${name}{`));
+    return [...line.matchAll(/translate3d\((-?\d+(?:\.\d+)?)%, ?(-?\d+(?:\.\d+)?)%/g)];
+  };
+  for (const name of ['hero-flow-a', 'hero-flow-b', 'hero-flow-c', 'hero-flow-d', 'hero-band']) {
+    const moves = movesOf(name);
+    assert.ok(moves.length >= 3, name);
+    assert.ok(span(moves.map(m => Number(m[1]))) >= 12, `${name} x`);
+    assert.ok(span(moves.map(m => Number(m[2]))) >= 12, `${name} y`);
+  }
+  for (const name of ['hero-flow-a', 'hero-flow-b']) {
+    assert.ok(span(movesOf(name).map(m => Number(m[1]))) >= 20, `${name} x`);
+  }
+  // 금빛 덩어리는 파란 덩어리보다 덜 움직여 밤하늘 색이 한쪽으로 쏠리지 않는다
+  assert.ok(span(movesOf('hero-flow-c').map(m => Number(m[1]))) < span(movesOf('hero-flow-b').map(m => Number(m[1]))));
   // 별가루는 두 겹으로 서로 다른 속도로 흐르고, 일부만 반짝인다
-  assert.match(heroCss, /\.constellation-dust\.is-far\{animation:dust-drift-far 118s/);
-  assert.match(heroCss, /\.constellation-dust\.is-near\{animation:dust-drift-near 76s/);
+  const farDust = Number(heroCss.match(/\.constellation-dust\.is-far\{animation:dust-drift-far (\d+)s/)[1]);
+  const nearDust = Number(heroCss.match(/\.constellation-dust\.is-near\{animation:dust-drift-near (\d+)s/)[1]);
+  for (const seconds of [farDust, nearDust]) assert.ok(seconds >= 22 && seconds <= 34, String(seconds));
+  assert.notEqual(farDust, nearDust);
+  for (const name of ['dust-drift-far', 'dust-drift-near']) {
+    const line = heroCss.split('\n').find(text => text.includes(`@keyframes ${name}{`));
+    const shifts = [...line.matchAll(/translate3d\((-?\d+)px, ?(-?\d+)px/g)];
+    assert.equal(shifts.length, 2, name);
+    assert.ok(Math.abs(Number(shifts[1][1]) - Number(shifts[0][1])) >= 20, `${name} x`);
+    assert.ok(Math.abs(Number(shifts[1][2]) - Number(shifts[0][2])) >= 15, `${name} y`);
+  }
   assert.match(heroCss, /\.dust\.is-twinkle\{animation:dust-twinkle/);
   assert.match(heroCss, /@keyframes dust-twinkle\{from\{opacity:\.18\}to\{opacity:\.95\}\}/);
   // 움직임을 줄이면 히어로 애니메이션을 모두 멈춘다
