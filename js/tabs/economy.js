@@ -234,7 +234,7 @@ function studentItemDetail(itemId, act) {
   const item = data?.items?.find(i => i.id === itemId && !i.isGroupBuy);
   if (!item) return toast('판매 중인 물품이 아닙니다.');
   const disabled = item.stock === 0 || data.balance < item.price;
-  modal(item.name, `<div class="shop-item-detail"><p>${esc(item.description || '등록된 설명이 없습니다.')}</p><dl><dt>가격</dt><dd>${esc(item.price)}포인트</dd><dt>내 잔액</dt><dd>${esc(data.balance)}포인트</dd><dt>재고</dt><dd>${item.stock === null ? '무제한' : esc(item.stock) + '개'}</dd></dl>${btn(item.stock === 0 ? '품절' : data.balance < item.price ? '잔액 부족' : '구매하기', async () => { await act('buy', item.id, item.name); closeModal(); }, 'primary', disabled ? 'disabled' : '')}</div>`);
+  modal(item.name, `<div class="shop-item-detail"><p>${esc(item.description || '등록된 설명이 없습니다.')}</p><dl><dt>가격</dt><dd>${esc(item.price)}포인트</dd><dt>내 잔액</dt><dd>${esc(data.balance)}포인트</dd><dt>재고</dt><dd>${item.stock === null ? '무제한' : esc(item.stock) + '개'}</dd></dl></div>`, null, '저장', '', {footer: btn(item.stock === 0 ? '품절' : data.balance < item.price ? '잔액 부족' : '구매하기', async () => { await act('buy', item.id, item.name); closeModal(); }, 'primary', disabled ? 'disabled' : '')});
 }
 
 async function economyInlineAction(action, studentId, target, amount = 0) {

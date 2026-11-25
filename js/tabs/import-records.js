@@ -42,7 +42,7 @@ export function recordImportDialog() {
     preview: null
   };
 
-  modal('CSV 가져오기', `<div class="csv-import"><p class="muted">다른 곳에서 내려받은 CSV 파일을 <strong>오늘의 별</strong> 기록으로 가져옵니다. 이름·날짜·분야·유형·기록 내용 열을 자동으로 찾고, 가져오기 전에 학생 매칭과 중복을 확인합니다.</p><div class="row csv-import-file"><label class="csv-file-label">CSV 파일<input type="file" id="csv-file" accept=".csv,text/csv"></label><label class="inline"><input type="checkbox" id="csv-header" checked>첫 줄은 열 이름입니다</label></div><div id="csv-import-body"><p class="muted">CSV 파일을 선택하면 열 자동 인식 결과가 여기에 표시됩니다.</p></div><div class="row csv-import-foot">${btn('취소', closeModal)}${btn('가져오기', () => save(), 'primary', 'id="csv-import-save" disabled')}</div></div>`);
+  modal('CSV 가져오기', `<div class="csv-import"><p class="muted">다른 곳에서 내려받은 CSV 파일을 <strong>오늘의 별</strong> 기록으로 가져옵니다. 이름·날짜·분야·유형·기록 내용 열을 자동으로 찾고, 가져오기 전에 학생 매칭과 중복을 확인합니다.</p><div class="row csv-import-file"><label class="csv-file-label">CSV 파일<input type="file" id="csv-file" accept=".csv,text/csv"></label><label class="inline"><input type="checkbox" id="csv-header" checked>첫 줄은 열 이름입니다</label></div><div id="csv-import-body"><p class="muted">CSV 파일을 선택하면 열 자동 인식 결과가 여기에 표시됩니다.</p></div></div>`, null, '저장', '', {footer: `${btn('취소', closeModal)}${btn('가져오기', () => save(), 'primary', 'id="csv-import-save" disabled')}`});
 
   const body = () => $('#csv-import-body');
   const syncSave = () => {

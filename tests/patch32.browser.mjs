@@ -30,7 +30,7 @@ try{
  for(const [key,label] of [['publicMemo','메모1 : 학생 달력에도 기록되어 언제든 학생들이 볼 수 있음'],['privateMemo',"메모2 : 학생들은 당일 '오늘의 일정'과 교실화면에서만 볼 수 있음"],['teacherMemo','메모3 : 교사만 볼 수 있음']]){
   assert((await page.locator(`#modal label:has([name=${key}])`).innerText()).startsWith(label));
  }
- await page.locator('#modal [name=teacherMemo]').fill('SECRET32-edited');await page.getByRole('button',{name:'메모 저장',exact:true}).click();
+ await page.locator('#modal [name=teacherMemo]').fill('SECRET32-edited');await page.locator('#modal').getByRole('button',{name:'저장',exact:true}).click();
  await page.evaluate(async()=>{const {state}=await import('/js/shared/state.js');state.calendarDate=window.patch32.days[1];(await import('/js/app.js')).navigate('시간표·일정');});
  const teacherDay=page.locator(`[data-drag="${seed.days[1]}:1"]`);assert((await teacherDay.first().innerText()).includes('SECRET32-edited'));assert((await teacherDay.first().innerText()).includes('TODAY32-1'));
  await page.evaluate(async()=>(await import('/js/tabs/classroom.js')).classroom());

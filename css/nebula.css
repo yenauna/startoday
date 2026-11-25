@@ -882,8 +882,8 @@
  .mobile-quick-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:10px 0}
  .mobile-quick-fields label{display:grid;gap:6px;min-width:0}
  .mobile-quick-fields input,.mobile-quick-fields select{width:100%;min-width:0;min-height:40px}
- .mobile-quick-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:14px}
- .mobile-quick-actions .record-action{min-width:0;min-height:40px;padding:6px 3px;font-size:12px;white-space:nowrap}
+ .mobile-quick-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;flex:1 1 100%;width:100%;margin:0}
+ .mobile-quick-actions .record-action{min-width:0;min-height:42px;padding:6px 3px;font-size:13px;white-space:nowrap}
  @media(max-width:760px){.mobile-record-bar:not([hidden]){display:flex}body.has-mobile-record-bar .shell{padding-bottom:88px}}
  @media(min-width:761px){.mobile-record-bar{display:none}}
 }
@@ -1003,7 +1003,7 @@
  .survey-student-choice,.seat-student-card{min-height:36px;border-radius:9px;padding:6px 10px;background:#F6F9FDA6;color:#263B55;border:1px solid #C9D6E6}
  .survey-student-choice[aria-pressed=true]{background:#D3DEED;border-color:#6D8DB4;color:#193452;box-shadow:inset 0 1px 0 #FFF}
  .incident-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:14px}
- .incident-record-picker{display:grid;gap:8px;max-height:55vh;overflow:auto}
+ .incident-record-picker{display:grid;gap:8px}
  .incident-record-picker>label{display:flex;align-items:start;gap:8px;padding:9px;border-radius:10px;background:#FFFFFF80}
  .incident-record-picker>label label{display:contents}
  .seating-workspace{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:16px;align-items:start}

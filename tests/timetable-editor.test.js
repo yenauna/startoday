@@ -90,7 +90,7 @@ function editorFixture() {
     }
   };
 }
-test('교시 전용 모달은 선택 교시를 고정하고 과목 즉시 저장 시 기존 시각·세부 입력을 보존', async () => {
+test('교시 전용 모달은 선택 교시를 고정하고 저장 버튼이 과목과 메모를 기존 시각·세부 입력과 함께 저장', async () => {
   const f = editorFixture(),
     date = '2026-11-07';
   f.database.timetables = [{
@@ -110,7 +110,13 @@ test('교시 전용 모달은 선택 교시를 고정하고 과목 즉시 저장
   assert(!f.dialog.body.includes('name="locationOverride"'));
   assert(!f.dialog.body.includes('name="teacherOverride"'));
   f.form.values={publicMemo:'준비물\n15분에 이동',privateMemo:'교사만 보는 메모'};
-  await f.buttons.find(b => b.label === '수학').callback();
+  // 과목 버튼은 선택 상태만 바꾸고 창을 닫거나 바로 저장하지 않는다.
+  const math = f.buttons.filter(b => b.label === '수학').at(-1);
+  await math.callback();
+  assert.equal(f.closed, 0);
+  assert.equal(f.database.timetables.length, 1);
+  assert.equal(f.database.timetables[0].subjectCode, '국어');
+  await f.dialog.submit(new Map(Object.entries(f.form.values)));
   const saved = f.database.timetables[0];
   assert.equal(saved.period, 2);
   assert.equal(saved.subjectCode, '수학');
@@ -121,8 +127,19 @@ test('교시 전용 모달은 선택 교시를 고정하고 과목 즉시 저장
   assert.equal(saved.teacherOverride, '김선생');
   assert.equal(saved.createdAt, '2026-11-01T00:00:00Z');
   assert.equal(f.closed, 1);
-  assert(f.quickMemo.available());await f.quickMemo.save('teacherMemo','빠른 교사 메모');assert.equal(f.database.timetables[0].teacherMemo,'빠른 교사 메모');assert.equal(f.database.timetables[0].publicMemo,'준비물\n15분에 이동');await f.quickMemo.save('publicMemo','새 공개 메모');assert.equal(f.database.timetables[0].memo,'새 공개 메모');await f.quickMemo.save('privateMemo','새 당일 메모');assert.equal(f.database.timetables[0].privateMemo,'새 당일 메모');assert.equal(f.database.timetables[0].teacherMemo,'빠른 교사 메모');
   assert.throws(() => f.open(date, '시간표', 8), /교시/);
+});
+test('과목을 다시 누르면 선택이 풀리고 저장은 기존 과목을 그대로 둔다', async () => {
+  const f = editorFixture(), date = '2026-11-07';
+  f.open(date, '시간표', 3);
+  const math = f.buttons.filter(b => b.label === '수학');
+  await math[0].callback();
+  await math[0].callback();
+  f.form.values = { publicMemo: '메모만', privateMemo: '', teacherMemo: '' };
+  await f.dialog.submit(new Map(Object.entries(f.form.values)));
+  assert.equal(f.database.timetables[0].subjectCode, '');
+  assert.equal(f.database.timetables[0].publicMemo, '메모만');
+  assert.equal(f.closed, 1);
 });
 test('일반 일정 등록은 일정/과제만 제공하고 종일 행사 및 과제 시작일을 그대로 저장', async () => {
   const f = editorFixture(),
@@ -152,9 +169,9 @@ test('시간표 버튼은 학년 프리셋 중 사용 과목만 표시하고 특
  const labels=f.buttons.map(button=>button.label);assert(!labels.includes('국어'));assert(!labels.includes('과학'));assert(labels.includes('통합교과'));assert(labels.includes('코딩'));assert(f.dialog.body.includes('project-subjects'));
 });
 
-test('과목 저장 지연 중 모달/빠른 메모는 먼저 열고 메모 저장은 과목 저장 뒤에 연결',async()=>{
- const f=editorFixture(),date='2026-11-07';let release;f.setCommitGate(new Promise(r=>release=r));f.open(date,'시간표',2);const subject=f.buttons.find(b=>b.label==='수학').callback();assert.equal(f.closed,1);assert(f.quickMemo);assert(f.quickMemo.available());assert.equal(f.database.timetables.length,0);const memo=f.quickMemo.save('privateMemo','체이닝 메모');release();await Promise.all([subject,memo]);assert.equal(f.database.timetables[0].subjectCode,'수학');assert.equal(f.database.timetables[0].privateMemo,'체이닝 메모');assert.equal(f.messages.length,0);
+test('저장하는 동안에는 창을 닫지 않고 저장이 끝나면 한 번만 닫는다', async () => {
+  const f = editorFixture(),date='2026-11-07';let release;f.setCommitGate(new Promise(r=>release=r));f.open(date,'시간표',2);await f.buttons.filter(b=>b.label==='수학').at(-1).callback();assert.equal(f.closed,0);assert.equal(f.database.timetables.length,0);const saving=f.dialog.submit(new Map([['privateMemo','체이닝 메모']]));release();await saving;assert.equal(f.database.timetables[0].subjectCode,'수학');assert.equal(f.database.timetables[0].privateMemo,'체이닝 메모');assert.equal(f.closed,1);
 });
-test('과목 저장 실패 시 뒤따르는 메모 저장을 막고 오류만 한 번 안내',async()=>{
- const f=editorFixture(),date='2026-11-07';let reject;f.setCommitGate(new Promise((_,r)=>reject=r));f.open(date,'시간표',2);const subject=f.buttons.find(b=>b.label==='수학').callback(),memo=f.quickMemo.save('teacherMemo','저장되면 안 됨');reject(Error('저장 실패 검증'));await Promise.all([subject,memo]);assert.equal(f.database.timetables.length,0);assert.deepEqual(f.messages,['저장 실패 검증']);
+test('저장 실패 시 창을 닫지 않고 오류를 그대로 알린다', async () => {
+  const f = editorFixture(),date='2026-11-07';let rejectGate;f.setCommitGate(new Promise((_,r)=>rejectGate=r));f.open(date,'시간표',2);await f.buttons.filter(b=>b.label==='수학').at(-1).callback();const saving=f.dialog.submit(new Map([['teacherMemo','저장되면 안 됨']]));rejectGate(Error('저장 실패 검증'));await assert.rejects(() => saving, /저장 실패 검증/);assert.equal(f.database.timetables.length,0);assert.equal(f.closed,0);
 });
