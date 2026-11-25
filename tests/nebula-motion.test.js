@@ -100,14 +100,25 @@ test('필름 그레인은 맑은 하늘을 흐리지 않게 아주 옅게만 남
   assert.match(grain, /feTurbulence/);
 });
 
-test('카드 유리는 회청색 대신 맑은 흰빛 리퀴드글래스이고 미완료 카드는 맑은 핑크 틴트다', () => {
-  assert.match(css, /--nebula-glass: linear-gradient\(135deg, #FFFFFFDC 0%, #FDFEFFCC 55%, #F5FAFFB8 100%\)/);
+test('카드 유리는 뒤 배경이 비치는 맑은 흰빛 리퀴드글래스이고 미완료 카드는 맑은 핑크 틴트다', () => {
+  // 흰 유리 불투명도는 24~48%: 뒤의 파스텔 하늘이 카드 안으로 은은하게 비쳐 보인다
+  assert.match(css, /--nebula-glass: linear-gradient\(135deg, #FFFFFF7A 0%, #FFFFFF3D 55%, #FFFFFF6B 100%\)/);
+  for (const hex of ['7A', '3D', '6B']) {
+    const alpha = parseInt(hex, 16) / 255;
+    assert.ok(alpha >= 0.2 && alpha <= 0.5, `${hex} glass should stay see-through`);
+  }
+  // 표·설정처럼 읽기 전용 패널은 가독성을 위해 조금 더 불투명한 유리를 그대로 쓴다
   assert.match(css, /--nebula-reading-glass: linear-gradient\(145deg, #FFFFFFF0, #F4F9FFD9\)/);
-  // 미완료 카드: 회색기 없는 아주 맑은 핑크 그라디언트
+  // 미완료 카드: 회색기 없는 맑은 핑크 그라디언트, 불투명도 42~52%
   const unfinished = css.match(/\.unfinished:not\(\.excluded\) \{\n([\s\S]*?)\n  \}/)[1];
-  assert.match(unfinished, /background: linear-gradient\(150deg, #FFF3FAF0 0%, #FFE2EFE2 58%, #FFD7E9CC 100%\) !important;/);
-  for (const hex of unfinished.match(/#[0-9A-F]{6}/gi) || []) {
-    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
-    assert.ok(r >= 250 && r > b && b > g, `${hex} should be a clear pink, not a murky tint`);
+  assert.match(unfinished, /background: linear-gradient\(150deg, rgba\(255, 224, 238, \.52\) 0%, rgba\(255, 200, 220, \.42\) 58%, rgba\(255, 190, 214, \.46\) 100%\) !important;/);
+  const gradient = unfinished.match(/background: (linear-gradient\(150deg,[^;]*?\)) !important;/)[1];
+  const stops = [...gradient.matchAll(/rgba\((\d+), (\d+), (\d+), \.(\d+)\)/g)];
+  assert.equal(stops.length, 3);
+  for (const stop of stops) {
+    const [r, g, b] = [1, 2, 3].map(i => Number(stop[i]));
+    const alpha = Number('0.' + stop[4]);
+    assert.ok(r >= 250 && r > b && b > g, `${stop[0]} should be a clear pink, not a murky tint`);
+    assert.ok(alpha >= 0.42 && alpha <= 0.52, `${stop[0]} should let the background show through`);
   }
 });

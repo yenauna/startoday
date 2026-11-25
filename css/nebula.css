@@ -23,9 +23,9 @@
     --nebula-shadow: var(--glass-bevel), 0 16px 40px rgba(38, 61, 96, .11);
     --nebula-clear-glass: rgba(255, 255, 255, .58);
     --nebula-clear-edge: rgba(255, 255, 255, .88);
-    /* 맑은 흰빛 리퀴드글래스: 회청색 기운을 빼고 유리 자체는 거의 흰색으로 두어
+    /* 맑은 흰빛 리퀴드글래스: 유리 자체는 흰색으로 두되 불투명도를 24~48%로 낮춰
        뒤의 파스텔 하늘이 카드 안으로 은은하게 비쳐 보이게 한다. */
-    --nebula-glass: linear-gradient(135deg, #FFFFFFDC 0%, #FDFEFFCC 55%, #F5FAFFB8 100%);
+    --nebula-glass: linear-gradient(135deg, #FFFFFF7A 0%, #FFFFFF3D 55%, #FFFFFF6B 100%);
     --nebula-sheen: linear-gradient(135deg, #FFFFFF70 0%, transparent 28%, #FFFFFF66 47%, transparent 66%);
     --nebula-hero-light: radial-gradient(ellipse at 92% 10%, #466382, transparent 72%);
   }
@@ -269,8 +269,9 @@
   }
   #app .shell .student[data-student-id].unfinished:not(.excluded),
   #app .lockscreen .classroom-student.unfinished:not(.excluded) {
-    /* 미완료 카드는 탁한 회보라·회색 틴트 대신 아주 맑은 핑크 유리로 둔다(완료 카드는 흰 유리 그대로). */
-    background: linear-gradient(150deg, #FFF3FAF0 0%, #FFE2EFE2 58%, #FFD7E9CC 100%) !important;
+    /* 미완료 카드는 탁한 회보라·회색 틴트 대신 아주 맑은 핑크 유리(불투명도 42~52%)로 둔다.
+       완료 카드는 흰 유리 그대로 두고, 두 카드 모두 뒤의 파스텔 하늘이 비쳐 보이게 한다. */
+    background: linear-gradient(150deg, rgba(255, 224, 238, .52) 0%, rgba(255, 200, 220, .42) 58%, rgba(255, 190, 214, .46) 100%) !important;
     border-color: rgba(255, 255, 255, .9);
     /* Override the legacy important unfinished fill in dashboard.css, only on dashboard roster cards. */
   }
