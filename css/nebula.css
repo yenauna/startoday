@@ -62,6 +62,88 @@
       radial-gradient(ellipse 70% 58% at -2% 104%, #CDD3E7 0%, #CDD3E7E6 30%, #CDD3E700 70%),
       radial-gradient(ellipse 66% 56% at 102% 102%, #EAE2E3 0%, #EAE2E3E6 30%, #EAE2E300 68%),
       linear-gradient(178deg, #C2D1E5 0%, #D5DFEB 50%, #DFE4EC 100%);
+    /* 하늘 전체가 아주 천천히 숨쉬듯 흐르도록 기준층도 미세하게 움직인다.
+       카메라보다 10% 넓게 고정해 두고 옆으로만 서서히 흘러 가장자리가 비지 않는다. */
+    scale: 1.1;
+    animation: sky-breathe 26s ease-in-out infinite;
+  }
+
+  @keyframes sky-breathe {
+    0%, 100% { translate: -3.4% 0; }
+    38% { translate: 3.6% 0; }
+    70% { translate: 1% 0; }
+  }
+
+  /* 하늘 색 덩어리를 아주 천천히 흐르게 한다.
+     라벤더·라일락 한 겹이 좌상단에서, 로즈·피치 한 겹이 우하단에서 서로 반대 방향으로 21·24초에 걸쳐
+     한 바퀴 도는 고리 애니메이션이라 다시 시작할 때 끊기지 않는다. 두 겹 모두 화면보다 넓게 깔고
+     가장자리를 투명으로 흘려 색 경계나 레이어 테두리가 드러나지 않는다. */
+  .sky-light::before {
+    content: "";
+    position: absolute;
+    inset: -18% -20%;
+    pointer-events: none;
+    background-image:
+      radial-gradient(ellipse 54% 48% at 14% 2%, #BFB3DFCC 0%, #BFB3DF80 34%, #BFB3DF00 78%),
+      radial-gradient(ellipse 44% 40% at 52% -6%, #D4CAEAB3 0%, #D4CAEA59 38%, #D4CAEA00 76%),
+      radial-gradient(ellipse 40% 36% at 4% 74%, #BAB0D6B8 0%, #BAB0D65C 38%, #BAB0D600 76%);
+    animation: sky-drift-lavender 21s ease-in-out infinite;
+  }
+
+  .sky-orbits::before {
+    content: "";
+    position: absolute;
+    inset: -18% -20%;
+    pointer-events: none;
+    background-image:
+      radial-gradient(ellipse 56% 50% at 94% 98%, #F0D4CAC9 0%, #F0D4CA7D 36%, #F0D4CA00 78%),
+      radial-gradient(ellipse 44% 40% at 106% 42%, #EBCFD1A6 0%, #EBCFD15C 38%, #EBCFD100 76%),
+      radial-gradient(ellipse 42% 38% at 26% 96%, #C3BBDF8F 0%, #C3BBDF47 38%, #C3BBDF00 76%);
+    animation: sky-drift-rose 24s ease-in-out infinite;
+  }
+
+  @keyframes sky-drift-lavender {
+    0%, 100% { transform: translate3d(-14%, 7%, 0) scale(1.06); }
+    40% { transform: translate3d(11%, -6%, 0) scale(1.12); }
+    72% { transform: translate3d(4%, 10%, 0) scale(1.08); }
+  }
+
+  @keyframes sky-drift-rose {
+    0%, 100% { transform: translate3d(13%, -7%, 0) scale(1.08); }
+    45% { transform: translate3d(-13%, 8%, 0) scale(1.14); }
+    76% { transform: translate3d(-3%, -9%, 0) scale(1.09); }
+  }
+
+  .sky-orbits {
+    /* 빛무리 층도 기준층과 다른 박자로 미세하게 떠돌아 깊이감을 준다. */
+    scale: 1.05;
+    animation: sky-orbits-drift 28s ease-in-out infinite;
+  }
+
+  @keyframes sky-orbits-drift {
+    0%, 100% { translate: 2.2% 0; }
+    46% { translate: -2.6% 0; }
+    74% { translate: -0.6% 0; }
+  }
+
+  /* 가장 위에는 아주 옅은 빛무리 두 덩이를 한 겹 더 띄운다. 색이 아니라 빛이라 경계 없이 스며들고,
+     24초에 걸쳐 화면을 가로지르며 천천히 지나가기 때문에 하늘이 살아 움직이는 느낌을 만든다. */
+  .sky-orbits::after {
+    content: "";
+    position: absolute;
+    inset: -22% -30%;
+    pointer-events: none;
+    background-image:
+      radial-gradient(ellipse 40% 34% at 26% 26%, #F2F5FCB8 0%, #F2F5FC5C 44%, #F2F5FC00 82%),
+      radial-gradient(ellipse 34% 30% at 74% 64%, #FBEFE7A6 0%, #FBEFE752 44%, #FBEFE700 82%);
+    opacity: .5;
+    animation: sky-drift-glow 24s ease-in-out infinite;
+  }
+
+  @keyframes sky-drift-glow {
+    0%, 100% { transform: translate3d(-10%, 4%, 0) scale(1.04); }
+    46% { transform: translate3d(9%, -5%, 0) scale(1.09); }
+    76% { transform: translate3d(3%, 6%, 0) scale(1.05); }
   }
 
   /* 배경 레이어에만 얇고 고른 필름 그레인을 7%로 깔아 안개 낀 하늘 질감을 준다. */
@@ -86,9 +168,28 @@
     opacity: .56;
   }
 
-  .sky-bloom:nth-child(1) { top: 21%; left: 74%; background: #FFFFFF4D; }
-  .sky-bloom:nth-child(2) { top: 52%; left: 26%; background: #C7D3E759; }
-  .sky-bloom:nth-child(3) { top: 78%; left: 65%; background: #EAE2E34D; }
+  /* 은은한 빛무리도 저마다 다른 주기로 조금씩 떠돌아 색이 살아 있게 한다. */
+  .sky-bloom:nth-child(1) { top: 21%; left: 74%; background: #FFFFFF4D; animation: sky-bloom-drift-a 21s ease-in-out infinite; }
+  .sky-bloom:nth-child(2) { top: 52%; left: 26%; background: #D3CCE659; animation: sky-bloom-drift-b 25s ease-in-out infinite; }
+  .sky-bloom:nth-child(3) { top: 78%; left: 65%; background: #EAE2E34D; animation: sky-bloom-drift-c 29s ease-in-out infinite; }
+
+  @keyframes sky-bloom-drift-a {
+    0%, 100% { transform: translate(calc(-50% - 80px), calc(-50% + 32px)); }
+    48% { transform: translate(calc(-50% + 92px), calc(-50% - 48px)); }
+    74% { transform: translate(calc(-50% + 24px), calc(-50% + 60px)); }
+  }
+
+  @keyframes sky-bloom-drift-b {
+    0%, 100% { transform: translate(calc(-50% + 66px), calc(-50% + 42px)); }
+    40% { transform: translate(calc(-50% - 84px), calc(-50% - 26px)); }
+    70% { transform: translate(calc(-50% - 18px), calc(-50% + 70px)); }
+  }
+
+  @keyframes sky-bloom-drift-c {
+    0%, 100% { transform: translate(calc(-50% + 34px), calc(-50% - 66px)); }
+    52% { transform: translate(calc(-50% - 74px), calc(-50% + 48px)); }
+    78% { transform: translate(calc(-50% + 52px), calc(-50% + 10px)); }
+  }
 
   /* Neutral reading surfaces; task status and subject accents have their own glass tints. */
   #app :is(.panel:not(.praise, .advice), .card, .metric, .record:not(.praise, .advice),
@@ -348,6 +449,12 @@
 
   @media (prefers-reduced-motion: reduce) {
     .sky-layer { transform: none; }
+    .sky-light::before,
+    .sky-orbits::before,
+    .sky-orbits::after,
+    .sky-light,
+    .sky-orbits,
+    .sky-bloom:nth-child(n) { animation: none; }
     body { --nebula-sheen-duration: 0s; }
   }
 }
