@@ -676,7 +676,7 @@ export async function equipStudentTitle(titleId) {
 export function studentNicknameDialog() {
   const student = state.impersonatingStudentId ? store.db?.students.find(s => s.id === state.impersonatingStudentId) : state.studentSnapshot?.student;
   if (!student) throw Error('학생 로그인을 확인하세요.');
-  modal('별명 설정', `<p>공백 없이 완성된 한글 1~8자로 지어 주세요. 영문·숫자·특수문자는 사용할 수 없습니다.</p>${input('별명', 'nickname', student.nickname || '', 'text', 'required maxlength="8" pattern="[가-힣]{1,8}" autocomplete="off"')}${student.nickname ? btn('별명 지우기', () => saveStudentNickname(null)) : ''}`, f => saveStudentNickname(C.validateStudentNickname(f.get('nickname'))));
+  modal('별명 설정', `<p>공백 없이 완성된 한글 1~8자로 지어 주세요. 영문·숫자·특수문자는 사용할 수 없습니다.</p>${input('별명', 'nickname', student.nickname || '', 'text', 'required maxlength="8" pattern="[가-힣]{1,8}" autocomplete="off"')}${student.nickname ? btn('별명 지우기', () => saveStudentNickname(null), 'danger') : ''}`, f => saveStudentNickname(C.validateStudentNickname(f.get('nickname'))));
   const field = document.querySelector('#modal input[name=nickname]');
   if (field) {
     const filter = event => {

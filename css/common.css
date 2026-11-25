@@ -64,6 +64,14 @@ td button{padding:4px 8px;min-height:30px}
 .span2{grid-column:1/-1}
 .checkgrid{display:flex;gap:8px;flex-wrap:wrap}
 .checkgrid label{border:1px solid var(--line);border-radius:7px;padding:5px 9px}
+.choice-chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.choice-chip{position:relative;display:inline-flex;align-items:center;justify-content:center;max-width:100%;min-height:34px;padding:5px 12px;border:1px solid transparent;border-radius:var(--st-radius-pill);background:var(--st-gray-bg);color:var(--st-gray-text);font-size:13px;font-weight:600;line-height:1.3;cursor:pointer;box-shadow:none}
+.choice-chip>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.choice-chip input{position:absolute;inset:0;z-index:1;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.choice-chip:has(input:checked){background:var(--st-selected-bg);color:var(--st-selected-text);border-color:transparent;box-shadow:var(--st-surface-light),0 0 0 2px var(--st-selected-ring)}
+.choice-chip:has(input:focus-visible){outline:2px solid var(--st-blue-text);outline-offset:2px}
+.choice-chip:has(input:disabled){opacity:.5;cursor:not-allowed}
+@media(forced-colors:active){.choice-chip input{position:static;width:auto;height:auto;opacity:1;pointer-events:auto}}
 .notice{background:#FEF9C3;border:1px solid #FDE68A;padding:10px 14px;border-radius:8px;margin:12px 0;font-size:13px}
 .success{background:#DCFCE7}
 .calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
@@ -94,7 +102,7 @@ dialog::backdrop{background:#0F172A88}
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0F172A;color:white;border-radius:9px;padding:12px 20px;z-index:200;max-width:90vw;display:none}
 .saved{font-size:12px;color:#94A3B8}
 .danger-zone{border-color:#FECDD3}
-.subject-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.subject-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px}
 .subject-grid button{min-height:48px}
 a{color:#334155}
 *:focus-visible{outline:3px solid #0284C7;outline-offset:2px}
@@ -112,8 +120,7 @@ a{color:#334155}
 .formgrid{grid-template-columns:1fr}
 .span2{grid-column:auto}
 .top small{display:none}
-.tabs{gap:18px}
-.subject-grid{grid-template-columns:repeat(3,1fr)}}
+.tabs{gap:18px}}
 @media(max-width:640px){.quick{flex-wrap:wrap;padding:6px}
 .quick select{width:90px;font-size:12px}
 .quick input{font-size:14px}
@@ -286,7 +293,7 @@ input:focus, select:focus, textarea:focus, #notice-editor:focus {
 .empty { border-color: var(--st-line); background: rgba(252, 252, 254, 0.65); }
 .checkgrid label { border-color: transparent; border-radius: var(--st-radius-pill); background: var(--st-gray-bg); }
 .quick-areas .area-chip { color: var(--st-gray-text); background: var(--st-gray-bg); }
-.quick-areas .area-chip.selected { color: var(--st-blue-text); background: var(--st-blue-bg); box-shadow: var(--st-surface-light), 0 0 0 2px rgba(54, 92, 133, 0.22); }
+.quick-areas .area-chip.selected { color: var(--st-selected-text); background: var(--st-selected-bg); border-color: transparent; box-shadow: var(--st-surface-light), 0 0 0 2px var(--st-selected-ring); }
 .selected-students button { color: var(--st-blue-text); background: var(--st-blue-bg); }
 
 table { background: transparent; }
@@ -405,7 +412,7 @@ header.top .brand-home small { display:block; white-space:nowrap; overflow:hidde
 .student-choice-chip { display:block; position:relative; cursor:pointer; }
 .student-choice-chip input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
 .student-choice-chip span { display:block; padding:6px 12px; border-radius:9999px; background:var(--st-gray-bg); color:var(--st-gray-text); box-shadow:var(--st-surface-light); }
-.student-choice-chip input:checked+span { background:#0F172A; color:#FBBF24; }
+.student-choice-chip input:checked+span { background:var(--st-selected-bg); color:var(--st-selected-text); border-color:transparent; box-shadow:var(--st-surface-light),0 0 0 2px var(--st-selected-ring); }
 .student-choice-chip input:focus-visible+span { outline:2px solid var(--st-blue-text); outline-offset:3px; }
 .detail-record .record-controls { gap:5px; }
 .detail-record .record-controls button { padding:2px 8px; min-height:25px; font-size:12px; border-radius:999px; }
@@ -1666,7 +1673,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 [data-survey-peer]{cursor:grab}.survey-peer-list .is-dragging,.survey-board .is-dragging{position:relative;z-index:10;pointer-events:auto;cursor:grabbing;box-shadow:0 6px 16px #304a3680}.survey-board .is-dragging{position:absolute}
 
 /* Shared semantic states: selection and unfinished work use one palette. */
-.tabs button.active,.statistics-sort button[aria-pressed=true],.statistics-subtabs .primary,.survey-rounds .primary,.quick-areas .area-chip.selected,.selected-students button,.routine-day.selected,.free-seats .seat-cell.selected,.assignment-calendar .assignment-day.selected-day,.student-calendar-day.selected,.student-home-village .student-calendar-day.selected,.period-card.selected,.village-shop .village-categories button.is-selected,.economy-student-gift-grid .is-selected,.survey-board .survey-board-chip.is-selected,.economy-assets .economy-view-switch button[aria-pressed=true],.student-home-topbar .economy-subtabs button.active,.settings-sidebar button.active,.student-choice-chip input:checked+span{
+.tabs button.active,.statistics-sort button[aria-pressed=true],.statistics-subtabs .primary,.survey-rounds .primary,.quick-areas .area-chip.selected,.selected-students button,.routine-day.selected,.free-seats .seat-cell.selected,.assignment-calendar .assignment-day.selected-day,.student-calendar-day.selected,.student-home-village .student-calendar-day.selected,.period-card.selected,.village-shop .village-categories button.is-selected,.economy-student-gift-grid .is-selected,.survey-board .survey-board-chip.is-selected,.economy-assets .economy-view-switch button[aria-pressed=true],.student-home-topbar .economy-subtabs button.active,.settings-sidebar button.active{
  background:var(--st-selected-bg);color:var(--st-selected-text);border-color:var(--st-selected-border);outline-color:var(--st-selected-border)
 }
 .calendar-task.has-incomplete,.student-calendar-pill.has-incomplete{background:var(--st-incomplete-bg);color:var(--st-incomplete-text);border-color:var(--st-incomplete-border)}
@@ -1844,18 +1851,18 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .selection-total{flex:0 0 78px;font-variant-numeric:tabular-nums}
 .selection-hint{flex:1;min-width:0}.selection-hint>[data-selection-hint]{display:block;overflow:hidden;text-overflow:ellipsis}
 .selection-total>[data-selection-count]{display:block}.selection-count-old{position:absolute;inset:0;pointer-events:none;overflow:hidden;text-overflow:ellipsis}
-.selection-summary .selection-select-all{flex:0 0 auto;margin-left:auto;padding:2px 8px;min-height:28px;font-size:12px;background:transparent;box-shadow:none}
+.selection-summary .selection-select-all{flex:0 0 auto;margin-left:auto;padding:2px 10px;min-height:28px;font-size:12px;border:1px solid transparent;border-radius:var(--st-radius-pill);background:var(--st-gray-bg);color:var(--st-gray-text);box-shadow:none}
 #quick-students .selected-students{gap:6px;align-items:center;min-width:0;max-width:100%;padding:7px 4px;overflow:visible}
 #quick-students .quick-student-chip{display:inline-flex;min-width:0;max-width:100%;min-height:0;padding:0;background:transparent;border:0;border-radius:999px;box-shadow:none;flex:0 1 auto;transform:translate(var(--chip-slide-x,0px),var(--chip-slide-y,0px)) scale(var(--chip-pop,1))}
 #quick-students .quick-student-chip[hidden]{display:none}
-#quick-students .selection-pill,.selection-flight{display:inline-flex;align-items:center;gap:2px;border-radius:999px;padding:2px 3px 2px 9px;background:#e4ebf5;color:#344c69;border:1px solid #c3d1e36bc;font-size:12px;line-height:1.3;min-width:0;max-width:100%;box-sizing:border-box}
+#quick-students .selection-pill,.selection-flight{display:inline-flex;align-items:center;gap:2px;border-radius:999px;padding:2px 3px 2px 9px;background:var(--st-selected-bg);color:var(--st-selected-text);border:1px solid transparent;font-size:12px;line-height:1.3;min-width:0;max-width:100%;box-sizing:border-box}
 #quick-students .selection-pill{transform:translate(var(--chip-hover-x,0px),var(--chip-hover-y,0px)) scale(var(--chip-hover-scale,1))}
 #quick-students .selection-more{transform:translate(calc(var(--chip-slide-x,0px) + var(--chip-hover-x,0px)),calc(var(--chip-slide-y,0px) + var(--chip-hover-y,0px))) scale(var(--chip-hover-scale,1))}
 .selection-chip-name{max-width:7em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #quick-students .quick-student-remove{display:grid;place-items:center;flex:0 0 26px;width:26px;min-height:28px;padding:0;border:0;border-radius:999px;background:transparent;color:#344c69;font-size:17px;box-shadow:none}
-#quick-students .quick-student-remove:hover{background:#dbe4ce}
-#quick-students .quick-student-remove:focus-visible,#quick-students .selection-more:focus-visible{outline:2px solid #71835b;outline-offset:2px}
-#quick-students .selection-more{border-radius:999px;min-height:32px;padding:3px 9px;font-size:12px;background:#fff5dd;color:#684d28;box-shadow:none;white-space:nowrap}
+#quick-students .quick-student-remove:hover{background:#b7cfea}
+#quick-students .quick-student-remove:focus-visible,#quick-students .selection-more:focus-visible{outline:2px solid var(--st-blue-text);outline-offset:2px}
+#quick-students .selection-more{border-radius:var(--st-radius-pill);min-height:32px;padding:3px 9px;font-size:12px;border:1px solid transparent;background:var(--st-gray-bg);color:var(--st-gray-text);box-shadow:none;white-space:nowrap}
 .selection-flight{position:fixed;z-index:140;pointer-events:none;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:6px 12px;box-shadow:0 4px 12px #263d6020;transform-origin:center}
 @media(max-width:640px){
  #quick-students .selected-students{gap:4px}
@@ -1883,22 +1890,22 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 @media(max-width:480px){.tool-card-deck{padding:18px}.tool-card-deck .tool-draw-card{padding:28px 22px}}
 
 /* Native form semantics, with a small animated square; leave custom switches alone. */
-input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input)){
+input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.choice-chip input,.switch input,.toggle input)){
  appearance:none;-webkit-appearance:none;width:18px;height:18px;min-width:18px;min-height:18px;
  flex:0 0 18px;padding:0;border:2px solid var(--st-blue-text,#2563eb);border-radius:5px;
  background:transparent;position:relative;cursor:pointer;vertical-align:middle;
 }
-input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input))::before{
+input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.choice-chip input,.switch input,.toggle input))::before{
  content:'';position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:3px;
  background:var(--st-blue-text,#2563eb);transform:translate(-50%,-50%) scale(0);
  transition:transform .3s ease-in-out;pointer-events:none;
 }
-input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input)):checked::before{transform:translate(-50%,-50%) scale(1)}
-input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input)):indeterminate::before{transform:translate(-50%,-50%) scale(1,.3)}
-input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input)):focus-visible{outline:2px solid var(--st-blue-text,#2563eb);outline-offset:3px}
-input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input)):disabled{opacity:.45;cursor:not-allowed}
-@media(prefers-reduced-motion:reduce){input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input))::before{transition:none}}
-@media(forced-colors:active){input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input)){appearance:auto!important;-webkit-appearance:auto!important}input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.switch input,.toggle input))::before{display:none}}
+input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.choice-chip input,.switch input,.toggle input)):checked::before{transform:translate(-50%,-50%) scale(1)}
+input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.choice-chip input,.switch input,.toggle input)):indeterminate::before{transform:translate(-50%,-50%) scale(1,.3)}
+input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.choice-chip input,.switch input,.toggle input)):focus-visible{outline:2px solid var(--st-blue-text,#2563eb);outline-offset:3px}
+input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.choice-chip input,.switch input,.toggle input)):disabled{opacity:.45;cursor:not-allowed}
+@media(prefers-reduced-motion:reduce){input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.choice-chip input,.switch input,.toggle input))::before{transition:none}}
+@media(forced-colors:active){input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.choice-chip input,.switch input,.toggle input)){appearance:auto!important;-webkit-appearance:auto!important}input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-switch],.student-choice-chip input,.choice-chip input,.switch input,.toggle input))::before{display:none}}
 
 .tool-card-deck .tool-draw-card.card-reveal-fast:not(.card-reveal-front){background:repeating-linear-gradient(45deg,#b7a67a16 0 1px,transparent 1px 12px),linear-gradient(145deg,#f5eddb,#e6d4ad);color:#8c7249}
 
