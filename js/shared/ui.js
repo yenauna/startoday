@@ -134,27 +134,5 @@ export function undoToast(message, undo, available = () => true, actionLabel = '
   return close;
 }
 
-let dismissQuickMemo = null;
-export function quickMemoBar(save, available = () => true, initialStatus = '저장됨') {
-  dismissQuickMemo?.();
-  const notice=$('#toast');if(notice)notice.style.display='none';
-  const root=document.createElement('div');root.className='quick-memo-bar';root.setAttribute('role','region');root.setAttribute('aria-label','시간표 빠른 메모');
-  const label=document.createElement('span');label.textContent=initialStatus;
-  const field=document.createElement('input');field.type='text';field.placeholder='빠른 메모 입력';field.setAttribute('aria-label','빠른 메모 입력');
-  const closeButton=document.createElement('button');closeButton.type='button';closeButton.textContent='✕';closeButton.setAttribute('aria-label','빠른 메모 닫기');
-  let timeout,scopeTimer;
-  const close=()=>{clearTimeout(timeout);clearInterval(scopeTimer);root.remove();if(dismissQuickMemo===close)dismissQuickMemo=null;};
-  close.setStatus=text=>{label.textContent=text;};
-  dismissQuickMemo=close;closeButton.onclick=close;
-  const keep=()=>clearTimeout(timeout);field.onfocus=keep;field.oninput=()=>{keep();for(const button of root.querySelectorAll('[data-memo-field]'))button.disabled=!field.value.trim();};
-  root.append(label,field);
-  for(const [key,title] of [['publicMemo','메모1'],['privateMemo','메모2'],['teacherMemo','메모3']]){
-    const button=document.createElement('button');button.type='button';button.textContent=title;button.dataset.memoField=key;button.disabled=true;
-    button.onclick=()=>run(async()=>{keep();if(!available())return close();for(const b of root.querySelectorAll('button'))b.disabled=true;try{await save(key,field.value);close();}catch(error){for(const b of root.querySelectorAll('button'))b.disabled=false;throw error;}});
-    root.append(button);
-  }
-  root.append(closeButton);document.body.append(root);timeout=setTimeout(close,3000);scopeTimer=setInterval(()=>{if(!available())close();},150);return close;
-}
-
 export const filterSelect=(label,key,values,value='')=>`<select name="${esc(key)}" aria-label="${esc(label)}" title="${esc(label)}">${opts(values,value)}</select>`;
 export const filterInput=(label,key,value='')=>`<input name="${esc(key)}" aria-label="${esc(label)}" placeholder="${esc(label)}" value="${esc(value)}">`;

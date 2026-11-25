@@ -44,10 +44,12 @@ try{
  await page.locator('#modal [name=title]').fill('교시 일정 수정');await page.locator('#modal button[type=submit]').click();
  await page.evaluate(async()=>{(await import('/js/tabs/timetable.js')).timetableEditor((await import('/js/core.js')).today(),1);});
  assert.match(await page.locator('#modal').innerText(),/메모2 :/);assert.equal(await page.locator('.slot-linked-event').count(),1);
- await page.locator('#modal [name=publicMemo]').fill('메모만 수정');await page.locator('#modal [name=privateMemo]').fill('당일 수정 안내');await page.getByRole('button',{name:'메모 저장',exact:true}).click();
+ await page.locator('#modal [name=publicMemo]').fill('메모만 수정');await page.locator('#modal [name=privateMemo]').fill('당일 수정 안내');await page.locator('#modal').getByRole('button',{name:'저장',exact:true}).click();
  await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.timetables.find(t=>t.id==='p27-slot').privateMemo==='당일 수정 안내';});
  await page.evaluate(async()=>{(await import('/js/tabs/timetable.js')).timetableEditor((await import('/js/core.js')).today(),1);});
  await page.getByRole('button',{name:'메모 지우기',exact:true}).click();
+ assert.equal(await page.locator('#modal [name=privateMemo]').inputValue(),'');assert.equal(await page.locator('#modal [name=publicMemo]').inputValue(),'');
+ await page.locator('#modal').getByRole('button',{name:'저장',exact:true}).click();
  await page.waitForFunction(async()=>{const {store}=await import('/js/shared/state.js');return store.db.timetables.find(t=>t.id==='p27-slot').privateMemo==='';});
  await page.evaluate(async()=>{(await import('/js/tabs/timetable.js')).timetableEditor((await import('/js/core.js')).today(),1);});
  await page.getByRole('button',{name:'교시 일정 수정 수정',exact:true}).click();await page.getByRole('button',{name:'이 일정 삭제',exact:true}).click();

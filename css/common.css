@@ -509,7 +509,7 @@ header.top .header-more-menu button:hover { background:var(--st-gray-bg); }
 .score-change.negative { color:var(--st-rose-text); }
 .score-change.neutral { color:var(--st-text-muted); }
 
-.dialog-foot { flex-wrap:nowrap; align-items:center; }
+.dialog-foot { align-items:center; }
 .dialog-foot-start { margin-right:auto; flex:0 0 auto; display:flex; align-items:center; }
 .dialog-foot button { white-space:nowrap; }
 .assignment-calendar { min-width:0; }
@@ -549,20 +549,27 @@ body:has(.routine-undo) .record-delete-toasts { bottom:120px; }
 
 .assignment-progress { margin-top:20px; padding-top:16px; border-top:1px solid var(--st-line); }
 .assignment-progress h3 { margin:0; }
-.assignment-progress-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:8px; max-height:45vh; overflow-y:auto; padding:3px; }
+.assignment-progress-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:8px; padding:3px; }
 .assignment-progress-item { display:flex; justify-content:space-between; align-items:center; gap:8px; min-width:0; padding:8px; border-radius:12px; background:var(--st-gray-bg); }
 .assignment-progress-name { min-width:0; font-size:13px; overflow-wrap:anywhere; }
 .assignment-progress-item .task-status { flex:0 0 auto; min-width:58px; padding:5px 8px; font-size:12px; }
 .assignment-progress-name .badge { font-size:10px; padding:2px 5px; }
 
-/* Keep modal actions reachable while only the body scrolls. Closed dialogs
-   retain the browser's display:none behavior. */
-dialog { flex-direction:column; overflow:hidden; max-height:90dvh; }
+/* Modal shell: fixed head, scrolling body, pinned action bar that sits outside the
+   scroll area so it can never cover the last field of a form. Closed dialogs keep
+   the browser's display:none behavior. */
+dialog { flex-direction:column; overflow:hidden; width:min(780px,94vw); max-height:90vh; max-height:92dvh; }
 dialog[open] { display:flex; }
-.dialog-head { flex-shrink:0; position:sticky; top:0; z-index:5; }
-.dialog-body { flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; min-height:0; }
-.dialog-body:has(> #modal-form) { padding-bottom:0; }
-.dialog-foot { flex-shrink:0; position:sticky; bottom:0; background:var(--st-surface, #ffffff); border-top:1px solid var(--st-line); padding:14px 22px; margin-top:0; margin-inline:-22px; z-index:5; }
+.dialog-form { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; margin:0; }
+.dialog-head { flex-shrink:0; z-index:5; }
+.dialog-body { flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; min-height:0; }
+.dialog-foot { flex-shrink:0; display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; align-items:center; background:var(--st-surface, #ffffff); border-top:1px solid var(--st-line); padding:14px 22px; margin:0; z-index:5; }
+@media(max-width:520px) {
+  dialog { width:calc(100vw - 14px); max-width:calc(100vw - 14px); max-height:94vh; max-height:94dvh; }
+  .dialog-head { padding:14px 16px; }
+  .dialog-body { padding:16px; }
+  .dialog-foot { padding:12px; }
+}
 input, select, textarea, .input, .textarea, #notice-editor, .quick input, .quick textarea { border:1px solid rgba(148, 163, 184, 0.45); }
 @media(max-width:640px) {
   .toolbar { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; }
@@ -770,13 +777,15 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 @media(min-width:360px) and (max-width:480px) {
  .toolbar { gap:4px; }
  .toolbar .row { gap:4px; }
- .toolbar button,.dialog-foot button,.quick-student-search button { padding:5px 8px; font-size:12px; min-height:32px; }
- .quick-composer-card .quick-controls { flex-wrap:nowrap; gap:4px; }
- .quick-composer-card .quick-controls select { width:77px; flex:0 0 77px; padding:5px; font-size:12px; min-height:32px; }
- .quick-composer-card .quick-controls .quick-date { padding:5px; font-size:12px; min-height:32px; }
- .quick-composer-card .quick-controls .record-actions { flex:1 1 auto; gap:4px; flex-wrap:nowrap; }
- .quick-composer-card .quick-controls .record-action { padding:5px 4px; font-size:12px; min-height:32px; }
- .dialog-foot { gap:4px; padding:10px 12px; }
+ .toolbar button,.quick-student-search button { padding:5px 8px; font-size:12px; min-height:32px; }
+ .dialog-foot button { padding:6px 10px; font-size:13px; }
+ /* 좁은 폰에서 날짜·교시·추가 옵션이 한 줄에 눌리지 않도록 기록 버튼은 다음 줄에 둔다. */
+ .quick-composer-card .quick-controls { flex-wrap:wrap; gap:4px; }
+ .quick-composer-card .quick-controls select { width:88px; flex:0 0 88px; padding:5px; font-size:12px; min-height:34px; }
+ .quick-composer-card .quick-controls .quick-date { padding:5px 6px; font-size:12px; min-height:34px; }
+ .quick-composer-card .quick-controls .record-actions { flex:1 1 100%; gap:4px; flex-wrap:nowrap; margin-left:0; }
+ .quick-composer-card .quick-controls .record-action { flex:1 1 0; padding:7px 4px; font-size:13px; min-height:38px; }
+ .dialog-foot { gap:6px; padding:10px 12px; }
  .record .record-controls button { padding:3px 6px; font-size:12px; }
 }
 
@@ -894,7 +903,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 /* Practice 11: compact assignment matrix and two-line progress cards. */
 .assignment-matrix th,.assignment-matrix td { padding:4px 6px; line-height:1.25; }
 .assignment-matrix .task-status,.assignment-matrix .complete-all { min-height:26px; padding:3px 7px; font-size:12px; }
-.assignment-progress-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; max-height:45vh; overflow-y:auto; }
+.assignment-progress-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; }
 .assignment-progress-grid .assignment-progress-item { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:5px; min-width:0; min-height:64px; padding:9px 10px; border-radius:12px; text-align:left; }
 .assignment-progress-name { font-weight:700; }
 .assignment-progress-status { font-size:12px; }
@@ -1334,7 +1343,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .group-buy-card>p{overflow-wrap:anywhere;white-space:pre-wrap}
 .group-buy-detail{min-width:0;overflow-wrap:anywhere}
 .group-buy-detail>p{white-space:pre-wrap}
-.group-buy-ranking{padding:0;list-style:none;max-height:240px;overflow:auto}
+.group-buy-ranking{padding:0;list-style:none}
 .group-buy-ranking li{padding:9px 12px;border-radius:9px;margin:4px 0;background:#f5f6fa}
 .group-buy-ranking .is-me{background:#e6f0ff;color:#244d82;font-weight:750}
 .group-buy-quick{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
@@ -1391,7 +1400,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .economy-student-manage{border:0;background:transparent;box-shadow:none;padding:0;text-align:left;font:inherit;font-weight:inherit;min-height:24px}
 .economy-student-card[data-economy-student],tr[data-economy-student]{cursor:pointer}
 .economy-student-manager{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:14px;background:#f8f6fc;border:1px solid #e5dfef;border-radius:12px;margin-top:10px;animation:economy-manager-open .18s ease-out;white-space:normal}
-.economy-student-manager section{min-width:0}.economy-student-manager h4{margin:0 0 8px}.economy-student-manager ul{list-style:none;padding:0;margin:0;max-height:320px;overflow:auto}
+.economy-student-manager section{min-width:0}.economy-student-manager h4{margin:0 0 8px}.economy-student-manager ul{list-style:none;padding:0;margin:0}
 .economy-student-manager li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #e6e0ef;overflow-wrap:anywhere}
 .economy-student-manager li>span{min-width:0}.economy-student-manager button{flex:none;font-size:12px;min-height:40px;padding:4px 8px}
 .economy-gift-grid-panel{margin-top:12px;border-top:1px solid #e2dcea;padding-top:12px}.economy-gift-grid-panel h4{font-size:13px;margin:0 0 8px}
@@ -1620,8 +1629,7 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .csv-preview-notes{margin:0 0 10px;padding-left:18px;color:var(--muted);font-size:13px;line-height:1.6;overflow-wrap:anywhere}
 .csv-preview-notes li{margin:2px 0}.csv-preview-empty{margin:8px 0;color:var(--muted)}
 .csv-preview-table{font-size:13px}.csv-preview-table td{max-width:260px;overflow-wrap:anywhere}
-.csv-import-foot{justify-content:flex-end;gap:8px;margin-top:14px;position:sticky;bottom:0;z-index:2;padding:10px 0;background:var(--st-surface,#ffffff);border-top:1px solid var(--line)}
-@media(max-width:640px){.csv-preview-table td{max-width:140px}.csv-import-foot button{min-height:40px}.behavior-draft-meta button{min-height:38px}}
+@media(max-width:640px){.csv-preview-table td{max-width:140px}.behavior-draft-meta button{min-height:38px}}
 
 /* Keep the Korean IME: visibility changes masking, never the input type. */
 [data-korean-password][data-password-masked="true"]{-webkit-text-security:disc}
@@ -1675,13 +1683,10 @@ button.subject-color.subject-stripe:focus-visible { outline:2px solid var(--subj
 .tools-top-bar .tools-drawer-toggle{margin:0}
 .tools-drawer-collapsed .tools-top-bar .tools-toolbar{visibility:hidden;opacity:0;pointer-events:none}
 .economy-student-manager{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
-.quick-memo-bar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:210;display:flex;align-items:center;gap:6px;width:min(760px,calc(100% - 20px));padding:8px 10px;background:var(--st-surface);border:1px solid var(--st-line);border-radius:14px;box-shadow:var(--st-shadow-3)}
-.quick-memo-bar>span{font-size:12px;white-space:nowrap}.quick-memo-bar input{flex:1;min-width:0;padding:6px;min-height:36px;font-size:14px}.quick-memo-bar button{flex:none;min-height:36px;padding:4px 7px;font-size:12px;white-space:nowrap}
-@media(max-width:640px){.economy-student-manager{grid-template-columns:1fr}.quick-memo-bar{gap:3px;padding:6px}.quick-memo-bar>span{font-size:10px}.quick-memo-bar button{padding:4px;font-size:11px}.quick-memo-bar input{font-size:12px}}
+@media(max-width:640px){.economy-student-manager{grid-template-columns:1fr}}
 /* Global button hover/active transforms must not replace chip centering. */
 .survey-board button.survey-board-chip,.survey-board button.survey-board-chip:hover:not(:disabled),.survey-board button.survey-board-chip:active:not(:disabled){transform:translate(-50%,-50%);transition:none}
 
-body:has(.quick-memo-bar) .memo-undo{bottom:82px}
 
 /* The toolbar docks over a canvas that always fills the board. */
 .tools-board{height:72vh;min-height:440px;padding:0;overflow:hidden}
@@ -1754,7 +1759,7 @@ body:has(.quick-memo-bar) .memo-undo{bottom:82px}
 .settings-save,.dialog-foot>button,.dialog-foot-start>button,.student-survey>.row>.primary{border-radius:var(--st-radius-action);box-shadow:none}
 .settings-save,.dialog-foot>button[type=submit],.student-survey>.row>.primary{background:var(--st-blue-text);color:var(--st-surface);font-weight:650}
 .settings-save:hover,.dialog-foot>button[type=submit]:hover,.student-survey>.row>.primary:hover{background:var(--st-text)}
-.dialog-foot>button:not([type=submit]){background:var(--st-gray-bg);color:var(--st-gray-text)}
+.dialog-foot>button:not([type=submit]):not(.primary){background:var(--st-gray-bg);color:var(--st-gray-text)}
 .badge,.pill{box-shadow:none}
 .metric strong,.student-profile-score strong{font-variant-numeric:tabular-nums}
 

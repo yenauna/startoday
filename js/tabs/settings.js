@@ -16,7 +16,7 @@ export function settingsView() {
   const st = settings(),
     bytes = new Blob([JSON.stringify(db())]).size;
   const calendar = st.academicCalendar || {};
-  return `<div class="toolbar"><div><h2>설정</h2><small>학급과 기록 방식을 선생님께 맞추세요.</small></div></div><div id="settings-layout" class="settings-layout"><nav class="settings-sidebar" aria-label="설정 카테고리">${settingsCategories.map(category => btn(esc(category), () => {
+  return `<div class="toolbar"><div><h2>설정</h2><small>학급과 기록 방식을 선생님께 맞추세요 · 체크·고르기 항목은 바꾸는 즉시 저장되고, 입력 칸은 [설정 저장]으로 저장합니다.</small></div></div><div id="settings-layout" class="settings-layout"><nav class="settings-sidebar" aria-label="설정 카테고리">${settingsCategories.map(category => btn(esc(category), () => {
     settingsCategory = category;
     applySettingsCategory();
   }, settingsCategory === category ? 'active' : '', `data-settings-tab="${esc(category)}" aria-pressed="${settingsCategory === category}"`)).join('')}</nav><div class="settings-content"><form id="settings-form" novalidate><section class="panel" data-settings-category="기본 정보"><h3>기본 정보</h3><div class="formgrid">${input('학급 이름', 'className', st.className, 'text', 'required')}${input('학년도', 'academicYear', st.academicYear, 'number', 'min="2020" max="2100" required')}${schoolPickerFields(st.schoolName || '', st.schoolCode || '')}${input('학년', 'grade', st.grade || '', 'number', 'min="1" max="6" required')}${input('반', 'classGroup', st.classGroup || '', 'text', 'required maxlength="40"')}</div></section><section class="panel" data-settings-category="교실화면" hidden><h3>교실화면</h3><div class="formgrid">${select('이름 표시 방식', 'nameDisplayMode', [['real', '번호와 이름'], ['number', '번호만'], ['masked', '이름 가림'], ['alias', '별명']], st.nameDisplayMode)}${checkbox('학생 별 개수 표시', 'classroomShowScores', !!st.classroomShowScores)}${input('화면 해제 비밀번호 · 변경할 때만 입력', 'classroomPin', '', 'password', 'minlength="4" autocomplete="new-password"')}</div></section><section class="panel" data-settings-category="기본 정보"><h3>학생 화면</h3>${select('포인트 집계 기간','pointPeriod',[['all','전체(누적)'],['7d','최근 1주일'],['14d','최근 2주일'],['30d','최근 1달'],['month','이번 달']],st.pointPeriod || 'all')}${select('칭찬 편지함 노출 기간', 'studentPraisePeriod', [['all', '전체 다 보이기'], ['30d', '최근 한 달치만'], ['7d', '최근 일주일만'], ['month', '이번 달만'], ['recent3', '최근 3개만']], st.studentPraisePeriod || 'all')}</section><section class="panel" data-settings-category="기본 정보"><h3>보고서</h3><div class="formgrid">${input('보고서 제목', 'reportHeader', st.reportHeader)}${select('기본 출력 방식', 'reportPrintMode', [['color', '컬러'], ['mono', '흑백']], st.reportPrintMode || 'color')}</div></section><section class="panel" data-settings-category="학사일정" hidden><h3>학사일정</h3><div class="formgrid">${select('점심시간 위치', 'lunchAfterPeriod', [[3, '3교시 후'], [4, '4교시 후'], [5, '5교시 후']], C.lunchPosition(st))}${Array.from({
@@ -37,60 +37,13 @@ export function settingsView() {
       deletedAt: C.now(),
       seat: null
     })]);
-  }, 'danger')}</div></td></tr>`).join('')}</tbody></table></div></section><section class="panel" data-settings-category="과목·전담" hidden><h3>과목 · 전담 설정</h3>${C.gradeSubjectCodes(st.grade).length ? `<div class="table-wrap"><table><thead><tr><th>사용</th><th>과목</th><th>구분</th><th>장소</th><th>담당 교사</th><th></th></tr></thead><tbody>${[...C.subjectCatalog(db()).regular, ...C.subjectCatalog(db()).special].map(subject => `<tr><td><input type="checkbox" data-subject-enabled="${esc(subject.code)}" aria-label="${esc(subject.code)} 사용" ${subject.enabled !== false ? 'checked' : ''}></td><td><span class="badge subject-color subject-badge" style="${C.subjectColorStyle(subject)}">${esc(subject.code)}</span></td><td>${subject.isSpecialist ? '전담' : '담임'}</td><td>${esc(subject.location || '')}</td><td>${esc(subject.teacherName || '')}</td><td>${btn('수정', () => subjectEditor(subject))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">설정-기본정보에서 학년을 설정하면 과목이 보입니다.</p>'}${btn('+ 과목 추가', () => subjectEditor())}</section>${bindLater('settings-form', 'submit', async e => {
+  }, 'danger')}</div></td></tr>`).join('')}</tbody></table></div></section><section class="panel" data-settings-category="과목·전담" hidden><h3>과목 · 전담 설정</h3><p class="muted">'사용'을 체크하거나 풀면 바로 저장되어 시간표 과목 선택지에 반영됩니다.</p>${C.gradeSubjectCodes(st.grade).length ? `<div class="table-wrap"><table><thead><tr><th>사용</th><th>과목</th><th>구분</th><th>장소</th><th>담당 교사</th><th></th></tr></thead><tbody>${[...C.subjectCatalog(db()).regular, ...C.subjectCatalog(db()).special].map(subject => `<tr><td><input type="checkbox" data-subject-enabled="${esc(subject.code)}" aria-label="${esc(subject.code)} 사용" ${subject.enabled !== false ? 'checked' : ''}></td><td><span class="badge subject-color subject-badge" style="${C.subjectColorStyle(subject)}">${esc(subject.code)}</span></td><td>${subject.isSpecialist ? '전담' : '담임'}</td><td>${esc(subject.location || '')}</td><td>${esc(subject.teacherName || '')}</td><td>${btn('수정', () => subjectEditor(subject))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">설정-기본정보에서 학년을 설정하면 과목이 보입니다.</p>'}${btn('+ 과목 추가', () => subjectEditor())}</section>${bindLater('settings-form', 'submit', async e => {
     e.preventDefault();
-    const invalid = e.target.querySelector(':invalid');
-    if (invalid) {
-      settingsCategory = invalid.closest('[data-settings-category]')?.dataset.settingsCategory || settingsCategory;
-      applySettingsCategory();
-      e.target.reportValidity();
-      return;
-    }
-    const f = new FormData(e.target),
-      pin = f.get('classroomPin');
-    if (!f.get('schoolName').trim() || !f.get('classGroup').trim()) throw Error('학교명과 반을 입력하세요.');
-    const next = {
-      ...st,
-      className: f.get('className').trim() || `${f.get('grade')}학년 ${f.get('classGroup').trim()}반`,
-      academicYear: Number(f.get('academicYear')),
-      schoolName: f.get('schoolName').trim(),
-      schoolCode: f.get('schoolCode') || '',
-      grade: Number(f.get('grade')),
-      classGroup: f.get('classGroup').trim(),
-      // 저장된 초기 비밀번호가 있을 때만 함께 보냅니다. 없으면 비워 두어 아무도 기본값으로 들어올 수 없게 합니다.
-      ...(settings().defaultStudentPassword ? {
-        defaultStudentPassword: settings().defaultStudentPassword
-      } : {}),
-      nameDisplayMode: f.get('nameDisplayMode'),
-      classroomShowScores: !!f.get('classroomShowScores'),
-      reportPrintMode: f.get('reportPrintMode'),
-      studentPraisePeriod: f.get('studentPraisePeriod') || 'all',
-      pointPeriod: C.POINT_PERIODS.includes(f.get('pointPeriod')) ? f.get('pointPeriod') : 'all',
-      academicCalendar: {
-        ...calendar,
-        ...Object.fromEntries(['term1Start', 'summerEnd', 'term2Start', 'winterEnd'].map(key => [key, f.get(key) || ''])),
-        springBreak: !!f.get('springBreak'),
-        winterReturn: f.get('winterReturn') ?? calendar.winterReturn ?? '',
-        springEnd: f.get('springEnd') ?? calendar.springEnd ?? '',
-        holidays: [...new Set(f.getAll('holidays'))].sort()
-      },
-      lunchAfterPeriod: C.lunchPosition({
-        lunchAfterPeriod: f.get('lunchAfterPeriod')
-      }),
-      reportHeader: f.get('reportHeader'),
-      periodTimes: Array.from({
-        length: 6
-      }, (_, i) => f.get('period-' + i)),
-      timetableDisplay: {
-        ...st.timetableDisplay,
-        showTeacher: !!f.get('showTeacher'),
-        showLocation: !!f.get('showLocation')
-      }
-    };
-    if (pin) next.classroomPinHash = await hashPin(pin);
-    await commit([up('settings', next)]);
+    await saveSettingsForm(e.target);
   })}${bindLater('settings-form', 'change', e => {
     if (e.target.name === 'springBreak') $('#spring-dates').disabled = !e.target.checked;
+    // 체크·고르기 항목은 과목 '사용' 체크와 같은 규칙으로 바꾸는 즉시 저장한다.
+    if (e.target.matches('input[type=checkbox],select[name]')) queueSettingsAutoSave();
   })}${areasSettings()}${titleSettings()}${bindLater('backup-input', 'change', e => importBackup(e.target.files[0]))}</div></div>${bindSettingsCategory()}${bindSchoolSettings()}`;
 }
 export function rosterPaste() {
@@ -424,6 +377,73 @@ document.addEventListener('drop', e => {
   draggedArea = null;
 });
 document.addEventListener('dragend', () => draggedArea = null);
+// 설정 저장은 [설정 저장] 버튼과 체크·고르기 항목의 즉시 저장이 같은 함수를 쓴다.
+async function saveSettingsForm(form) {
+  const invalid = form.querySelector(':invalid');
+  if (invalid) {
+    settingsCategory = invalid.closest('[data-settings-category]')?.dataset.settingsCategory || settingsCategory;
+    applySettingsCategory();
+    form.reportValidity();
+    return false;
+  }
+  const st = settings(),
+    calendar = st.academicCalendar || {},
+    f = new FormData(form),
+    pin = f.get('classroomPin'),
+    schoolName = String(f.get('schoolName') || '').trim(),
+    classGroup = String(f.get('classGroup') || '').trim();
+  if (!schoolName || !classGroup) throw Error('학교명과 반을 입력하세요.');
+  const next = {
+    ...st,
+    className: String(f.get('className') || '').trim() || `${f.get('grade')}학년 ${classGroup}반`,
+    academicYear: Number(f.get('academicYear')),
+    schoolName,
+    schoolCode: f.get('schoolCode') || '',
+    grade: Number(f.get('grade')),
+    classGroup,
+    // 저장된 초기 비밀번호가 있을 때만 함께 보냅니다. 없으면 비워 두어 아무도 기본값으로 들어올 수 없게 합니다.
+    ...(st.defaultStudentPassword ? {
+      defaultStudentPassword: st.defaultStudentPassword
+    } : {}),
+    nameDisplayMode: f.get('nameDisplayMode'),
+    classroomShowScores: !!f.get('classroomShowScores'),
+    reportPrintMode: f.get('reportPrintMode'),
+    studentPraisePeriod: f.get('studentPraisePeriod') || 'all',
+    pointPeriod: C.POINT_PERIODS.includes(f.get('pointPeriod')) ? f.get('pointPeriod') : 'all',
+    academicCalendar: {
+      ...calendar,
+      ...Object.fromEntries(['term1Start', 'summerEnd', 'term2Start', 'winterEnd'].map(key => [key, f.get(key) || ''])),
+      springBreak: !!f.get('springBreak'),
+      winterReturn: f.get('winterReturn') ?? calendar.winterReturn ?? '',
+      springEnd: f.get('springEnd') ?? calendar.springEnd ?? '',
+      holidays: [...new Set(f.getAll('holidays'))].sort()
+    },
+    lunchAfterPeriod: C.lunchPosition({
+      lunchAfterPeriod: f.get('lunchAfterPeriod')
+    }),
+    reportHeader: f.get('reportHeader'),
+    periodTimes: Array.from({
+      length: 6
+    }, (_, i) => f.get('period-' + i)),
+    timetableDisplay: {
+      ...st.timetableDisplay,
+      showTeacher: !!f.get('showTeacher'),
+      showLocation: !!f.get('showLocation')
+    }
+  };
+  if (pin) next.classroomPinHash = await hashPin(pin);
+  await commit([up('settings', next)]);
+  return true;
+}
+let settingsAutoSaveTimer;
+function queueSettingsAutoSave() {
+  clearTimeout(settingsAutoSaveTimer);
+  settingsAutoSaveTimer = setTimeout(() => run(async () => {
+    const form = $('#settings-form');
+    if (!form || form.hidden || !form.isConnected) return;
+    await saveSettingsForm(form);
+  }), 120);
+}
 function bindSettingsCategory() {
   setTimeout(applySettingsCategory, 0);
   return '';

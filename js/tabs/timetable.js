@@ -3,7 +3,7 @@ import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, settings, students, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
-import { $, badge, btn, checkbox, esc, input, opts, run, select, textarea, toast, undoToast, quickMemoBar } from '../shared/ui.js';
+import { $, badge, btn, checkbox, esc, input, opts, run, select, textarea, toast, undoToast } from '../shared/ui.js';
 import { assignmentActions, assignmentEditor, assignmentsView, completeAll, scheduleAssignmentsCard } from './assignments.js';
 import { routinesView, scheduleRoutinesCard } from './routines.js';
 export function periodInfo(slot) {
@@ -187,6 +187,20 @@ export function calendarView() {
     ${scheduleManagePanel()}
   </div>`;
 }
+// 일정 등록 창에서 탭을 바꾸면 작성 중인 내용이 사라지므로, 고친 칸이 있으면 한 번 확인한다.
+function hasEventDraft() {
+  const form = $('#modal-form');
+  if (!form) return false;
+  return [...form.elements].some(field => {
+    if (field.tagName === 'BUTTON' || field.type === 'hidden' || !field.name) return false;
+    if (field.type === 'checkbox' || field.type === 'radio') return field.checked !== field.defaultChecked;
+    if (field.tagName === 'SELECT') {
+      const initial = field.querySelector('option[selected]') || field.options[0];
+      return field.value !== (initial ? initial.value : '');
+    }
+    return 'defaultValue' in field ? field.value !== field.defaultValue : false;
+  });
+}
 export function dayEditor(d, mode = '일정', period = 1, event = null) {
   if (event?.academic) {
     modal('학사일정', `<h3>${esc(event.title)}</h3><p>${esc(C.formatDate(event.date))}</p><p>${esc(event.description)}</p>${btn('학사일정 설정', () => {
@@ -215,7 +229,10 @@ export function dayEditor(d, mode = '일정', period = 1, event = null) {
     isDday: false,
     createdAt: C.now()
   };
-  modal(C.formatDate(d) + ' · 일정 등록', `<div class="row event-entry-tabs" style="margin-bottom:18px">${['일정', '수업', '과제'].map(t => btn(t, () => dayEditor(d, t, period), mode === t ? 'primary' : '')).join('')}</div><div class="formgrid">${input('일정 이름', 'title', r.title, 'text', 'required')}${select('시간', 'period', [['', '종일'], [0, '아침'], ...[1, 2, 3, 4, 5, 6].map(p => [p, p + '교시']), [7, '점심'], [8, '방과후']], C.eventTimePeriod(r) ?? '')}<div class="span2">${textarea('설명', 'description', r.description)}</div>${checkbox('D-Day 표시', 'isDday', r.isDday)}${checkbox('중요 안내 (달력 알약 표시)', 'isImportant', r.isImportant !== false)}</div>`, async f => {
+  modal(C.formatDate(d) + ' · 일정 등록', `<div class="row event-entry-tabs" style="margin-bottom:18px">${['일정', '수업', '과제'].map(t => btn(t, () => {
+    if (t !== mode && hasEventDraft() && !confirm('작성 중인 내용이 사라집니다. 다른 탭으로 이동할까요?')) return;
+    dayEditor(d, t, period);
+  }, mode === t ? 'primary' : '')).join('')}</div><div class="formgrid">${input('일정 이름', 'title', r.title, 'text', 'required')}${select('시간', 'period', [['', '종일'], [0, '아침'], ...[1, 2, 3, 4, 5, 6].map(p => [p, p + '교시']), [7, '점심'], [8, '방과후']], C.eventTimePeriod(r) ?? '')}<div class="span2">${textarea('설명', 'description', r.description)}</div>${checkbox('D-Day 표시', 'isDday', r.isDday)}${checkbox('중요 안내 (달력 알약 표시)', 'isImportant', r.isImportant !== false)}</div>`, async f => {
     const title = f.get('title').trim();
     if (!title) throw Error('일정 이름을 입력하세요.');
     await commit([up('events', {
@@ -254,13 +271,16 @@ export function timetableEditor(d, p) {
     field.focus();
   }, 'memo-clear', `aria-label="${label} 내용 지우기"`)}</span><textarea name="${key}">${esc(value)}</textarea></label>`;
   const memoScope = () => `${store.mode}:${store.classId}:${state.viewMode}`;
-  const save = async (subjectCode, form, quick = false) => {
+  // 과목 선택도 메모와 같은 저장 버튼으로 저장한다. 버튼을 누르면 선택 상태만 바뀌고,
+  // 아래 [저장]이 과목과 메모를 함께 저장한 뒤 창을 닫는다.
+  let selectedSubject = slot?.subjectCode || '';
+  const save = async (subjectCode, form) => {
     subjectCode = subjectCode || db().timetables.find(t => t.date === d && t.period === p)?.subjectCode || '';
     const old = db().timetables.find(t => t.date === d && t.period === p);
     const publicMemo = form.get('publicMemo') || '';
     const scope = memoScope(),
       fields = [...cleared].filter(key => !form.get(key) && (key === 'publicMemo' ? old?.publicMemo ?? old?.memo : old?.[key]));
-    const ops=[up('timetables', {
+    await commit([up('timetables', {
       ...old,
       id: old?.id || `${d}-${p}`,
       date: d,
@@ -272,22 +292,8 @@ export function timetableEditor(d, p) {
       privateMemo: form.get('privateMemo') || '',
       teacherMemo: form.get('teacherMemo') || '',
       updatedAt: C.now()
-    })];
-    const savedId=old?.id||`${d}-${p}`,tab=state.tab;
-    let subjectPromise,pending=true,failed=false,closeQuick;
-    const available=()=>!failed&&scope===memoScope()&&!state.locked&&state.viewMode!=='student'&&state.tab===tab&&(pending||db()?.timetables.some(t=>t.id===savedId&&t.date===d&&t.period===p));
-    if(quick){
-      closeModal();
-      closeQuick=quickMemoBar(async(key,text)=>{
-        try{await subjectPromise;}catch{return;}
-        if(!available())throw Error('시간표 화면이 변경되었습니다.');
-        await commit(current=>{if(!available())throw Error('시간표 화면이 변경되었습니다.');const latest=current.timetables.find(t=>t.id===savedId&&t.date===d&&t.period===p);if(!latest)throw Error('저장할 시간표가 없습니다.');return [up('timetables',{...latest,[key]:text,...(key==='publicMemo'?{memo:text}:{}),updatedAt:C.now()})];},'');
-      },available,'저장 중');
-    }
-    subjectPromise=commit(ops,quick?'':'저장했습니다.');
-    try{await subjectPromise;pending=false;closeQuick?.setStatus?.('저장됨');}
-    catch(error){pending=false;failed=true;closeQuick?.();if(quick){toast(error.message||'시간표를 저장하지 못했습니다.');return;}throw error;}
-    if(!quick)closeModal();
+    })], '저장했습니다.');
+    closeModal();
     if (fields.length && scope === memoScope()) undoToast('수업 메모를 지웠습니다.', async () => {
       const current = db().timetables.find(t => t.date === d && t.period === p);
       if (!current || current.id !== (old?.id || `${d}-${p}`) || current.subjectCode !== subjectCode || fields.some(key => current[key])) throw Error('메모가 변경되어 복구할 수 없습니다.');
@@ -302,8 +308,17 @@ export function timetableEditor(d, p) {
       await commit([up('timetables', next)]);
     }, () => scope === memoScope());
   };
-  const choices = subjects => subjects.map(subject => btn(esc(subject.code), () => save(subject.code, new FormData($('#modal-form')), true), 'subject-color subject-stripe subject-choice' + (subject.code === slot?.subjectCode ? ' selected' : ''), `style="${C.subjectColorStyle(subject)}" aria-pressed="${subject.code === slot?.subjectCode}"`)).join('');
-  modal(`${C.formatDate(d)} · ${p}교시 시간표`, `${C.gradeSubjectCodes(settings().grade).length ? `<div class="subject-grid">${choices(regular)}</div>` : '<p class="muted">설정-기본정보에서 학년을 설정하면 과목이 보입니다.</p>'}<details class="project-subjects" ${special.some(subject => subject.code === slot?.subjectCode) ? 'open' : ''}><summary>+ 특별·프로젝트 수업 ▾</summary><div class="subject-grid">${choices(special) || '<p class="muted">설정-과목·전담에서 특별 과목을 추가하세요.</p>'}</div></details><p class="muted">과목 버튼을 누르면 바로 저장됩니다.</p>${memoField('메모1 : 학생 달력에도 기록되어 언제든 학생들이 볼 수 있음', 'publicMemo', slot?.publicMemo ?? slot?.memo ?? '')}${memoField("메모2 : 학생들은 당일 '오늘의 일정'과 교실화면에서만 볼 수 있음", 'privateMemo', slot?.privateMemo || '')}${memoField('메모3 : 교사만 볼 수 있음', 'teacherMemo', slot?.teacherMemo || '')}${slotEventEditorList(d,p)}${slot ? btn('이 교시 비우기', async () => {
+  const selectSubject = code => {
+    selectedSubject = selectedSubject === code ? '' : code;
+    const form = $('#modal-form');
+    form?.querySelectorAll?.('.subject-choice').forEach(button => {
+      const on = button.dataset.subjectCode === selectedSubject;
+      button.classList.toggle('selected', on);
+      button.setAttribute('aria-pressed', String(on));
+    });
+  };
+  const choices = subjects => subjects.map(subject => btn(esc(subject.code), () => selectSubject(subject.code), 'subject-color subject-stripe subject-choice' + (subject.code === selectedSubject ? ' selected' : ''), `style="${C.subjectColorStyle(subject)}" data-subject-code="${esc(subject.code)}" aria-pressed="${subject.code === selectedSubject}"`)).join('');
+  modal(`${C.formatDate(d)} · ${p}교시 시간표`, `${C.gradeSubjectCodes(settings().grade).length ? `<div class="subject-grid">${choices(regular)}</div>` : '<p class="muted">설정-기본정보에서 학년을 설정하면 과목이 보입니다.</p>'}<details class="project-subjects" ${special.some(subject => subject.code === slot?.subjectCode) ? 'open' : ''}><summary>+ 특별·프로젝트 수업 ▾</summary><div class="subject-grid">${choices(special) || '<p class="muted">설정-과목·전담에서 특별 과목을 추가하세요.</p>'}</div></details><p class="muted">과목을 고르면 선택한 상태로 남습니다. 아래 [저장]을 누르면 과목과 메모를 함께 저장하고 창을 닫습니다.</p>${memoField('메모1 : 학생 달력에도 기록되어 언제든 학생들이 볼 수 있음', 'publicMemo', slot?.publicMemo ?? slot?.memo ?? '')}${memoField("메모2 : 학생들은 당일 '오늘의 일정'과 교실화면에서만 볼 수 있음", 'privateMemo', slot?.privateMemo || '')}${memoField('메모3 : 교사만 볼 수 있음', 'teacherMemo', slot?.teacherMemo || '')}${slotEventEditorList(d,p)}`, f => save(selectedSubject, f), '저장', `${slot ? btn('이 교시 비우기', async () => {
     if (confirm('이 교시를 비울까요?')) {
       await commit([{
         table: 'timetables',
@@ -312,11 +327,11 @@ export function timetableEditor(d, p) {
       }]);
       closeModal();
     }
-  }, 'danger') : ''}`, f => save(slot?.subjectCode, f), '메모 저장', btn('메모 지우기', () => {
+  }, 'danger') : ''}${btn('메모 지우기', () => {
     const form = $('#modal-form');
     for (const key of ['publicMemo', 'privateMemo', 'teacherMemo']) { form.elements[key].value = ''; cleared.add(key); }
-    return save(slot?.subjectCode, new FormData(form));
-  }, 'danger'));
+    form.elements.publicMemo?.focus();
+  }, 'danger')}`);
 }
 export async function swapSlots(from, to) {
   if (from === to) return;
