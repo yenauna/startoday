@@ -142,23 +142,27 @@ test('본 앱 히어로가 미스티 블루 밤하늘 팔레트와 그레인 층
   assert.match(heroJs, /data-progress-done="\$\{complete\}"/);
 });
 
-test('전체 배경이 민트·초록 그라디언트 대신 미스티 블루 그라디언트와 필름 그레인을 쓴다', () => {
+test('전체 배경이 민트·초록 그라디언트 대신 맑은 파스텔 하늘 그라디언트와 옅은 필름 그레인을 쓴다', () => {
   // 기존 민트/초록 배경 그림을 걷어냈다
   assert.ok(!heroCss.includes('bg-pastel-nebula.webp'), 'mint nebula image');
   assert.ok(!heroCss.includes('bg-watercolor-stars.webp'), 'watercolor image');
   assert.ok(!/#C5D7D0|#22483A|#F7F8F6|#E1EBE6/i.test(heroCss), 'mint tokens');
-  // 시안의 여섯 방향 radial-gradient를 넓게 겹친다
-  for (const color of ['#9BAFCB', '#B8C9DF', '#CED9E8', '#C4D2E3', '#CDD3E7', '#EAE2E3', '#D5DFEB']) {
+  // 맑은 바탕 위에 라벤더·하늘·로즈·페리윙클·피치를 넓게 겹친다
+  for (const color of ['#F0F6FD', '#D8CBF3', '#D3E6FB', '#F8D7E3', '#D6D6F5', '#FBDCD4', '#D2CBF2', '#FBDCCF']) {
     assert.ok(heroCss.includes(color), color);
   }
-  // 배경 레이어에만 6~9% 그레인을 깐다
+  // 먹구름처럼 보이던 회청색은 남기지 않는다
+  for (const color of ['#9BAFCB', '#B8C9DF', '#C4D2E3', '#C2D1E5', '#CDD3E7']) {
+    assert.ok(!heroCss.includes(color), color);
+  }
+  // 배경 레이어에만 2.5~3.5% 그레인을 아주 옅게 깐다
   const grain = heroCss.match(/\.sky-light::after \{[^}]*\}/)[0];
   const opacity = Number('0.' + grain.match(/opacity: \.(\d+)/)[1]);
-  assert.ok(opacity >= 0.06 && opacity <= 0.09, String(opacity));
+  assert.ok(opacity >= 0.025 && opacity <= 0.035, String(opacity));
   assert.match(grain, /feTurbulence/);
-  // 카드 유리는 시안의 반투명 블루글레이 그라디언트
-  assert.match(heroCss, /--nebula-glass: linear-gradient\(135deg, #F4F7FCC7 0%, #E9EEF7B8 55%, #E1E8F3A6 100%\)/);
-  assert.match(heroCss, /--nebula-reading-glass: linear-gradient\(145deg, #F4F7FCE8, #E1E8F3D1\)/);
+  // 카드 유리는 회청색이 빠진 맑은 흰빛 리퀴드글래스
+  assert.match(heroCss, /--nebula-glass: linear-gradient\(135deg, #FFFFFFDC 0%, #FDFEFFCC 55%, #F5FAFFB8 100%\)/);
+  assert.match(heroCss, /--nebula-reading-glass: linear-gradient\(145deg, #FFFFFFF0, #F4F9FFD9\)/);
 });
 
 test('하늘 움직임은 닫힌 고리로 이어지고 별가루도 따로 표류한다', () => {

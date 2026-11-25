@@ -9,16 +9,16 @@ const css = readFileSync(path.join(root, 'css/nebula.css'), 'utf8');
 const skyAnimations = [...css.matchAll(/animation:\s*(sky-[a-z-]+)\s+(\d+(?:\.\d+)?)s/g)]
   .map(([, name, seconds]) => ({name, seconds: Number(seconds)}));
 
-test('배경 하늘 레이어가 20~30초 고리 애니메이션으로 눈에 보이게 흐른다', () => {
+test('배경 하늘 레이어가 10~15초 고리 애니메이션으로 눈에 보이게 흐른다', () => {
   // 기준층·라벤더·로즈·빛무리·빛무리 층·꽃무리 3개가 모두 움직인다
   const names = new Set(skyAnimations.map(a => a.name));
   for (const name of ['sky-breathe', 'sky-drift-lavender', 'sky-drift-rose', 'sky-drift-glow', 'sky-orbits-drift',
     'sky-bloom-drift-a', 'sky-bloom-drift-b', 'sky-bloom-drift-c']) {
     assert.ok(names.has(name), name);
   }
-  // 34~79초처럼 너무 느리지도, 12초처럼 빠르지도 않게 20~30초에 맞춘다
+  // 21~29초처럼 다시 정지 화면처럼 느껴질 만큼 느리지 않게 10~15초로 당긴다
   for (const {name, seconds} of skyAnimations) {
-    assert.ok(seconds >= 20 && seconds <= 30, `${name} ${seconds}s`);
+    assert.ok(seconds >= 10 && seconds <= 15, `${name} ${seconds}s`);
   }
 });
 
@@ -44,25 +44,38 @@ test('움직임을 줄이기 설정에서는 하늘 배경이 완전히 멈춘�
   assert.match(reduce, /animation: none;/);
 });
 
-test('하늘 팔레트는 미스티 블루를 유지하며 라벤더·로즈를 한 겹 더한다', () => {
-  // 기존 미스티 블루 여섯 방향 색과 바탕색은 그대로 남아 있다
-  for (const color of ['#9BAFCB', '#B8C9DF', '#CED9E8', '#C4D2E3', '#CDD3E7', '#EAE2E3', '#D5DFEB']) {
+test('하늘 팔레트는 밝은 맑은 파스텔로, 회색기 도는 회청색은 남기지 않는다', () => {
+  // 맑은 바탕과 라벤더·하늘·로즈·페리윙클·피치가 함께 있다
+  for (const color of ['#F0F6FD', '#D8CBF3', '#D3E6FB', '#F8D7E3', '#D6D6F5', '#FBDCD4', '#D2CBF2', '#FBDCCF']) {
     assert.ok(css.includes(color), color);
   }
-  // 새로 더한 저채도 보랏빛·로즈·피치
-  for (const color of ['#BFB3DF', '#D4CAEA', '#BAB0D6', '#F0D4CA', '#EBCFD1', '#C3BBDF']) {
-    assert.ok(css.includes(color), color);
+  // 먹구름처럼 보이던 어두운 더스티 블루·회청색은 걷어냈다
+  for (const color of ['#9BAFCB', '#B8C9DF', '#C4D2E3', '#C2D1E5', '#CDD3E7']) {
+    assert.ok(!css.includes(color), color);
   }
-  // 원색·다크 테마로 흐르지 않게 하늘 레이어에는 밝은 톤만 쓴다
+  // 원색·다크 테마로 흐르지 않게 하늘 레이어는 모두 아주 밝은 톤만 쓴다(평균 205 이상)
   const sky = css.slice(css.indexOf('  .sky-light {'), css.indexOf('Neutral reading surfaces'));
-  for (const hex of sky.match(/#[0-9A-F]{6}/gi) || []) {
+  const colors = sky.match(/#[0-9A-F]{6}/gi) || [];
+  assert.ok(colors.length >= 20, String(colors.length));
+  for (const hex of colors) {
     const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
-    assert.ok((r + g + b) / 3 >= 150, `${hex} is too dark for the daylight sky`);
+    assert.ok((r + g + b) / 3 >= 205, `${hex} is too dark or murky for the clear daylight sky`);
   }
+  // 색상(hue)이 보라·파랑·분홍 세 갈래로 나뉘어 파란빛만 가득해 보이지 않는다
+  const hue = hex => {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    if (!d) return 0;
+    const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return (h * 60 + 360) % 360;
+  };
+  const hues = colors.map(hue);
+  assert.ok(hues.some(h => h >= 240 && h <= 285), 'lavender/periwinkle hue');
+  assert.ok(hues.some(h => h >= 195 && h <= 235), 'sky blue hue');
+  assert.ok(hues.some(h => h >= 320 || h <= 20), 'rose/peach hue');
 });
 
 test('하늘 색 덩어리는 화면보다 넓게 깔려 움직여도 경계가 보이지 않는다', () => {
-  const layer = (selector) => css.match(new RegExp(`\\${selector} \\{([\\s\\S]*?)\\n  \\}`))[1];
   const lavender = css.match(/\.sky-light::before \{([\s\S]*?)\n  \}/)[1];
   const rose = css.match(/\.sky-orbits::before \{([\s\S]*?)\n  \}/)[1];
   const light = css.match(/\.sky-light \{([\s\S]*?)\n  \}/)[1];
@@ -72,9 +85,29 @@ test('하늘 색 덩어리는 화면보다 넓게 깔려 움직여도 경계가 
     // 가장자리는 투명으로 흘린다
     assert.match(block, /radial-gradient/, name);
     assert.match(block, /00 7\d%\)/, `${name} fade to transparent`);
+    // 화면 가운데도 비지 않도록 안쪽을 지나는 덩어리를 하나 더 둔다
+    assert.ok((block.match(/radial-gradient/g) || []).length >= 4, `${name} inner blob`);
   }
-  // 기준층은 10% 넓혀 고정해 두어 옆으로 흘러도 가장자리가 비지 않는다
-  assert.match(light, /scale: 1\.1;/);
+  // 기준층은 12% 넓혀 고정해 두어 옆으로 흘러도 가장자리가 비지 않는다
+  assert.match(light, /scale: 1\.12;/);
   assert.ok(!/scale/.test(css.match(/@keyframes sky-breathe \{([\s\S]*?)\n  \}/)[1]), 'scale should stay static');
-  void layer;
+});
+
+test('필름 그레인은 맑은 하늘을 흐리지 않게 아주 옅게만 남는다', () => {
+  const grain = css.match(/\.sky-light::after \{([\s\S]*?)\n  \}/)[1];
+  const opacity = Number('0.' + grain.match(/opacity: \.(\d+)/)[1]);
+  assert.ok(opacity >= 0.025 && opacity <= 0.035, String(opacity));
+  assert.match(grain, /feTurbulence/);
+});
+
+test('카드 유리는 회청색 대신 맑은 흰빛 리퀴드글래스이고 미완료 카드는 맑은 핑크 틴트다', () => {
+  assert.match(css, /--nebula-glass: linear-gradient\(135deg, #FFFFFFDC 0%, #FDFEFFCC 55%, #F5FAFFB8 100%\)/);
+  assert.match(css, /--nebula-reading-glass: linear-gradient\(145deg, #FFFFFFF0, #F4F9FFD9\)/);
+  // 미완료 카드: 회색기 없는 아주 맑은 핑크 그라디언트
+  const unfinished = css.match(/\.unfinished:not\(\.excluded\) \{\n([\s\S]*?)\n  \}/)[1];
+  assert.match(unfinished, /background: linear-gradient\(150deg, #FFF3FAF0 0%, #FFE2EFE2 58%, #FFD7E9CC 100%\) !important;/);
+  for (const hex of unfinished.match(/#[0-9A-F]{6}/gi) || []) {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+    assert.ok(r >= 250 && r > b && b > g, `${hex} should be a clear pink, not a murky tint`);
+  }
 });

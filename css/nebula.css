@@ -1,13 +1,13 @@
 @media screen {
   :root {
-    --nebula-page: #D5DFEB;
+    --nebula-page: #F0F6FD;
     --nebula-ink: #1C2B42;
     --nebula-muted: #53647B;
-    --nebula-edge: rgba(255, 255, 255, .86);
-    --nebula-reading-glass: linear-gradient(145deg, #F4F7FCE8, #E1E8F3D1);
-    --nebula-table-head: #E4EBF5;
-    --nebula-table-line: rgba(167, 183, 205, .35);
-    --nebula-readable: rgba(234, 240, 248, .72);
+    --nebula-edge: rgba(255, 255, 255, .88);
+    --nebula-reading-glass: linear-gradient(145deg, #FFFFFFF0, #F4F9FFD9);
+    --nebula-table-head: #F1F7FE;
+    --nebula-table-line: rgba(167, 183, 205, .32);
+    --nebula-readable: rgba(252, 254, 255, .74);
     --nebula-mint: #D3DEED;
     --nebula-mint-ink: #193452;
     --nebula-gold: #F3E7CB;
@@ -21,9 +21,11 @@
       inset 1.5px 0 2px rgba(255, 255, 255, .55),
       inset 0 -2px 6px rgba(38, 61, 96, .04);
     --nebula-shadow: var(--glass-bevel), 0 16px 40px rgba(38, 61, 96, .11);
-    --nebula-clear-glass: rgba(244, 247, 252, .55);
-    --nebula-clear-edge: rgba(255, 255, 255, .86);
-    --nebula-glass: linear-gradient(135deg, #F4F7FCC7 0%, #E9EEF7B8 55%, #E1E8F3A6 100%);
+    --nebula-clear-glass: rgba(255, 255, 255, .58);
+    --nebula-clear-edge: rgba(255, 255, 255, .88);
+    /* 맑은 흰빛 리퀴드글래스: 회청색 기운을 빼고 유리 자체는 거의 흰색으로 두어
+       뒤의 파스텔 하늘이 카드 안으로 은은하게 비쳐 보이게 한다. */
+    --nebula-glass: linear-gradient(135deg, #FFFFFFDC 0%, #FDFEFFCC 55%, #F5FAFFB8 100%);
     --nebula-sheen: linear-gradient(135deg, #FFFFFF70 0%, transparent 28%, #FFFFFF66 47%, transparent 66%);
     --nebula-hero-light: radial-gradient(ellipse at 92% 10%, #466382, transparent 72%);
   }
@@ -51,43 +53,49 @@
   }
 
   .sky-light {
-    background-color: #D5DFEB;
-    /* 여러 radial-gradient를 넓게 겹쳐 경계가 보이지 않는 저채도 블루그레이 하늘을 만든다.
-       좌상단은 조금 더 깊은 더스티 블루, 우하단은 은은하게 따뜻한 로즈그레이, 위에서 아래로 갈수록 밝아진다. */
+    background-color: #F0F6FD;
+    /* 여러 radial-gradient를 넓게 겹쳐 경계가 보이지 않는 맑은 파스텔 하늘을 만든다.
+       회색기가 도는 더스티 블루·회청색은 걷어내고 #E7F0FE~#FDF4F8 대역의 밝은 바탕 위에
+       라벤더(좌상단)·하늘빛(상단 중앙)·로즈(우상단)·페리윙클(좌하단)·피치(우하단)가
+       화면 가장자리를 한 바퀴 감싸도록 두어 파란빛만 가득해 보이지 않게 한다. */
     background-image:
-      radial-gradient(ellipse 64% 62% at -4% -6%, #9BAFCB 0%, #9BAFCBE6 24%, #9BAFCB00 68%),
-      radial-gradient(ellipse 62% 54% at 44% -8%, #B8C9DF 0%, #B8C9DFE6 26%, #B8C9DF00 70%),
-      radial-gradient(ellipse 56% 50% at 104% -4%, #CED9E8 0%, #CED9E8E6 26%, #CED9E800 70%),
-      radial-gradient(ellipse 96% 82% at 50% 52%, #C4D2E3 0%, #C4D2E3DB 38%, #C4D2E300 78%),
-      radial-gradient(ellipse 70% 58% at -2% 104%, #CDD3E7 0%, #CDD3E7E6 30%, #CDD3E700 70%),
-      radial-gradient(ellipse 66% 56% at 102% 102%, #EAE2E3 0%, #EAE2E3E6 30%, #EAE2E300 68%),
-      linear-gradient(178deg, #C2D1E5 0%, #D5DFEB 50%, #DFE4EC 100%);
-    /* 하늘 전체가 아주 천천히 숨쉬듯 흐르도록 기준층도 미세하게 움직인다.
-       카메라보다 10% 넓게 고정해 두고 옆으로만 서서히 흘러 가장자리가 비지 않는다. */
-    scale: 1.1;
-    animation: sky-breathe 26s ease-in-out infinite;
+      radial-gradient(ellipse 60% 54% at -2% -6%, #D8CBF3E6 0%, #D8CBF37D 32%, #D8CBF300 72%),
+      radial-gradient(ellipse 56% 50% at 46% -12%, #D3E6FBE0 0%, #D3E6FB7A 32%, #D3E6FB00 74%),
+      radial-gradient(ellipse 56% 52% at 104% -8%, #F8D7E3E6 0%, #F8D7E37A 32%, #F8D7E300 72%),
+      radial-gradient(ellipse 54% 52% at 4% 48%, #D6D6F5D9 0%, #D6D6F570 36%, #D6D6F500 76%),
+      radial-gradient(ellipse 52% 50% at 98% 52%, #FBDCD4D1 0%, #FBDCD46B 36%, #FBDCD400 76%),
+      radial-gradient(ellipse 86% 66% at 50% 46%, #F6FAFFA6 0%, #F6FAFF5C 42%, #F6FAFF00 80%),
+      radial-gradient(ellipse 60% 50% at -6% 104%, #D2CBF2E0 0%, #D2CBF278 32%, #D2CBF200 72%),
+      radial-gradient(ellipse 58% 50% at 104% 102%, #FBDCCFE0 0%, #FBDCCF78 32%, #FBDCCF00 72%),
+      linear-gradient(176deg, #E7F0FE 0%, #F5F9FF 50%, #FDF4F8 100%);
+    /* 하늘 전체가 숨쉬듯 흐르도록 기준층도 14초에 한 번씩 옆으로 흐른다.
+       카메라보다 12% 넓게 고정해 두고 옆으로만 움직여 가장자리가 비지 않는다. */
+    scale: 1.12;
+    animation: sky-breathe 14s ease-in-out infinite;
   }
 
   @keyframes sky-breathe {
-    0%, 100% { translate: -3.4% 0; }
-    38% { translate: 3.6% 0; }
-    70% { translate: 1% 0; }
+    0%, 100% { translate: -4% 0; }
+    38% { translate: 4.2% 0; }
+    70% { translate: 1.2% 0; }
   }
 
-  /* 하늘 색 덩어리를 아주 천천히 흐르게 한다.
-     라벤더·라일락 한 겹이 좌상단에서, 로즈·피치 한 겹이 우하단에서 서로 반대 방향으로 21·24초에 걸쳐
+  /* 하늘 색 덩어리를 눈에 보이게 흐르게 한다.
+     라벤더·라일락 한 겹이 좌상단에서, 로즈·피치 한 겹이 우하단에서 서로 반대 방향으로 10·11초에 걸쳐
      한 바퀴 도는 고리 애니메이션이라 다시 시작할 때 끊기지 않는다. 두 겹 모두 화면보다 넓게 깔고
-     가장자리를 투명으로 흘려 색 경계나 레이어 테두리가 드러나지 않는다. */
+     가장자리를 투명으로 흘려 색 경계나 레이어 테두리가 드러나지 않는다.
+     가운데도 비지 않도록 각 겹에 화면 안쪽을 지나가는 덩어리를 하나씩 더 두었다. */
   .sky-light::before {
     content: "";
     position: absolute;
     inset: -18% -20%;
     pointer-events: none;
     background-image:
-      radial-gradient(ellipse 54% 48% at 14% 2%, #BFB3DFCC 0%, #BFB3DF80 34%, #BFB3DF00 78%),
-      radial-gradient(ellipse 44% 40% at 52% -6%, #D4CAEAB3 0%, #D4CAEA59 38%, #D4CAEA00 76%),
-      radial-gradient(ellipse 40% 36% at 4% 74%, #BAB0D6B8 0%, #BAB0D65C 38%, #BAB0D600 76%);
-    animation: sky-drift-lavender 21s ease-in-out infinite;
+      radial-gradient(ellipse 52% 46% at 12% 2%, #D3C5F0D1 0%, #D3C5F075 34%, #D3C5F000 78%),
+      radial-gradient(ellipse 44% 40% at 44% 26%, #DACFF5B3 0%, #DACFF55C 38%, #DACFF500 76%),
+      radial-gradient(ellipse 40% 36% at 2% 72%, #CEBFECD1 0%, #CEBFEC70 38%, #CEBFEC00 76%),
+      radial-gradient(ellipse 36% 32% at 62% 78%, #E2D9F7A8 0%, #E2D9F752 38%, #E2D9F700 78%);
+    animation: sky-drift-lavender 10s ease-in-out infinite;
   }
 
   .sky-orbits::before {
@@ -96,63 +104,64 @@
     inset: -18% -20%;
     pointer-events: none;
     background-image:
-      radial-gradient(ellipse 56% 50% at 94% 98%, #F0D4CAC9 0%, #F0D4CA7D 36%, #F0D4CA00 78%),
-      radial-gradient(ellipse 44% 40% at 106% 42%, #EBCFD1A6 0%, #EBCFD15C 38%, #EBCFD100 76%),
-      radial-gradient(ellipse 42% 38% at 26% 96%, #C3BBDF8F 0%, #C3BBDF47 38%, #C3BBDF00 76%);
-    animation: sky-drift-rose 24s ease-in-out infinite;
+      radial-gradient(ellipse 54% 48% at 94% 98%, #F8CAD9CC 0%, #F8CAD974 34%, #F8CAD900 78%),
+      radial-gradient(ellipse 44% 40% at 106% 40%, #F5C9C4C4 0%, #F5C9C46B 38%, #F5C9C400 76%),
+      radial-gradient(ellipse 40% 36% at 70% 58%, #F9DCE89E 0%, #F9DCE84E 38%, #F9DCE800 76%),
+      radial-gradient(ellipse 38% 34% at 30% 100%, #D8D4F4A8 0%, #D8D4F452 38%, #D8D4F400 78%);
+    animation: sky-drift-rose 11s ease-in-out infinite;
   }
 
   @keyframes sky-drift-lavender {
-    0%, 100% { transform: translate3d(-14%, 7%, 0) scale(1.06); }
-    40% { transform: translate3d(11%, -6%, 0) scale(1.12); }
-    72% { transform: translate3d(4%, 10%, 0) scale(1.08); }
+    0%, 100% { transform: translate3d(-18%, 9%, 0) scale(1.05); }
+    40% { transform: translate3d(16%, -8%, 0) scale(1.13); }
+    72% { transform: translate3d(5%, 12%, 0) scale(1.07); }
   }
 
   @keyframes sky-drift-rose {
-    0%, 100% { transform: translate3d(13%, -7%, 0) scale(1.08); }
-    45% { transform: translate3d(-13%, 8%, 0) scale(1.14); }
-    76% { transform: translate3d(-3%, -9%, 0) scale(1.09); }
+    0%, 100% { transform: translate3d(16%, -9%, 0) scale(1.07); }
+    45% { transform: translate3d(-16%, 9%, 0) scale(1.15); }
+    76% { transform: translate3d(-4%, -10%, 0) scale(1.09); }
   }
 
   .sky-orbits {
-    /* 빛무리 층도 기준층과 다른 박자로 미세하게 떠돌아 깊이감을 준다. */
+    /* 빛무리 층도 기준층과 다른 박자로 떠돌아 깊이감을 준다. */
     scale: 1.05;
-    animation: sky-orbits-drift 28s ease-in-out infinite;
+    animation: sky-orbits-drift 15s ease-in-out infinite;
   }
 
   @keyframes sky-orbits-drift {
-    0%, 100% { translate: 2.2% 0; }
-    46% { translate: -2.6% 0; }
-    74% { translate: -0.6% 0; }
+    0%, 100% { translate: 3% 0; }
+    46% { translate: -3.4% 0; }
+    74% { translate: -0.8% 0; }
   }
 
   /* 가장 위에는 아주 옅은 빛무리 두 덩이를 한 겹 더 띄운다. 색이 아니라 빛이라 경계 없이 스며들고,
-     24초에 걸쳐 화면을 가로지르며 천천히 지나가기 때문에 하늘이 살아 움직이는 느낌을 만든다. */
+     12초에 걸쳐 화면을 가로지르며 지나가기 때문에 하늘이 살아 움직이는 느낌을 만든다. */
   .sky-orbits::after {
     content: "";
     position: absolute;
     inset: -22% -30%;
     pointer-events: none;
     background-image:
-      radial-gradient(ellipse 40% 34% at 26% 26%, #F2F5FCB8 0%, #F2F5FC5C 44%, #F2F5FC00 82%),
-      radial-gradient(ellipse 34% 30% at 74% 64%, #FBEFE7A6 0%, #FBEFE752 44%, #FBEFE700 82%);
-    opacity: .5;
-    animation: sky-drift-glow 24s ease-in-out infinite;
+      radial-gradient(ellipse 40% 34% at 26% 26%, #FFFFFFC9 0%, #FFFFFF66 44%, #FFFFFF00 82%),
+      radial-gradient(ellipse 34% 30% at 74% 64%, #FFF4ECB8 0%, #FFF4EC5C 44%, #FFF4EC00 82%);
+    opacity: .55;
+    animation: sky-drift-glow 12s ease-in-out infinite;
   }
 
   @keyframes sky-drift-glow {
-    0%, 100% { transform: translate3d(-10%, 4%, 0) scale(1.04); }
-    46% { transform: translate3d(9%, -5%, 0) scale(1.09); }
-    76% { transform: translate3d(3%, 6%, 0) scale(1.05); }
+    0%, 100% { transform: translate3d(-14%, 5%, 0) scale(1.04); }
+    46% { transform: translate3d(13%, -7%, 0) scale(1.11); }
+    76% { transform: translate3d(4%, 8%, 0) scale(1.05); }
   }
 
-  /* 배경 레이어에만 얇고 고른 필름 그레인을 7%로 깔아 안개 낀 하늘 질감을 준다. */
+  /* 배경 레이어에만 얇고 고른 필름 그레인을 3%로 아주 옅게 깔아 맑은 하늘에 미세한 질감만 남긴다. */
   .sky-light::after {
     content: "";
     position: absolute;
     inset: 0;
     pointer-events: none;
-    opacity: .085;
+    opacity: .03;
     background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="160" height="160"%3E%3Cfilter id="n"%3E%3CfeTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" stitchTiles="stitch"/%3E%3CfeColorMatrix type="saturate" values="0"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23n)"/%3E%3C/svg%3E');
     background-size: 160px 160px;
     background-repeat: repeat;
@@ -169,26 +178,26 @@
   }
 
   /* 은은한 빛무리도 저마다 다른 주기로 조금씩 떠돌아 색이 살아 있게 한다. */
-  .sky-bloom:nth-child(1) { top: 21%; left: 74%; background: #FFFFFF4D; animation: sky-bloom-drift-a 21s ease-in-out infinite; }
-  .sky-bloom:nth-child(2) { top: 52%; left: 26%; background: #D3CCE659; animation: sky-bloom-drift-b 25s ease-in-out infinite; }
-  .sky-bloom:nth-child(3) { top: 78%; left: 65%; background: #EAE2E34D; animation: sky-bloom-drift-c 29s ease-in-out infinite; }
+  .sky-bloom:nth-child(1) { top: 21%; left: 74%; background: #FFFFFF6B; animation: sky-bloom-drift-a 10s ease-in-out infinite; }
+  .sky-bloom:nth-child(2) { top: 52%; left: 26%; background: #E2D8F76B; animation: sky-bloom-drift-b 12s ease-in-out infinite; }
+  .sky-bloom:nth-child(3) { top: 78%; left: 65%; background: #FBDDD266; animation: sky-bloom-drift-c 14s ease-in-out infinite; }
 
   @keyframes sky-bloom-drift-a {
-    0%, 100% { transform: translate(calc(-50% - 80px), calc(-50% + 32px)); }
-    48% { transform: translate(calc(-50% + 92px), calc(-50% - 48px)); }
-    74% { transform: translate(calc(-50% + 24px), calc(-50% + 60px)); }
+    0%, 100% { transform: translate(calc(-50% - 110px), calc(-50% + 44px)); }
+    48% { transform: translate(calc(-50% + 124px), calc(-50% - 64px)); }
+    74% { transform: translate(calc(-50% + 30px), calc(-50% + 82px)); }
   }
 
   @keyframes sky-bloom-drift-b {
-    0%, 100% { transform: translate(calc(-50% + 66px), calc(-50% + 42px)); }
-    40% { transform: translate(calc(-50% - 84px), calc(-50% - 26px)); }
-    70% { transform: translate(calc(-50% - 18px), calc(-50% + 70px)); }
+    0%, 100% { transform: translate(calc(-50% + 88px), calc(-50% + 56px)); }
+    40% { transform: translate(calc(-50% - 112px), calc(-50% - 36px)); }
+    70% { transform: translate(calc(-50% - 24px), calc(-50% + 94px)); }
   }
 
   @keyframes sky-bloom-drift-c {
-    0%, 100% { transform: translate(calc(-50% + 34px), calc(-50% - 66px)); }
-    52% { transform: translate(calc(-50% - 74px), calc(-50% + 48px)); }
-    78% { transform: translate(calc(-50% + 52px), calc(-50% + 10px)); }
+    0%, 100% { transform: translate(calc(-50% + 46px), calc(-50% - 88px)); }
+    52% { transform: translate(calc(-50% - 98px), calc(-50% + 64px)); }
+    78% { transform: translate(calc(-50% + 70px), calc(-50% + 14px)); }
   }
 
   /* Neutral reading surfaces; task status and subject accents have their own glass tints. */
@@ -260,8 +269,9 @@
   }
   #app .shell .student[data-student-id].unfinished:not(.excluded),
   #app .lockscreen .classroom-student.unfinished:not(.excluded) {
-    background: rgba(242, 219, 230, .82) !important;
-    border-color: rgba(255, 255, 255, .86);
+    /* 미완료 카드는 탁한 회보라·회색 틴트 대신 아주 맑은 핑크 유리로 둔다(완료 카드는 흰 유리 그대로). */
+    background: linear-gradient(150deg, #FFF3FAF0 0%, #FFE2EFE2 58%, #FFD7E9CC 100%) !important;
+    border-color: rgba(255, 255, 255, .9);
     /* Override the legacy important unfinished fill in dashboard.css, only on dashboard roster cards. */
   }
   #app .shell .student[data-student-id].selected:not(.excluded) {
@@ -395,7 +405,7 @@
   #app .student-score-table { font-variant-numeric: tabular-nums; }
 
   #app .tools-board > .tools-canvas {
-    background: linear-gradient(145deg, #F5F8FD, #EAF0F9 62%, #F2EEEF);
+    background: linear-gradient(145deg, #FBFDFF, #F2F8FF 62%, #FDF6F9);
     border-color: var(--nebula-table-line);
   }
 
@@ -1128,7 +1138,7 @@
 @media screen {
   /* 메뉴 서랍은 긴 목록을 읽는 면이라 상단 메뉴바보다 조금 더 불투명하게 둔다. */
   #app .navigation-drawer {
-    background: linear-gradient(160deg, #F6F9FD, #E7EEF7);
+    background: linear-gradient(160deg, #FBFCFF, #EEF5FD);
     border-right: 1px solid rgba(255, 255, 255, .92);
     box-shadow: 8px 0 32px rgba(38, 61, 96, .16);
   }
