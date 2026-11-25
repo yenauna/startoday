@@ -64,7 +64,7 @@ try{
    await page.evaluate(async()=>(await import('/js/app.js')).navigate('대시보드'));await page.waitForTimeout(80);
    const glass=await page.evaluate(id=>{const card=document.querySelector(`.student[data-student-id="${id}"]`);if(!card)return null;const s=getComputedStyle(card);return {unfinished:card.classList.contains('unfinished'),bg:s.backgroundColor,border:s.borderColor,img:s.backgroundImage};},sid);
    assert(glass,`${width}px: roster card missing after leaving student view`);
-   if(glass.unfinished){assert.equal(glass.bg,'rgba(255, 198, 212, 0.46)');assert.equal(glass.border,'rgba(255, 226, 232, 0.85)');assert.equal(glass.img,'none');}
+   if(glass.unfinished){assert.equal(glass.bg,'rgba(0, 0, 0, 0)');assert.equal(glass.border,'rgba(255, 255, 255, 0.9)');assert.match(glass.img,/^linear-gradient\(150deg, rgba\(255, 243, 250/);}
   }
   await page.evaluate(async()=>(await import('/js/tabs/classroom.js')).classroom());
   await state('classroom');
