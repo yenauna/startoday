@@ -160,8 +160,8 @@ test('전체 배경이 민트·초록 그라디언트 대신 맑은 파스텔 �
   const opacity = Number('0.' + grain.match(/opacity: \.(\d+)/)[1]);
   assert.ok(opacity >= 0.025 && opacity <= 0.035, String(opacity));
   assert.match(grain, /feTurbulence/);
-  // 카드 유리는 회청색이 빠진 맑은 흰빛 리퀴드글래스
-  assert.match(heroCss, /--nebula-glass: linear-gradient\(135deg, #FFFFFFDC 0%, #FDFEFFCC 55%, #F5FAFFB8 100%\)/);
+  // 카드 유리는 회청색이 빠진 맑은 흰빛 리퀴드글래스, 뒤 배경이 비치도록 불투명도 24~48%
+  assert.match(heroCss, /--nebula-glass: linear-gradient\(135deg, #FFFFFF7A 0%, #FFFFFF3D 55%, #FFFFFF6B 100%\)/);
   assert.match(heroCss, /--nebula-reading-glass: linear-gradient\(145deg, #FFFFFFF0, #F4F9FFD9\)/);
 });
 
