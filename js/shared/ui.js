@@ -34,7 +34,7 @@ for (const type of ['input', 'change']) document.addEventListener(type, e => {
 export const select = (label, key, values, value = '') => `<label>${label}<select name="${key}">${opts(values, value)}</select></label>`;
 export const textarea = (label, key, value = '') => `<label>${label}<textarea name="${key}">${esc(value)}</textarea></label>`;
 export const checkbox = (label, key, value = false) => `<label class="inline"><input type="checkbox" name="${key}" ${value ? 'checked' : ''}>${label}</label>`;
-export const multiple = (list, key, values = []) => `<div class="checkgrid">${list.map(([id, label]) => `<label class="inline"><input type="checkbox" name="${key}" value="${esc(id)}" ${values.includes(id) ? 'checked' : ''}>${esc(label)}</label>`).join('')}</div>`;
+export const multiple = (list, key, values = []) => `<div class="choice-chips">${list.map(([id, label]) => `<label class="choice-chip"><input type="checkbox" name="${key}" value="${esc(id)}" ${values.includes(id) ? 'checked' : ''}><span>${esc(label)}</span></label>`).join('')}</div>`;
 export function toast(message) {
   $('#toast').textContent = message;
   $('#toast').style.display = 'block';
