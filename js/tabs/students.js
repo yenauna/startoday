@@ -6,7 +6,7 @@ import { closeModal, modal } from '../components/modal.js';
 import * as C from '../core.js';
 import { commit, db, name, settings, students, up } from '../shared/data.js';
 import { state, store } from '../shared/state.js';
-import { $, badge, btn, checkbox, empty, esc, input, saveFile, toast, opts } from '../shared/ui.js';
+import { $, badge, btn, checkbox, empty, esc, input, multiple, saveFile, toast, opts } from '../shared/ui.js';
 import { recordImportDialog } from './import-records.js';
 import { taskStateEditor } from './assignments.js';
 import { recordCard, recordEditor } from './records.js';
@@ -195,7 +195,7 @@ export function reportDialog(id, from, to) {
   const list = students(),
     selected = list.map(s => s.id);
   if (!list.length) throw Error('내보낼 학생이 없습니다.');
-  modal('학생 보고서 내보내기', `<div class="formgrid">${input('시작일', 'from', from, 'date', 'required')}${input('종료일', 'to', to, 'date', 'required')}</div><div class="report-targets"><div class="row">${btn('전체 학생 선택', () => document.querySelectorAll('#modal-form [name=reportStudents]').forEach(el => el.checked = true))}${btn('선택 해제', () => document.querySelectorAll('#modal-form [name=reportStudents]').forEach(el => el.checked = false))}</div><div class="checkgrid">${list.map(s => `<label class="inline"><input type="checkbox" name="reportStudents" value="${esc(s.id)}" ${selected.includes(s.id) ? 'checked' : ''}>${esc(s.no + '. ' + s.name)}</label>`).join('')}</div></div>${checkbox('작성 및 수정일 포함', 'includeTimestamps')}<p class="muted">추가기록은 인쇄 포함으로 지정한 건만 출력합니다.</p>`, async f => {
+  modal('학생 보고서 내보내기', `<div class="formgrid">${input('시작일', 'from', from, 'date', 'required')}${input('종료일', 'to', to, 'date', 'required')}</div><div class="report-targets"><div class="row">${btn('전체 학생 선택', () => document.querySelectorAll('#modal-form [name=reportStudents]').forEach(el => el.checked = true))}${btn('선택 해제', () => document.querySelectorAll('#modal-form [name=reportStudents]').forEach(el => el.checked = false))}</div>${multiple(list.map(s => [s.id, s.no + '. ' + s.name]), 'reportStudents', selected)}</div>${checkbox('작성 및 수정일 포함', 'includeTimestamps')}<p class="muted">추가기록은 인쇄 포함으로 지정한 건만 출력합니다.</p>`, async f => {
     const from = f.get('from'),
       to = f.get('to');
     C.dates(from, to);

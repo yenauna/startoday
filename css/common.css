@@ -432,7 +432,7 @@ header.top .brand-home small { display:block; white-space:nowrap; overflow:hidde
 .student-area-total { display:inline-block; white-space:nowrap; }
 .student-score-table th:nth-child(-n+4),.student-score-table td:nth-child(-n+4) { white-space:nowrap; }
 .report-targets { margin:16px 0; }
-.report-targets .checkgrid { margin-top:12px; }
+.report-targets .checkgrid,.report-targets .choice-chips { margin-top:12px; }
 .report-color-buttons { display:flex; gap:5px; }
 .report-timestamps { display:block; margin:5px 0; font-size:11px; }
 @media(max-width:640px) {
