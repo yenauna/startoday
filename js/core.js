@@ -1572,8 +1572,110 @@ export function mergeRewardTitles(existing = [], incoming = []) {
 }
 
 // The coin ledger is separate from praise/advice records and never changes star scores.
+// 월급 정산(pointMode='salary')에서는 기간 별 자동 합산을 끄고 지급 원장만 잔액으로 센다.
 export function studentBalance(database, studentId, date = today()) {
-  return scores(database, studentId, pointPeriodStart(database.settings[0], date), date).total * 10 + (database.economy_tx || []).filter(t => t.studentId === studentId).reduce((n, t) => n + t.amount, 0);
+  const ledger = (database.economy_tx || []).filter(t => t.studentId === studentId).reduce((n, t) => n + t.amount, 0);
+  if (pointMode(database.settings?.[0]) === 'salary') return ledger;
+  return scores(database, studentId, pointPeriodStart(database.settings[0], date), date).total * 10 + ledger;
+}
+
+// ---- 학급 월급 ----
+// '별 1개 = 10포인트'를 바로 더하는 대신, 정해진 기간의 기록과 직업 급여를 모아 한 번에 지급한다.
+// 지급은 기존 '지급' 거래(economy_tx)로만 남기므로 DB 구조는 바꾸지 않는다.
+export const SALARY_PERIODS = ['2week', 'month'];
+export const SALARY_BASES = ['praise', 'praise-advice'];
+export const SALARY_MEMO_PREFIX = '[월급]';
+export function pointMode(config = {}) {
+  return config?.pointMode === 'salary' ? 'salary' : 'realtime';
+}
+export function salaryConfig(config = {}) {
+  const raw = config?.salary && typeof config.salary === 'object' ? config.salary : {};
+  const jobWages = {};
+  for (const [id, row] of Object.entries(raw.jobWages && typeof raw.jobWages === 'object' ? raw.jobWages : {})) {
+    if (!id || id.length > 64 || !row || typeof row !== 'object') continue;
+    const amount = Number(row.amount), entry = {
+      name: String(row.name ?? '').trim().slice(0, 60),
+      amount: Number.isSafeInteger(amount) && amount >= 0 && amount <= 1000000000 ? amount : 0
+    };
+    if (entry.name || entry.amount) jobWages[id] = entry;
+  }
+  const multiplier = Number(raw.multiplier);
+  return {
+    period: SALARY_PERIODS.includes(raw.period) ? raw.period : '2week',
+    basis: SALARY_BASES.includes(raw.basis) ? raw.basis : 'praise',
+    multiplier: Number.isSafeInteger(multiplier) && multiplier >= 0 && multiplier <= 1000000 ? multiplier : 10,
+    jobs: raw.jobs === true,
+    jobWages
+  };
+}
+// 2주는 오늘까지 14일, 한달은 오늘까지 30일을 정산 범위로 본다.
+export function salaryPeriodStart(period, date = today()) {
+  return period === 'month' ? addDays(date, -29) : addDays(date, -13);
+}
+export function seoulDay(value) {
+  if (!value || !Number.isFinite(new Date(value).getTime())) return '';
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value));
+}
+export function isSalaryEntry(tx) {
+  return !!tx && tx.type === '지급' && typeof tx.memo === 'string' && tx.memo.startsWith(SALARY_MEMO_PREFIX);
+}
+export function lastSalaryDay(database, studentId) {
+  return (database.economy_tx || []).filter(t => t.studentId === studentId && isSalaryEntry(t)).reduce((last, t) => {
+    const day = seoulDay(t.createdAt);
+    return day > last ? day : last;
+  }, '');
+}
+// 같은 기간에 이미 지급한 학생은 마지막 지급 다음 날부터 다시 센다(같은 기록을 두 번 주지 않도록).
+export function salaryWindow(database, studentId, period = '2week', date = today()) {
+  const start = salaryPeriodStart(period, date), paid = lastSalaryDay(database, studentId), paidInPeriod = !!paid && paid >= start, from = paidInPeriod ? addDays(paid, 1) : start;
+  return { from: from <= date ? from : '', to: date, paidOn: paidInPeriod ? paid : '' };
+}
+export function salaryRecordCount(database, studentId, from, to, basis = 'praise') {
+  if (!from || !to || from > to) return { praise: 0, advice: 0, count: 0 };
+  const rows = (database.records || []).filter(r => Array.isArray(r.studentIds) && r.studentIds.includes(studentId) && r.date >= from && r.date <= to && (r.kind === '칭찬' || r.kind === '지도') && !excluded(database, studentId, r.date));
+  const praise = rows.filter(r => r.kind === '칭찬').length, advice = rows.filter(r => r.kind === '지도').length;
+  return { praise, advice, count: basis === 'praise-advice' ? Math.max(0, praise - advice) : praise };
+}
+export function salaryPreview(database, config = database?.settings?.[0] || {}, date = today()) {
+  const salary = salaryConfig(config), start = salaryPeriodStart(salary.period, date);
+  const rows = activeStudents(database).map(student => {
+    const window = salaryWindow(database, student.id, salary.period, date),
+      counts = salaryRecordCount(database, student.id, window.from, window.to, salary.basis),
+      // 직업 월급은 한 기간에 한 번만 준다(같은 기간 재지급 때 두 번 붙지 않도록).
+      job = salary.jobs && !window.paidOn ? salary.jobWages[student.id] || { name: '', amount: 0 } : { name: '', amount: 0 },
+      base = counts.count * salary.multiplier;
+    return {
+      studentId: student.id,
+      no: student.no,
+      name: student.name,
+      praise: counts.praise,
+      advice: counts.advice,
+      count: counts.count,
+      base,
+      jobName: job.name,
+      jobPay: job.amount,
+      total: base + job.amount,
+      from: window.from,
+      to: window.to,
+      paidOn: window.paidOn
+    };
+  });
+  return { ...salary, from: start, to: date, rows };
+}
+export function salaryMemo(config = {}) {
+  const salary = salaryConfig(config);
+  return `${SALARY_MEMO_PREFIX} ${salary.period === 'month' ? '한달' : '2주'} · ${salary.basis === 'praise-advice' ? '칭찬-조언' : '칭찬'}×${salary.multiplier}${salary.jobs ? ' + 직업' : ''}`;
+}
+// 설정과 지급 거래를 한 번의 저장(원자적 커밋)으로 보낸다.
+export function salaryPayOps(database, settings, studentIds, date = today()) {
+  const salary = salaryConfig(settings), memo = salaryMemo(settings), ids = new Set(studentIds || []),
+    rows = salaryPreview(database, settings, date).rows.filter(row => ids.has(row.studentId) && row.total > 0);
+  if (!rows.length) throw Error('지급할 학생을 선택하세요.');
+  const ops = rows.flatMap(row => {
+    if (!Number.isSafeInteger(row.total) || row.total < 1 || row.total > 1000000000) throw Error(row.name + ' 학생의 지급액을 확인하세요.');
+    return teacherBalanceAdjustOps(database, row.studentId, row.total, memo);
+  });
+  return { memo, rows, ops: [{ table: 'settings', id: settings.id || 'main', data: { ...settings, pointMode: 'salary', salary } }, ...ops] };
 }
 export function studentHoldings(database, studentId) {
   return (database.economy_tx || []).filter(t => t.studentId === studentId && t.status === '보유' && ['구매', '선물'].includes(t.type));
