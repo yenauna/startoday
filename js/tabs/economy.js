@@ -43,8 +43,9 @@ export function economyView() {
   const scope = store.mode + ':' + store.classId + ':' + (store.user?.id || '');
   if (scope !== economyDrawerScope) { economyDrawerScope = scope; openGiftItemId = null; selectedGiftStudentId = null; }
   const data = db(),
-    list = students().sort((a,b) => a.no - b.no);
-  return `<div class="toolbar"><h2>경제</h2><span class="muted">별 1개 = 10포인트</span></div><nav class="economy-subtabs" aria-label="경제 관리">${btn('자산 관리', () => {
+    list = students().sort((a,b) => a.no - b.no),
+    salaryMode = C.pointMode(data.settings[0]) === 'salary';
+  return `<div class="toolbar"><h2>경제</h2><span class="muted">${salaryMode ? '월급 정산제 · 별 자동 합산 없음' : '별 1개 = 10포인트'}</span></div><nav class="economy-subtabs" aria-label="경제 관리">${btn('자산 관리', () => {
     economyTeacherTab = 'assets';
     render();
   }, economyTeacherTab === 'assets' ? 'active' : '')}${btn('상점 관리', () => {
@@ -65,7 +66,7 @@ function economyAssetsView(data, list) {
   try { mode = localStorage.getItem('startoday_economy_view_mode') === 'cards' ? 'cards' : 'list'; } catch {}
   const change = value => { try { localStorage.setItem('startoday_economy_view_mode', value); } catch {} render(); };
   const actions = student => `<div class="economy-asset-actions">${btn('돈', () => economyAdjustDialog(student))}${btn('물건', () => economyGiftDialog(student))}</div>`;
-  return `<section class="panel economy-assets"><div class="toolbar"><h3>자산 관리</h3><div class="row economy-view-switch" role="group" aria-label="자산 보기 방식">${btn('⊞ 카드형', () => change('cards'), mode === 'cards' ? 'active' : '', `aria-pressed="${mode === 'cards'}"`)}${btn('☰ 엑셀 목록형', () => change('list'), mode === 'list' ? 'active' : '', `aria-pressed="${mode === 'list'}"`)}</div></div>${mode === 'cards' ? `<div class="economy-asset-grid">${list.map(student => `<article class="economy-student-card" data-economy-student="${esc(student.id)}"><h3>${btn(esc(student.no) + '번 ' + esc(student.name), () => economyGiftDialog(student), 'economy-student-manage')}</h3><strong class="economy-asset-balance">★ ${C.studentBalance(data, student.id)}포인트</strong><p>보유 물건 ${C.studentHoldings(data, student.id).length}개</p><div class="row">${actions(student)}</div></article>`).join('')}</div>` : `<div class="table-wrap"><table class="economy-assets-table"><thead><tr><th>번호</th><th>이름</th><th>포인트 잔액</th><th>보유 물건 수</th><th>지급/차감 액션</th></tr></thead><tbody>${list.map(student => `<tr data-economy-student="${esc(student.id)}"><td>${esc(student.no)}</td><td>${btn(esc(student.name), () => economyGiftDialog(student), 'economy-student-manage')}</td><td>★ ${C.studentBalance(data, student.id)}포인트</td><td>${C.studentHoldings(data, student.id).length}개</td><td>${actions(student)}</td></tr>`).join('')}</tbody></table></div>`}</section>`;
+  return `<section class="panel economy-assets"><div class="toolbar"><h3>자산 관리</h3><div class="row economy-assets-tools">${btn('월급 주기', () => economySalaryDialog(), 'primary economy-salary-open')}<div class="row economy-view-switch" role="group" aria-label="자산 보기 방식">${btn('⊞ 카드형', () => change('cards'), mode === 'cards' ? 'active' : '', `aria-pressed="${mode === 'cards'}"`)}${btn('☰ 엑셀 목록형', () => change('list'), mode === 'list' ? 'active' : '', `aria-pressed="${mode === 'list'}"`)}</div></div></div>${mode === 'cards' ? `<div class="economy-asset-grid">${list.map(student => `<article class="economy-student-card" data-economy-student="${esc(student.id)}"><h3>${btn(esc(student.no) + '번 ' + esc(student.name), () => economyGiftDialog(student), 'economy-student-manage')}</h3><strong class="economy-asset-balance">★ ${C.studentBalance(data, student.id)}포인트</strong><p>보유 물건 ${C.studentHoldings(data, student.id).length}개</p><div class="row">${actions(student)}</div></article>`).join('')}</div>` : `<div class="table-wrap"><table class="economy-assets-table"><thead><tr><th>번호</th><th>이름</th><th>포인트 잔액</th><th>보유 물건 수</th><th>지급/차감 액션</th></tr></thead><tbody>${list.map(student => `<tr data-economy-student="${esc(student.id)}"><td>${esc(student.no)}</td><td>${btn(esc(student.name), () => economyGiftDialog(student), 'economy-student-manage')}</td><td>★ ${C.studentBalance(data, student.id)}포인트</td><td>${C.studentHoldings(data, student.id).length}개</td><td>${actions(student)}</td></tr>`).join('')}</tbody></table></div>`}</section>`;
 }
 function economyGroupedItems(items, actions) {
   const groups = new Map();
@@ -119,6 +120,181 @@ function economyAdjustDialog(s) {
     closeModal();
     render();
   });
+}
+
+// ---- 월급 주기 ----
+// 설정과 미리보기를 한 창에서 바꾸고, 확인한 학생에게만 한 번에 지급한다(저장 한 번 = 원자적 커밋).
+const salaryNumber = (value, fallback = 0, max = 1000000000) => {
+  const n = Number(String(value ?? '').trim());
+  return Number.isSafeInteger(n) && n >= 0 && n <= max ? n : fallback;
+};
+function salarySettingsRow(draft) {
+  return { ...db().settings[0], pointMode: draft.pointMode, salary: C.salaryConfig({ salary: draft }) };
+}
+function economySalaryDialog() {
+  const data = db(), saved = C.salaryConfig(data.settings[0]);
+  const draft = {
+    pointMode: C.pointMode(data.settings[0]),
+    period: saved.period,
+    basis: saved.basis,
+    multiplier: saved.multiplier,
+    jobs: saved.jobs,
+    jobWages: Object.fromEntries(students().map(s => [s.id, { name: saved.jobWages[s.id]?.name || '', amount: saved.jobWages[s.id]?.amount || 0 }])),
+    selected: new Set(),
+    touched: new Set()
+  };
+  const el = modal('월급 주기', salaryDialogBody(draft), null, '', '', {
+    footer: `${btn('취소', closeModal)}${btn('설정 저장', () => saveSalarySettings(draft), 'salary-save')}<button type="button" class="primary salary-pay" data-salary-pay disabled>${esc(salaryPayLabel(draft))}</button>`
+  });
+  el.querySelector('[data-salary-pay]').onclick = () => paySalary(draft);
+  bindSalaryDialog(el, draft);
+  refreshSalaryDialog(draft);
+}
+function salaryChoice(name, value, label, checked) {
+  return `<label class="choice-chip"><input type="radio" name="${name}" value="${esc(value)}" ${checked ? 'checked' : ''}><span>${esc(label)}</span></label>`;
+}
+function salaryDialogBody(draft) {
+  const preview = C.salaryPreview(db(), salarySettingsRow(draft));
+  return `<div class="salary-dialog"><section class="salary-block salary-mode-block"><div class="salary-block-head"><h3>포인트 운영 방식</h3></div><div class="choice-chips" role="radiogroup" aria-label="포인트 운영 방식">${salaryChoice('salary-point-mode', 'realtime', '실시간 자동 반영', draft.pointMode === 'realtime')}${salaryChoice('salary-point-mode', 'salary', '월급 정산', draft.pointMode === 'salary')}</div><p class="salary-hint" data-salary-mode-hint>${salaryModeHint(draft)}</p></section><section class="salary-block"><h3>월급 계산</h3><div class="salary-field"><span class="salary-field-label">기간</span><div class="choice-chips" role="radiogroup" aria-label="월급 기간">${salaryChoice('salary-period', '2week', '2주', draft.period === '2week')}${salaryChoice('salary-period', 'month', '한달', draft.period === 'month')}</div></div><div class="salary-field"><span class="salary-field-label">기록 반영</span><div class="choice-chips" role="radiogroup" aria-label="기록 반영 방법">${salaryChoice('salary-basis', 'praise', '칭찬만', draft.basis === 'praise')}${salaryChoice('salary-basis', 'praise-advice', '칭찬-조언', draft.basis === 'praise-advice')}</div><p class="salary-hint" data-salary-basis-hint>${salaryBasisHint(draft)}</p></div><label class="salary-multiplier">곱하기<input name="salary-multiplier" type="number" min="0" max="1000000" step="1" inputmode="numeric" value="${esc(draft.multiplier)}" aria-label="기록 1개당 포인트 배수"><span>배</span></label><div class="salary-field"><span class="salary-field-label">추가 직업</span><div class="choice-chips" role="radiogroup" aria-label="추가 직업">${salaryChoice('salary-jobs', 'no', '없음', !draft.jobs)}${salaryChoice('salary-jobs', 'yes', '있음', draft.jobs)}</div></div></section><section class="salary-block salary-jobs-block" data-salary-jobs ${draft.jobs ? '' : 'hidden'}><div class="salary-block-head"><h3>학생별 직업 월급</h3><span class="muted">비워 두면 0포인트</span></div><div class="salary-jobs">${salaryJobsHtml(draft)}</div></section><section class="salary-block salary-preview-block"><div class="salary-block-head"><h3>지급 미리보기</h3><span class="muted" data-salary-range>${salaryRangeLabel(draft, preview)}</span></div><div class="table-wrap"><table class="salary-preview"><thead><tr><th class="salary-pick-head">선택</th><th>번호</th><th>이름</th><th>기간 내 기록</th><th>기록 급여</th><th>직업 급여</th><th>총 지급액</th></tr></thead><tbody data-salary-rows>${preview.rows.map(row => salaryRowHtml(draft, row)).join('')}</tbody></table></div><p class="salary-summary" data-salary-summary>${salarySummary(draft, preview)}</p><p class="salary-hint salary-history" data-salary-history>${salaryHistory(draft)}</p></section></div>`;
+}
+function salaryModeHint(draft) {
+  return draft.pointMode === 'salary'
+    ? '월급 정산제에서는 모은 별(×10)이 잔액에 자동으로 더해지지 않고, 지급한 월급만 거래 내역에 쌓입니다.'
+    : '별 1개가 10포인트로 잔액에 바로 더해집니다. 월급을 지급하면 이 자동 합산을 꺼서 두 번 더해지지 않게 합니다.';
+}
+function salaryBasisHint(draft) {
+  return draft.basis === 'praise-advice'
+    ? '칭찬 1개당 +1, 지도 1개당 -1로 세고 0보다 작으면 0포인트로 처리합니다.'
+    : '기간 안의 칭찬 기록만 셉니다.';
+}
+function salaryRangeLabel(draft, preview) {
+  return `${C.formatDate(preview.from)} ~ ${C.formatDate(preview.to)} (${draft.period === 'month' ? '한달' : '2주'})`;
+}
+function salaryJobsHtml(draft) {
+  return students().map(s => {
+    const job = draft.jobWages[s.id] || { name: '', amount: 0 };
+    return `<div class="salary-job-row" data-salary-job="${esc(s.id)}"><span class="salary-job-who">${esc(s.no)}. ${esc(s.name)}</span><input type="text" name="salary-job-name" data-student="${esc(s.id)}" value="${esc(job.name)}" maxlength="60" placeholder="직업명" aria-label="${esc(s.no)}번 ${esc(s.name)} 직업명"><input type="number" name="salary-job-amount" data-student="${esc(s.id)}" value="${esc(job.amount)}" min="0" max="1000000000" step="1" inputmode="numeric" placeholder="월급" aria-label="${esc(s.no)}번 ${esc(s.name)} 직업 월급"></div>`;
+  }).join('');
+}
+function salaryRecordText(draft, row) {
+  if (draft.basis !== 'praise-advice') return `칭찬 ${row.praise}`;
+  return `칭찬 ${row.praise} - 지도 ${row.advice}${row.praise - row.advice < 0 ? ' (0 처리)' : ''}`;
+}
+function salaryRowHtml(draft, row) {
+  const checked = draft.selected.has(row.studentId), empty = row.total <= 0;
+  return `<tr data-salary-student="${esc(row.studentId)}" class="${row.paidOn ? 'is-paid' : ''}${empty ? ' is-empty' : ''}"><td><input type="checkbox" name="salary-pick" value="${esc(row.studentId)}" ${checked ? 'checked' : ''} ${empty ? 'disabled' : ''} aria-label="${esc(row.no)}번 ${esc(row.name)} 선택"></td><td>${esc(row.no)}</td><td class="salary-name">${esc(row.name)}${row.paidOn ? `<small class="salary-paid-note">이미 지급</small>` : ''}</td><td>${salaryRecordText(draft, row)}</td><td>${row.base}</td><td>${draft.jobs && row.jobName ? `${esc(row.jobName)} ${row.jobPay}` : row.jobPay ? esc(row.jobPay) : '-'}</td><td><strong>${row.total}</strong></td></tr>`;
+}
+function salarySummary(draft, preview) {
+  const chosen = preview.rows.filter(row => draft.selected.has(row.studentId) && row.total > 0);
+  if (!chosen.length) return '지급할 학생을 선택하세요.';
+  return `선택 ${chosen.length}명 · 모두 ${chosen.reduce((n, row) => n + row.total, 0)}포인트`;
+}
+function salaryHistory(draft) {
+  const data = db(), start = C.salaryPeriodStart(draft.period), byDay = new Map();
+  for (const tx of data.economy_tx || []) {
+    if (!C.isSalaryEntry(tx)) continue;
+    const day = C.seoulDay(tx.createdAt);
+    if (!day || day < start) continue;
+    if (!byDay.has(day)) byDay.set(day, []);
+    byDay.get(day).push(tx);
+  }
+  if (!byDay.size) return '이 기간에 아직 지급한 월급이 없습니다.';
+  const parts = [...byDay].sort((a, b) => b[0].localeCompare(a[0])).slice(0, 3).map(([day, rows]) => `${C.formatDate(day)} ${rows.length}명 ${rows.reduce((n, tx) => n + tx.amount, 0)}포인트`);
+  return '최근 월급 지급: ' + parts.join(' · ') + (byDay.size > 3 ? ' 외' : '');
+}
+function salaryPayLabel(draft, preview = null) {
+  if (draft.pointMode !== 'salary') return '월급 정산을 먼저 선택';
+  const rows = (preview || C.salaryPreview(db(), salarySettingsRow(draft))).rows;
+  const count = rows.filter(row => draft.selected.has(row.studentId) && row.total > 0).length;
+  return count ? `${count}명에게 지급` : '지급할 학생 선택';
+}
+function refreshSalarySelection(draft, rows) {
+  const next = new Set();
+  for (const row of rows) {
+    if (row.total <= 0) continue;
+    const keep = draft.touched.has(row.studentId) ? draft.selected.has(row.studentId) : !row.paidOn;
+    if (keep) next.add(row.studentId);
+  }
+  draft.selected = next;
+}
+function refreshSalaryDialog(draft) {
+  const root = document.querySelector('#modal .salary-dialog');
+  if (!root) return;
+  const preview = C.salaryPreview(db(), salarySettingsRow(draft));
+  refreshSalarySelection(draft, preview.rows);
+  const body = root.querySelector('[data-salary-rows]');
+  if (body) body.innerHTML = preview.rows.map(row => salaryRowHtml(draft, row)).join('');
+  const set = (selector, text) => { const node = root.querySelector(selector); if (node) node.textContent = text; };
+  set('[data-salary-range]', salaryRangeLabel(draft, preview));
+  set('[data-salary-summary]', salarySummary(draft, preview));
+  set('[data-salary-history]', salaryHistory(draft));
+  set('[data-salary-mode-hint]', salaryModeHint(draft));
+  set('[data-salary-basis-hint]', salaryBasisHint(draft));
+  const jobs = root.querySelector('[data-salary-jobs]');
+  if (jobs) jobs.hidden = !draft.jobs;
+  const pay = document.querySelector('#modal [data-salary-pay]');
+  if (pay) {
+    pay.textContent = salaryPayLabel(draft, preview);
+    pay.disabled = draft.pointMode !== 'salary' || !preview.rows.some(row => draft.selected.has(row.studentId) && row.total > 0);
+  }
+  const hint = root.querySelector('.salary-multiplier input');
+  if (hint && document.activeElement !== hint) hint.value = String(draft.multiplier);
+}
+function setSalaryJob(draft, studentId, key, value) {
+  if (!draft.jobWages[studentId]) return;
+  draft.jobWages[studentId][key] = key === 'name' ? String(value).slice(0, 60) : salaryNumber(value, 0);
+}
+function bindSalaryDialog(el, draft) {
+  const handle = (target, structural) => {
+    if (!target?.name) return false;
+    if (target.name === 'salary-point-mode') draft.pointMode = target.value;
+    else if (target.name === 'salary-period') draft.period = target.value;
+    else if (target.name === 'salary-basis') draft.basis = target.value;
+    else if (target.name === 'salary-jobs') draft.jobs = target.value === 'yes';
+    else if (target.name === 'salary-multiplier') { draft.multiplier = salaryNumber(target.value, draft.multiplier, 1000000); if (structural) target.value = String(draft.multiplier); }
+    else if (target.name === 'salary-job-name') setSalaryJob(draft, target.dataset.student, 'name', target.value);
+    else if (target.name === 'salary-job-amount') setSalaryJob(draft, target.dataset.student, 'amount', salaryNumber(target.value, 0));
+    else if (target.name === 'salary-pick') { draft.touched.add(target.value); if (target.checked) draft.selected.add(target.value); else draft.selected.delete(target.value); }
+    else return false;
+    refreshSalaryDialog(draft);
+    return true;
+  };
+  el.addEventListener('change', event => { handle(event.target, true); });
+  el.addEventListener('input', event => { handle(event.target, false); });
+}
+async function saveSalarySettings(draft) {
+  const previous = C.pointMode(db().settings[0]);
+  if (draft.pointMode === 'realtime' && previous === 'salary' && !confirm('실시간 자동 반영으로 바꾸면 지금까지 지급한 월급 위에 별×10이 다시 더해집니다. 그래도 바꿀까요?')) return;
+  if (draft.pointMode === 'salary' && previous === 'realtime' && !confirm('월급 정산으로 바꾸면 지금까지 모은 별이 잔액에 자동으로 더해지지 않습니다. 저장할까요?')) return;
+  draft.multiplier = salaryNumber(draft.multiplier, 10, 1000000);
+  await commit([up('settings', salarySettingsRow(draft))], '월급 설정을 저장했습니다.');
+  closeModal();
+}
+async function paySalary(draft) {
+  const data = db();
+  if (draft.pointMode !== 'salary') return toast('포인트 운영 방식을 월급 정산으로 선택하면 지급할 수 있습니다.');
+  draft.multiplier = salaryNumber(draft.multiplier, 10, 1000000);
+  const preview = C.salaryPreview(data, salarySettingsRow(draft)),
+    rows = preview.rows.filter(row => draft.selected.has(row.studentId) && row.total > 0);
+  if (!rows.length) return toast('지급할 학생을 선택하세요.');
+  const sum = rows.reduce((n, row) => n + row.total, 0), again = rows.filter(row => row.paidOn);
+  if (again.length && !confirm(`${again.length}명은 이 기간에 이미 월급을 받았습니다. 남은 기록만 계산해 다시 지급할까요?`)) return;
+  const switching = C.pointMode(data.settings[0]) !== 'salary';
+  if (!confirm(`${switching ? '포인트 운영 방식을 월급 정산으로 바꾸고 ' : ''}${rows.length}명에게 모두 ${sum}포인트를 지급할까요?`)) return;
+  let result;
+  try { result = C.salaryPayOps(data, salarySettingsRow(draft), rows.map(row => row.studentId)); }
+  catch (error) { return toast(error.message); }
+  try {
+    await store.commit(result.ops);
+    state.saveNotice = `저장 ${C.formatTime(new Date())}`;
+    closeModal();
+    render();
+    toast(`${result.rows.length}명에게 월급 ${sum}포인트를 지급했습니다.`);
+  } catch (error) {
+    closeModal();
+    render();
+    toast(economyMessage(error));
+  }
 }
 
 // This renderer accepts only the student's allow-listed economy projection.

@@ -2248,3 +2248,41 @@ input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-s
 .tools-widget.tools-moving * { cursor:inherit; }
 .consult-advice-extra h4 { margin:2px 0 0; font-size:10.5px; letter-spacing:.04em; color:var(--st-text-muted); }
 .consult-advice-extra .consult-record { border-top:1px dashed #e2e9f3; }
+
+/* 월급 주기: 운영 방식·계산·직업·미리보기를 한 창에서 다루는 파스텔 유리 톤. */
+.economy-assets-tools { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.economy-salary-open { min-height:34px; padding:5px 14px; white-space:nowrap; font-weight:650; }
+.salary-dialog { display:grid; gap:12px; min-width:0; }
+.salary-block { min-width:0; padding:12px 14px; border:1px solid rgba(255,255,255,.86); border-radius:16px; background:linear-gradient(140deg,rgba(255,255,255,.74),rgba(244,240,255,.62)); box-shadow:inset 0 1px 0 #fff,0 4px 14px #3341550d; }
+.salary-block h3 { margin:0 0 9px; font-size:14px; font-weight:650; color:#4c4763; }
+.salary-block-head { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:6px; margin-bottom:9px; }
+.salary-block-head h3 { margin:0; }
+.salary-block-head .muted { font-size:12px; }
+.salary-field { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:5px 0; }
+.salary-field-label { flex:0 0 62px; font-size:12.5px; font-weight:650; color:#5b5670; }
+.salary-hint { margin:6px 0 0; font-size:12px; line-height:1.55; color:#6a6478; overflow-wrap:anywhere; }
+.salary-multiplier { display:inline-flex; align-items:center; gap:6px; margin:10px 0 2px; font-size:12.5px; font-weight:650; color:#5b5670; }
+.salary-multiplier input { width:88px; min-height:34px; padding:4px 8px; border-radius:10px; background:rgba(255,255,255,.88); text-align:right; font-variant-numeric:tabular-nums; }
+.salary-jobs { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,245px),1fr)); gap:6px; max-height:176px; overflow:auto; padding-right:2px; }
+.salary-job-row { display:grid; grid-template-columns:auto minmax(0,1.3fr) minmax(0,.8fr); align-items:center; gap:6px; min-width:0; padding:5px 7px; border:1px solid rgba(226,220,240,.8); border-radius:11px; background:rgba(255,255,255,.6); }
+.salary-job-who { font-size:12px; font-weight:650; color:#514b6b; white-space:nowrap; }
+.salary-job-row input { min-width:0; width:100%; min-height:30px; padding:3px 7px; border-radius:8px; font-size:12px; }
+.salary-preview { width:100%; border-collapse:collapse; font-size:12.5px; }
+.salary-preview th,.salary-preview td { padding:6px 8px; text-align:left; white-space:nowrap; }
+.salary-preview thead th { font-size:11px; font-weight:650; color:#6a6478; border-bottom:1px solid rgba(210,203,228,.72); }
+.salary-preview tbody tr+tr td { border-top:1px solid rgba(232,228,242,.82); }
+.salary-preview td strong { color:#4e426f; font-variant-numeric:tabular-nums; }
+.salary-preview .salary-pick-head { width:36px; }
+.salary-preview input[type=checkbox] { width:18px; height:18px; margin:0; }
+.salary-preview .is-empty td { color:#9a94a8; }
+.salary-name { font-weight:650; color:#453f5c; white-space:normal; overflow-wrap:anywhere; }
+.salary-paid-note { display:block; font-size:10.5px; font-weight:600; color:#8a7bb0; }
+.salary-summary { margin:10px 0 0; font-size:13px; font-weight:650; color:#4e4267; }
+.salary-history { border-top:1px dashed rgba(210,203,228,.85); padding-top:8px; }
+.salary-dialog .choice-chip { min-height:32px; font-size:12.5px; }
+@media(max-width:640px) {
+  .salary-block { padding:11px 12px; }
+  .salary-field-label { flex-basis:100%; }
+  .salary-job-row { grid-template-columns:minmax(0,1fr); }
+  .salary-job-who { white-space:normal; }
+}
