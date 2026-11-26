@@ -1143,3 +1143,19 @@
   #app .drawer-tabs button { color: #263B55; }
   #app .drawer-tabs button.active { background: #D3DEED; color: #193452; }
 }
+
+/* 수업도구 창의 상단 바는 '잡아 옮기는 곳'으로 보이게 창 본문과 다른 유리 띠를 준다.
+   nebula.css가 common.css보다 뒤에 실리므로 같은 선택자에 테마 파일에서 한 번 더 정한다. */
+#app .tools-window-head,
+body > .tools-board .tools-window-head {
+  background: linear-gradient(100deg, #EEF4FFD9 0%, #F7EFFBCC 52%, #FFF6E6CC 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, .92);
+  box-shadow: 0 1px 0 rgba(120, 140, 175, .16), inset 0 1px 0 rgba(255, 255, 255, .88);
+  backdrop-filter: blur(10px);
+}
+#app .tools-window-head:hover,
+body > .tools-board .tools-window-head:hover {
+  background: linear-gradient(100deg, #E9F1FF 0%, #F5ECFB 52%, #FFF3E0 100%);
+}
+#app .tools-window-grip,
+body > .tools-board .tools-window-grip { color: #8FA3BD; }

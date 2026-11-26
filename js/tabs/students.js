@@ -88,7 +88,10 @@ export function studentDetail(id, from = state.date.slice(0, 7) + '-01', to = st
   modal(name(id), `<div class="student-kingdom-detail">${C.kingdomBadge(s, C.kingdomCounts(db(), s.id), C.kingdomConfig(db()))}<details><summary>👑 획득한 칭호 목록</summary>${C.kingdomSummary(C.kingdomCounts(db(), s.id), C.kingdomConfig(db()), s)}</details></div><div class="student-detail-content" data-student-id="${esc(id)}" data-from="${esc(from)}" data-to="${esc(to)}"><div class="row" style="margin-bottom:14px">${btn('+ 기록', () => recordEditor({
     studentIds: [id],
     date: state.date
-  }))}${btn('학생 수정', () => studentEditor(s))}${btn('👁️ 학생 화면으로 보기', () => previewStudent(s.id))}${btn('행발 문장 변환기', () => behaviorConverter([id], from, to))}${btn('보고서로 내보내기', () => reportDialog(id, from, to), 'primary')}${btn('이번 주', () => studentDetail(id, C.addDays(state.date, -((C.weekday(state.date) + 6) % 7)), state.date))}${btn('이번 달', () => studentDetail(id, state.date.slice(0, 7) + '-01', state.date))}</div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(from)) || '날짜 선택'}</span><input aria-label="기록 조회 시작" type="date" id="student-from" value="${from}"></span><span>~</span><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(to)) || '날짜 선택'}</span><input aria-label="기록 조회 종료" type="date" id="student-to" value="${to}"></span>${btn('조회', () => studentDetail(id, $('#student-from').value, $('#student-to').value))}</div><div class="panel" style="margin-top:14px"><h3>별 ${score.total}개 · 기간 요약</h3><div class="chips">${C.areaNames(db(), true).map(a => badge(a + ' ' + score.areas[a])).join('')}</div></div><h3>미완료 과제 ${pending.length}건</h3>${pending.map(({
+  }))}${btn('상담용 한 장 요약', () => {
+    closeModal();
+    consultationSheet(id, from, to);
+  }, 'consult-open')}${btn('학생 수정', () => studentEditor(s))}${btn('👁️ 학생 화면으로 보기', () => previewStudent(s.id))}${btn('행발 문장 변환기', () => behaviorConverter([id], from, to))}${btn('보고서로 내보내기', () => reportDialog(id, from, to), 'primary')}${btn('이번 주', () => studentDetail(id, C.addDays(state.date, -((C.weekday(state.date) + 6) % 7)), state.date))}${btn('이번 달', () => studentDetail(id, state.date.slice(0, 7) + '-01', state.date))}</div><div class="row"><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(from)) || '날짜 선택'}</span><input aria-label="기록 조회 시작" type="date" id="student-from" value="${from}"></span><span>~</span><span class="date-control"><span class="date-display" aria-hidden="true">${esc(C.formatDate(to)) || '날짜 선택'}</span><input aria-label="기록 조회 종료" type="date" id="student-to" value="${to}"></span>${btn('조회', () => studentDetail(id, $('#student-from').value, $('#student-to').value))}</div><div class="panel" style="margin-top:14px"><h3>별 ${score.total}개 · 기간 요약</h3><div class="chips">${C.areaNames(db(), true).map(a => badge(a + ' ' + score.areas[a])).join('')}</div></div><h3>미완료 과제 ${pending.length}건</h3>${pending.map(({
     assignment: a,
     date: d
   }) => btn(esc(C.formatDate(d) + ' ' + a.title), () => taskStateEditor(a, d, id))).join('') || '<p class="muted">남은 과제가 없습니다.</p>'}<details style="margin-top:14px"><summary>과제 처리 이력</summary>${db().assignmentStates.filter(x => x.studentId === id && x.date >= from && x.date <= to).map(x => `<p>${esc(C.formatDate(x.date))} · ${esc(db().assignments.find(a => a.id === x.assignmentId)?.title || '(삭제된 과제)')} · ${esc(x.status)} ${esc(x.memo)}</p>`).join('') || '<p>처리 이력 없음</p>'}</details><details><summary>출결 제외 이력</summary><p>${db().attendance.filter(x => x.studentId === id && x.excluded).map(x => esc(C.formatDate(x.date))).sort().join(' · ') || '없음'}</p></details><h3 style="margin-top:20px">기록 ${records.length}건</h3>${records.length ? `<div class="record-search"><input type="search" id="student-record-search" placeholder="기록 내용에서 단어 찾기" aria-label="기록 내용에서 단어 찾기" autocomplete="off"><button type="button" id="student-record-search-clear" class="record-search-clear" aria-label="검색어 지우기" hidden>✕</button></div><p class="muted record-search-summary" id="student-record-search-summary" hidden></p>` : ''}<div id="student-record-list">${records.map(r => recordCard(r, true, true)).join('') || empty('조회 기간에 기록이 없습니다.')}${records.length ? '<p class="muted record-search-empty" id="student-record-search-empty" hidden>검색어와 맞는 기록이 없습니다.</p>' : ''}</div></div>`);
@@ -364,4 +367,83 @@ export function behaviorConverter(ids = null, from = studentRange?.from || state
   };
   modal('행발 문장 변환기',`<div class="behavior-converter"><p class="muted">선택 기간의 실제 기록을 바탕으로 앱에서 초안을 생성합니다. 초안을 검토·수정한 뒤 사용하세요. 고친 초안은 이 기기에 자동 저장되며 다시 열어도 그대로 남습니다. AI용 복사는 명단의 이름·별명·번호와 연락처를 가립니다. 외부로 붙여넣기 전 근거의 비식별 상태도 확인해 주세요.</p><div class="row">${input('시작일','behaviorFrom',from,'date','id="behavior-from"')}${input('종료일','behaviorTo',to,'date','id="behavior-to"')}</div><div class="row">${btn('전체 선택',()=>document.querySelectorAll('[name=behaviorStudents]').forEach(e=>e.checked=true))}${btn('선택 해제',()=>document.querySelectorAll('[name=behaviorStudents]').forEach(e=>e.checked=false))}${btn('선택 학생 초안 생성',generate,'primary')}</div><div class="behavior-students">${list.map(s=>`<label><input type="checkbox" name="behaviorStudents" value="${esc(s.id)}" ${selected.includes(s.id)?'checked':''}>${esc(name(s.id))}</label>`).join('')}</div><div id="behavior-results" aria-live="polite"></div></div>`);
   if(selected.length)generate();
+}
+
+// 상담 직전 1분 브리핑: 기간을 바꿔 가며 학업·생활·교우관계·기타를 한 장으로 본다.
+// 화면은 .consult-page 한 장이며 그대로 인쇄·PDF 저장할 수 있다.
+function consultPeriodPreset(from, to) {
+  return C.CONSULTATION_PERIODS.find(period => {
+    const range = C.consultationPeriodRange(db(), period.id, to);
+    return range.from === from && range.to === to;
+  })?.id || '';
+}
+function consultKindClass(kind) {
+  return kind === '칭찬' ? 'is-praise' : kind === '지도' ? 'is-advice' : kind === '추가기록' ? 'is-extra' : 'is-record';
+}
+function consultAreaChips(group) {
+  if (!group.areas.length) return '';
+  return `<div class="consult-areas">${group.areas.map(area => `<span class="consult-area"><b>${esc(area.name)}</b>${area.praise ? `<span class="consult-area-praise">칭찬 ${area.praise}</span>` : ''}${area.advice ? `<span class="consult-area-advice">조언 ${area.advice}</span>` : ''}</span>`).join('')}</div>`;
+}
+function consultRecordItem(record) {
+  return `<li class="consult-record ${consultKindClass(record.kind)}"><div class="consult-record-meta"><time datetime="${esc(record.date)}">${esc(C.formatDate(record.date))}</time><span class="consult-kind">${esc(record.label)}</span>${record.areas.map(area => `<span class="consult-record-area">${esc(area)}</span>`).join('')}</div>${record.text ? `<p class="consult-record-text">${esc(record.text)}</p>` : ''}${record.action ? `<p class="consult-action">지도 · ${esc(record.action)}</p>` : ''}</li>`;
+}
+function consultRecordBlock(group, emptyText) {
+  if (!group.latest.length) return `<p class="consult-empty">${esc(emptyText)}</p>`;
+  const shown = new Set(group.latest.map(r => r.id)),
+    extra = group.advice.filter(r => !shown.has(r.id));
+  return `<ul class="consult-records">${group.latest.map(consultRecordItem).join('')}</ul>${extra.length ? `<div class="consult-advice-extra"><h4>지도 기록</h4><ul class="consult-records">${extra.map(consultRecordItem).join('')}</ul></div>` : ''}`;
+}
+function consultRate(label, task, unit = '회') {
+  const rate = task.rate == null ? null : task.rate,
+    incomplete = Math.max(0, task.total - task.done);
+  return `<div class="consult-rate"><div class="consult-rate-head"><span>${esc(label)}</span><strong>${rate == null ? '기록 없음' : rate + '%'}</strong></div><div class="consult-rate-bar" aria-hidden="true"><span style="width:${rate == null ? 0 : Math.max(0, Math.min(100, rate))}%"></span></div><small>${task.total ? `${task.done}/${task.total}${unit} 완료 · 미완료 ${incomplete}${unit}` : '이 기간에 해당 항목이 없습니다.'}</small></div>`;
+}
+function consultAcademicCard(group, summary) {
+  return `<article class="consult-card" data-consult-group="academic"><header class="consult-card-head"><h2><span aria-hidden="true">${group.icon}</span> ${esc(group.title)}</h2><small>${esc(group.hint)}</small></header>${consultAreaChips(group)}<div class="consult-rates">${consultRate('과제 이행률', summary.tasks.assignments)}${consultRate('루틴 이행률', summary.tasks.routines)}</div><h3 class="consult-subhead">최근 기록 <small>전체 ${group.counts.total}건</small></h3>${consultRecordBlock(group, '기간에 학습·과제 기록이 없습니다.')}</article>`;
+}
+function consultLifeCard(group, summary) {
+  const attendance = summary.attendance.length ? `<div class="consult-attendance"><h3 class="consult-subhead">출결 제외 <small>${summary.attendance.length}일</small></h3><p>${summary.attendance.map(a => `<span class="consult-date-chip">${esc(C.formatDate(a.date))}${a.memo ? ' · ' + esc(a.memo) : ''}</span>`).join(' ')}</p></div>` : '';
+  return `<article class="consult-card" data-consult-group="life"><header class="consult-card-head"><h2><span aria-hidden="true">${group.icon}</span> ${esc(group.title)}</h2><small>${esc(group.hint)}</small></header>${consultAreaChips(group)}${attendance}<h3 class="consult-subhead">최근 기록 <small>전체 ${group.counts.total}건</small></h3>${consultRecordBlock(group, '기간에 생활·도전·알바 기록이 없습니다.')}</article>`;
+}
+function consultMindBlock(mind) {
+  if (!mind) return '<p class="consult-empty">아직 마음 지도 기록이 없습니다.</p>';
+  const round = mind.survey.status === 'open' ? '진행 중' : '마감',
+    list = (items, note = true) => items.length ? items.map(item => `<li><span>${esc(item.label)}</span>${note && item.note ? `<small>${esc(item.note)}</small>` : !note && item.direction ? `<small>${esc(item.direction)}</small>` : ''}</li>`).join('') : '<li class="consult-muted">없음</li>';
+  const signals = [];
+  if (mind.attention) signals.push(`관심 필요 신호 · 받은 긍정 선택 ${mind.attention.positive}/${mind.attention.received} · 멀리 배치 ${mind.attention.distant}/${mind.attention.total}`);
+  for (const item of mind.oneWay) signals.push(`${item.label} · ${item.direction}`);
+  const reasons = mind.reasons.length ? `<div class="consult-reasons"><h4>사유</h4><ul>${mind.reasons.slice(0, 4).map(entry => `<li><span>${esc(entry.target)} · ${esc(entry.direction)}</span><small>${esc(entry.reason || entry.tags.join(', '))}</small></li>`).join('')}</ul></div>` : '';
+  return `<div class="consult-mind"><div class="consult-mind-head"><strong>${esc(mind.survey.title)}</strong><span class="consult-tag">${round}</span><span class="consult-tag">${mind.submitted ? '응답 완료' : '미응답'}</span><span class="consult-tag">받은 응답 ${mind.counts.received}명 · 긍정 ${mind.counts.positive} · 불편 ${mind.counts.uncomfortable}</span></div><div class="consult-mind-grid"><div><h4>친한 친구</h4><ul>${list(mind.close)}</ul></div><div><h4>불편한 친구</h4><ul>${list(mind.uneasy)}</ul></div><div><h4>관심 신호</h4><ul>${signals.length ? signals.map(s => `<li><span>${esc(s)}</span></li>`).join('') : '<li class="consult-muted">없음</li>'}</ul></div></div>${reasons}</div>`;
+}
+function consultSocialCard(group, summary) {
+  return `<article class="consult-card" data-consult-group="social"><header class="consult-card-head"><h2><span aria-hidden="true">${group.icon}</span> ${esc(group.title)}</h2><small>${esc(group.hint)}</small></header>${consultAreaChips(group)}${consultMindBlock(summary.mind)}<h3 class="consult-subhead">관계 기록 <small>전체 ${group.counts.total}건</small></h3>${consultRecordBlock(group, '기간에 관계 기록이 없습니다.')}</article>`;
+}
+function consultOtherCard(group) {
+  const unmatched = group.areas.length ? `<div class="consult-areas">${group.areas.map(area => `<span class="consult-area"><b>${esc(area.name)}</b><span>${area.total}건</span></span>`).join('')}</div>` : '';
+  const items = group.records.slice().reverse().slice(0, 6);
+  return `<article class="consult-card" data-consult-group="other"><header class="consult-card-head"><h2><span aria-hidden="true">${group.icon}</span> ${esc(group.title)}</h2><small>${esc(group.hint)}</small></header>${unmatched}<h3 class="consult-subhead">추가기록·지도 <small>전체 ${group.counts.total}건</small></h3>${items.length ? `<ul class="consult-records">${items.map(consultRecordItem).join('')}</ul>` : '<p class="consult-empty">기간에 추가기록이나 지도 내용이 없습니다.</p>'}</article>`;
+}
+function consultationPage(summary) {
+  const groups = Object.fromEntries(summary.groups.map(group => [group.id, group]));
+  const periodLabel = C.formatDate(summary.from) + ' ~ ' + C.formatDate(summary.to);
+  return `<section class="consult-page" aria-label="${esc(name(summary.student.id))} 상담 전 한 장 요약"><header class="consult-head"><div><p class="consult-kicker">상담 전 한 장 요약</p><h1>${esc(summary.student.no)}. ${esc(summary.student.name)}</h1><p class="consult-period">${esc(periodLabel)} · ${esc(settings().className || '학급')}</p></div><div class="consult-totals"><span><strong>별 ${summary.score.total}</strong><small>칭찬 ${summary.records.filter(r => r.kind === '칭찬').length} · 조언 ${summary.records.filter(r => r.kind === '지도').length}</small></span><span><strong>기록 ${summary.records.length}</strong><small>학업·생활·관계·기타</small></span></div></header><div class="consult-grid">${consultAcademicCard(groups.academic, summary)}${consultLifeCard(groups.life, summary)}${consultSocialCard(groups.social, summary)}${consultOtherCard(groups.other)}</div><footer class="consult-foot"><span>${settings().schoolName ? esc(settings().schoolName) + ' · ' : ''}${esc(settings().className || '')}</span><span>${esc(C.formatDate(C.today()))} 작성 · 기록을 그대로 모은 참고 자료입니다.</span></footer></section>`;
+}
+export function consultationSheet(id, from, to) {
+  const student = db().students.find(s => s.id === id);
+  if (!student) return toast('학생을 찾지 못했습니다.');
+  C.dates(from, to);
+  const root = document.createElement('div');
+  root.className = 'print-root consult-root';
+  document.querySelector('.print-root')?.remove();
+  document.body.append(root);
+  document.body.classList.add('report-open');
+  const close = () => {
+    root.remove();
+    document.body.classList.remove('report-open');
+  };
+  const pick = range => {
+    const summary = C.consultationSummary(db(), id, range.from, range.to);
+    root.innerHTML = `<div class="no-print consult-toolbar"><div class="consult-toolbar-info"><p class="consult-kicker">상담 전 한 장 요약</p><strong>${esc(name(id))}</strong><small>${esc(C.formatDate(range.from))} ~ ${esc(C.formatDate(range.to))}</small></div><div class="consult-range-switch row" role="group" aria-label="요약 기간">${C.CONSULTATION_PERIODS.map(period => btn(period.label, () => pick(C.consultationPeriodRange(db(), period.id, C.today())), consultPeriodPreset(range.from, range.to) === period.id ? 'primary' : '', `aria-pressed="${consultPeriodPreset(range.from, range.to) === period.id}"`)).join('')}${dateRangeField(range.from, range.to, selected => pick(selected), '직접 날짜 선택')}</div><div class="row consult-toolbar-actions">${btn('인쇄 / PDF 저장', () => window.print(), 'primary')}${btn('학생 상세로', () => { close(); studentDetail(id, range.from, range.to); })}${btn('닫기', close)}</div></div><div class="consult-sheet">${consultationPage(summary)}</div>`;
+  };
+  pick({from, to});
 }

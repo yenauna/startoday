@@ -50,3 +50,40 @@ body.report-open #app{display:none}
 @media print {
   .sky-parallax { display: none !important; }
 }
+
+/* 상담 전 한 장 요약: 화면의 유리 카드를 종이에서는 먹색 윤곽만 남긴다. */
+@media print {
+  .consult-root { position:static; inset:auto; overflow:visible; padding:0; background:none; }
+  .consult-sheet { max-width:none; margin:0; padding:0; }
+  .consult-page { max-width:none; margin:0; padding:0; border-radius:0; border:0; background:#ffffff; color:#000000; box-shadow:none; }
+  .consult-head { padding-bottom:2.5mm; border-bottom-color:#999999; }
+  .consult-head h1 { font-size:17pt; color:#000000; }
+  .consult-period, .consult-totals small, .consult-card-head small, .consult-kicker { color:#333333; }
+  .consult-kicker { font-size:7.5pt; }
+  .consult-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:3mm; margin-top:3mm; }
+  .consult-card { gap:1.6mm; padding:2.6mm 3mm; border:1px solid #aaaaaa; border-radius:0; background:#ffffff; box-shadow:none; break-inside:avoid; }
+  .consult-card-head h2 { font-size:11.5pt; }
+  .consult-card-head small { font-size:7pt; }
+  .consult-area { padding:0 5px; background:#f2f2f2; color:#000000; font-size:7.5pt; }
+  .consult-area-praise, .consult-area-advice { color:#000000; }
+  .consult-rate { padding:1.4mm 2mm; background:#fafafa; box-shadow:none; }
+  .consult-rate-head { font-size:7.5pt; }
+  .consult-rate-head strong { font-size:9pt; }
+  .consult-rate-bar { height:2mm; margin:1mm 0 .8mm; background:#e6e6e6; }
+  .consult-rate-bar span { background:#b9c8d8; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  .consult-rate small { font-size:7.2pt; color:#333333; }
+  .consult-subhead, .consult-record-meta, .consult-mind-head { font-size:7.6pt; color:#333333; }
+  .consult-record { padding:1.3mm 0; border-top-color:#cccccc; }
+  .consult-record-text { margin-top:.8mm; font-size:9.2pt; line-height:1.42; }
+  .consult-action { margin-top:.8mm; border-left-color:#999999; color:#000000; font-size:7.6pt; }
+  .consult-kind, .consult-record-area, .consult-tag, .consult-date-chip { background:#f2f2f2; color:#000000; font-size:6.8pt; }
+  .consult-mind { padding:1.6mm 2mm; background:#fafafa; box-shadow:none; }
+  .consult-mind-head>strong { font-size:8pt; }
+  .consult-mind-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:2mm; }
+  .consult-mind-grid h4, .consult-reasons h4 { font-size:6.8pt; color:#333333; }
+  .consult-mind-grid li, .consult-reasons li { font-size:8pt; }
+  .consult-mind-grid li small, .consult-reasons li small { font-size:6.6pt; color:#333333; }
+  .consult-empty { padding:1.4mm 2mm; background:#fafafa; color:#333333; font-size:7.2pt; }
+  .consult-foot { margin-top:2.5mm; padding-top:1.4mm; border-top-color:#999999; font-size:7.2pt; color:#333333; }
+}
+@media print { .consult-advice-extra h4 { font-size:6.8pt; color:#333333; } }

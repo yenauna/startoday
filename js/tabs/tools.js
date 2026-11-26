@@ -5,7 +5,7 @@ import { createFormatCards } from '../components/format-cards.js';
 import { formatToolRange } from '../shared/tool-rich.js';
 import { requestPwaInstall } from '../shared/pwa.js';
 import { state, store } from '../shared/state.js';
-import { toolCandidates, parseToolList, shuffledTools, remainingTools, toolClockValue, formatToolTime, clampToolWindow, defaultToolRect, restoreToolRect, makeToolPegs, createToolRaceBalls, stepToolRace } from '../shared/tools-core.js';
+import { toolCandidates, parseToolList, shuffledTools, remainingTools, toolClockValue, formatToolTime, clampToolWindow, defaultToolRect, restoreToolRect, resizeToolWindow, makeToolPegs, createToolRaceBalls, stepToolRace } from '../shared/tools-core.js';
 import { toolQrMatrix } from '../shared/tools-qr.js';
 // This board never calls Store.commit. Only explicitly saved phrases/custom lists
 // are written to its own local key. Roster names are read fresh from memory.
@@ -242,7 +242,7 @@ function applyToolRect(w) {
     left: w.rect.left + 'px',
     top: w.rect.top + 'px',
     width: w.rect.width + 'px',
-    height: w.rect.height + 'px'
+    height: w.collapsed ? '' : w.rect.height + 'px'
   });
 }
 function createToolWindow(type) {
@@ -253,45 +253,51 @@ function createToolWindow(type) {
       id,
       type,
       rect: restoreToolRect(readToolLayouts()[type], index, toolCanvas.clientWidth, toolCanvas.clientHeight),
-      maximized: false
+      maximized: false,
+      collapsed: false
     };
   w.el = toolElement('article', 'tools-widget');
   w.el.dataset.toolId = id;
   w.el.dataset.toolType = type;
   w.el.setAttribute('aria-label', TOOL_TYPES[type]);
   const head = toolElement('div', 'tools-window-head');
-  head.append(toolElement('strong', '', TOOL_TYPES[type]));
+  const grip = toolElement('span', 'tools-window-grip', '⋮⋮');
+  grip.setAttribute('aria-hidden', 'true');
+  head.append(grip, toolElement('strong', '', TOOL_TYPES[type]));
+  const collapse = toolButton('—', () => toggleToolCollapse(w), 'tools-collapse');
+  collapse.setAttribute('aria-label', '접어두기');
+  collapse.setAttribute('aria-expanded', 'true');
+  collapse.title = '접어두기 / 펴기';
   const maximize = toolButton('⛶', () => toggleToolMaximize(w), 'tools-maximize');
   maximize.setAttribute('aria-label', '캔버스 꽉 채우기/복원');
   maximize.title = '캔버스 꽉 채우기/복원';
   maximize.setAttribute('aria-pressed', 'false');
   const close = toolButton('✕', () => closeToolWindow(w), 'tools-window-close');
   close.setAttribute('aria-label', '닫기');
-  head.append(maximize, close);
+  head.append(collapse, maximize, close);
   w.body = toolElement('div', 'tools-window-body');
   w.status = toolElement('div', 'tools-status');
   w.status.setAttribute('role', 'status');
-  const handle = toolElement('div', 'tools-resize');
-  handle.setAttribute('aria-label', '크기 조절');
-  handle.setAttribute('role', 'separator');
-  handle.tabIndex = 0;
-  w.el.append(head, w.body, w.status, handle);
+  w.el.append(head, w.body, w.status);
+  w.handles = [];
+  const directions = [['n', '위쪽'], ['s', '아래쪽'], ['e', '오른쪽'], ['w', '왼쪽'], ['ne', '오른쪽 위'], ['nw', '왼쪽 위'], ['se', '오른쪽 아래'], ['sw', '왼쪽 아래']];
+  for (const [direction, label] of directions) {
+    const handle = toolElement('div', `tools-resize-handle tools-resize-${direction}` + (direction === 'se' ? ' tools-resize' : ''));
+    handle.dataset.resize = direction;
+    handle.setAttribute('role', 'separator');
+    handle.setAttribute('aria-label', direction === 'se' ? '크기 조절' : label + ' 크기 조절');
+    handle.tabIndex = 0;
+    bindToolResize(w, handle, direction);
+    w.el.append(handle);
+    w.handles.push(handle);
+  }
   toolCanvas.querySelector('.tools-empty')?.remove();
   toolCanvas.append(w.el);
   toolWindows.set(id, w);
   w.rect = clampToolWindow(w.rect, toolCanvas.clientWidth, Math.max(600, toolCanvas.clientHeight));
   applyToolRect(w);
   w.el.onpointerdown = () => w.el.style.zIndex = String(++toolZ);
-  bindToolDrag(w, head, false);
-  bindToolDrag(w, handle, true);
-  handle.onkeydown = e => {
-    if (!e.key.startsWith('Arrow')) return;
-    e.preventDefault();
-    w.rect.width = Math.max(260, w.rect.width + (e.key === 'ArrowRight' ? 20 : e.key === 'ArrowLeft' ? -20 : 0));
-    w.rect.height = Math.max(220, w.rect.height + (e.key === 'ArrowDown' ? 20 : e.key === 'ArrowUp' ? -20 : 0));
-    applyToolRect(w);
-    saveToolLayout(w);
-  };
+  bindToolMove(w, head);
   if (type === 'timer' || type === 'stopwatch') buildToolClock(w);
   if (type === 'board') buildToolWriting(w);
   if (type === 'speech') buildToolSpeech(w);
@@ -299,8 +305,8 @@ function createToolWindow(type) {
   if (type === 'qr') buildToolQr(w);
   w.el.style.zIndex = String(++toolZ);
 }
-function bindToolDrag(w, handle, resizing) {
-  handle.onpointerdown = e => {
+function bindToolMove(w, head) {
+  head.onpointerdown = e => {
     if (e.target.closest('button,input,select') || w.maximized) return;
     e.preventDefault();
     const x = e.clientX,
@@ -308,15 +314,12 @@ function bindToolDrag(w, handle, resizing) {
       before = {
         ...w.rect
       };
-    handle.setPointerCapture(e.pointerId);
+    head.setPointerCapture(e.pointerId);
+    w.el.classList.add('tools-moving');
     const move = event => {
       const dx = event.clientX - x,
         dy = event.clientY - y;
-      w.rect = clampToolWindow(resizing ? {
-        ...before,
-        width: before.width + dx,
-        height: before.height + dy
-      } : {
+      w.rect = clampToolWindow({
         ...before,
         left: before.left + dx,
         top: before.top + dy
@@ -324,6 +327,40 @@ function bindToolDrag(w, handle, resizing) {
       applyToolRect(w);
     };
     const end = () => {
+      w.el.classList.remove('tools-moving');
+      saveToolLayout(w);
+      head.removeEventListener('pointermove', move);
+      head.removeEventListener('pointerup', end);
+      head.removeEventListener('pointercancel', end);
+    };
+    head.addEventListener('pointermove', move);
+    head.addEventListener('pointerup', end);
+    head.addEventListener('pointercancel', end);
+  };
+}
+function bindToolResize(w, handle, direction) {
+  const bounds = () => [toolCanvas.clientWidth, Math.max(600, toolCanvas.scrollHeight)];
+  const apply = (before, dx, dy) => {
+    const [width, height] = bounds();
+    return resizeToolWindow(before, direction, dx, dy, width, height);
+  };
+  handle.onpointerdown = e => {
+    if (e.button !== 0 || w.maximized || w.collapsed) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const x = e.clientX,
+      y = e.clientY,
+      before = {
+        ...w.rect
+      };
+    handle.setPointerCapture(e.pointerId);
+    w.el.classList.add('tools-resizing');
+    const move = event => {
+      w.rect = apply(before, event.clientX - x, event.clientY - y);
+      applyToolRect(w);
+    };
+    const end = () => {
+      w.el.classList.remove('tools-resizing');
       saveToolLayout(w);
       handle.removeEventListener('pointermove', move);
       handle.removeEventListener('pointerup', end);
@@ -333,8 +370,33 @@ function bindToolDrag(w, handle, resizing) {
     handle.addEventListener('pointerup', end);
     handle.addEventListener('pointercancel', end);
   };
+  handle.onkeydown = e => {
+    if (!e.key.startsWith('Arrow') || w.maximized || w.collapsed) return;
+    e.preventDefault();
+    const step = e.shiftKey ? 40 : 20,
+      dx = e.key === 'ArrowRight' ? step : e.key === 'ArrowLeft' ? -step : 0,
+      dy = e.key === 'ArrowDown' ? step : e.key === 'ArrowUp' ? -step : 0;
+    w.rect = apply({
+      ...w.rect
+    }, dx, dy);
+    applyToolRect(w);
+    saveToolLayout(w);
+  };
+}
+function toggleToolCollapse(w) {
+  w.collapsed = !w.collapsed;
+  w.el.classList.toggle('tools-collapsed', w.collapsed);
+  const button = w.el.querySelector('.tools-collapse');
+  if (button) {
+    button.textContent = w.collapsed ? '▢' : '—';
+    button.setAttribute('aria-label', w.collapsed ? '펴기' : '접어두기');
+    button.setAttribute('aria-expanded', String(!w.collapsed));
+  }
+  if (!w.collapsed) w.el.style.zIndex = String(++toolZ);
+  applyToolRect(w);
 }
 function toggleToolMaximize(w) {
+  if (!w.maximized && w.collapsed) toggleToolCollapse(w);
   w.maximized = !w.maximized;
   w.el.classList.toggle('tools-maximized', w.maximized);
   w.el.querySelector('.tools-maximize').setAttribute('aria-pressed', String(w.maximized));
@@ -744,28 +806,39 @@ function buildToolRandom(w) {
   w.randomItems = [];
   w.randomMode = 'boxes';
   w.randomBusy = false;
-  const sourceRow = toolElement('div', 'tool-random-source'),
-    methodRow = toolElement('div', 'tool-random-method');
   const source = document.createElement('select');
   source.setAttribute('aria-label', '뽑기 대상');
   source.innerHTML = '<option value="students">우리반 학생</option><option value="custom">새로 만들기</option><option value="saved">저장된 목록</option>';
+  const method = document.createElement('select');
+  method.setAttribute('aria-label', '뽑기 연출');
+  method.innerHTML = '<option value="boxes">📦 상자 열기</option><option value="cards">✨ 카드 드로우 (한 명씩)</option><option value="wheel">🎡 돌림판(룰렛)</option><option value="race">🎳 장애물 낙하 레이스</option>';
+  const field = (label, control, cls = '') => {
+    const box = toolElement('label', 'tool-random-field ' + cls);
+    box.append(toolElement('span', 'tool-random-label', label), control);
+    return box;
+  };
   const privacy = toolButton('이름', () => {
     w.privateNames = !w.privateNames;
     privacy.textContent = w.privateNames ? '별명/번호' : '이름';
     refresh(false);
-  });
+  }, 'tool-random-toggle');
+  privacy.setAttribute('aria-pressed', 'false');
   const replacement = toolButton('뽑힌 사람 제외', () => {
     w.replacement = !w.replacement;
     replacement.textContent = w.replacement ? '계속 리셋 · 중복 허용' : '뽑힌 사람 제외';
+    replacement.setAttribute('aria-pressed', String(!!w.replacement));
     refresh(false);
-  });
+  }, 'tool-random-toggle');
   const count = toolElement('small', 'tool-remaining');
-  sourceRow.append(source, privacy, replacement, count, toolButton('목록 리셋', () => refresh(true)));
-  const method = document.createElement('select');
-  method.setAttribute('aria-label', '뽑기 연출');
-  method.innerHTML = '<option value="boxes">📦 상자 열기</option><option value="cards">✨ 카드 드로우 (한 명씩)</option><option value="wheel">🎡 돌림판(룰렛)</option><option value="race">🎳 장애물 낙하 레이스</option>';
-  methodRow.append(method);
-  const custom = toolElement('div', 'tool-custom-list'),
+  count.setAttribute('role', 'status');
+  const resetButton = toolButton('목록 리셋', () => refresh(true), 'tool-random-reset');
+  const action = toolButton('전체 열기', () => startToolDraw(w), 'primary tool-random-go');
+  const panel = toolElement('div', 'tool-random-panel'),
+    sourceRow = toolElement('div', 'tool-random-source tool-random-row'),
+    methodRow = toolElement('div', 'tool-random-method tool-random-row');
+  sourceRow.append(field('뽑기 대상', source), privacy, replacement, resetButton, count);
+  methodRow.append(field('뽑기 연출', method), action);
+  const custom = toolElement('div', 'tool-custom-list tool-random-list'),
     input = document.createElement('textarea'),
     listName = document.createElement('input'),
     saved = document.createElement('select');
@@ -798,21 +871,20 @@ function buildToolRandom(w) {
     loadSaved();
     toolNotice(w, '이 브라우저에 목록을 저장했습니다.');
   }, w));
-  const savedRow = toolElement('div', 'tool-controls');
-  savedRow.append(saved, toolButton('불러오기', () => refresh(true)), toolButton('저장 목록 삭제', toolSafe(() => {
+  const savedRow = toolElement('div', 'tool-random-saved tool-random-row');
+  savedRow.append(field('저장된 목록', saved), toolButton('불러오기', () => refresh(true)), toolButton('저장 목록 삭제', toolSafe(() => {
     const data = toolSaved();
     data.lists.splice(Number(saved.value), 1);
     writeToolSaved(data);
     loadSaved();
     refresh(true);
   }, w)));
-  custom.append(input, listName, saveList);
+  custom.append(field('새 후보 목록', input), field('목록 이름', listName), saveList);
+  panel.append(sourceRow, methodRow, custom, savedRow);
   const stage = toolElement('div', 'tool-random-stage'),
-    action = toolButton('전체 열기', () => startToolDraw(w)),
     result = toolElement('div', 'tool-random-result');
   result.setAttribute('role', 'status');
-  methodRow.append(action);
-  w.body.append(sourceRow, methodRow, custom, savedRow, stage, result);
+  w.body.append(panel, stage, result);
   w.randomStage = stage;
   w.randomResult = result;
   const refresh = reset => {
@@ -823,8 +895,8 @@ function buildToolRandom(w) {
     privacy.hidden = source.value !== 'students';
     w.randomItems = source.value === 'students' ? toolCandidates(store.db.students, w.privateNames) : parseToolList(source.value === 'saved' ? toolSaved().lists[Number(saved.value)]?.text || '' : input.value);
     w.randomMode = method.value;
-    action.hidden = ['cards', 'wheel'].includes(method.value);
-    action.textContent = method.value === 'boxes' ? '전체 열기' : method.value === 'cards' ? '뽑기' : method.value === 'wheel' ? '돌리기' : '레이스 시작';
+    action.textContent = method.value === 'boxes' ? '전체 열기' : method.value === 'cards' ? '카드 한 장 뽑기' : method.value === 'wheel' ? '돌림판 돌리기' : '레이스 시작';
+    methodRow.dataset.mode = method.value;
     result.replaceChildren();
     w.el.querySelector('.tool-wheel-popup')?.remove();
     toolNotice(w, '');
@@ -888,7 +960,11 @@ function finishToolResult(w, items) {
   for (const item of items) if (!w.replacement) w.drawn.add(item.id);
   w.remainingUpdate();
   w.randomResult.replaceChildren();
-  items.forEach((item, index) => w.randomResult.append(toolElement('div', '', `${items.length > 1 ? index + 1 + '위 · ' : '🎉 '}${item.label}`)));
+  items.forEach((item, index) => {
+    const row = toolElement('div', 'tool-random-winner');
+    row.append(toolElement('span', 'tool-random-winner-mark', items.length > 1 ? String(index + 1) : '🎉'), toolElement('strong', 'tool-random-winner-name', item.label));
+    w.randomResult.append(row);
+  });
   if (w.randomMode === 'wheel' && items.length === 1) {
     w.el.querySelector('.tool-wheel-popup')?.remove();
     const popup = toolElement('div', 'tool-wheel-popup'),
@@ -897,9 +973,9 @@ function finishToolResult(w, items) {
     popup.setAttribute('aria-label', '뽑기 결과');
     const close = toolButton('확인', () => {
       popup.remove();
-      w.el.querySelector('.tool-random-method button')?.focus();
+      w.el.querySelector('.tool-random-go')?.focus();
     });
-    card.append(toolElement('strong', '', '🎉 ' + items[0].label), close);
+    card.append(toolElement('span', 'tool-wheel-card-kicker', '오늘의 뽑기 결과'), toolElement('strong', '', items[0].label), close);
     popup.append(card);
     w.el.append(popup);
     close.focus();
@@ -973,47 +1049,62 @@ function paintToolWheel(canvas, items, rotation) {
   const c = canvas.getContext('2d'),
     center = 320,
     radius = 285,
-    step = Math.PI * 2 / items.length;
+    step = Math.PI * 2 / items.length,
+    tones = ['#EFE3F9', '#E0E9FB', '#DFF1EA', '#FBEDDD', '#F8E5EC', '#E8E4F8'];
   c.clearRect(0, 0, 640, 640);
+  c.beginPath();
+  c.arc(center, center, radius + 26, 0, Math.PI * 2);
+  c.fillStyle = 'rgba(255,255,255,.72)';
+  c.fill();
+  c.strokeStyle = 'rgba(255,255,255,.95)';
+  c.lineWidth = 3;
+  c.stroke();
   for (let i = 0; i < items.length; i++) {
     const angle = rotation + i * step;
     c.beginPath();
     c.moveTo(center, center);
     c.arc(center, center, radius, angle, angle + step);
     c.closePath();
-    c.fillStyle = ['#FFE3E8','#E3EAFE','#E0F4EB','#FFF1CF','#EDE2FA','#DBF0F8'][i % 6];
+    c.fillStyle = tones[i % tones.length];
     c.fill();
-    c.strokeStyle = '#fff';
+    c.strokeStyle = 'rgba(255,255,255,.92)';
+    c.lineWidth = 2;
     c.stroke();
     c.save();
     c.translate(center, center);
     c.rotate(angle + step / 2);
     c.textAlign = 'right';
-    c.fillStyle = '#172033';
-    c.font = 'bold 18px sans-serif';
-    c.fillText(items[i].label.length > 14 ? items[i].label.slice(0, 13) + '…' : items[i].label, radius - 18, 6);
+    c.fillStyle = '#3E4B62';
+    c.font = '600 20px "Pretendard Variable", Pretendard, sans-serif';
+    c.fillText(items[i].label.length > 12 ? items[i].label.slice(0, 11) + '…' : items[i].label, radius - 30, 7);
     c.restore();
   }
   c.beginPath();
-  c.moveTo(302, 4);
-  c.lineTo(338, 4);
-  c.lineTo(320, 38);
-  c.fillStyle = '#DCA94E';
+  c.arc(center, center, radius - 2, 0, Math.PI * 2);
+  c.strokeStyle = 'rgba(255,255,255,.78)';
+  c.lineWidth = 4;
+  c.stroke();
+  c.beginPath();
+  c.moveTo(306, 6);
+  c.lineTo(334, 6);
+  c.lineTo(320, 34);
+  c.closePath();
+  c.fillStyle = '#C7B183';
   c.fill();
-  c.strokeStyle = '#9C7332';
+  c.strokeStyle = 'rgba(255,255,255,.9)';
   c.lineWidth = 2;
   c.stroke();
   c.beginPath();
-  c.arc(center, center, 30, 0, Math.PI * 2);
-  c.fillStyle = '#FFF4D6';
+  c.arc(center, center, 31, 0, Math.PI * 2);
+  c.fillStyle = 'rgba(255,255,255,.9)';
   c.fill();
-  c.strokeStyle = '#D8B467';
-  c.lineWidth = 4;
+  c.strokeStyle = 'rgba(199,177,131,.65)';
+  c.lineWidth = 3;
   c.stroke();
-  c.fillStyle = '#BA8A31';
+  c.fillStyle = '#A98D52';
   c.textAlign = 'center';
-  c.font = 'bold 28px sans-serif';
-  c.fillText('✦', center, center + 10);
+  c.font = '600 24px "Pretendard Variable", Pretendard, sans-serif';
+  c.fillText('✦', center, center + 9);
 }
 function runToolWheel(w, items) {
   w.randomBusy = true;
@@ -1040,32 +1131,50 @@ function runToolWheel(w, items) {
   frame = requestAnimationFrame(tick);
 }
 function paintToolRace(canvas, balls, pegs) {
-  const c = canvas.getContext('2d');
+  const c = canvas.getContext('2d'),
+    sky = c.createLinearGradient(0, 0, 0, 480);
+  sky.addColorStop(0, '#F4F9FF');
+  sky.addColorStop(.55, '#FBF7FF');
+  sky.addColorStop(1, '#FFF9F1');
   c.clearRect(0, 0, 640, 480);
-  c.fillStyle = '#f6f7fa';
+  c.fillStyle = sky;
   c.fillRect(0, 0, 640, 480);
-  c.fillStyle = '#94a3b8';
   for (const p of pegs) {
     c.beginPath();
     c.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    c.fillStyle = '#C9D6E7';
+    c.fill();
+    c.beginPath();
+    c.arc(p.x - 1.5, p.y - 2, p.r * .42, 0, Math.PI * 2);
+    c.fillStyle = 'rgba(255,255,255,.8)';
     c.fill();
   }
-  c.fillStyle = '#e5effb';
-  c.fillRect(0, 440, 640, 40);
-  c.fillStyle = '#365c85';
-  c.font = '18px sans-serif';
-  c.fillText('🏁 결승 바구니', 245, 469);
+  c.beginPath();
+  c.roundRect ? c.roundRect(140, 438, 360, 30, 15) : c.rect(140, 438, 360, 30);
+  c.fillStyle = 'rgba(226,239,249,.92)';
+  c.fill();
+  c.strokeStyle = 'rgba(255,255,255,.95)';
+  c.lineWidth = 2;
+  c.stroke();
+  c.fillStyle = '#49637F';
+  c.font = '600 16px "Pretendard Variable", Pretendard, sans-serif';
+  c.textAlign = 'center';
+  c.fillText('🏁 결승 바구니', 320, 460);
+  c.textAlign = 'left';
   for (const [i, b] of balls.entries()) {
     c.beginPath();
-    c.fillStyle = `hsl(${i * 137.5 % 360} 65% 76%)`;
+    c.fillStyle = `hsl(${i * 137.5 % 360} 46% 80%)`;
     c.arc(b.x, b.y, b.r, 0, Math.PI * 2);
     c.fill();
-    c.fillStyle = '#0f172a';
-    c.font = 'bold 12px sans-serif';
+    c.strokeStyle = 'rgba(255,255,255,.9)';
+    c.lineWidth = 2;
+    c.stroke();
+    c.fillStyle = '#33415A';
+    c.font = '600 12px "Pretendard Variable", Pretendard, sans-serif';
     c.textAlign = 'center';
     c.fillText(b.label.match(/^\d+/)?.[0] || String(i + 1), b.x, b.y + 4);
-    c.font = '12px sans-serif';
-    c.fillText(b.label.slice(0, 10), b.x, b.y - b.r - 4);
+    c.font = '11px "Pretendard Variable", Pretendard, sans-serif';
+    c.fillText(b.label.slice(0, 10), b.x, b.y - b.r - 5);
   }
   c.textAlign = 'left';
 }
