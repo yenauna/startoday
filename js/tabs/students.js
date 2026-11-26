@@ -300,18 +300,20 @@ function clearBehaviorDraft(id) {
 }
 export function behaviorConverter(ids = null, from = studentRange?.from || state.date.slice(0,7)+'-01', to = studentRange?.to || state.date) {
   const list=students(),selected=ids||list.map(s=>s.id);
-  let generated=[],period={from,to};
+  let generated=[],period={from,to},analysis=null;
+  const summaryFor=id=>C.behaviorSummary(db(),id,period.from,period.to,analysis);
   const draftField=id=>[...document.querySelectorAll('[data-behavior-draft]')].find(e=>e.dataset.behaviorDraft===id);
   const currentText=id=>draftField(id)?.value??'';
   const draftsText=()=>generated.map(s=>`${name(s.id)}\n${currentText(s.id)}`).join('\n\n');
   const draftStatus=id=>{const saved=savedBehaviorDraft(id);return saved?`저장된 초안 · ${C.formatTime(saved.updatedAt)}`:'저장 안 됨 · 고치면 자동 저장됩니다';};
   const setStatus=id=>{const el=[...document.querySelectorAll('[data-behavior-status]')].find(e=>e.dataset.behaviorStatus===id);if(!el)return;const saved=savedBehaviorDraft(id);el.classList.toggle('is-saved',!!saved);el.textContent=draftStatus(id);};
   const storeDraft=id=>{const ok=saveBehaviorDraft(id,currentText(id));setStatus(id);if(!ok)toast('자동 저장 공간을 쓸 수 없습니다. 초안을 복사해 두세요.');return ok;};
-  const draftText=s=>savedBehaviorDraft(s.id)?.text??C.behaviorDraft(C.behaviorSummary(db(),s.id,period.from,period.to));
+  const draftText=s=>savedBehaviorDraft(s.id)?.text??C.behaviorDraft(summaryFor(s.id));
   const regenerate=id=>{
     if(savedBehaviorDraft(id)&&!confirm(`${name(id)}의 저장된 초안을 지금 기록으로 새로 만든 초안으로 바꿀까요?`))return;
     const field=draftField(id);if(!field)return;
-    field.value=C.behaviorDraft(C.behaviorSummary(db(),id,period.from,period.to));
+    analysis=C.behaviorAnalysis(db(),period.from,period.to);
+    field.value=C.behaviorDraft(summaryFor(id));
     storeDraft(id);
     toast('초안을 새로 만들었습니다.');
   };
@@ -325,7 +327,7 @@ export function behaviorConverter(ids = null, from = studentRange?.from || state
   };
   const downloadDrafts=kind=>{
     if(!generated.length)return toast('먼저 초안을 생성할 학생을 선택하세요.');
-    const rows=generated.map(s=>({no:s.no,label:C.studentLabel(s),count:C.behaviorSummary(db(),s.id,period.from,period.to).records.length,text:currentText(s.id)}));
+    const rows=generated.map(s=>({no:s.no,label:C.studentLabel(s),count:summaryFor(s.id).records.length,text:currentText(s.id)}));
     const range=`${C.formatDate(period.from)} ~ ${C.formatDate(period.to)}`,stamp=C.today().replaceAll('-','');
     if(kind==='csv'){
       const quote = value => {
@@ -342,14 +344,15 @@ export function behaviorConverter(ids = null, from = studentRange?.from || state
     }
   };
   const card=s=>{
-    const summary=C.behaviorSummary(db(),s.id,period.from,period.to),saved=savedBehaviorDraft(s.id);
-    return `<article class="behavior-result" data-behavior-id="${esc(s.id)}"><h3>${esc(name(s.id))}</h3><p class="muted">칭찬 ${summary.praise}건 · 조언 ${summary.advice}건 · 과제 ${summary.assignments.done}/${summary.assignments.total} · 루틴 ${summary.routines.done}/${summary.routines.total}</p><label>행발 초안<textarea data-behavior-draft="${esc(s.id)}" aria-label="${esc(name(s.id))} 행발 초안">${esc(draftText(s))}</textarea></label><div class="row behavior-draft-meta"><span class="behavior-draft-status ${saved?'is-saved':''}" data-behavior-status="${esc(s.id)}">${esc(draftStatus(s.id))}</span>${btn('초안 새로 생성(덮어쓰기)',()=>regenerate(s.id))}${btn('저장된 초안 지우기',()=>forget(s.id),'danger')}</div><div class="row">${btn('초안 복사',()=>copyBehavior(currentText(s.id)))}${btn('개별 AI용 프롬프트 복사',()=>copyBehavior(C.behaviorPrompt(db(),[s.id],period.from,period.to)))}</div><details><summary>분석 근거 확인</summary><p>${summary.areas.map(a=>esc(`${a.area}: 칭찬 ${a.praise} / 조언 ${a.advice}`)).join(' · ')}</p>${summary.records.map(r=>`<p>${esc(C.formatDate(r.date))} · ${esc(r.kind)} · ${esc(r.text)}${r.action?' / 지도: '+esc(r.action):''}</p>`).join('')||'<p>기간 내 기록이 없습니다.</p>'}</details></article>`;
+    const summary=summaryFor(s.id),saved=savedBehaviorDraft(s.id);
+    return `<article class="behavior-result" data-behavior-id="${esc(s.id)}"><h3>${esc(name(s.id))}</h3><p class="muted">칭찬 ${summary.praise}건 · 조언 ${summary.advice}건 · 과제 ${summary.assignments.done}/${summary.assignments.total} · 루틴 ${summary.routines.done}/${summary.routines.total} · 일괄 기록 제외 ${summary.meta.excludedBulkRecords}건</p><label>행발 초안<textarea data-behavior-draft="${esc(s.id)}" aria-label="${esc(name(s.id))} 행발 초안">${esc(draftText(s))}</textarea></label><div class="row behavior-draft-meta"><span class="behavior-draft-status ${saved?'is-saved':''}" data-behavior-status="${esc(s.id)}">${esc(draftStatus(s.id))}</span>${btn('초안 새로 생성(덮어쓰기)',()=>regenerate(s.id))}${btn('저장된 초안 지우기',()=>forget(s.id),'danger')}</div><div class="row">${btn('초안 복사',()=>copyBehavior(currentText(s.id)))}${btn('개별 AI용 프롬프트 복사',()=>copyBehavior(C.behaviorPrompt(db(),[s.id],period.from,period.to)))}</div><details><summary>분석 근거 확인</summary><p>${summary.areas.map(a=>esc(`${a.area}: 칭찬 ${a.praise} / 조언 ${a.advice}`)).join(' · ')}</p>${summary.records.map(r=>`<p>${esc(C.formatDate(r.date))} · ${esc(r.kind)} · ${esc(r.text)}${r.action?' / 지도: '+esc(r.action):''}</p>`).join('')||'<p>기간 내 기록이 없습니다.</p>'}</details></article>`;
   };
   const bindDrafts=()=>{
     for(const field of document.querySelectorAll('[data-behavior-draft]'))field.oninput=()=>storeDraft(field.dataset.behaviorDraft);
   };
   const renderResults=()=>{
-    $('#behavior-results').innerHTML=`<p class="muted">${esc(C.formatDate(period.from))} ~ ${esc(C.formatDate(period.to))} · ${generated.length}명</p><div class="row behavior-toolbar">${btn('전체 초안 복사',()=>copyBehavior(draftsText()))}${btn('AI용 프롬프트 복사',()=>copyBehavior(C.behaviorPrompt(db(),generated.map(s=>s.id),period.from,period.to)))}${btn('CSV로 내려받기',()=>downloadDrafts('csv'))}${btn('텍스트로 내려받기',()=>downloadDrafts('txt'))}</div>`+generated.map(card).join('');
+    analysis=C.behaviorAnalysis(db(),period.from,period.to);
+    $('#behavior-results').innerHTML=`<p class="muted">${esc(C.formatDate(period.from))} ~ ${esc(C.formatDate(period.to))} · ${generated.length}명</p><div class="row behavior-toolbar">${btn('전체 초안 복사',()=>copyBehavior(draftsText()))}${btn('AI용 프롬프트 복사',()=>copyBehavior(C.behaviorPrompt(db(),generated.map(s=>s.id),period.from,period.to)))}${btn('AI용 기록 CSV 내려받기',()=>{saveFile(`행발_AI분석용_기록_${C.today().replaceAll('-','')}.csv`,C.behaviorAnalysisCSV(db(),generated.map(s=>s.id),period.from,period.to),'text/csv;charset=utf-8');toast('비식별 AI 분석용 기록 CSV를 내려받았습니다.');})}${btn('CSV로 내려받기',()=>downloadDrafts('csv'))}${btn('텍스트로 내려받기',()=>downloadDrafts('txt'))}</div>`+generated.map(card).join('');
     bindDrafts();
   };
   const generate=()=>{
