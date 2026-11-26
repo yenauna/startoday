@@ -2203,3 +2203,260 @@ export function seatPlacementOps(database,id,row,col) {
  for(const op of ops){const s=op.data;if(s.seat){const target=seatDeskMap(next)[s.seat.row]?.[s.seat.col];if(!target||target.gender&&s.gender!==target.gender)throw Error('교환할 학생의 책상 성별 조건과 맞지 않습니다.');}}
  return {ops:[...ops,{table:'settings',id:database.settings[0].id,data:{...database.settings[0],seatManual:true}}],warnings:seatPlacementWarnings(next,ops.map(op=>op.id))};
 }
+
+// 상담 전 한 장 요약: 기간·분야·마음 지도를 한 장으로 모은 순수 집계.
+// 분야 이름을 바꾸거나 새 분야를 추가해도 기록이 빠지지 않도록
+// 기본 분야 ID를 먼저 보고, 그 밖의 분야는 이름의 낱말로 묶은 뒤 남는 것은 기타로 보낸다.
+export const CONSULTATION_GROUPS = Object.freeze([{
+  id: 'academic',
+  title: '학업',
+  icon: '📘',
+  hint: '학습·과제 기록과 이행률'
+}, {
+  id: 'life',
+  title: '생활',
+  icon: '🌿',
+  hint: '생활·도전·알바 기록과 출결'
+}, {
+  id: 'social',
+  title: '교우관계',
+  icon: '🤝',
+  hint: '관계 기록과 마음 지도'
+}, {
+  id: 'other',
+  title: '기타 특이사항',
+  icon: '📌',
+  hint: '추가기록과 지도 내용'
+}]);
+export const CONSULTATION_PERIODS = Object.freeze([{
+  id: 'week',
+  label: '이번 주'
+}, {
+  id: 'month',
+  label: '이번 달'
+}, {
+  id: '30d',
+  label: '최근 30일'
+}, {
+  id: 'all',
+  label: '전체'
+}]);
+const DEFAULT_AREA_GROUPS = Object.freeze({
+  'area-1': 'academic',
+  'area-2': 'academic',
+  'area-3': 'social',
+  'area-4': 'life',
+  'area-5': 'life',
+  'area-6': 'life'
+});
+const CONSULTATION_AREA_KEYWORDS = Object.freeze([
+  ['social', /관계|친구|교우|모둠|협력|배려|소통|어울림/u],
+  ['academic', /학습|공부|과제|숙제|수업|평가|시험|독서|발표|탐구/u],
+  ['life', /생활|도전|알바|역할|봉사|정리|위생|안전|자율|활동|습관/u]
+]);
+export function consultationAreaGroup(area, areaRowsList = []) {
+  const name = String(area || '').trim();
+  if (!name) return 'other';
+  const row = (areaRowsList || []).find(a => !a.deletedAt && a.name === name) || (areaRowsList || []).find(a => a.name === name);
+  const byId = row && DEFAULT_AREA_GROUPS[row.id];
+  if (byId) return byId;
+  for (const [group, pattern] of CONSULTATION_AREA_KEYWORDS) if (pattern.test(name)) return group;
+  return 'other';
+}
+export function consultationPeriodRange(database, period, date = today()) {
+  const to = date;
+  if (period === 'week') return {
+    from: addDays(date, -((weekday(date) + 6) % 7)),
+    to
+  };
+  if (period === 'month') return {
+    from: date.slice(0, 8) + '01',
+    to
+  };
+  if (period === '30d') return {
+    from: addDays(date, -29),
+    to
+  };
+  const config = database?.settings?.[0] || {};
+  const semester = [semesterRange(config, 1), semesterRange(config, 2)].find(range => range && range.from <= date && date <= range.to);
+  const earliest = (database?.records || []).map(r => r.date).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= date).sort()[0];
+  return {
+    from: semester?.from || earliest || date,
+    to
+  };
+}
+export function consultationRecords(database, studentId, from, to) {
+  return (database.records || []).filter(r => !r.deletedAt && Array.isArray(r.studentIds) && r.studentIds.includes(studentId) && r.date >= from && r.date <= to && !excluded(database, studentId, r.date)).sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt || '').localeCompare(String(b.createdAt || ''))).map(r => ({
+    id: r.id,
+    date: r.date,
+    kind: r.kind,
+    label: recordLabel(r),
+    extraType: r.extraType || '',
+    areas: recordAreas(r),
+    text: String(r.text || ''),
+    action: String(r.action || ''),
+    printIncluded: r.printIncluded !== false
+  }));
+}
+export function consultationSummary(database, studentId, from, to) {
+  dates(from, to);
+  const student = (database.students || []).find(s => s.id === studentId);
+  if (!student) throw Error('학생을 찾지 못했습니다.');
+  const rows = areaRows(database, true),
+    records = consultationRecords(database, studentId, from, to),
+    groups = CONSULTATION_GROUPS.map(group => ({
+      ...group,
+      areas: [],
+      records: [],
+      latest: [],
+      advice: []
+    })),
+    byId = new Map(groups.map(group => [group.id, group]));
+  const areaNamesSeen = [...new Set([...rows.map(a => a.name), ...records.flatMap(r => r.areas)])];
+  for (const name of areaNamesSeen) {
+    const related = records.filter(r => r.areas.includes(name));
+    if (!related.length) continue;
+    const info = {
+      name,
+      group: consultationAreaGroup(name, rows),
+      praise: related.filter(r => r.kind === '칭찬').length,
+      advice: related.filter(r => r.kind === '지도').length,
+      total: related.length
+    };
+    byId.get(info.group).areas.push(info);
+  }
+  for (const group of groups) group.areas.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+  for (const record of records) {
+    const mapped = new Set(record.areas.map(area => consultationAreaGroup(area, rows)).filter(group => group !== 'other'));
+    for (const group of mapped) byId.get(group).records.push(record);
+    if (!mapped.size || record.kind === '추가기록' || record.action) byId.get('other').records.push(record);
+  }
+  for (const group of groups) {
+    const seen = new Set(),
+      unique = group.records.filter(r => {
+        if (seen.has(r.id)) return false;
+        seen.add(r.id);
+        return true;
+      });
+    group.records = unique;
+    group.counts = {
+      praise: unique.filter(r => r.kind === '칭찬').length,
+      advice: unique.filter(r => r.kind === '지도').length,
+      total: unique.length
+    };
+    group.latest = [...unique].slice(-3).reverse();
+    group.advice = unique.filter(r => r.action || r.kind === '지도').slice(-2).reverse();
+  }
+  const behavior = behaviorSummary(database, studentId, from, to),
+    score = scores(database, studentId, from, to);
+  return {
+    student,
+    from,
+    to,
+    records,
+    groups,
+    score,
+    tasks: {
+      assignments: behavior.assignments,
+      routines: behavior.routines
+    },
+    attendance: (database.attendance || []).filter(a => a.studentId === studentId && a.excluded && a.date >= from && a.date <= to).sort((a, b) => a.date.localeCompare(b.date)).map(a => ({
+      date: a.date,
+      memo: String(a.memo || '')
+    })),
+    mind: consultationMindSummary(database, studentId)
+  };
+}
+export function consultationMindSummary(database, studentId) {
+  const surveys = [...(database.surveys || [])].filter(s => s && s.id).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  const survey = surveys[0];
+  if (!survey) return null;
+  const roster = activeStudents(database),
+    person = id => {
+      const s = roster.find(row => row.id === id);
+      return s ? {
+        id,
+        no: s.no,
+        name: s.name,
+        label: `${s.no}. ${s.name}`
+      } : {
+        id,
+        no: null,
+        name: '나간 학생',
+        label: '나간 학생'
+      };
+    };
+  const analysis = surveyAnalysis(database, survey.id),
+    responses = (database.survey_responses || []).filter(r => r.surveyId === survey.id),
+    mine = responses.find(r => r.studentId === studentId),
+    pointOf = (from, to) => responses.find(r => r.studentId === from)?.placements?.find(p => p.targetId === to),
+    near = p => p && p.x >= 65 && p.y >= 65,
+    uneasyPoint = p => p && p.y < 40,
+    close = [],
+    uneasy = [],
+    oneWay = [],
+    reasons = [];
+  for (const pair of analysis.pairs.filter(p => p.a === studentId || p.b === studentId)) {
+    const other = pair.a === studentId ? pair.b : pair.a
+      , info = person(other)
+      , sent = pointOf(studentId, other)
+      , received = pointOf(other, studentId);
+    if (pair.types.includes('상호 친밀')) close.push({
+      ...info,
+      note: '서로 가깝고 편안함'
+    });
+    else if (pair.types.includes('일방적 호감')) oneWay.push({
+      ...info,
+      direction: near(sent) ? '내가 가깝게 봄' : '상대가 가깝게 봄'
+    });
+    if (pair.types.includes('갈등·불편 주의') || uneasyPoint(sent) || uneasyPoint(received)) uneasy.push({
+      ...info,
+      note: pair.types.includes('갈등·불편 주의') ? '서로 불편 신호' : uneasyPoint(sent) ? '내가 불편하게 둠' : '상대가 불편하게 둠'
+    });
+    for (const [point, direction] of [[sent, '내가 보낸'], [received, '상대가 보낸']]) {
+      if (!point) continue;
+      const tags = surveyPlacementTags(point);
+      if (!point.reason && !tags.length) continue;
+      reasons.push({
+        target: info.label,
+        direction,
+        reason: String(point.reason || ''),
+        tags
+      });
+    }
+  }
+  const receivedInfo = analysis.received.find(s => s.id === studentId) || {
+      received: 0,
+      positive: 0,
+      uncomfortable: 0
+    },
+    attention = analysis.attention.find(s => s.id === studentId) || null;
+  const byNo = (a, b) => (a.no ?? 999) - (b.no ?? 999);
+  const sort = list => list.sort(byNo);
+  return {
+    survey: {
+      id: survey.id,
+      title: survey.title,
+      status: survey.status,
+      createdAt: survey.createdAt
+    },
+    roundCount: surveys.length,
+    submitted: !!mine,
+    peers: roster.length - 1,
+    counts: {
+      received: receivedInfo.received,
+      positive: receivedInfo.positive,
+      uncomfortable: receivedInfo.uncomfortable
+    },
+    close: sort(close),
+    uneasy: sort(uneasy),
+    oneWay: sort(oneWay),
+    reasons,
+    attention: attention ? {
+      positive: attention.positive,
+      received: attention.received,
+      distant: attention.distant,
+      total: attention.total
+    } : null
+  };
+}

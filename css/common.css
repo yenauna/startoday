@@ -2098,3 +2098,153 @@ input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-s
   .schedule-unified .routine-exempt-line{font-size:9px;padding:2px 3px}
   .schedule-mobile-hint{display:block}
 }
+
+/* ── 상담 전 한 장 요약 ─────────────────────────────────────────────
+   한 장 안에서 학업·생활·교우관계·기타를 2×2로 읽는다.
+   화면은 맑은 유리 카드, 인쇄는 흰 종이 위 먹색만 남긴다. */
+.consult-root { position:fixed; inset:0; z-index:150; overflow:auto; padding:0 0 40px; background:transparent; }
+.consult-toolbar { position:sticky; top:0; z-index:5; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px; padding:12px clamp(12px,3vw,28px); background:linear-gradient(100deg,#ffffffd9,#f3f7ffd0 55%,#fff6ecd0); border-bottom:1px solid #ffffffcc; backdrop-filter:blur(18px); box-shadow:0 8px 24px #263d6010; }
+.consult-toolbar-info { display:flex; flex-direction:column; gap:1px; min-width:0; }
+.consult-toolbar-info strong { font-size:15px; }
+.consult-toolbar-info small { color:var(--st-text-muted); font-size:12px; }
+.consult-kicker { margin:0; font-size:11px; font-weight:700; letter-spacing:.08em; color:var(--st-blue-text); }
+.consult-range-switch { gap:6px; }
+.consult-range-switch button { min-height:32px; padding:4px 11px; font-size:12.5px; }
+.consult-range-switch .date-range-trigger { display:inline-flex; align-items:center; gap:6px; color:var(--st-text-muted); }
+.consult-toolbar-actions { gap:6px; }
+.consult-toolbar-actions button { min-height:34px; padding:6px 12px; font-size:13px; }
+.consult-sheet { max-width:1060px; margin:18px auto 0; padding:0 clamp(10px,2.4vw,20px); }
+.consult-page { padding:clamp(16px,2.4vw,26px); border-radius:22px; background:linear-gradient(150deg,#ffffffd9,#f7faffc4 62%,#fff8efc4); border:1px solid #ffffffd9; box-shadow:var(--glass-bevel,inset 0 1px 0 #fff),0 18px 44px #263d6016; color:var(--st-text); }
+.consult-head { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:10px 18px; padding-bottom:14px; border-bottom:1px solid var(--st-line); }
+.consult-head h1 { margin:2px 0 4px; font-size:clamp(22px,3vw,27px); letter-spacing:-.02em; }
+.consult-period { margin:0; color:var(--st-text-muted); font-size:12.5px; }
+.consult-totals { display:flex; flex-wrap:wrap; gap:8px; }
+.consult-totals>span { display:grid; gap:1px; min-width:104px; padding:8px 12px; border-radius:14px; background:#ffffffb8; box-shadow:inset 0 1px 0 #fff,0 4px 12px #263d600d; }
+.consult-totals strong { font-size:16px; font-variant-numeric:tabular-nums; }
+.consult-totals small { font-size:11.5px; color:var(--st-text-muted); }
+.consult-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:14px; }
+.consult-card { display:flex; flex-direction:column; gap:10px; min-width:0; padding:14px 15px 15px; border-radius:18px; background:#ffffffa8; border:1px solid #ffffffe0; box-shadow:inset 0 1px 0 #fff,0 6px 18px #263d600f; }
+.consult-card[data-consult-group=social] { background:linear-gradient(150deg,#fff6f9b8,#f7f4ffa8); }
+.consult-card[data-consult-group=other] { background:linear-gradient(150deg,#fffaf0b8,#f6f9ffa8); }
+.consult-card-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.consult-card-head h2 { margin:0; font-size:16px; letter-spacing:-.01em; }
+.consult-card-head small { color:var(--st-text-muted); font-size:11px; text-align:right; }
+.consult-areas { display:flex; flex-wrap:wrap; gap:5px; }
+.consult-area { display:inline-flex; align-items:baseline; gap:5px; padding:3px 9px; border-radius:999px; background:#eef4fc; color:var(--st-blue-text); font-size:11.5px; font-variant-numeric:tabular-nums; }
+.consult-area b { font-weight:650; }
+.consult-area-praise { color:#2f6b57; }
+.consult-area-advice { color:var(--st-rose-text); }
+.consult-rates { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.consult-rate { padding:8px 10px; border-radius:12px; background:#f7faffc9; box-shadow:inset 0 1px 0 #fff; }
+.consult-rate-head { display:flex; align-items:baseline; justify-content:space-between; gap:6px; font-size:12px; }
+.consult-rate-head strong { font-size:14px; font-variant-numeric:tabular-nums; }
+.consult-rate-bar { height:6px; margin:5px 0 4px; border-radius:999px; background:#e4ecf7; overflow:hidden; }
+.consult-rate-bar span { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#b9d3ef,#98bede); }
+.consult-rate small { display:block; font-size:10.5px; color:var(--st-text-muted); }
+.consult-subhead { display:flex; align-items:baseline; gap:6px; margin:2px 0 0; font-size:12px; color:var(--st-text-muted); font-weight:650; }
+.consult-subhead small { font-weight:500; font-size:10.5px; }
+.consult-records { display:grid; gap:0; list-style:none; margin:0; padding:0; }
+.consult-record { min-width:0; padding:7px 0; border-top:1px solid #e7eef7; }
+.consult-record:first-child { border-top:0; padding-top:0; }
+.consult-record-meta { display:flex; flex-wrap:wrap; align-items:center; gap:5px; font-size:11px; color:var(--st-text-muted); }
+.consult-record-meta time { font-variant-numeric:tabular-nums; }
+.consult-kind { padding:1px 6px; border-radius:999px; background:#eef2f9; color:#4c5b72; font-size:10.5px; font-weight:650; }
+.consult-record.is-praise .consult-kind { background:#e6f3ed; color:#2f6b57; }
+.consult-record.is-advice .consult-kind { background:var(--st-rose-bg); color:var(--st-rose-text); }
+.consult-record.is-extra .consult-kind { background:#fff1d8; color:#7a5b2a; }
+.consult-record-area { padding:1px 6px; border-radius:999px; background:#f4f7fc; font-size:10px; }
+.consult-record-text { margin:4px 0 0; font-size:12.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; }
+.consult-action { margin:4px 0 0; padding-left:7px; border-left:2px solid #dfc4cf; font-size:11.5px; color:var(--st-rose-text); white-space:pre-wrap; overflow-wrap:anywhere; }
+.consult-empty { margin:0; padding:8px 10px; border-radius:10px; background:#f7faffa8; font-size:11.5px; color:var(--st-text-muted); }
+.consult-attendance { display:grid; gap:4px; padding:8px 10px; border-radius:12px; background:#fff6f2b8; }
+.consult-attendance h3 { margin:0; }
+.consult-attendance p { margin:2px 0 0; display:flex; flex-wrap:wrap; gap:4px; }
+.consult-date-chip { padding:2px 7px; border-radius:999px; background:#fff; font-size:10.5px; color:#8a5a4a; }
+.consult-mind { display:grid; gap:8px; padding:10px; border-radius:14px; background:linear-gradient(150deg,#fbf7ffc9,#f3f8ffc9); box-shadow:inset 0 1px 0 #fff; }
+.consult-mind-head { display:flex; flex-wrap:wrap; align-items:center; gap:5px; font-size:11.5px; }
+.consult-mind-head>strong { font-size:12.5px; }
+.consult-tag { padding:2px 7px; border-radius:999px; background:#ffffffcc; color:#51607a; font-size:10.5px; }
+.consult-mind-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.consult-mind-grid h4, .consult-reasons h4 { margin:0 0 3px; font-size:10.5px; letter-spacing:.04em; color:var(--st-text-muted); }
+.consult-mind-grid ul, .consult-reasons ul { display:grid; gap:2px; list-style:none; margin:0; padding:0; }
+.consult-mind-grid li, .consult-reasons li { min-width:0; font-size:11px; overflow-wrap:anywhere; }
+.consult-mind-grid li small, .consult-reasons li small { display:block; color:var(--st-text-muted); font-size:10px; }
+.consult-reasons { padding-top:6px; border-top:1px solid #e7ecf6; }
+.consult-muted { color:var(--st-text-muted); }
+.consult-foot { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px; margin-top:12px; padding-top:8px; border-top:1px solid var(--st-line); font-size:10.5px; color:var(--st-text-muted); }
+@media(max-width:900px) { .consult-grid { grid-template-columns:minmax(0,1fr); } .consult-mind-grid { grid-template-columns:minmax(0,1fr); } }
+@media(max-width:560px) { .consult-toolbar { padding:10px 12px; } .consult-range-switch { width:100%; } .consult-toolbar-actions { width:100%; } .consult-toolbar-actions button { flex:1; } .consult-rates { grid-template-columns:minmax(0,1fr); } .consult-head { align-items:flex-start; } }
+
+/* ── 수업도구 창 다듬기 ────────────────────────────────────────────
+   상단 바는 '잡아 옮기는 곳'으로 보이게 그립·구분선·반투명 유리를 준다.
+   창은 위·아래·좌·우와 네 모서리, 여덟 방향으로 크기를 바꿀 수 있다. */
+.tools-window-head { gap:4px; padding:6px 7px 6px 9px; background:linear-gradient(100deg,#eef4ffd9,#f7effbcc 52%,#fff6e6cc); border-bottom:1px solid rgba(255,255,255,.92); box-shadow:0 1px 0 rgba(120,140,175,.16),inset 0 1px 0 #ffffffd9; backdrop-filter:blur(10px); touch-action:none; }
+.tools-window-head:hover { background:linear-gradient(100deg,#e9f1ff,#f5ecfb 52%,#fff3e0); }
+.tools-moving .tools-window-head { cursor:grabbing; }
+.tools-window-grip { display:inline-flex; flex:none; align-items:center; justify-content:center; width:13px; color:#93a5bd; font-size:13px; letter-spacing:-3px; line-height:1; cursor:grab; user-select:none; }
+.tools-window-head>strong { font-size:13px; letter-spacing:-.01em; color:#33445c; }
+.tools-window-head button { display:inline-flex; flex:none; align-items:center; justify-content:center; width:28px; min-height:26px; padding:2px; border-radius:9px; background:rgba(255,255,255,.55); color:#4e6079; box-shadow:none; font-size:12px; line-height:1; }
+.tools-window-head button:hover { background:#ffffff; }
+.tools-window-head button:active { transform:scale(.96); }
+.tools-window-head .tools-window-close { color:#7d6470; }
+.tools-window-head .tools-window-close svg { width:14px; height:14px; }
+.tools-widget.tools-collapsed { height:auto!important; min-height:0; }
+.tools-widget.tools-collapsed .tools-window-body,
+.tools-widget.tools-collapsed .tools-status,
+.tools-widget.tools-collapsed .tools-resize-handle { display:none; }
+.tools-widget.tools-collapsed .tools-window-head { border-bottom:0; border-radius:inherit; }
+.tools-maximized .tools-resize-handle { display:none; }
+.tools-resize-handle { position:absolute; z-index:6; touch-action:none; }
+.tools-resize-n { top:0; left:16px; right:16px; height:8px; cursor:n-resize; }
+.tools-resize-s { bottom:0; left:16px; right:16px; height:8px; cursor:s-resize; }
+.tools-resize-e { top:16px; right:0; bottom:16px; width:8px; cursor:e-resize; }
+.tools-resize-w { top:16px; left:0; bottom:16px; width:8px; cursor:w-resize; }
+.tools-resize-ne { top:0; right:0; width:18px; height:18px; cursor:nesw-resize; }
+.tools-resize-nw { top:0; left:0; width:18px; height:18px; cursor:nwse-resize; }
+.tools-resize-sw { bottom:0; left:0; width:18px; height:18px; cursor:nesw-resize; }
+.tools-resize-se { right:0; bottom:0; width:26px; height:26px; cursor:nwse-resize; }
+.tools-resize-handle:not(.tools-resize):hover { background:rgba(150,180,215,.22); }
+.tools-resize-handle:focus-visible { outline:2px solid var(--st-blue-text); outline-offset:-2px; border-radius:9px; }
+.tools-resizing { box-shadow:0 18px 44px #263d6022; }
+.tools-resizing .tools-window-head { cursor:default; }
+
+/* 랜덤뽑기: 설정 줄을 한 상자에 모으고 주 실행 버튼을 오른쪽에 둔다. */
+.tool-random-panel { display:grid; gap:0; padding:2px 10px; border:1px solid rgba(255,255,255,.86); border-radius:16px; background:rgba(255,255,255,.52); box-shadow:inset 0 1px 0 #fff,0 4px 14px #3341550d; }
+.tool-random-row { display:flex; flex-wrap:wrap; align-items:flex-end; gap:6px; padding:8px 0; border-top:1px solid rgba(167,183,205,.22); }
+.tool-random-row:first-child { border-top:0; }
+.tool-random-field { display:inline-flex; flex-direction:column; gap:3px; min-width:0; font-size:11px; }
+.tool-random-label { color:var(--st-text-muted); font-size:10.5px; letter-spacing:.02em; }
+.tool-random-field select { min-width:130px; min-height:32px; padding:4px 8px; border:1px solid rgba(167,183,205,.42); border-radius:10px; background:rgba(255,255,255,.88); font-size:12.5px; }
+.tool-random-toggle,.tool-random-reset { min-height:32px; padding:4px 10px; border-radius:10px; background:rgba(255,255,255,.7); color:#4d5f78; box-shadow:none; font-size:12px; }
+.tool-random-toggle[aria-pressed=true] { background:var(--st-selected-bg); color:var(--st-selected-text); }
+.tool-random-reset { color:#66768c; background:rgba(255,255,255,.46); }
+.tool-remaining { margin-left:auto; padding:3px 9px; border-radius:999px; background:rgba(255,255,255,.72); color:#4d6a8c; font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.tool-random-go { min-height:34px; margin-left:auto; padding:5px 14px; font-weight:650; }
+.tool-random-list { gap:6px; padding:8px 0; }
+.tool-random-list[hidden] { display:none; }
+.tool-custom-list textarea { min-height:64px; border-radius:12px; background:rgba(255,255,255,.88); }
+.tool-random-saved select { min-width:120px; }
+.tool-random-stage { padding:2px; border-radius:16px; }
+.tool-random-stage:empty { display:none; }
+.tool-random-result { display:grid; gap:4px; padding:0; background:none; }
+.tool-random-result:empty { display:none; }
+.tool-random-winner { display:flex; align-items:center; gap:8px; min-width:0; padding:7px 12px; border-radius:12px; background:linear-gradient(120deg,#fffdf6e8,#f3f6ffe8); border:1px solid rgba(255,255,255,.9); box-shadow:0 4px 12px #33415514; color:#3c4c63; font-size:14px; }
+.tool-random-winner-mark { flex:none; display:inline-grid; place-items:center; min-width:22px; height:22px; padding:0 5px; border-radius:999px; background:rgba(243,231,203,.9); color:#6b5320; font-size:11.5px; font-weight:700; font-variant-numeric:tabular-nums; }
+.tool-random-winner-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:650; }
+.tools-widget[data-tool-type=random] .tool-random-result { flex:0 1 auto; max-height:32%; overflow:auto; }
+.tool-wheel-popup { position:absolute; inset:44px 0 0; z-index:10; display:grid; place-items:center; padding:16px; background:rgba(246,250,255,.22); backdrop-filter:blur(2px); }
+.tool-wheel-card { display:flex; flex-direction:column; align-items:center; gap:8px; max-width:100%; padding:18px 24px; border:1px solid rgba(255,255,255,.95); border-radius:20px; background:linear-gradient(150deg,#fffcf2,#f2f6ff); color:#3c4c63; text-align:center; box-shadow:0 18px 44px #263d6022,inset 0 1px 0 #fff; }
+.tool-wheel-card-kicker { font-size:11px; letter-spacing:.08em; color:#7c8ba1; }
+.tool-wheel-card strong { font-size:clamp(20px,4vw,28px); font-weight:700; overflow-wrap:anywhere; }
+.tool-wheel-card button { min-width:96px; }
+
+/* 상자가 많아도 설정 줄과 결과는 그대로 두고 상자 목록만 안에서 넘긴다. */
+.tools-widget[data-tool-type=random] .tool-box-grid { min-height:0; overflow:auto; padding-right:2px; }
+
+/* 창을 옮기거나 크기를 바꾸는 동안 글자가 선택되지 않게 한다(입력 칸은 그대로). */
+.tools-widget { user-select:none; }
+.tools-widget :is(input, textarea, [contenteditable="true"], .tool-writing-preview, .tool-qr-canvas) { user-select:text; }
+.tools-widget.tools-moving, .tools-widget.tools-resizing { cursor:grabbing; }
+.tools-widget.tools-moving * { cursor:inherit; }
+.consult-advice-extra h4 { margin:2px 0 0; font-size:10.5px; letter-spacing:.04em; color:var(--st-text-muted); }
+.consult-advice-extra .consult-record { border-top:1px dashed #e2e9f3; }

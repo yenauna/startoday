@@ -41,6 +41,35 @@ export function clampToolWindow(rect, width, height) {
     height: h
   };
 }
+export const TOOL_RESIZE_DIRECTIONS = Object.freeze(['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']);
+// Drags one edge or corner by (dx, dy). The opposite edge stays put, so growing
+// from the left or top moves the window instead of pushing its far side away.
+export function resizeToolWindow(before, direction, dx, dy, width, height) {
+  const dir = TOOL_RESIZE_DIRECTIONS.includes(direction) ? direction : 'se',
+    base = {
+      left: Number(before?.left) || 0,
+      top: Number(before?.top) || 0,
+      width: Math.max(0, Number(before?.width) || 0),
+      height: Math.max(0, Number(before?.height) || 0)
+    };
+  const rect = {
+    ...base
+  };
+  if (dir.includes('e')) rect.width = base.width + dx;
+  if (dir.includes('w')) {
+    rect.width = base.width - dx;
+    rect.left = base.left + dx;
+  }
+  if (dir.includes('s')) rect.height = base.height + dy;
+  if (dir.includes('n')) {
+    rect.height = base.height - dy;
+    rect.top = base.top + dy;
+  }
+  const clamped = clampToolWindow(rect, width, height);
+  if (dir.includes('w')) clamped.left = Math.max(0, base.left + base.width - clamped.width);
+  if (dir.includes('n')) clamped.top = Math.max(0, base.top + base.height - clamped.height);
+  return clamped;
+}
 // Semi-implicit integration and circle/peg contacts for the canvas drop race.
 export function stepToolRace(balls, pegs, dt, width, bottom, options = {}) {
   const {
