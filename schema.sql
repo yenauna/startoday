@@ -382,6 +382,169 @@ grant execute on function public.startoday_teacher_finance(uuid,text,text,jsonb)
 grant execute on function public.startoday_student_finance(text,text,text,integer,text,text,jsonb) to anon,authenticated;
 
 
+-- 학급회의 원자료는 전용 인증 함수만 읽고 변경합니다.
+create table if not exists public.startoday_meeting_officers(
+ class_id uuid primary key references public.startoday_classes(id),owner_id uuid not null references auth.users(id),chair_ids jsonb not null default '[]' check(jsonb_typeof(chair_ids)='array'),vice_chair_ids jsonb not null default '[]' check(jsonb_typeof(vice_chair_ids)='array'),updated_at timestamptz not null default now()
+);
+create table if not exists public.startoday_meeting_topics(
+ id uuid primary key,class_id uuid not null references public.startoday_classes(id),owner_id uuid not null references auth.users(id),proposer_id text,
+ title text not null check(length(btrim(title)) between 1 and 200),description text not null default '' check(length(description)<=5000),kind text not null check(kind in ('yesno','custom')),options jsonb not null check(jsonb_typeof(options)='array' and jsonb_array_length(options)>=2),max_choices integer not null check(max_choices>=1 and max_choices<=jsonb_array_length(options)),
+ status text not null default 'pending' check(status in ('pending','open','closed','deleted')),approvals jsonb not null default '[]',electorate jsonb not null default '[]',closes_at timestamptz,opened_at timestamptz,closed_at timestamptz,created_at timestamptz not null default now(),unique(class_id,id)
+);
+create table if not exists public.startoday_meeting_ballots(
+ topic_id uuid not null,student_id text not null,class_id uuid not null references public.startoday_classes(id),owner_id uuid not null references auth.users(id),choices jsonb not null check(jsonb_typeof(choices)='array' and jsonb_array_length(choices)>0),created_at timestamptz not null default now(),primary key(topic_id,student_id),foreign key(class_id,topic_id) references public.startoday_meeting_topics(class_id,id),foreign key(class_id,student_id) references public.startoday_students(class_id,id)
+);
+create table if not exists public.startoday_meeting_minutes(
+ id uuid primary key,class_id uuid not null references public.startoday_classes(id),owner_id uuid not null references auth.users(id),data jsonb not null,version integer not null default 1,created_at timestamptz not null default now(),updated_at timestamptz not null default now()
+);
+create index if not exists startoday_meeting_topics_class on public.startoday_meeting_topics(class_id,created_at desc);
+create index if not exists startoday_meeting_topics_due on public.startoday_meeting_topics(class_id,closes_at) where status='open';
+create index if not exists startoday_meeting_minutes_class on public.startoday_meeting_minutes(class_id,updated_at desc);
+do $$ declare t text;begin
+ foreach t in array array['meeting_officers','meeting_topics','meeting_ballots','meeting_minutes'] loop
+  execute format('alter table public.%I enable row level security','startoday_'||t);
+  execute format('drop policy if exists meeting_owner on public.%I','startoday_'||t);
+  execute format('create policy meeting_owner on public.%I for all to authenticated using(owner_id=auth.uid()) with check(owner_id=auth.uid())','startoday_'||t);
+  execute format('revoke all on public.%I from public,anon,authenticated','startoday_'||t);
+ end loop;
+end $$;
+create or replace function public.startoday_meeting_officers_data(cid uuid) returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
+ select jsonb_build_object('id','main','chairIds',coalesce((select jsonb_agg(x.value) from public.startoday_meeting_officers o,jsonb_array_elements(o.chair_ids) x where o.class_id=cid and exists(select 1 from public.startoday_students s where s.class_id=cid and s.id=x.value#>>'{}' and s.data->>'deletedAt' is null)),'[]'::jsonb),'viceChairIds',coalesce((select jsonb_agg(x.value) from public.startoday_meeting_officers o,jsonb_array_elements(o.vice_chair_ids) x where o.class_id=cid and exists(select 1 from public.startoday_students s where s.class_id=cid and s.id=x.value#>>'{}' and s.data->>'deletedAt' is null)),'[]'::jsonb))
+$$;
+create or replace function public.startoday_meeting_close_due(cid uuid) returns void language plpgsql security definer set search_path=public,pg_temp as $$
+declare c public.startoday_classes;changed integer;
+begin
+ select * into strict c from public.startoday_classes where id=cid for update;
+ update public.startoday_meeting_topics t set status='closed',closed_at=clock_timestamp() where t.class_id=cid and t.status='open' and (t.closes_at<=clock_timestamp() or jsonb_array_length(t.electorate)>0 and not exists(select 1 from jsonb_array_elements_text(t.electorate) member where not exists(select 1 from public.startoday_meeting_ballots b where b.topic_id=t.id and b.student_id=member)));
+ get diagnostics changed=row_count;
+ if changed>0 then update public.startoday_classes set revision=revision+1 where id=cid returning * into c;insert into public.startoday_audit(owner_id,class_id,revision,table_name,row_id,operation) values(c.owner_id,cid,c.revision,'meeting',cid::text,'close_due');end if;
+end $$;
+create or replace function public.startoday_meeting_topic_card(cid uuid,tid uuid,sid text default null,teacher boolean default false) returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
+ select jsonb_build_object('id',t.id,'title',t.title,'description',t.description,'kind',t.kind,'options',t.options,'maxChoices',t.max_choices,'status',t.status,'proposerId',t.proposer_id,'createdAt',t.created_at,'closesAt',t.closes_at,'closedAt',t.closed_at,'participated',(select count(*) from public.startoday_meeting_ballots b where b.topic_id=t.id),'total',case when t.status='pending' then (select count(*) from public.startoday_students s where s.class_id=cid and s.data->>'deletedAt' is null) else jsonb_array_length(t.electorate) end,'hasVoted',exists(select 1 from public.startoday_meeting_ballots b where b.topic_id=t.id and b.student_id=sid),'reviewCount',jsonb_array_length(t.approvals),'reviewTotal',(select count(distinct value) from jsonb_array_elements((public.startoday_meeting_officers_data(cid)->'chairIds')||(public.startoday_meeting_officers_data(cid)->'viceChairIds'))),'reviewed',t.approvals ? sid)
+ ||case when teacher or t.status='closed' then jsonb_build_object('results',(select jsonb_agg(opt||jsonb_build_object('count',(select count(*) from public.startoday_meeting_ballots b where b.topic_id=t.id and b.choices ? (opt->>'id'))) order by n) from jsonb_array_elements(t.options) with ordinality x(opt,n))) else '{}'::jsonb end
+ from public.startoday_meeting_topics t where t.class_id=cid and t.id=tid
+$$;
+create or replace function public.startoday_meeting_payload(cid uuid,sid text default null,teacher boolean default false) returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
+ select jsonb_build_object('authoritative',true,'isTeacher',teacher,'studentId',sid,'isChair',(public.startoday_meeting_officers_data(cid)->'chairIds') ? sid,'isVice',(public.startoday_meeting_officers_data(cid)->'viceChairIds') ? sid,'officers',public.startoday_meeting_officers_data(cid),
+ 'roster',coalesce((select jsonb_agg(jsonb_build_object('id',s.id,'no',s.data->'no','name',s.data->>'name') order by (s.data->>'no')::integer) from public.startoday_students s where s.class_id=cid and s.data->>'deletedAt' is null),'[]'::jsonb),
+ 'topics',coalesce((select jsonb_agg(public.startoday_meeting_topic_card(cid,t.id,sid,teacher) order by t.created_at desc,t.id) from public.startoday_meeting_topics t where t.class_id=cid and t.status<>'deleted'),'[]'::jsonb),
+ 'minutes',coalesce((select jsonb_agg(m.data||jsonb_build_object('id',m.id,'version',m.version,'createdAt',m.created_at,'updatedAt',m.updated_at,'participants',(m.data->>'total')::integer-(m.data->>'absent')::integer-(m.data->>'notAttending')::integer,'rate',case when (m.data->>'total')::integer>0 then round(((m.data->>'total')::integer-(m.data->>'absent')::integer-(m.data->>'notAttending')::integer)*100.0/(m.data->>'total')::integer,2) else 0 end,'quorum',(m.data->>'total')::integer>0 and ((m.data->>'total')::integer-(m.data->>'absent')::integer-(m.data->>'notAttending')::integer)*4>=(m.data->>'total')::integer*3,'voteCards',coalesce((select jsonb_agg(coalesce(public.startoday_meeting_topic_card(cid,(card->>'id')::uuid,sid,teacher),case when teacher or card->>'status'='closed' then card else card-'results' end) order by n) from jsonb_array_elements(m.data->'voteCards') with ordinality x(card,n)),'[]'::jsonb)) order by m.data->>'date' desc,m.created_at desc) from public.startoday_meeting_minutes m where m.class_id=cid),'[]'::jsonb))
+$$;
+create or replace function public.startoday_meeting_option_config(p jsonb) returns jsonb language plpgsql immutable set search_path=public,pg_temp as $$
+declare kind text;opts jsonb;max_choices integer;entry jsonb;
+begin
+  kind:=p->>'kind';if kind is null or kind not in ('yesno','custom') then raise exception 'MEETING_INVALID_OPTIONS';end if;
+  opts:=case when kind='yesno' then '[{"id":"yes","label":"찬성"},{"id":"no","label":"반대"}]'::jsonb else p->'options' end;
+  if jsonb_typeof(opts) is distinct from 'array' or jsonb_array_length(opts)<2 then raise exception 'MEETING_INVALID_OPTIONS';end if;
+  for entry in select * from jsonb_array_elements(opts) loop
+   if jsonb_typeof(entry->'id') is distinct from 'string' or length(entry->>'id') not between 1 and 100 or jsonb_typeof(entry->'label') is distinct from 'string' or length(btrim(entry->>'label')) not between 1 and 200 then raise exception 'MEETING_INVALID_OPTIONS';end if;
+  end loop;
+  if (select count(distinct value->>'id') from jsonb_array_elements(opts))<>jsonb_array_length(opts) or (select count(distinct btrim(value->>'label')) from jsonb_array_elements(opts))<>jsonb_array_length(opts) then raise exception 'MEETING_INVALID_OPTIONS';end if;
+  if kind='custom' and (jsonb_typeof(p->'maxChoices') is distinct from 'number' or (p->>'maxChoices')::numeric<>trunc((p->>'maxChoices')::numeric) or (p->>'maxChoices')::numeric not between 1 and jsonb_array_length(opts)) then raise exception 'MEETING_INVALID_OPTIONS';end if;
+  max_choices:=case when kind='yesno' then 1 else (p->>'maxChoices')::integer end;
+ select jsonb_agg(jsonb_build_object('id',opt->>'id','label',btrim(opt->>'label')) order by n) into opts from jsonb_array_elements(opts) with ordinality x(opt,n);
+ return jsonb_build_object('kind',kind,'options',opts,'maxChoices',max_choices);
+end $$;
+create or replace function public.startoday_meeting_mutate(cid uuid,sid text,teacher boolean,action text,p jsonb) returns void language plpgsql security definer set search_path=public,pg_temp as $$
+declare c public.startoday_classes;o jsonb;members jsonb;chair boolean;vice boolean;t public.startoday_meeting_topics;mid uuid;topic_id uuid;kind text;opts jsonb;max_choices integer;deadline timestamptz;open_now boolean;electors jsonb;labels jsonb;entry jsonb;v_approvals jsonb;rev bigint;old public.startoday_meeting_minutes;total integer;absent integer;nonatt integer;cards jsonb;key text;
+begin
+ select * into strict c from public.startoday_classes where id=cid for update;
+ if not teacher and not exists(select 1 from public.startoday_students where class_id=cid and id=sid and data->>'deletedAt' is null) then raise exception 'MEETING_FORBIDDEN';end if;
+ perform public.startoday_meeting_close_due(cid);
+ if action='refresh' then return;end if;
+ if p is null or jsonb_typeof(p)<>'object' or octet_length(p::text)>1000000 then raise exception 'MEETING_INVALID_DATA';end if;
+ o:=public.startoday_meeting_officers_data(cid);chair:=coalesce((o->'chairIds') ? sid,false);vice:=coalesce((o->'viceChairIds') ? sid,false);
+ select coalesce(jsonb_agg(value),'[]'::jsonb) into members from(select distinct value from jsonb_array_elements((o->'chairIds')||(o->'viceChairIds'))) x;
+ if action='officers' then
+  if not teacher then raise exception 'MEETING_FORBIDDEN';end if;
+  foreach key in array array['chairIds','viceChairIds'] loop
+   if jsonb_typeof(p->key) is distinct from 'array' then raise exception 'MEETING_INVALID_OFFICERS';end if;
+   if (select count(distinct value) from jsonb_array_elements(p->key))<>jsonb_array_length(p->key) or exists(select 1 from jsonb_array_elements(p->key) x where jsonb_typeof(x)<>'string' or not exists(select 1 from public.startoday_students s where s.class_id=cid and s.id=x#>>'{}' and s.data->>'deletedAt' is null)) then raise exception 'MEETING_INVALID_OFFICERS';end if;
+  end loop;
+  insert into public.startoday_meeting_officers(class_id,owner_id,chair_ids,vice_chair_ids) values(cid,c.owner_id,p->'chairIds',p->'viceChairIds') on conflict(class_id) do update set chair_ids=excluded.chair_ids,vice_chair_ids=excluded.vice_chair_ids,updated_at=clock_timestamp();
+  update public.startoday_meeting_topics set approvals='[]'::jsonb where class_id=cid and status='pending';
+ elsif action='propose' then
+  topic_id:=(p->>'id')::uuid;if topic_id is null then raise exception 'MEETING_INVALID_TOPIC';end if;
+  if jsonb_typeof(p->'title') is distinct from 'string' or length(btrim(p->>'title')) not between 1 and 200 or jsonb_typeof(coalesce(p->'description','""'::jsonb)) is distinct from 'string' or length(coalesce(p->>'description',''))>5000 then raise exception 'MEETING_INVALID_TOPIC';end if;
+  entry:=public.startoday_meeting_option_config(p);kind:=entry->>'kind';opts:=entry->'options';max_choices:=(entry->>'maxChoices')::integer;
+  deadline:=nullif(p->>'closesAt','')::timestamptz;if deadline is not null and deadline<=clock_timestamp() then raise exception 'MEETING_DEADLINE';end if;
+  open_now:=teacher and coalesce(p->>'openNow','false')='true';select coalesce(jsonb_agg(id),'[]'::jsonb) into electors from public.startoday_students where class_id=cid and data->>'deletedAt' is null;
+  insert into public.startoday_meeting_topics(id,class_id,owner_id,proposer_id,title,description,kind,options,max_choices,status,electorate,closes_at,opened_at) values(topic_id,cid,c.owner_id,case when teacher then null else sid end,btrim(p->>'title'),coalesce(p->>'description',''),kind,opts,max_choices,case when open_now then 'open' else 'pending' end,case when open_now then electors else '[]'::jsonb end,deadline,case when open_now then clock_timestamp() end);
+ elsif action='minutes' then
+  if not teacher and not vice then raise exception 'MEETING_FORBIDDEN';end if;
+  mid:=(p->>'id')::uuid;if mid is null or coalesce(p->>'date','') !~ '^\d{4}-\d{2}-\d{2}$' or to_char((p->>'date')::date,'YYYY-MM-DD')<>p->>'date' or jsonb_typeof(p->'content') is distinct from 'string' or length(p->>'content')>100000 then raise exception 'MEETING_INVALID_MINUTES';end if;
+  foreach key in array array['moderators','recorders'] loop
+   if jsonb_typeof(p->key) is distinct from 'array' then raise exception 'MEETING_INVALID_MINUTES';end if;
+   if exists(select 1 from jsonb_array_elements(p->key) n where jsonb_typeof(n)<>'string' or length(btrim(n#>>'{}')) not between 1 and 100) then raise exception 'MEETING_INVALID_MINUTES';end if;
+  end loop;
+  foreach key in array array['total','absent','notAttending'] loop
+   if jsonb_typeof(p->key) is distinct from 'number' or (p->>key)::numeric<>trunc((p->>key)::numeric) or (p->>key)::numeric not between 0 and 10000 then raise exception 'MEETING_INVALID_ATTENDANCE';end if;
+  end loop;
+  total:=(p->>'total')::integer;absent:=(p->>'absent')::integer;nonatt:=(p->>'notAttending')::integer;if absent+nonatt>total then raise exception 'MEETING_INVALID_ATTENDANCE';end if;
+  if jsonb_typeof(p->'voteIds') is distinct from 'array' then raise exception 'MEETING_INVALID_MINUTES';end if;
+  if (select count(distinct value) from jsonb_array_elements(p->'voteIds'))<>jsonb_array_length(p->'voteIds') then raise exception 'MEETING_INVALID_MINUTES';end if;
+  for entry in select * from jsonb_array_elements(p->'voteIds') loop
+   if not exists(select 1 from public.startoday_meeting_topics mt where mt.class_id=cid and mt.id=(entry#>>'{}')::uuid and mt.status in ('open','closed')) then raise exception 'MEETING_INVALID_MINUTES';end if;
+  end loop;
+  select coalesce(jsonb_agg(public.startoday_meeting_topic_card(cid,(value#>>'{}')::uuid,null,true)),'[]'::jsonb) into cards from jsonb_array_elements(p->'voteIds');
+  select * into old from public.startoday_meeting_minutes where class_id=cid and id=mid for update;
+  if old.id is not null and (jsonb_typeof(p->'version') is distinct from 'number' or (p->>'version')::numeric is distinct from old.version::numeric) then raise exception 'MEETING_CONFLICT';end if;
+  entry:=jsonb_build_object('date',p->>'date','moderators',p->'moderators','recorders',p->'recorders','total',total,'absent',absent,'notAttending',nonatt,'content',p->>'content','voteCards',cards);
+  insert into public.startoday_meeting_minutes(id,class_id,owner_id,data) values(mid,cid,c.owner_id,entry) on conflict(id) do update set data=excluded.data,version=startoday_meeting_minutes.version+1,updated_at=clock_timestamp() where startoday_meeting_minutes.class_id=cid;
+  if not found then raise exception 'MEETING_FORBIDDEN';end if;
+ else
+  select * into t from public.startoday_meeting_topics where class_id=cid and id=(p->>'id')::uuid for update;
+  if t.id is null or t.status='deleted' then raise exception 'MEETING_NOT_FOUND';end if;
+  if action='vote' then
+   if teacher or t.status<>'open' or not(t.electorate ? sid) then raise exception 'MEETING_NOT_OPEN';end if;
+   if exists(select 1 from public.startoday_meeting_ballots own_ballot where own_ballot.topic_id=t.id and own_ballot.student_id=sid) then raise exception 'MEETING_ALREADY_VOTED';end if;
+   if jsonb_typeof(p->'choices') is distinct from 'array' or jsonb_array_length(p->'choices') not between 1 and t.max_choices then raise exception 'MEETING_INVALID_CHOICES';end if;
+   if (select count(distinct value) from jsonb_array_elements(p->'choices'))<>jsonb_array_length(p->'choices') or exists(select 1 from jsonb_array_elements(p->'choices') choice where jsonb_typeof(choice)<>'string' or not exists(select 1 from jsonb_array_elements(t.options) opt where opt->>'id'=choice#>>'{}')) then raise exception 'MEETING_INVALID_CHOICES';end if;
+   insert into public.startoday_meeting_ballots(topic_id,student_id,class_id,owner_id,choices) values(t.id,sid,cid,c.owner_id,p->'choices');
+  elsif action='close' then
+   if not teacher or t.status not in ('open','closed') then raise exception 'MEETING_FORBIDDEN';end if;
+   update public.startoday_meeting_topics set status='closed',closed_at=coalesce(closed_at,clock_timestamp()) where id=t.id;
+  elsif action in ('approve','endorse','defer','delete_topic','configure_topic') then
+   if t.status<>'pending' then raise exception 'MEETING_NOT_PENDING';end if;
+   if action='configure_topic' then
+    if not teacher and not chair then raise exception 'MEETING_FORBIDDEN';end if;entry:=public.startoday_meeting_option_config(p);update public.startoday_meeting_topics set kind=entry->>'kind',options=entry->'options',max_choices=(entry->>'maxChoices')::integer,approvals='[]' where id=t.id;
+   elsif action in ('defer','delete_topic') then
+    if not teacher and not chair then raise exception 'MEETING_FORBIDDEN';end if;
+    update public.startoday_meeting_topics set status=case when action='delete_topic' then 'deleted' else 'pending' end,approvals='[]' where id=t.id;
+   else
+    if not teacher and (not(members ? sid) or action='approve' and not chair or chair and coalesce(p->>'acknowledged','false')<>'true') then raise exception 'MEETING_REVIEW_REQUIRED';end if;
+    select coalesce(jsonb_agg(value),'[]'::jsonb) into v_approvals from(select distinct value from jsonb_array_elements(t.approvals||case when teacher then '[]'::jsonb else jsonb_build_array(sid) end) where members ? (value#>>'{}')) x;
+    open_now:=teacher or jsonb_array_length(v_approvals)*2>jsonb_array_length(members) and exists(select 1 from jsonb_array_elements_text(v_approvals) a where (o->'chairIds') ? a);
+    if open_now and t.closes_at<=clock_timestamp() then raise exception 'MEETING_DEADLINE';end if;
+    select coalesce(jsonb_agg(id),'[]'::jsonb) into electors from public.startoday_students where class_id=cid and data->>'deletedAt' is null;
+    update public.startoday_meeting_topics set approvals=v_approvals,status=case when open_now then 'open' else 'pending' end,electorate=case when open_now then electors else '[]'::jsonb end,opened_at=case when open_now then clock_timestamp() end where id=t.id;
+   end if;
+  else raise exception 'MEETING_INVALID_ACTION';end if;
+ end if;
+ update public.startoday_classes set revision=revision+1 where id=cid returning revision into rev;
+ insert into public.startoday_audit(owner_id,class_id,revision,table_name,row_id,operation) values(c.owner_id,cid,rev,'meeting',coalesce(topic_id,mid,t.id,cid)::text,action);
+ perform public.startoday_meeting_close_due(cid);
+end $$;
+create or replace function public.startoday_teacher_meeting(p_class_id uuid,p_action text default 'refresh',p_payload jsonb default '{}',p_student_id text default null) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare result jsonb;
+begin
+ if auth.uid() is null or not exists(select 1 from public.startoday_classes where id=p_class_id and owner_id=auth.uid()) then raise exception 'MEETING_FORBIDDEN';end if;
+ perform public.startoday_meeting_mutate(p_class_id,p_student_id,p_student_id is null,p_action,p_payload);
+ result:=public.startoday_snapshot();
+ if p_student_id is not null then result:=result||jsonb_build_object('meetingPreview',public.startoday_meeting_payload(p_class_id,p_student_id,false));end if;return result;
+end $$;
+create or replace function public.startoday_student_meeting(p_school text,p_grade text,p_class text,p_no integer,p_password text,p_action text default 'refresh',p_payload jsonb default '{}') returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare verified jsonb;cid uuid;sid text;snapshot jsonb;
+begin
+ verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_password);if verified is null or verified->>'mustChangePassword'='true' then raise exception 'MEETING_AUTH_REQUIRED';end if;
+ cid:=(verified->>'cid')::uuid;sid:=verified->>'sid';perform public.startoday_meeting_mutate(cid,sid,false,p_action,p_payload);snapshot:=public.startoday_student_payload(cid,sid);
+ return jsonb_build_object('classId',cid,'revision',(select revision from public.startoday_classes where id=cid),'snapshot',snapshot);
+end $$;
+revoke all on function public.startoday_meeting_officers_data(uuid),public.startoday_meeting_close_due(uuid),public.startoday_meeting_topic_card(uuid,uuid,text,boolean),public.startoday_meeting_payload(uuid,text,boolean),public.startoday_meeting_mutate(uuid,text,boolean,text,jsonb),public.startoday_meeting_option_config(jsonb) from public,anon,authenticated;
+revoke all on function public.startoday_teacher_meeting(uuid,text,jsonb,text),public.startoday_student_meeting(text,text,text,integer,text,text,jsonb) from public,anon,authenticated;
+grant execute on function public.startoday_teacher_meeting(uuid,text,jsonb,text) to authenticated;
+grant execute on function public.startoday_student_meeting(text,text,text,integer,text,text,jsonb) to anon,authenticated;
+
 create or replace function public.startoday_snapshot() returns jsonb language plpgsql security definer set search_path=public as $$
 declare c public.startoday_classes; result jsonb:='{}'; t text; rows jsonb;
 begin
@@ -389,6 +552,7 @@ begin
  insert into public.startoday_classes(owner_id) values(auth.uid()) on conflict(owner_id) do nothing;
  select * into c from public.startoday_classes where owner_id=auth.uid();
  perform public.startoday_finance_settle(c.id);
+ perform public.startoday_meeting_close_due(c.id);
  -- 공유 잠금으로 여러 테이블 읽기 도중 다른 기기가 수정하지 못하게 합니다.
  perform 1 from public.startoday_classes where id=c.id for share;
  foreach t in array array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx','group_buy_contribs','surveys','survey_responses'] loop
@@ -401,7 +565,7 @@ begin
  result:=result||jsonb_build_object(t,rows);
  end loop;
  select * into c from public.startoday_classes where id=c.id;
- return jsonb_build_object('class_id',c.id,'revision',c.revision,'data',result||public.startoday_finance_data(c.id));
+ return jsonb_build_object('class_id',c.id,'revision',c.revision,'data',result||public.startoday_finance_data(c.id)||jsonb_build_object('meeting',public.startoday_meeting_payload(c.id,null,true)));
 end $$;
 -- Canonical XP alias; pure helpers stay private to authenticated RPC implementations.
 create or replace function public.startoday_area_name(value text) returns text language sql immutable as $$select case when value='학습태도' then '학습' else value end$$;
@@ -631,6 +795,7 @@ declare student jsonb; config jsonb; day text:=to_char(now() at time zone 'Asia/
  result jsonb; totals jsonb; letters jsonb; tasks jsonb; routines jsonb; timetable jsonb; calendar jsonb; praise_from text;
 begin
  perform public.startoday_finance_settle(cid);
+ perform public.startoday_meeting_close_due(cid);
  select data into student from public.startoday_students where class_id=cid and id=sid;
  select data into config from public.startoday_settings where class_id=cid and id='main';
  praise_from:=case config->>'studentPraisePeriod' when '30d' then to_char(day::date-29,'YYYY-MM-DD') when '7d' then to_char(day::date-6,'YYYY-MM-DD') when 'month' then substring(day,1,8)||'01' else '' end;
@@ -675,7 +840,7 @@ begin
  ) e),'[]'::jsonb)) into calendar;
  result:=jsonb_build_object('avatar',jsonb_build_object('catalog',public.startoday_avatar_catalog(),'owned',case when jsonb_typeof(student->'avatarOwned')='array' then student->'avatarOwned' else '[]'::jsonb end,'equipped',case when jsonb_typeof(student->'avatarEquipped')='object' then student->'avatarEquipped' else '{}'::jsonb end),'economy',public.startoday_economy_payload(cid,sid),'student',jsonb_build_object('id',sid,'no',student->'no','name',student->>'name','equippedTitle',student->>'equippedTitle','nickname',student->>'nickname','rewardTitles',coalesce((select jsonb_agg(jsonb_build_object('id',t->>'id','name',t->>'name')) from jsonb_array_elements(coalesce(student->'rewardTitles','[]'::jsonb)) t),'[]'::jsonb)),'titleCounts',public.startoday_kingdom_counts(cid,sid),'titleConfig',public.startoday_title_config(cid),'className',coalesce(config->>'className','우리반'),'date',day,'lunchAfterPeriod',case when config->>'lunchAfterPeriod' in ('3','4','5') then (config->>'lunchAfterPeriod')::integer else 4 end,'score',totals,'praise',letters,'tasks',tasks,'routines',routines,'timetable',timetable,'calendar',calendar,'checkingAssignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'title',a.data->>'title')) from public.startoday_assignments a where a.class_id=cid and a.data->>'checkerStudentId'=sid and coalesce(a.data->>'isQuest','false')<>'true' and public.startoday_assignment_occurs(a.data,day)),'[]'::jsonb));
  result:=result||jsonb_build_object('survey',(select jsonb_build_object('id',s.id,'title',s.title,'status',s.status,'reasonTags',public.startoday_survey_reason_tags(s.data->'reasonTags'),'submitted',exists(select 1 from public.startoday_survey_responses r where r.class_id=cid and r.survey_id=s.id and r.student_id=sid),'peers',coalesce((select jsonb_agg(jsonb_build_object('id',p.id,'name',p.data->>'name') order by (p.data->>'no')::integer) from public.startoday_students p where p.class_id=cid and p.id<>sid and p.data->>'deletedAt' is null),'[]'::jsonb)) from public.startoday_surveys s where s.class_id=cid and s.status='open' order by s.created_at desc limit 1));
- return result;
+ return result||jsonb_build_object('meeting',public.startoday_meeting_payload(cid,sid,false));
 end $$;
 revoke all on function public.startoday_student_payload(uuid,text) from public,anon,authenticated;
 -- Remove the code-based public API so it cannot bypass mandatory password changes.

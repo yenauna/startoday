@@ -16,7 +16,7 @@ const server=http.createServer((req,res)=>{
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const base=`http://127.0.0.1:${server.address().port}`;
 const sizes=[[320,640],[360,800],[375,812],[412,891],[414,896],[768,1024],[1024,768],[1280,800],[1440,900],[1920,1080]];
-const teacherTabs=['대시보드','기록','사건','시간표·일정','과제','루틴','경제','통계','수업도구','자리','설정'];
+const teacherTabs=['대시보드','기록','사건','시간표·일정','과제','루틴','경제','학급회의','통계','수업도구','자리','설정'];
 let browser;
 try{
  browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});

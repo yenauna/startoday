@@ -406,3 +406,4 @@ await pg.close();
 // Keep the owner-only refund exception covered by the standard SQL regression command.
 await import('./teacher-refund.sql.mjs');
 await import('./finance.sql.mjs');
+await import('./meetings.sql.mjs');

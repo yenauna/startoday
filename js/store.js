@@ -1,3 +1,4 @@
+import {meetingOps} from './meetings.js';
 import {financeOrderOps,financeSettleOps,validSymbol} from './finance.js';
 import { surveySubmitOps, TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps, mergeRewardTitles, demoDB, DEMO_INITIAL_PASSWORD, shopBuyOps, shopRefundOps, shopUseOps, teacherGiftOps, teacherBalanceAdjustOps, shopFundGroupBuyOps, shopUseGroupBuyOps, teacherReclaimOps, teacherUndoGiftOps } from './core.js';
 export class Store {
@@ -322,6 +323,21 @@ export class Store {
     } finally {
       this.busy = false;
     }
+  }
+  async meetingAction(action,payload={},studentId=null){
+    const scope=this.mode+':'+this.classId+':'+(this.user?.id||'');
+    const valid=()=>scope===this.mode+':'+this.classId+':'+(this.user?.id||'');
+    const execute=async()=>{
+      if(!valid())throw Error('화면이 변경되었습니다.');
+      if(this.mode==='cloud'){
+        if(this.busy)throw Error('저장 중입니다.');this.busy=true;
+        try{const {data,error}=await this.client.rpc('startoday_teacher_meeting',{p_class_id:this.classId,p_action:action,p_payload:payload,p_student_id:studentId});if(error)throw error;if(!valid())throw Error('화면이 변경되었습니다.');this.db=normalizeDB(data.data);this.revision=data.revision;this.meetingPreview=studentId?{studentId,meeting:data.meetingPreview}:null;this.publishSync();}finally{this.busy=false;}
+      }else{
+        if(!['demo','local'].includes(this.mode))throw Error('로그인이 필요합니다.');const saved=localStorage.getItem('startoday-demo-v1');if(saved)this.db=normalizeDB(JSON.parse(saved));const ops=meetingOps(this.db,studentId,action,payload,studentId===null);if(ops.length)await this.commitSnapshot(ops);
+      }
+      return this.db;
+    };
+    if(typeof navigator!=='undefined'&&navigator.locks)return navigator.locks.request('startoday-economy:'+this.mode+':'+this.classId,execute);return execute();
   }
   async financeAction(action, studentId = null, payload = {}) {
     const scope = this.mode + ':' + this.classId + ':' + (this.user?.id || '');

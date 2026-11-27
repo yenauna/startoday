@@ -54,11 +54,11 @@ try{
  assert.deepEqual(await page.evaluate(async()=>(await import('/js/shared/state.js')).store.db.events.map(e=>e.id)),['event']);assert.equal((await slots()).length,2);
  // Dashboard shows all six periods. Subject selection does not save until the nearby button is used.
  await page.evaluate(async()=>{(await import('/js/app.js')).navigate('대시보드');});
- assert.equal(await page.locator('.registered-schedule .slot').count(),6);
- await page.locator('.registered-schedule').getByRole('button',{name:'1교시 수업 없음',exact:true}).click();
+ assert.equal(await page.locator('.registered-schedule .slot').count(),2);await page.locator('.registered-schedule').getByRole('button',{name:'+ 교시 추가',exact:true}).click();assert.equal(await page.locator('.registered-schedule .slot').count(),6);
+ await page.locator('.registered-schedule').getByRole('button',{name:'1교시 수업 등록',exact:true}).click();
  await page.locator('#modal .subject-choice[data-subject-code="과학"]').click();assert.equal((await slots()).some(t=>t.period===1),false);
  const floating=page.getByRole('button',{name:'저장 및 닫기',exact:true});assert(await floating.isVisible());await floating.click();await page.waitForFunction(()=>!document.querySelector('#modal').open);assert((await slots()).some(t=>t.period===1&&t.subjectCode==='과학'));
- await page.locator('.registered-schedule').getByRole('button',{name:'3교시 수업 없음',exact:true}).click();await page.locator('#modal .subject-choice[data-subject-code="체육"]').click();await page.locator('#modal [name=publicMemo]').fill('체육복');await page.locator('#modal [type=submit]').click();await page.waitForFunction(()=>!document.querySelector('#modal').open);assert((await slots()).some(t=>t.period===3&&t.subjectCode==='체육'&&t.publicMemo==='체육복'));
+ await page.locator('.registered-schedule').getByRole('button',{name:'3교시 수업 등록',exact:true}).click();await page.locator('#modal .subject-choice[data-subject-code="체육"]').click();await page.locator('#modal [name=publicMemo]').fill('체육복');await page.locator('#modal [type=submit]').click();await page.waitForFunction(()=>!document.querySelector('#modal').open);assert((await slots()).some(t=>t.period===3&&t.subjectCode==='체육'&&t.publicMemo==='체육복'));
  // Same item: purchase and gift stay separate, only purchase has teacher refund despite allowRefund=false.
  await page.evaluate(async()=>(await import('/js/app.js')).navigate('경제'));await page.locator('.economy-asset-actions').first().getByRole('button',{name:'물건',exact:true}).click();
  assert.equal(await page.locator('[data-holding-type="구매"] .economy-managed-item').count(),1);assert.equal(await page.locator('[data-holding-type="선물"] .economy-managed-item').count(),1);assert.equal(await page.locator('[data-holding-type="선물"]').getByRole('button',{name:/환불/}).count(),0);

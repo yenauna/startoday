@@ -21,9 +21,13 @@ export function periodInfo(slot) {
     type: slot?.type || rule?.defaultType || '일반'
   };
 }
+const expandedScheduleDates=new Set();
+const scheduleExpansionKey=date=>[store.mode,store.classId,store.user?.id||'',date].join(':');
+function expandSchedulePeriods(date,event){expandedScheduleDates.add(scheduleExpansionKey(date));if(event?.target?.closest('#modal'))calendarDayDetails(date);else render();}
 export function timeSlots(d, calendar = false, registeredOnly = false, audience = 'teacher') {
   // 좁은 달력 칸에서는 수업이 있는 교시만 한 줄로 보여 준다. '자세히'를 켜면 교시별 전체 줄이 나온다.
   const compact = calendar && !state.calendarFilters.detail;
+  const visible=calendar||registeredOnly||audience!=='teacher'?[1,2,3,4,5,6]:C.timetableVisiblePeriods(db(),d,expandedScheduleDates.has(scheduleExpansionKey(d)));
   const lessonSlots = Array.from({
     length: 6
   }, (_, i) => {
@@ -31,6 +35,7 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
       slot = db().timetables.find(t => t.date === d && t.period === p),
       info = periodInfo(slot),
       events = C.calendarEvents(db()).filter(e => e.date === d && e.period === p);
+    if(!calendar&&!registeredOnly&&audience==='teacher'&&!visible.includes(p))return '';
     if (registeredOnly && !slot && !events.length) return '';
     // 달력 칸에는 실제 수업만 그린다. 빈 교시는 오른쪽 시간표 카드에서 채운다.
     if (calendar && !slot && !events.length) return '';
@@ -41,25 +46,26 @@ export function timeSlots(d, calendar = false, registeredOnly = false, audience 
     const time = settings().periodTimes?.[i] || C.DEFAULT_PERIOD_TIMES[i];
     const periodRow = compact ? `<span class="slot-period-row"><span class="slot-time">${p}</span></span>` : `<div class="slot-period-row"><span class="slot-time">${p}교시</span><small class="slot-clock">${esc(C.formatTimeRange(time))}</small></div>`;
     const memoIndicator = calendar && (memo || privateMemo || teacherMemo || events.length) ? '<sup class="slot-memo-indicator" aria-label="메모 있음">*</sup>' : '';
-    const subjectTitle = subject ? `<strong class="subject-title">${esc(subject)}${memoIndicator}</strong>` : !calendar&&audience==='teacher'?'<strong class="subject-title empty-lesson">수업 없음</strong>':'';
+    const subjectTitle = subject ? `<strong class="subject-title">${esc(subject)}${memoIndicator}</strong>` : !calendar&&audience==='teacher'?'<span class="subject-title empty-lesson">+ 수업 등록</span>':'';
     const memoHtml = `${memo ? `<span class="slot-public-memo">${audience === 'teacher' ? '📢 ' : ''}${esc(memo)}</span>` : ''}${privateMemo ? `<span class="slot-same-day-memo">${esc(privateMemo)}</span>` : ''}${teacherMemo ? `<span class="slot-teacher-memo">🔒 ${esc(teacherMemo)}</span>` : ''}`;
     if (audience === 'classroom') return `<div class="slot${slot ? ' subject-color subject-stripe' : ''}" ${slot ? `style="${C.subjectColorStyle(info.rule || slot.subjectCode)}"` : ''}>${periodRow}<div class="slot-subject-row">${subjectTitle}<div class="slot-memos">${memoHtml}${events.map(event=>`<span class="slot-public-memo">${esc(event.title)}${event.description ? ' '+esc(event.description) : ''}</span>`).join('')}</div></div></div>`;
     const main = btn((calendar ? periodRow : '') + subjectTitle, () => {
-      if (state.dragSlot) { const from=state.dragSlot;state.dragSlot=null;return swapSlots(from, `${d}:${p}`); }
+      if (state.dragSlot) { const from=state.dragSlot;if(from===`${d}:${p}`)return;state.dragSlot=null;return swapSlots(from, `${d}:${p}`); }
       selectScheduleDay(d);timetableEditor(d,p);
-    },'slot-main',slot?`draggable="true" data-drag="${d}:${p}"`:`aria-label="${p}교시 수업 없음"`);
+    },'slot-main',slot?`draggable="true" data-drag="${d}:${p}"`:`aria-label="${p}교시 수업 등록"`);
     const eventLinks = events.map(event => event.id && db().events.some(row=>row.id===event.id) ? btn(esc(event.title)+(event.description ? `<small>${esc(event.description)}</small>` : ''),()=>{selectScheduleDay(d);dayEditor(d,'일정',null,event);},'slot-event-link timeline-event'+(event.isImportant!==false?' is-important':' is-ordinary'),`draggable="true" data-event-drag="${esc(event.id)}"`) : `<span class="slot-event-label">${esc(event.title)}</span>`).join('');
-    return `<div class="slot${calendar ? ' calendar-lesson' : ''}${compact ? ' calendar-lesson-chip' : ''}${slot ? ' subject-color subject-stripe' : ''}" ${slot ? `style="${C.subjectColorStyle(info.rule || slot.subjectCode)}"` : ''} title="${esc(slot?.subjectCode || '')}" draggable="${!!slot}" data-drag="${d}:${p}" data-drop="${d}:${p}">${calendar ? '' : periodRow}<div class="slot-subject-row">${main}<div class="slot-memos">${memoHtml}${eventLinks}</div></div></div>`;
+    return `<div class="slot${calendar ? ' calendar-lesson' : ''}${compact ? ' calendar-lesson-chip' : ''}${slot ? ' subject-color subject-stripe' : ''}" ${slot ? `style="${C.subjectColorStyle(info.rule || slot.subjectCode)}"` : ''} title="${esc(slot?.subjectCode || '')}" data-slot-card="${d}:${p}" data-drop="${d}:${p}">${calendar ? '' : periodRow}<div class="slot-subject-row">${main}<div class="slot-memos">${memoHtml}${eventLinks}</div></div></div>`;
   });
   return C.dayTimeline(db(), d).map(part => part.type === 'lesson' ? lessonSlots[part.period - 1] : part.events.length && (!calendar || state.calendarFilters.events) ? `<div class="timeline-slot timeline-${part.period}" data-timeline-period="${part.period}"><strong>${{
     0: '아침',
     7: '점심',
     8: '방과후'
-  }[part.period]}</strong>${part.events.map(event => audience === 'classroom' ? `<div class="timeline-event">${esc(event.title)}${event.description ? `<small>${esc(event.description)}</small>` : ''}</div>` : btn(esc(event.title) + (event.description ? `<small>${esc(event.description)}</small>` : ''), () => {selectScheduleDay(d);dayEditor(d, '일정', null, event);}, 'timeline-event' + (event.isImportant !== false ? ' is-important' : ' is-ordinary'),db().events.some(e=>e.id===event.id)?`draggable="true" data-event-drag="${esc(event.id)}"`:'')).join('')}</div>` : '').join('');
+  }[part.period]}</strong>${part.events.map(event => audience === 'classroom' ? `<div class="timeline-event">${esc(event.title)}${event.description ? `<small>${esc(event.description)}</small>` : ''}</div>` : btn(esc(event.title) + (event.description ? `<small>${esc(event.description)}</small>` : ''), () => {selectScheduleDay(d);dayEditor(d, '일정', null, event);}, 'timeline-event' + (event.isImportant !== false ? ' is-important' : ' is-ordinary'),db().events.some(e=>e.id===event.id)?`draggable="true" data-event-drag="${esc(event.id)}"`:'')).join('')}</div>` : '').join('')+(!calendar&&!registeredOnly&&audience==='teacher'&&visible.length<6?btn('+ 교시 추가',event=>expandSchedulePeriods(d,event),'schedule-add-period'):'');
 }
 function calendarDayDetails(date) {
   const events = C.calendarEvents(db()).filter(event => event.date === date);
   modal(C.formatDate(date) + ' · 시간표와 메모', timeSlots(date) + events.map(event => btn(esc(event.title) + (event.description ? `<small>${esc(event.description)}</small>` : ''), () => dayEditor(date, '일정', null, event), 'event')).join(''));
+  bindTimetableDrag();
 }
 const SCHEDULE_FILTERS = [['time', '시간표'], ['events', '행사'], ['tasks', '과제'], ['routines', '루틴'], ['detail', '자세히']];
 export function selectScheduleDay(d) {
@@ -104,27 +110,29 @@ function scheduleEventRow(d, e) {
 function scheduleEventsCard() {
   const d = state.date,
     events = C.calendarEvents(db()).filter(e => e.date === d).sort((a, b) => (C.eventTimePeriod(a) ?? -1) - (C.eventTimePeriod(b) ?? -1));
-  const periods = Array.from({ length: 6 }, (_, i) => i + 1).map(p => {
+  const visible=C.timetableVisiblePeriods(db(),d,expandedScheduleDates.has(scheduleExpansionKey(d)));
+  const periods = visible.map(p => {
     const slot = db().timetables.find(t => t.date === d && t.period === p),
       info = periodInfo(slot),
       time = settings().periodTimes?.[p - 1] || C.DEFAULT_PERIOD_TIMES[p - 1],
       memo = slot?.publicMemo ?? slot?.memo ?? '',
       sameDayMemo = slot?.privateMemo || '',
       teacherMemo = slot?.teacherMemo || '';
-    return `<div class="schedule-period${slot ? ' has-lesson' : ''}" data-drop="${d}:${p}" ${slot ? `data-drag="${d}:${p}" draggable="true"` : ''}>${btn(`<span class="schedule-period-no">${p}</span><strong>${slot ? esc(slot.subjectCode) : '수업 없음'}</strong><small class="schedule-period-time">${esc(C.formatTimeRange(time))}</small>`, () => {
+    return `<div class="schedule-period${slot ? ' has-lesson' : ''}" data-drop="${d}:${p}" data-slot-card="${d}:${p}">${btn(`<span class="schedule-period-no">${p}</span>${slot?`<strong>${esc(slot.subjectCode)}</strong>`:'<span class="empty-lesson">+ 수업 등록</span>'}<small class="schedule-period-time">${esc(C.formatTimeRange(time))}</small>`, () => {
       if (state.dragSlot) {
         const from = state.dragSlot;
+        if(from===`${d}:${p}`)return;
         state.dragSlot = null;
         swapSlots(from, `${d}:${p}`);
         return;
       }
       timetableEditor(d, p);
-    }, 'schedule-period-main' + (slot ? '' : ' is-empty'), slot ? `style="${C.subjectColorStyle(info.rule || slot.subjectCode)}"` : '')}${slot && (memo || sameDayMemo || teacherMemo) ? `<div class="schedule-period-memos">${memo ? `<span class="schedule-memo public" title="메모1 · 학생 공개">📢 ${esc(memo)}</span>` : ''}${sameDayMemo ? `<span class="schedule-memo same-day" title="메모2 · 당일 공개">🗒 ${esc(sameDayMemo)}</span>` : ''}${teacherMemo ? `<span class="schedule-memo teacher" title="메모3 · 교사 전용">🔒 ${esc(teacherMemo)}</span>` : ''}</div>` : ''}</div>`;
+    }, 'schedule-period-main' + (slot ? '' : ' is-empty'), slot ? `style="${C.subjectColorStyle(info.rule || slot.subjectCode)}" draggable="true" data-drag="${d}:${p}"` : `aria-label="${p}교시 수업 등록"`)}${slot && (memo || sameDayMemo || teacherMemo) ? `<div class="schedule-period-memos">${memo ? `<span class="schedule-memo public" title="메모1 · 학생 공개">📢 ${esc(memo)}</span>` : ''}${sameDayMemo ? `<span class="schedule-memo same-day" title="메모2 · 당일 공개">🗒 ${esc(sameDayMemo)}</span>` : ''}${teacherMemo ? `<span class="schedule-memo teacher" title="메모3 · 교사 전용">🔒 ${esc(teacherMemo)}</span>` : ''}</div>` : ''}</div>`;
   }).join('');
   return `<section class="panel schedule-card schedule-card-events" aria-labelledby="schedule-events-title"><div class="schedule-card-head"><h3 id="schedule-events-title">일정 <small>${esc(C.formatDate(d))}</small></h3><div class="row schedule-card-actions">${btn('+ 일정', () => dayEditor(d), 'primary schedule-add')}</div></div>
     <div class="schedule-event-list">${events.map(e => scheduleEventRow(d, e)).join('') || '<p class="muted schedule-empty">등록된 일정이 없습니다.</p>'}</div>
     <h4 class="schedule-subhead">시간표</h4>
-    <div class="schedule-periods">${periods}</div>
+    <div class="schedule-periods">${periods}</div>${visible.length<6?btn('+ 교시 추가',event=>expandSchedulePeriods(d,event),'schedule-add-period'):''}
   </section>`;
 }
 function scheduleManagePanel() {
@@ -387,6 +395,7 @@ export function hoursDialog(from, to) {
 }
 let scheduleDragEvent=null;
 export function bindTimetableDrag(){
+ document.querySelectorAll('[data-slot-card]').forEach(el=>{el.onclick=e=>{if(!e.target.closest('button,a,input,textarea,select,label')){e.stopPropagation();el.querySelector('.slot-main,.schedule-period-main')?.click();}};});
  document.querySelectorAll('[data-schedule-date]').forEach(el=>{el.onclick=e=>{if(!e.target.closest('button,a,input,textarea,select'))selectScheduleDay(el.dataset.scheduleDate);};});
  document.querySelectorAll('[data-drop]').forEach(el=>{
   el.ondragover=e=>{e.preventDefault();e.stopPropagation();if(e.dataTransfer)e.dataTransfer.dropEffect='move';};
