@@ -98,12 +98,12 @@ create table if not exists public.startoday_shop_items (
 );
 create table if not exists public.startoday_economy_tx (
  id uuid primary key default gen_random_uuid(),owner_id uuid not null references auth.users(id),class_id uuid not null references public.startoday_classes(id),student_id text not null,
- data jsonb not null check(data ?& array['id','studentId','type','amount','createdAt'] and jsonb_typeof(data)='object' and data->>'id'=id::text and data->>'studentId'=student_id and data->>'type' in ('구매','환불','선물','지급','차감','회수','선물취소','사용','아바타구매') and jsonb_typeof(data->'amount')='number' and abs((data->>'amount')::numeric)<=1000000000 and (data->>'amount')::numeric=trunc((data->>'amount')::numeric)),created_at timestamptz not null default now(),updated_at timestamptz not null default now(),unique(class_id,id)
+ data jsonb not null check(data ?& array['id','studentId','type','amount','createdAt'] and jsonb_typeof(data)='object' and data->>'id'=id::text and data->>'studentId'=student_id and data->>'type' in ('구매','환불','선물','지급','차감','회수','선물취소','사용','아바타구매','예금가입','예금만기','주식매수','주식매도','주식정산') and jsonb_typeof(data->'amount')='number' and abs((data->>'amount')::numeric)<=1000000000 and (data->>'amount')::numeric=trunc((data->>'amount')::numeric)),created_at timestamptz not null default now(),updated_at timestamptz not null default now(),unique(class_id,id)
 );
 -- Extend the existing ledger without rewriting historical transactions.
 alter table public.startoday_economy_tx drop constraint if exists startoday_economy_tx_check;
 alter table public.startoday_economy_tx drop constraint if exists startoday_economy_tx_data_check;
-alter table public.startoday_economy_tx add constraint startoday_economy_tx_data_check check(data ?& array['id','studentId','type','amount','createdAt'] and jsonb_typeof(data)='object' and data->>'id'=id::text and data->>'studentId'=student_id and data->>'type' in ('구매','환불','선물','지급','차감','회수','선물취소','사용','아바타구매') and jsonb_typeof(data->'amount')='number' and abs((data->>'amount')::numeric)<=1000000000 and (data->>'amount')::numeric=trunc((data->>'amount')::numeric));
+alter table public.startoday_economy_tx add constraint startoday_economy_tx_data_check check(data ?& array['id','studentId','type','amount','createdAt'] and jsonb_typeof(data)='object' and data->>'id'=id::text and data->>'studentId'=student_id and data->>'type' in ('구매','환불','선물','지급','차감','회수','선물취소','사용','아바타구매','예금가입','예금만기','주식매수','주식매도','주식정산') and jsonb_typeof(data->'amount')='number' and abs((data->>'amount')::numeric)<=1000000000 and (data->>'amount')::numeric=trunc((data->>'amount')::numeric));
 do $$ declare t text;begin
  foreach t in array array['shop_items','economy_tx'] loop
  execute format('alter table public.%I enable row level security','startoday_'||t);
@@ -184,12 +184,211 @@ drop trigger if exists startoday_group_buy_integrity on public.startoday_shop_it
 create constraint trigger startoday_group_buy_integrity after insert or update or delete on public.startoday_shop_items deferrable initially deferred for each row execute function public.startoday_group_buy_integrity();
 drop trigger if exists startoday_group_buy_integrity on public.startoday_group_buy_contribs;
 create constraint trigger startoday_group_buy_integrity after insert or update or delete on public.startoday_group_buy_contribs deferrable initially deferred for each row execute function public.startoday_group_buy_integrity();
+-- Bank and stock state is authoritative: teachers read it, students use authenticated RPCs only.
+create table if not exists public.startoday_bank_deposits (
+ id uuid primary key, class_id uuid not null references public.startoday_classes(id), owner_id uuid not null references auth.users(id), student_id text not null,
+ principal integer not null check(principal between 1 and 100000000), weeks integer not null check(weeks between 2 and 52 and weeks%2=0), rate_percent numeric(5,2) not null check(rate_percent between 0 and 100),
+ interest integer not null check(interest>=0 and principal+interest<=1000000000), paid_interest integer not null default 0 check(paid_interest>=0),
+ created_at timestamptz not null default now(), matures_at timestamptz not null, status text not null default 'active' check(status in ('active','matured')), settled_at timestamptz,
+ foreign key(class_id,student_id) references public.startoday_students(class_id,id)
+);
+create table if not exists public.startoday_stock_quotes (
+ id text primary key, class_id uuid references public.startoday_classes(id), symbol text not null check(symbol ~ '^[A-Z0-9][A-Z0-9.\^-]{0,19}$'), name text not null check(length(btrim(name)) between 1 and 80),
+ price_krw numeric(18,4) not null check(price_krw>0 and price_krw<=1000000000), change_krw numeric(18,4) not null default 0, change_percent numeric(12,4) not null default 0,
+ updated_at timestamptz not null default now(), source text not null default 'market' check(source in ('market','manual')),
+ check(id=coalesce(class_id::text,'market')||':'||symbol),check((class_id is null and source='market') or (class_id is not null and source='manual'))
+);
+create table if not exists public.startoday_stock_holdings (
+ class_id uuid not null references public.startoday_classes(id), owner_id uuid not null references auth.users(id), student_id text not null, symbol text not null,
+ shares numeric(14,4) not null default 0 check(shares>=0), avg_price_krw numeric(18,4) not null default 0 check(avg_price_krw>=0), total_buy_points bigint not null default 0 check(total_buy_points>=0),
+ primary key(class_id,student_id,symbol), foreign key(class_id,student_id) references public.startoday_students(class_id,id)
+);
+create table if not exists public.startoday_stock_orders (
+ id uuid primary key, class_id uuid not null references public.startoday_classes(id), owner_id uuid not null references auth.users(id), student_id text not null, symbol text not null,
+ side text not null check(side in ('buy','sell')), price_krw numeric(18,4) not null check(price_krw>0 and price_krw<=1000000000), shares numeric(14,4) not null check(shares>0),
+ amount_points integer not null check(amount_points between 1 and 1000000000), requested_points integer, krw_per_point integer not null check(krw_per_point between 1 and 1000000),
+ created_at timestamptz not null default now(),settle_at timestamptz not null,status text not null default 'pending' check(status in ('pending','settled')),settled_at timestamptz,
+ foreign key(class_id,student_id) references public.startoday_students(class_id,id)
+);
+create index if not exists startoday_due_deposits on public.startoday_bank_deposits(class_id,matures_at) where status='active';
+create index if not exists startoday_due_orders on public.startoday_stock_orders(class_id,settle_at) where status='pending';
+create index if not exists startoday_bank_student on public.startoday_bank_deposits(class_id,student_id,created_at desc);
+create index if not exists startoday_order_student on public.startoday_stock_orders(class_id,student_id,created_at desc);
+create index if not exists startoday_quote_symbol on public.startoday_stock_quotes(symbol,updated_at desc);
+do $$ declare t text;begin
+ foreach t in array array['bank_deposits','stock_holdings','stock_orders'] loop
+  execute format('alter table public.%I enable row level security','startoday_'||t);
+  execute format('drop policy if exists own_finance on public.%I','startoday_'||t);
+  execute format('create policy own_finance on public.%I for select to authenticated using(owner_id=auth.uid() and exists(select 1 from public.startoday_classes c where c.id=class_id and c.owner_id=auth.uid()))','startoday_'||t);
+  execute format('revoke all on public.%I from public,anon,authenticated','startoday_'||t);
+  execute format('grant select on public.%I to authenticated','startoday_'||t);
+ end loop;
+end $$;
+alter table public.startoday_stock_quotes enable row level security;
+drop policy if exists read_quotes on public.startoday_stock_quotes;
+create policy read_quotes on public.startoday_stock_quotes for select to authenticated using(class_id is null or exists(select 1 from public.startoday_classes c where c.id=class_id and c.owner_id=auth.uid()));
+revoke all on public.startoday_stock_quotes from public,anon,authenticated;
+grant select on public.startoday_stock_quotes to authenticated;
+-- Supabase's service role is used by the trusted GitHub Actions cache worker, never in the app.
+do $$ begin if exists(select 1 from pg_roles where rolname='service_role') then grant select,insert,update on public.startoday_stock_quotes to service_role;grant select on public.startoday_settings,public.startoday_stock_holdings to service_role;end if;end $$;
+
+create or replace function public.startoday_finance_config(config jsonb) returns jsonb language plpgsql immutable set search_path=public,pg_temp as $$
+declare bank jsonb:=coalesce(nullif(config->'bankConfig','null'::jsonb),'{"tiers":[{"minStars":0,"ratePercent":2},{"minStars":10,"ratePercent":3},{"minStars":30,"ratePercent":4},{"minStars":50,"ratePercent":5}]}'::jsonb);
+ stock jsonb:='{"open":"09:00","close":"14:30","krwPerPoint":100,"settlementMinutes":80,"symbols":[{"symbol":"005930.KS","name":"삼성전자"},{"symbol":"000660.KS","name":"SK하이닉스"},{"symbol":"035420.KS","name":"NAVER"}]}'::jsonb||coalesce(nullif(config->'stockConfig','null'::jsonb),'{}'::jsonb);t jsonb;
+begin
+ if jsonb_typeof(bank->'tiers') is distinct from 'array' or jsonb_array_length(bank->'tiers') not between 1 and 20 then raise exception 'INVALID_FINANCE_CONFIG';end if;
+ for t in select * from jsonb_array_elements(bank->'tiers') loop
+  if jsonb_typeof(t->'minStars') is distinct from 'number' or (t->>'minStars')::numeric not between 0 and 1000000 or (t->>'minStars')::numeric<>trunc((t->>'minStars')::numeric) or jsonb_typeof(t->'ratePercent') is distinct from 'number' or (t->>'ratePercent')::numeric not between 0 and 100 or (t->>'ratePercent')::numeric<>round((t->>'ratePercent')::numeric,2) then raise exception 'INVALID_FINANCE_CONFIG';end if;
+ end loop;
+ if not exists(select 1 from jsonb_array_elements(bank->'tiers') x where (x->>'minStars')::integer=0) or (select count(distinct value->>'minStars') from jsonb_array_elements(bank->'tiers'))<>jsonb_array_length(bank->'tiers') then raise exception 'INVALID_FINANCE_CONFIG';end if;
+ if coalesce(stock->>'open','') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' or coalesce(stock->>'close','') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' or stock->>'open'>=stock->>'close' or jsonb_typeof(stock->'krwPerPoint') is distinct from 'number' or (stock->>'krwPerPoint')::numeric not between 1 and 1000000 or (stock->>'krwPerPoint')::numeric<>trunc((stock->>'krwPerPoint')::numeric) or jsonb_typeof(stock->'settlementMinutes') is distinct from 'number' or (stock->>'settlementMinutes')::numeric not between 0 and 10080 or (stock->>'settlementMinutes')::numeric<>trunc((stock->>'settlementMinutes')::numeric) or jsonb_typeof(stock->'symbols') is distinct from 'array' or jsonb_array_length(stock->'symbols')>40 then raise exception 'INVALID_FINANCE_CONFIG';end if;
+ for t in select * from jsonb_array_elements(stock->'symbols') loop
+  if coalesce(t->>'symbol','') !~ '^[A-Z0-9][A-Z0-9.\^-]{0,19}$' or jsonb_typeof(t->'name') is distinct from 'string' or length(btrim(t->>'name')) not between 1 and 80 then raise exception 'INVALID_FINANCE_CONFIG';end if;
+ end loop;
+ if (select count(distinct value->>'symbol') from jsonb_array_elements(stock->'symbols'))<>jsonb_array_length(stock->'symbols') then raise exception 'INVALID_FINANCE_CONFIG';end if;
+ return jsonb_build_object('bank',jsonb_build_object('tiers',(select jsonb_agg(jsonb_build_object('minStars',tier_row->'minStars','ratePercent',tier_row->'ratePercent') order by (tier_row->>'minStars')::integer) from jsonb_array_elements(bank->'tiers') tier_row)),'stock',jsonb_build_object('open',stock->'open','close',stock->'close','krwPerPoint',stock->'krwPerPoint','settlementMinutes',stock->'settlementMinutes','symbols',(select coalesce(jsonb_agg(jsonb_build_object('symbol',symbol_row->'symbol','name',symbol_row->'name')),'[]'::jsonb) from jsonb_array_elements(stock->'symbols') symbol_row)));
+end $$;
+create or replace function public.startoday_finance_settings_guard() returns trigger language plpgsql set search_path=public,pg_temp as $$begin perform public.startoday_finance_config(new.data);return new;end $$;
+drop trigger if exists finance_settings_guard on public.startoday_settings;
+create trigger finance_settings_guard before insert or update on public.startoday_settings for each row execute function public.startoday_finance_settings_guard();
+create or replace function public.startoday_stock_market_open(config jsonb,stamp timestamptz) returns boolean language sql immutable set search_path=public,pg_temp as $$
+ select extract(isodow from stamp at time zone 'Asia/Seoul') between 1 and 5 and to_char(stamp at time zone 'Asia/Seoul','HH24:MI') between config->>'open' and config->>'close'
+$$;
+create or replace function public.startoday_finance_tx(cid uuid,sid text,kind text,amount integer,ref uuid,memo text) returns void language plpgsql security definer set search_path=public,pg_temp as $$
+declare tid uuid:=gen_random_uuid();owner uuid;
+begin
+ select owner_id into strict owner from public.startoday_classes where id=cid;
+ insert into public.startoday_economy_tx(id,owner_id,class_id,student_id,data) values(tid,owner,cid,sid,jsonb_build_object('id',tid,'studentId',sid,'type',kind,'amount',amount,'originalTxId',ref,'memo',memo,'createdAt',clock_timestamp()));
+end $$;
+alter table public.startoday_economy_tx drop constraint if exists startoday_finance_tx_sign;
+alter table public.startoday_economy_tx add constraint startoday_finance_tx_sign check(case when data->>'type' in ('예금가입','주식매수') then (data->>'amount')::integer<0 when data->>'type' in ('예금만기','주식정산') then (data->>'amount')::integer>=0 when data->>'type'='주식매도' then (data->>'amount')::integer=0 else true end);
+create unique index if not exists startoday_finance_tx_once on public.startoday_economy_tx(class_id,(data->>'type'),(data->>'originalTxId')) where data->>'type' in ('예금가입','예금만기','주식매수','주식매도','주식정산');
+create or replace function public.startoday_finance_settle(cid uuid) returns void language plpgsql security definer set search_path=public,pg_temp as $$
+declare c public.startoday_classes;d public.startoday_bank_deposits;o public.startoday_stock_orders;changed boolean:=false;stamp timestamptz:=clock_timestamp();
+begin
+ select * into strict c from public.startoday_classes where id=cid for update;
+ for d in select * from public.startoday_bank_deposits where class_id=cid and status='active' and matures_at<=stamp order by matures_at,id for update loop
+  perform public.startoday_finance_tx(cid,d.student_id,'예금만기',d.principal+d.interest,d.id,'정기예금 만기');
+  update public.startoday_bank_deposits set status='matured',paid_interest=interest,settled_at=stamp where id=d.id;changed:=true;
+ end loop;
+ for o in select * from public.startoday_stock_orders where class_id=cid and status='pending' and settle_at<=stamp order by created_at,id for update loop
+  if o.side='buy' then
+   insert into public.startoday_stock_holdings(class_id,owner_id,student_id,symbol,shares,avg_price_krw,total_buy_points) values(cid,c.owner_id,o.student_id,o.symbol,o.shares,o.price_krw,o.amount_points)
+   on conflict(class_id,student_id,symbol) do update set avg_price_krw=round((startoday_stock_holdings.avg_price_krw*startoday_stock_holdings.shares+excluded.avg_price_krw*excluded.shares)/(startoday_stock_holdings.shares+excluded.shares),4),shares=startoday_stock_holdings.shares+excluded.shares,total_buy_points=startoday_stock_holdings.total_buy_points+excluded.total_buy_points;
+  end if;
+  perform public.startoday_finance_tx(cid,o.student_id,'주식정산',case when o.side='sell' then o.amount_points else 0 end,o.id,o.symbol||case when o.side='sell' then ' 매도 입금' else ' 매수 입고' end);
+  update public.startoday_stock_orders set status='settled',settled_at=stamp where id=o.id;changed:=true;
+ end loop;
+ if changed then
+  update public.startoday_classes set revision=revision+1 where id=cid returning * into c;
+  insert into public.startoday_audit(owner_id,class_id,revision,table_name,row_id,operation) values(c.owner_id,cid,c.revision,'finance',cid::text,'settle');
+ end if;
+end $$;
+create or replace function public.startoday_finance_data(cid uuid,sid text default null) returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
+ select jsonb_build_object(
+ 'bank_deposits',coalesce((select jsonb_agg(jsonb_build_object('id',id,'studentId',student_id,'principal',principal,'weeks',weeks,'ratePercent',rate_percent,'interest',interest,'paidInterest',paid_interest,'createdAt',created_at,'maturesAt',matures_at,'status',status,'settledAt',settled_at)) from public.startoday_bank_deposits where class_id=cid and (sid is null or student_id=sid)),'[]'::jsonb),
+ 'stock_holdings',coalesce((select jsonb_agg(jsonb_build_object('id',student_id||':'||symbol,'studentId',student_id,'symbol',symbol,'shares',shares,'avgPriceKrw',avg_price_krw,'totalBuyPoints',total_buy_points)) from public.startoday_stock_holdings where class_id=cid and (sid is null or student_id=sid)),'[]'::jsonb),
+ 'stock_orders',coalesce((select jsonb_agg(jsonb_build_object('id',id,'studentId',student_id,'symbol',symbol,'side',side,'priceKrw',price_krw,'shares',shares,'amountPoints',amount_points,'requestedPoints',requested_points,'krwPerPoint',krw_per_point,'createdAt',created_at,'settleAt',settle_at,'status',status,'settledAt',settled_at)) from public.startoday_stock_orders where class_id=cid and (sid is null or student_id=sid)),'[]'::jsonb),
+ 'stock_quotes',coalesce((select jsonb_agg(jsonb_build_object('id',symbol,'symbol',symbol,'name',name,'priceKrw',price_krw,'changeKrw',change_krw,'changePercent',change_percent,'updatedAt',updated_at,'source',source)) from (
+  select distinct on(q.symbol) q.* from public.startoday_stock_quotes q where (q.class_id is null or q.class_id=cid) and (exists(select 1 from public.startoday_settings s,jsonb_array_elements(public.startoday_finance_config(s.data)->'stock'->'symbols') sym where s.class_id=cid and sym->>'symbol'=q.symbol) or exists(select 1 from public.startoday_stock_holdings h where h.class_id=cid and h.symbol=q.symbol)) order by q.symbol,q.updated_at desc,q.class_id nulls last
+ ) effective),'[]'::jsonb))
+$$;
+create or replace function public.startoday_finance_stars(cid uuid,sid text) returns bigint language sql stable security definer set search_path=public,pg_temp as $$select coalesce((select sum(case when r.data->>'autoRef' is not null then case when a.data->>'noStar'='true' then 0 when ast.data->>'status'='완료' then 1 when ast.data->>'status'='안함' then -1 else 0 end else case r.data->>'kind' when '칭찬' then 1 when '지도' then -1 else 0 end end) from public.startoday_records r left join public."startoday_assignmentStates" ast on ast.class_id=cid and ast.id=r.data->>'autoRef' and ast.data->>'studentId'=sid left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId' where r.class_id=cid and r.data->'studentIds' ? sid and r.data->>'date'<=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD') and not exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=r.data->>'date' and atd.data->>'excluded'='true')),0)$$;
+create or replace function public.startoday_finance_student_data(cid uuid,sid text) returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
+ select jsonb_build_object('bankConfig',cfg->'bank','stockConfig',cfg->'stock','stars',public.startoday_finance_stars(cid,sid),'deposits',f->'bank_deposits','holdings',f->'stock_holdings','orders',f->'stock_orders','quotes',f->'stock_quotes') from (select public.startoday_finance_data(cid,sid) f,public.startoday_finance_config(coalesce((select data from public.startoday_settings where class_id=cid and id='main'),'{}'::jsonb)) cfg) x
+$$;
+create or replace function public.startoday_finance_order(cid uuid,sid text,action text,payload jsonb) returns void language plpgsql security definer set search_path=public,pg_temp as $$
+declare c public.startoday_classes;cfg jsonb;bank jsonb;stock jsonb;req uuid;principal integer;weeks integer;rate numeric;interest bigint;stars bigint;
+ v_symbol text;quote public.startoday_stock_quotes;qty numeric;amount numeric;h public.startoday_stock_holdings;reserved numeric;stamp timestamptz:=clock_timestamp();rev bigint;
+begin
+ select * into strict c from public.startoday_classes where id=cid for update;
+ if not exists(select 1 from public.startoday_students where class_id=cid and id=sid and data->>'deletedAt' is null) then raise exception 'INVALID_STUDENT';end if;
+ perform public.startoday_finance_settle(cid);
+ select public.startoday_finance_config(coalesce(data,'{}'::jsonb)) into cfg from public.startoday_settings where class_id=cid and id='main';
+ bank:=cfg->'bank';stock:=cfg->'stock';if cfg is null then raise exception 'INVALID_FINANCE_CONFIG';end if;
+ if action='refresh' then return;end if;
+ req:=(payload->>'requestId')::uuid;if req is null then raise exception 'INVALID_REQUEST_ID';end if;
+ -- UUID retry keys are scoped and checked against the original request, never a second debit.
+ if exists(select 1 from public.startoday_bank_deposits where id=req) then
+  if action<>'deposit' or not exists(select 1 from public.startoday_bank_deposits bd where bd.id=req and bd.class_id=cid and bd.student_id=sid and bd.principal=(payload->>'principal')::numeric and bd.weeks=(payload->>'weeks')::numeric) then raise exception 'REQUEST_CONFLICT';end if;return;
+ end if;
+ if exists(select 1 from public.startoday_stock_orders where id=req) then
+  if action not in ('buy','sell') or not exists(select 1 from public.startoday_stock_orders where id=req and class_id=cid and student_id=sid and side=action and symbol=payload->>'symbol' and ((action='buy' and requested_points=(payload->>'amountPoints')::numeric) or (action='sell' and shares=(payload->>'shares')::numeric))) then raise exception 'REQUEST_CONFLICT';end if;return;
+ end if;
+ if action='deposit' then
+  if jsonb_typeof(payload->'principal') is distinct from 'number' or (payload->>'principal')::numeric<>trunc((payload->>'principal')::numeric) or (payload->>'principal')::numeric not between 1 and 100000000 or jsonb_typeof(payload->'weeks') is distinct from 'number' or (payload->>'weeks')::numeric<>trunc((payload->>'weeks')::numeric) or (payload->>'weeks')::numeric not between 2 and 52 then raise exception 'INVALID_DEPOSIT';end if;
+  principal:=(payload->>'principal')::integer;weeks:=(payload->>'weeks')::integer;if weeks%2<>0 then raise exception 'INVALID_DEPOSIT';end if;
+  stars:=public.startoday_finance_stars(cid,sid);
+  select (t->>'ratePercent')::numeric into rate from jsonb_array_elements(bank->'tiers') t where (t->>'minStars')::integer<=greatest(stars,0) order by (t->>'minStars')::integer desc limit 1;
+  interest:=floor(principal::numeric*rate/100*(weeks/2));if principal+interest>1000000000 then raise exception 'AMOUNT_LIMIT';end if;
+  if public.startoday_coin_balance(cid,sid)<principal then raise exception 'INSUFFICIENT_BALANCE';end if;
+  insert into public.startoday_bank_deposits(id,class_id,owner_id,student_id,principal,weeks,rate_percent,interest,created_at,matures_at) values(req,cid,c.owner_id,sid,principal,weeks,rate,interest,stamp,stamp+weeks*interval '7 days');
+  perform public.startoday_finance_tx(cid,sid,'예금가입',-principal,req,'정기예금 '||weeks||'주');
+ elsif action in ('buy','sell') then
+  if not public.startoday_stock_market_open(stock,stamp) then raise exception 'MARKET_CLOSED';end if;
+  v_symbol:=payload->>'symbol';if v_symbol is null or v_symbol !~ '^[A-Z0-9][A-Z0-9.\^-]{0,19}$' then raise exception 'INVALID_SYMBOL';end if;
+  if action='buy' and not exists(select 1 from jsonb_array_elements(stock->'symbols') t where t->>'symbol'=v_symbol) then raise exception 'SYMBOL_DISABLED';end if;
+  select q.* into quote from public.startoday_stock_quotes q where q.symbol=v_symbol and (q.class_id is null or q.class_id=cid) order by updated_at desc,class_id nulls last limit 1;
+  if quote.id is null or quote.updated_at<stamp-interval '30 minutes' or quote.updated_at>stamp+interval '1 minute' then raise exception 'QUOTE_STALE';end if;
+  if action='buy' then
+   if jsonb_typeof(payload->'amountPoints') is distinct from 'number' or (payload->>'amountPoints')::numeric<>trunc((payload->>'amountPoints')::numeric) or (payload->>'amountPoints')::numeric not between 1 and 1000000000 then raise exception 'INVALID_AMOUNT';end if;
+   qty:=floor((payload->>'amountPoints')::numeric*(stock->>'krwPerPoint')::integer/quote.price_krw*10000)/10000;
+   amount:=ceil(qty*quote.price_krw/(stock->>'krwPerPoint')::integer);
+   select coalesce(sum(o.shares),0) into reserved from public.startoday_stock_orders o where o.class_id=cid and o.student_id=sid and o.symbol=v_symbol and o.side='buy' and o.status='pending';
+   if qty+reserved+coalesce((select held.shares from public.startoday_stock_holdings held where held.class_id=cid and held.student_id=sid and held.symbol=v_symbol),0)>9999999999.9999 then raise exception 'SHARE_LIMIT';end if;
+   if public.startoday_coin_balance(cid,sid)<amount then raise exception 'INSUFFICIENT_BALANCE';end if;
+  else
+   if jsonb_typeof(payload->'shares') is distinct from 'number' or (payload->>'shares')::numeric<>trunc((payload->>'shares')::numeric,4) then raise exception 'INVALID_SHARES';end if;
+   qty:=(payload->>'shares')::numeric;amount:=floor(qty*quote.price_krw/(stock->>'krwPerPoint')::integer);
+   select sh.* into h from public.startoday_stock_holdings sh where sh.class_id=cid and sh.student_id=sid and sh.symbol=v_symbol for update;
+   if h.student_id is null or qty>h.shares then raise exception 'INSUFFICIENT_SHARES';end if;
+  end if;
+  if qty<=0 or qty>9999999999.9999 or amount not between 1 and 1000000000 then raise exception 'INVALID_AMOUNT';end if;
+  if action='sell' then update public.startoday_stock_holdings sh set total_buy_points=case when qty=h.shares then 0 else h.total_buy_points-floor(h.total_buy_points*qty/h.shares)::bigint end,avg_price_krw=case when qty=h.shares then 0 else h.avg_price_krw end,shares=h.shares-qty where sh.class_id=cid and sh.student_id=sid and sh.symbol=v_symbol;end if;
+  insert into public.startoday_stock_orders(id,class_id,owner_id,student_id,symbol,side,price_krw,shares,amount_points,requested_points,krw_per_point,created_at,settle_at) values(req,cid,c.owner_id,sid,v_symbol,action,quote.price_krw,qty,amount,case when action='buy' then (payload->>'amountPoints')::integer end,(stock->>'krwPerPoint')::integer,stamp,stamp+(stock->>'settlementMinutes')::integer*interval '1 minute');
+  perform public.startoday_finance_tx(cid,sid,case when action='buy' then '주식매수' else '주식매도' end,case when action='buy' then -amount::integer else 0 end,req,v_symbol||' 시장가 주문');
+ else raise exception 'INVALID_FINANCE_ACTION';end if;
+ update public.startoday_classes set revision=revision+1 where id=cid returning revision into rev;
+ insert into public.startoday_audit(owner_id,class_id,revision,table_name,row_id,operation) values(c.owner_id,cid,rev,'finance',req::text,action);
+ perform public.startoday_finance_settle(cid);
+end $$;
+
+create or replace function public.startoday_teacher_finance(p_class_id uuid,p_student_id text default null,p_action text default 'refresh',p_payload jsonb default '{}'::jsonb) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare sym text;price numeric;name text;
+begin
+ if auth.uid() is null or not exists(select 1 from public.startoday_classes where id=p_class_id and owner_id=auth.uid()) then raise exception 'FORBIDDEN';end if;
+ if p_action='quote' then
+  perform 1 from public.startoday_classes where id=p_class_id for update;
+  sym:=p_payload->>'symbol';name:=p_payload->>'name';price:=(p_payload->>'priceKrw')::numeric;
+  if sym is null or sym !~ '^[A-Z0-9][A-Z0-9.\^-]{0,19}$' or name is null or length(btrim(name)) not between 1 and 80 or price is null or price<=0 or price>1000000000 or price<>round(price,4) then raise exception 'INVALID_QUOTE';end if;
+  insert into public.startoday_stock_quotes(id,class_id,symbol,name,price_krw,source,updated_at) values(p_class_id::text||':'||sym,p_class_id,sym,name,price,'manual',clock_timestamp()) on conflict(id) do update set name=excluded.name,price_krw=excluded.price_krw,change_krw=0,change_percent=0,source='manual',updated_at=excluded.updated_at;
+  update public.startoday_classes set revision=revision+1 where id=p_class_id;
+ elsif p_action='refresh' then perform public.startoday_finance_settle(p_class_id);
+ else perform public.startoday_finance_order(p_class_id,p_student_id,p_action,p_payload);end if;
+ return public.startoday_snapshot();
+end $$;
+create or replace function public.startoday_student_finance(p_school text,p_grade text,p_class text,p_no integer,p_password text,p_action text default 'refresh',p_payload jsonb default '{}'::jsonb) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare verified jsonb;cid uuid;sid text;
+begin
+ verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_password);
+ if verified is null or verified->>'mustChangePassword'='true' then raise exception 'AUTH_REQUIRED';end if;
+ cid:=(verified->>'cid')::uuid;sid:=verified->>'sid';
+ perform public.startoday_finance_order(cid,sid,p_action,p_payload);
+ return jsonb_build_object('classId',cid,'revision',(select revision from public.startoday_classes where id=cid),'snapshot',public.startoday_student_payload(cid,sid));
+end $$;
+revoke all on function public.startoday_finance_config(jsonb),public.startoday_finance_settings_guard(),public.startoday_stock_market_open(jsonb,timestamptz),public.startoday_finance_tx(uuid,text,text,integer,uuid,text),public.startoday_finance_settle(uuid),public.startoday_finance_data(uuid,text),public.startoday_finance_stars(uuid,text),public.startoday_finance_student_data(uuid,text),public.startoday_finance_order(uuid,text,text,jsonb) from public,anon,authenticated;
+revoke all on function public.startoday_teacher_finance(uuid,text,text,jsonb),public.startoday_student_finance(text,text,text,integer,text,text,jsonb) from public,anon,authenticated;
+grant execute on function public.startoday_teacher_finance(uuid,text,text,jsonb) to authenticated;
+grant execute on function public.startoday_student_finance(text,text,text,integer,text,text,jsonb) to anon,authenticated;
+
+
 create or replace function public.startoday_snapshot() returns jsonb language plpgsql security definer set search_path=public as $$
 declare c public.startoday_classes; result jsonb:='{}'; t text; rows jsonb;
 begin
  if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
  insert into public.startoday_classes(owner_id) values(auth.uid()) on conflict(owner_id) do nothing;
  select * into c from public.startoday_classes where owner_id=auth.uid();
+ perform public.startoday_finance_settle(c.id);
  -- 공유 잠금으로 여러 테이블 읽기 도중 다른 기기가 수정하지 못하게 합니다.
  perform 1 from public.startoday_classes where id=c.id for share;
  foreach t in array array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx','group_buy_contribs','surveys','survey_responses'] loop
@@ -202,7 +401,7 @@ begin
  result:=result||jsonb_build_object(t,rows);
  end loop;
  select * into c from public.startoday_classes where id=c.id;
- return jsonb_build_object('class_id',c.id,'revision',c.revision,'data',result);
+ return jsonb_build_object('class_id',c.id,'revision',c.revision,'data',result||public.startoday_finance_data(c.id));
 end $$;
 -- Canonical XP alias; pure helpers stay private to authenticated RPC implementations.
 create or replace function public.startoday_area_name(value text) returns text language sql immutable as $$select case when value='학습태도' then '학습' else value end$$;
@@ -417,7 +616,7 @@ create or replace function public.startoday_coin_balance(cid uuid,sid text) retu
  select (case when coalesce((select data->>'pointMode' from public.startoday_settings where class_id=cid and id='main'),'realtime')='salary' then 0 else coalesce((select sum(case when r.data->>'autoRef' is not null then case when a.data->>'noStar'='true' then 0 when ast.data->>'status'='완료' then 1 when ast.data->>'status'='안함' then -1 else 0 end else case r.data->>'kind' when '칭찬' then 1 when '지도' then -1 else 0 end end)*10 from public.startoday_records r left join public."startoday_assignmentStates" ast on ast.class_id=cid and ast.id=r.data->>'autoRef' and ast.data->>'studentId'=sid left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId' where r.class_id=cid and r.data->'studentIds' ? sid and r.data->>'date'>=public.startoday_point_period_start(cid) and r.data->>'date'<=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD') and not exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=r.data->>'date' and atd.data->>'excluded'='true')),0) end)+coalesce((select sum((data->>'amount')::bigint) from public.startoday_economy_tx where class_id=cid and student_id=sid),0)
 $$;
 create or replace function public.startoday_economy_payload(cid uuid,sid text) returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
- select jsonb_build_object('studentId',sid,'balance',public.startoday_coin_balance(cid,sid),'allowRefund',coalesce((select data->>'allowRefund' from public.startoday_settings where class_id=cid and id='main'),'true')<>'false',
+ select jsonb_build_object('finance',public.startoday_finance_student_data(cid,sid),'studentId',sid,'balance',public.startoday_coin_balance(cid,sid),'allowRefund',coalesce((select data->>'allowRefund' from public.startoday_settings where class_id=cid and id='main'),'true')<>'false',
  'items',coalesce((select jsonb_agg(jsonb_build_object('id',i.id,'category',i.data->>'category','name',i.data->>'name','description',coalesce(i.data->>'description',''),'price',i.data->'price','stock',i.data->'stock','isGroupBuy',i.is_group_buy,'groupGoal',i.group_goal,'groupCollected',i.group_collected,'isFunded',i.is_funded,'isUsed',i.is_used,
  'contributors',case when i.is_group_buy then coalesce((select jsonb_agg(jsonb_build_object('studentId',gc.student_id,'name',case when st.data->>'deletedAt' is null then coalesce(st.data->>'name','전출 학생') else '전출 학생' end,'amount',gc.amount,'isMe',gc.student_id=sid) order by gc.amount desc,gc.student_id) from public.startoday_group_buy_contribs gc left join public.startoday_students st on st.class_id=gc.class_id and st.id=gc.student_id where gc.class_id=cid and gc.item_id=i.id),'[]'::jsonb) else '[]'::jsonb end) order by i.created_at,i.id) from public.startoday_shop_items i where i.class_id=cid and i.data->>'deletedAt' is null),'[]'::jsonb),
  'transactions',coalesce((select jsonb_agg(jsonb_build_object('id',id,'type',data->>'type','itemId',data->>'itemId','itemName',data->>'itemName','itemCategory',coalesce(nullif(data->>'itemCategory',''),(select i.data->>'category' from public.startoday_shop_items i where i.class_id=cid and i.id::text=etx.data->>'itemId'),'기타'),'amount',data->'amount','status',data->>'status','createdAt',data->>'createdAt') order by created_at,id) from public.startoday_economy_tx etx where class_id=cid and student_id=sid),'[]'::jsonb))
@@ -431,6 +630,7 @@ returns jsonb language plpgsql security definer set search_path=public,pg_temp a
 declare student jsonb; config jsonb; day text:=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD');
  result jsonb; totals jsonb; letters jsonb; tasks jsonb; routines jsonb; timetable jsonb; calendar jsonb; praise_from text;
 begin
+ perform public.startoday_finance_settle(cid);
  select data into student from public.startoday_students where class_id=cid and id=sid;
  select data into config from public.startoday_settings where class_id=cid and id='main';
  praise_from:=case config->>'studentPraisePeriod' when '30d' then to_char(day::date-29,'YYYY-MM-DD') when '7d' then to_char(day::date-6,'YYYY-MM-DD') when 'month' then substring(day,1,8)||'01' else '' end;
@@ -710,6 +910,7 @@ declare c public.startoday_classes;item public.startoday_shop_items;prior public
 begin
  select * into c from public.startoday_classes where id=cid for update;
  if c.id is null then raise exception 'FORBIDDEN';end if;
+ perform public.startoday_finance_settle(cid);
  select * into item from public.startoday_shop_items where class_id=cid and id=target and data->>'deletedAt' is null for update;
  if item.id is null or not item.is_group_buy then raise exception 'INVALID_GROUP_BUY';end if;
  if use_reward then
@@ -763,6 +964,7 @@ begin
  if action in ('fund','group_use') then return public.startoday_group_buy_mutate(cid,sid,target,amount,action='group_use');end if;
  select * into c from public.startoday_classes where id=cid for update;
  if c.id is null or not exists(select 1 from public.startoday_students where class_id=cid and id=sid and data->>'deletedAt' is null) then raise exception 'INVALID_STUDENT';end if;
+ perform public.startoday_finance_settle(cid);
  if action in ('buy','gift') then
   select * into item from public.startoday_shop_items where class_id=cid and id=target and data->>'deletedAt' is null for update;
   if item.id is null then raise exception 'ITEM_UNAVAILABLE';end if;
@@ -885,6 +1087,7 @@ begin
  select * into c from public.startoday_classes where id=cid for update;
  select data into student from public.startoday_students where class_id=cid and id=sid and data->>'deletedAt' is null for update;
  if c.id is null or student is null then raise exception 'INVALID_STUDENT';end if;
+ perform public.startoday_finance_settle(cid);
  select value into item from jsonb_array_elements(public.startoday_avatar_catalog()) where value->>'id'=item_id;
  if item is null or action not in ('buy','equip') then raise exception 'INVALID_AVATAR_ITEM';end if;
  owned:=case when jsonb_typeof(student->'avatarOwned')='array' then student->'avatarOwned' else '[]'::jsonb end;equipped:=case when jsonb_typeof(student->'avatarEquipped')='object' then student->'avatarEquipped' else '{}'::jsonb end;

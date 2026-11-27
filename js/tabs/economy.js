@@ -1,3 +1,4 @@
+import {teacherFinanceView,studentFinanceView} from '../components/finance-view.js';
 import { economyAction } from '../components/economy-action.js';
 import * as C from '../core.js';
 import { render } from '../app.js';
@@ -18,6 +19,8 @@ export function economyMessage(error) {
   if (['PGRST202', '42883'].includes(error?.code)) return '경제 기능을 사용하려면 Supabase에서 최신 schema.sql을 실행해 주세요.';
   const text = error?.message || '';
   return Object.entries({
+    SHARE_LIMIT:'보유·정산 대기 수량 한도를 초과합니다.',AMOUNT_LIMIT:'거래 금액 한도를 초과합니다.',INVALID_DEPOSIT:'예금 원금은 정수, 기간은 2~52주(2주 단위)로 입력하세요.',INVALID_SYMBOL:'종목 코드를 확인하세요.',INVALID_QUOTE:'종목 이름과 양수 현재가를 확인하세요.',FORBIDDEN:'이 학급의 교사만 관리할 수 있습니다.',
+    AUTH_REQUIRED:'다시 로그인해 주세요.', MARKET_CLOSED:'거래 가능 시간 밖입니다. 평일 거래 시간을 확인하세요.',QUOTE_STALE:'시세가 30분 이상 지났습니다. 선생님께 갱신을 요청하세요.',INSUFFICIENT_SHARES:'매도 가능한 주식 수량이 부족합니다.',INVALID_FINANCE_CONFIG:'은행·주식 설정을 확인하세요.',SYMBOL_DISABLED:'현재 매수할 수 없는 종목입니다.',REQUEST_CONFLICT:'주문 정보가 달라졌습니다. 창을 닫고 다시 주문하세요.',INVALID_SHARES:'주식 수량은 양수이며 소수 넷째 자리까지 입력하세요.',
     AVATAR_ALREADY_OWNED: '이미 보유한 물건입니다.',
     AVATAR_NOT_OWNED: '보유한 물건만 장착할 수 있습니다.',
     INVALID_AVATAR_ITEM: '아바타 물건을 확인하세요.',
@@ -36,7 +39,7 @@ export function economyMessage(error) {
 }
 function economyDate(value) { return C.formatTimestamp(value); }
 function economyHistory(rows, teacher = false) {
-  const content = t => ['지급','차감'].includes(t.type) ? `${t.memo ? t.memo + ' (' : ''}${t.amount > 0 ? '+' : ''}${t.amount}${t.memo ? ')' : ''}` : t.itemName || t.memo || '';
+  const content = t => ['지급','차감','예금가입','예금만기','주식매수','주식매도','주식정산'].includes(t.type) ? `${t.memo ? t.memo + ' (' : ''}${t.amount > 0 ? '+' : ''}${t.amount}${t.memo ? ')' : ''}` : t.itemName || t.memo || '';
   return `<div class="table-wrap"><table class="economy-history${teacher ? ' teacher-history' : ''}"><thead><tr><th>일시</th>${teacher ? '<th>학생</th>' : ''}<th>종류</th><th>내용</th>${teacher ? '' : '<th>포인트</th><th>상태</th>'}</tr></thead><tbody>${[...rows].sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).map(t=>`<tr><td>${esc(economyDate(t.createdAt))}</td>${teacher ? `<td class="economy-history-student">${esc(name(t.studentId))}</td>` : ''}<td>${esc(t.type)}</td><td>${esc(teacher ? content(t) : t.itemName || t.memo || '')}</td>${teacher ? '' : `<td>${t.amount > 0 ? '+' : ''}${esc(t.amount)}</td><td>${esc(t.status || '')}</td>`}</tr>`).join('')}</tbody></table></div>`;
 }
 export function economyView() {
@@ -51,7 +54,7 @@ export function economyView() {
   }, economyTeacherTab === 'assets' ? 'active' : '')}${btn('상점 관리', () => {
     economyTeacherTab = 'shop';
     render();
-  }, economyTeacherTab === 'shop' ? 'active' : '')}</nav>${economyTeacherTab === 'assets' ? economyAssetsView(data, list) : `<section class="panel"><div class="toolbar">${btn('환불 허용: ' + (data.settings[0].allowRefund !== false ? '켜짐' : '꺼짐'), () => commit([up('settings', {
+  }, economyTeacherTab === 'shop' ? 'active' : '')}${btn('은행·주식',async()=>{economyTeacherTab='finance';render();await teacherFinanceAct('refresh');},economyTeacherTab==='finance'?'active':'')}</nav>${economyTeacherTab==='finance'?teacherFinanceView(data,patch=>commit([up('settings',{...db().settings[0],...patch})]),teacherFinanceAct,name):economyTeacherTab === 'assets' ? economyAssetsView(data, list) : `<section class="panel"><div class="toolbar">${btn('환불 허용: ' + (data.settings[0].allowRefund !== false ? '켜짐' : '꺼짐'), () => commit([up('settings', {
     ...data.settings[0],
     allowRefund: data.settings[0].allowRefund === false
   })]))}${btn('물품 등록', () => economyItemDialog())}</div>${economyGroupedItems((data.shop_items || []).filter(i => !i.deletedAt), i => (!i.isGroupBuy ? economyAction('gift', () => { openGiftItemId = openGiftItemId === i.id ? null : i.id; selectedGiftStudentId = null; render(); }, 'economy-item-gift-toggle', `aria-expanded="${openGiftItemId === i.id}"`) : '') + (i.isGroupBuy ? btn('상세 보기', () => teacherGroupBuyDialog(i.id), 'group-buy-detail-open') + (i.isFunded && !i.isUsed ? btn('보상 사용 완료', () => teacherUseGroupBuy(i.id)) : '') : '') + economyAction('edit', () => economyItemDialog(i)) + economyAction('delete', async () => {
@@ -61,6 +64,7 @@ export function economyView() {
     })]);
   }))}</section>`}<section class="panel"><h3>최근 학급 경제 거래</h3>${economyHistory((data.economy_tx || []).slice(-100), true)}</section>`;
 }
+async function teacherFinanceAct(action,studentId=null,payload={}){try{await store.financeAction(action,studentId,payload);render();}catch(error){throw Error(economyMessage(error));}}
 function economyAssetsView(data, list) {
   let mode = 'list';
   try { mode = localStorage.getItem('startoday_economy_view_mode') === 'cards' ? 'cards' : 'list'; } catch {}
@@ -298,10 +302,10 @@ async function paySalary(draft) {
 }
 
 // This renderer accepts only the student's allow-listed economy projection.
-export function studentEconomyView(data, tab, category, changeTab, changeCategory, act) {
+export function studentEconomyView(data, tab, category, changeTab, changeCategory, act, financeAct) {
   if (!data) return '<section class="panel">경제 정보를 불러오려면 다시 로그인해 주세요.</section>';
-  const navigation = `<nav class="village-categories village-economy-tabs" aria-label="경제 보기">${btn('내 자산', () => changeTab('assets'), tab === 'assets' ? 'is-selected' : '', `aria-pressed="${tab === 'assets'}"`)}${btn('상점', () => changeTab('shop'), tab === 'shop' ? 'is-selected' : '', `aria-pressed="${tab === 'shop'}"`)}</nav>`;
-  return villageEconomyFrame(tab === 'assets' ? '포인트 보관함' : '포인트 상점', data.balance, navigation, tab === 'assets' ? villageAssetsView(data, act) : villageShopView(data, category, changeCategory, act));
+  const navigation = `<nav class="village-categories village-economy-tabs" aria-label="경제 보기">${btn('내 자산', () => changeTab('assets'), tab === 'assets' ? 'is-selected' : '', `aria-pressed="${tab === 'assets'}"`)}${btn('상점', () => changeTab('shop'), tab === 'shop' ? 'is-selected' : '', `aria-pressed="${tab === 'shop'}"`)}${btn('은행(정기예금)',()=>changeTab('bank'),tab==='bank'?'is-selected':'')}${btn('주식',()=>changeTab('stocks'),tab==='stocks'?'is-selected':'')}</nav>`;
+  return villageEconomyFrame(tab==='bank'?'은행':tab==='stocks'?'주식':tab === 'assets' ? '포인트 보관함' : '포인트 상점', data.balance, navigation, ['bank','stocks'].includes(tab)?studentFinanceView(data,tab,financeAct):tab === 'assets' ? villageAssetsView(data, act) : villageShopView(data, category, changeCategory, act));
 }
 let ledgerScope = '', ledgerPage = 1;
 function villageAssetsView(data, act) {

@@ -1,3 +1,5 @@
+import {FINANCE_TABLES,financeSnapshot,financeConfig,validateFinanceState} from './finance.js';
+export * from './finance.js';
 import {icon as uiIcon} from './components/icons.js';
 export const DEFAULT_AREAS = ['학습', '과제', '관계', '도전', '생활', '알바'];
 export const KINDS = ['칭찬', '지도', '관찰', '추가기록'];
@@ -221,7 +223,7 @@ export function studentCalendarData(database, id) {
   };
 }
 export function initialDB() {
-  const db = Object.fromEntries(TABLES.map(t => [t, []]));
+  const db = Object.fromEntries([...TABLES,...FINANCE_TABLES].map(t => [t, []]));
   db.areas = defaultAreas();
   db.settings = [{
     id: 'main',
@@ -374,8 +376,8 @@ export function taskStateOps(db, a, d, s, status, memo = '') {
 export function applyOps(db, ops) {
   const copy = structuredClone(db);
   for (const op of ops) {
-    if (!TABLES.includes(op.table) || !op.id) throw Error('지원하지 않는 데이터입니다.');
-    const list = copy[op.table],
+    if (![...TABLES,...FINANCE_TABLES].includes(op.table) || !op.id) throw Error('지원하지 않는 데이터입니다.');
+    const list = copy[op.table] ??= [],
       i = list.findIndex(x => x.id === op.id);
     if (op.remove) {
       if (i >= 0) list.splice(i, 1);
@@ -629,7 +631,7 @@ export function validateBackup(x) {
   }
   const economyUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   for (const item of x.data.shop_items) if (!economyUuid.test(item.id) || typeof item.name !== 'string' || !item.name.trim() || !Number.isSafeInteger(item.price) || item.price < 0 || item.price > 1000000000 || !(item.stock === null || Number.isSafeInteger(item.stock) && item.stock >= 0 && item.stock <= 1000000000)) throw Error('상점 물품 형식 오류');
-  for (const tx of x.data.economy_tx) if (!economyUuid.test(tx.id) || !x.data.students.some(s => s.id === tx.studentId) || !['구매', '선물', '환불', '지급', '차감', '회수', '선물취소', '사용', '아바타구매'].includes(tx.type) || !Number.isSafeInteger(tx.amount) || Math.abs(tx.amount) > 1000000000 || typeof tx.createdAt !== 'string' || ['구매', '선물'].includes(tx.type) && (!economyUuid.test(tx.itemId) || !['보유', '사용완료', '환불됨', '회수됨', '취소됨'].includes(tx.status)) || tx.type === '구매' && tx.amount > 0 || ['선물', '회수', '선물취소', '사용'].includes(tx.type) && tx.amount !== 0 || ['환불', '지급'].includes(tx.type) && tx.amount < 0 || tx.type === '차감' && tx.amount >= 0) throw Error('경제 거래 형식 오류');
+  for (const tx of x.data.economy_tx) if (!economyUuid.test(tx.id) || !x.data.students.some(s => s.id === tx.studentId) || !['구매', '선물', '환불', '지급', '차감', '회수', '선물취소', '사용', '아바타구매','예금가입','예금만기','주식매수','주식매도','주식정산'].includes(tx.type) || !Number.isSafeInteger(tx.amount) || Math.abs(tx.amount) > 1000000000 || typeof tx.createdAt !== 'string' || ['구매', '선물'].includes(tx.type) && (!economyUuid.test(tx.itemId) || !['보유', '사용완료', '환불됨', '회수됨', '취소됨'].includes(tx.status)) || tx.type === '구매' && tx.amount > 0 || ['선물', '회수', '선물취소', '사용'].includes(tx.type) && tx.amount !== 0 || ['환불', '지급'].includes(tx.type) && tx.amount < 0 || tx.type === '차감' && tx.amount >= 0 || ['예금가입','주식매수'].includes(tx.type)&&tx.amount>=0 || ['예금만기','주식정산'].includes(tx.type)&&tx.amount<0 || tx.type==='주식매도'&&tx.amount!==0) throw Error('경제 거래 형식 오류');
   for (const item of x.data.shop_items.filter(i => i.isGroupBuy)) {
     if (!Number.isSafeInteger(item.groupGoal) || item.groupGoal < 1 || item.groupGoal > 1000000000 || !Number.isSafeInteger(item.groupCollected) || item.groupCollected < 0 || item.groupCollected > item.groupGoal || item.stock !== null || item.isFunded !== (item.groupCollected === item.groupGoal) || item.isUsed && !item.isFunded) throw Error('공동구매 형식 오류');
     if (x.data.group_buy_contribs.filter(c => c.itemId === item.id).reduce((sum, c) => sum + c.amount, 0) !== item.groupCollected) throw Error('공동구매 기여 합계 오류');
@@ -640,6 +642,8 @@ export function validateBackup(x) {
     if (contributionKeys.has(key) || c.id !== key || !x.data.shop_items.some(i => i.id === c.itemId && i.isGroupBuy) || !x.data.students.some(s => s.id === c.studentId) || !Number.isSafeInteger(c.amount) || c.amount <= 0 || c.amount > 1000000000 || typeof c.createdAt !== 'string' || typeof c.updatedAt !== 'string') throw Error('공동구매 기여 형식 오류');
     contributionKeys.add(key);
   }
+  financeConfig(x.data.settings[0]);
+  validateFinanceState(x.data);
   normalizeDB(x.data);
   const d = x.data,
     studentIds = new Set(d.students.map(s => s.id)),
@@ -686,6 +690,7 @@ export function areaNames(db, includeDeleted = false) {
   return areaRows(db, includeDeleted).map(a => a.name);
 }
 export function normalizeDB(db) {
+  for(const table of FINANCE_TABLES) db[table] ??= [];
   db.surveys ??= [];
   db.survey_responses ??= [];
   db.shop_items ??= [];
@@ -1825,6 +1830,7 @@ export function shopItemEditOps(database, proposed) {
 export function studentEconomySnapshot(database, studentId) {
   return {
     studentId,
+    finance: financeSnapshot(database,studentId),
     balance: studentBalance(database, studentId),
     allowRefund: database.settings[0]?.allowRefund !== false,
     items: (database.shop_items || []).filter(i => !i.deletedAt).map(i => ({

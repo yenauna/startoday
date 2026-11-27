@@ -405,3 +405,4 @@ console.log('PASS: 회차별 이유 태그 카탈로그·다중 선택/메모 RP
 await pg.close();
 // Keep the owner-only refund exception covered by the standard SQL regression command.
 await import('./teacher-refund.sql.mjs');
+await import('./finance.sql.mjs');

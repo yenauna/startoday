@@ -403,3 +403,7 @@ UI의 아이템은 물건, 경험치는 분야로 통일하며 데이터 키·�
 - **디자인 탭**: 임시 `디자인` 탭(`designView`)을 메뉴에 다시 넣어 `design-preview.html`의 1~9안 시안을 화면·너비·테마별로 비교할 수 있습니다. 이 화면은 학급 자료를 읽거나 쓰지 않습니다.
 - DB·`schema.sql`·학생 화면·교실화면 저장 구조는 바뀌지 않습니다.
 - 검증: `npm test`, `npm run check`, `node tests/unified-schedule.browser.mjs`(메뉴 통합, 달력→카드 연동, 과제·루틴 체크, 드래그 교환, 전체 관리, 옛 주소, 8개 폭 배치), `node tests/responsive-widths.browser.mjs`.
+
+### 은행·주식
+
+경제 → **은행·주식**에서 2주 단위 정기예금과 소수점 시장가 거래를 관리합니다. [설정·계산·시세 동기화·배포 안내](docs/bank-stocks.md)를 참고하세요. 최신 `schema.sql` 적용과 GitHub Secrets `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` 설정이 필요합니다.
