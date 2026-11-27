@@ -95,7 +95,6 @@ td button{padding:4px 8px;min-height:30px}
 .login p{color:var(--muted);line-height:1.8}
 .login button{width:100%;margin:6px 0;min-height:46px}
 dialog{border:1px solid var(--line);border-radius:13px;padding:0;width:min(780px,94vw);max-height:90dvh;color:var(--ink)}
-dialog::backdrop{background:#0F172A88}
 .dialog-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:white;z-index:5}
 .dialog-body{padding:20px 22px}
 .dialog-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:22px;border-top:1px solid var(--line);padding-top:15px}
@@ -320,7 +319,11 @@ dialog {
   background: var(--st-surface);
   box-shadow: var(--st-surface-light), var(--st-shadow-3);
 }
-dialog::backdrop { background: rgba(40, 50, 71, 0.3); }
+dialog::backdrop {
+  background: rgba(17, 31, 50, .26);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
 .dialog-head { background: var(--st-surface); border-bottom-color: var(--st-line); }
 .dialog-foot { border-top-color: var(--st-line); }
 #toast { background: var(--st-text); color: var(--st-surface); border-radius: var(--st-radius-input); box-shadow: var(--st-shadow-3); }
