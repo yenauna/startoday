@@ -417,11 +417,11 @@ async function economyInlineAction(action, studentId, target, amount = 0) {
   if (economyInlineBusy) return;
   economyInlineBusy = true;
   try {
-    const transactionId = await store.economyAction(action, studentId, target, amount);
+    const transactionId = await store.economyAction(action, studentId, target, amount, '', {teacherRefund: action === 'refund'});
     if (action === 'gift') selectedGiftStudentId = null;
     render();
     refreshEconomyManager(studentId);
-    if (action === 'gift') showGiftUndo(transactionId, studentId);else toast(name(studentId) + ' · 물품을 회수했습니다.');
+    if (action === 'gift') showGiftUndo(transactionId, studentId);else toast(name(studentId) + (action==='refund'?' · 구매 포인트를 환불했습니다.':' · 물품을 회수했습니다.'));
     return true;
   } catch (error) { toast(economyMessage(error)); return false; }
   finally { economyInlineBusy = false; }
@@ -430,11 +430,14 @@ async function economyReclaim(studentId,tx){
  const item=db().shop_items.find(i=>i.id===tx.itemId),limited=item&&item.stock!==null;
  modal('물건 회수 확인',`<p>${esc(name(studentId))} 학생의 <strong>${esc(tx.itemName)}</strong> 1개를 회수할까요?</p><p class="muted">포인트 잔액은 변경하지 않습니다.</p>${limited?checkbox('상점 재고 1개 복구','restoreStock',true):''}`,async f=>{if(await economyInlineAction('reclaim',studentId,tx.id,limited&&f.has('restoreStock')?1:0)){const student=students().find(s=>s.id===studentId);if(student)economyGiftDialog(student);else closeModal();}},'회수');
 }
+function economyTeacherRefund(studentId,tx){
+ modal('구매 물건 환불 확인',`<p>${esc(name(studentId))} 학생의 <strong>${esc(tx.itemName)}</strong> 1개를 환불할까요?</p><p>구매 금액 ${esc(-tx.amount)}포인트를 돌려주고, 수량 제한이 있는 상점 재고는 1개 복구합니다.</p>`,async()=>{if(await economyInlineAction('refund',studentId,tx.id)){const student=students().find(s=>s.id===studentId);if(student)economyGiftDialog(student);else closeModal();}},'환불');
+}
 function economyStudentManager(student) {
   const items=db().shop_items.filter(item=>!item.deletedAt&&!item.isGroupBuy),groups=new Map();
-  for(const tx of C.studentHoldings(db(),student.id)){const item=db().shop_items.find(i=>i.id===tx.itemId),key=tx.itemId||`${tx.itemCategory}:${tx.itemName}`;if(!groups.has(key))groups.set(key,{name:item?.name||tx.itemName,category:item?.category||tx.itemCategory||'기타',transactions:[]});groups.get(key).transactions.push(tx);}
+  for(const tx of C.studentHoldings(db(),student.id)){const item=db().shop_items.find(i=>i.id===tx.itemId),key=tx.type+':'+(tx.itemId||`${tx.itemCategory}:${tx.itemName}`);if(!groups.has(key))groups.set(key,{type:tx.type,name:item?.name||tx.itemName,category:item?.category||tx.itemCategory||'기타',transactions:[]});groups.get(key).transactions.push(tx);}
   const categories=(rows,card)=>{const grouped=new Map();for(const item of rows){const category=item.category||'기타';if(!grouped.has(category))grouped.set(category,[]);grouped.get(category).push(item);}return [...grouped].map(([category,list])=>`<div class="economy-managed-category"><h5>${esc(category)}</h5><div class="economy-managed-grid">${list.map(card).join('')}</div></div>`).join('');};
-  return `<div class="economy-student-manager" data-student-id="${esc(student.id)}" aria-label="${esc(student.no)}번 ${esc(student.name)} 물건 관리"><section><h4>학생 보유함</h4>${categories([...groups.values()],group=>`<article class="economy-managed-item"><strong>${esc(group.name)}</strong><span class="economy-holding-count">× ${group.transactions.length}개</span>${economyAction('reclaim',()=>economyReclaim(student.id,group.transactions[0]),'',`aria-label="${esc(group.name)} 회수"`)}</article>`)||'<p>보유 물품이 없습니다.</p>'}</section><section><h4>상점 물품 목록</h4>${categories(items,item=>`<article class="economy-managed-item"><strong>${esc(item.name)}</strong><small>${item.stock===null?'무제한':item.stock+'개'}</small>${economyAction('gift',()=>economyInlineAction('gift',student.id,item.id),'',`aria-label="${esc(item.name)} 선물" ${item.stock===0?'disabled':''}`)}</article>`)||'<p>등록된 개인 물품이 없습니다.</p>'}</section></div>`;
+  return `<div class="economy-student-manager" data-student-id="${esc(student.id)}" aria-label="${esc(student.no)}번 ${esc(student.name)} 물건 관리"><section><h4>학생 보유함</h4>${['구매','선물'].map(type=>{const owned=[...groups.values()].filter(group=>group.type===type);return owned.length?`<div class="economy-owned-type" data-holding-type="${type}"><h5>${type==='구매'?'직접 구매':'선물 받음'}</h5>${categories(owned,group=>`<article class="economy-managed-item"><strong>${esc(group.name)}</strong><span class="economy-holding-count">× ${group.transactions.length}개</span><div class="row">${economyAction('reclaim',()=>economyReclaim(student.id,group.transactions[0]),'',`aria-label="${esc(group.name)} 회수"`)}${type==='구매'?economyAction('refund',()=>economyTeacherRefund(student.id,group.transactions[0]),'',`aria-label="${esc(group.name)} 환불"`):''}</div></article>`)}</div>`:'';}).join('')||'<p>보유 물품이 없습니다.</p>'}</section><section><h4>상점 물품 목록</h4>${categories(items,item=>`<article class="economy-managed-item"><strong>${esc(item.name)}</strong><small>${item.stock===null?'무제한':item.stock+'개'}</small>${economyAction('gift',()=>economyInlineAction('gift',student.id,item.id),'',`aria-label="${esc(item.name)} 선물" ${item.stock===0?'disabled':''}`)}</article>`)||'<p>등록된 개인 물품이 없습니다.</p>'}</section></div>`;
 }
 function economyItemGiftGrid(item) {
   if (item.isGroupBuy || openGiftItemId !== item.id) return '';

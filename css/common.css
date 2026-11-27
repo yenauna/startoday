@@ -2286,3 +2286,9 @@ input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-s
   .salary-job-row { grid-template-columns:minmax(0,1fr); }
   .salary-job-who { white-space:normal; }
 }
+/* Teacher schedule uses weekdays in both views; student calendars are unchanged. */
+.schedule-calendar-panel .calendar,.schedule-calendar-panel .calendar.week{grid-template-columns:repeat(5,minmax(0,1fr))}
+.subject-save-floating{position:fixed;z-index:30;min-height:38px;padding:8px 12px;box-shadow:0 6px 18px #283E5B35;border:1px solid #FFFFFFB3;border-radius:11px;white-space:nowrap}
+.slot-main[draggable=true],.calendar-lesson[draggable=true],.event[draggable=true]{cursor:grab;user-select:none}
+.economy-owned-type>h5{margin:12px 0 6px;font-size:14px}
+.economy-action-refund{--action-tint:var(--st-blue-bg);--action-ink:var(--st-blue-text)}

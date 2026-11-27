@@ -322,7 +322,7 @@ export class Store {
       this.busy = false;
     }
   }
-  async economyAction(action, studentId, target = null, amount = 0, memo = '') {
+  async economyAction(action, studentId, target = null, amount = 0, memo = '', {teacherRefund = false} = {}) {
     const scope = this.mode + ':' + this.classId + ':' + (this.user?.id || '');
     const valid = () => scope === this.mode + ':' + this.classId + ':' + (this.user?.id || '');
     const execute = async () => {
@@ -360,7 +360,7 @@ export class Store {
         if (saved) this.db = normalizeDB(JSON.parse(saved));
         const makers = {
           buy: shopBuyOps,
-          refund: shopRefundOps,
+          refund: (database,id,target)=>shopRefundOps(database,id,target,teacherRefund),
           use: shopUseOps,
           gift: teacherGiftOps
         };

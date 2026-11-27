@@ -1728,9 +1728,9 @@ export function shopBuyOps(database, studentId, itemId) {
 export function teacherGiftOps(database, studentId, itemId) {
   return acquireItemOps(database, studentId, itemId, true);
 }
-export function shopRefundOps(database, studentId, txId) {
+export function shopRefundOps(database, studentId, txId, teacher = false) {
   economyStudent(database, studentId);
-  if (database.settings[0]?.allowRefund === false) throw Error('환불이 허용되지 않습니다.');
+  if (!teacher && database.settings[0]?.allowRefund === false) throw Error('환불이 허용되지 않습니다.');
   const tx = (database.economy_tx || []).find(t => t.id === txId && t.studentId === studentId && t.type === '구매' && t.status === '보유');
   if (!tx) throw Error('미사용 구매 물품만 환불할 수 있습니다.');
   const item = (database.shop_items || []).find(i => i.id === tx.itemId);
@@ -2561,4 +2561,41 @@ export function consultationMindSummary(database, studentId) {
       total: attention.total
     } : null
   };
+}
+
+// Keep a stable six-week month grid, with weekdays only (six rows × five days).
+export function weekdayCalendarDates(date, mode = 'month') {
+  const anchor = mode === 'month' ? date.slice(0, 7) + '-01' : date;
+  const start = addDays(anchor, -((weekday(anchor) + 6) % 7));
+  return Array.from({length: mode === 'month' ? 42 : 5}, (_, i) => addDays(start, i))
+    .filter(day => ![0, 6].includes(weekday(day)));
+}
+export function weekendEventDeleteOps(database) {
+  return database.events.filter(event => [0, 6].includes(weekday(event.date)))
+    .map(event => ({table: 'events', id: event.id, remove: true}));
+}
+function scheduleSlotAddress(value) {
+  const [date, p] = String(value).split(':'), period = Number(p), time = Date.parse(date + 'T12:00:00Z');
+  if (!Number.isFinite(time) || new Date(time).toISOString().slice(0, 10) !== date || !Number.isInteger(period) || period < 1 || period > 6) {
+    throw Error('날짜와 교시를 확인하세요.');
+  }
+  return {date, period};
+}
+export function timetableMoveOps(database, from, to) {
+  const source = scheduleSlotAddress(from), destination = scheduleSlotAddress(to);
+  if (from === to) return [];
+  const one = database.timetables.find(slot => slot.date === source.date && slot.period === source.period);
+  const two = database.timetables.find(slot => slot.date === destination.date && slot.period === destination.period);
+  if (!one) return [];
+  // Move existing rows, including imported UUIDs and their memo fields, rather than inventing date-based IDs.
+  return [
+    {table: 'timetables', id: one.id, data: {...one, ...destination, updatedAt: now()}},
+    ...(two ? [{table: 'timetables', id: two.id, data: {...two, ...source, updatedAt: now()}}] : [])
+  ];
+}
+export function scheduleEventMoveOps(database, eventId, date) {
+  scheduleSlotAddress(date + ':1');
+  const event = database.events.find(row => row.id === eventId);
+  if (!event || event.academic || event.date === date) return [];
+  return [{table: 'events', id: event.id, data: {...event, date, updatedAt: now()}}];
 }

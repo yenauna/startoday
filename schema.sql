@@ -777,7 +777,7 @@ begin
   select * into holding from public.startoday_economy_tx where class_id=cid and id=target and student_id=sid and data->>'status'='보유' and data->>'type' in ('구매','선물') for update;
   if holding.id is null then raise exception 'INVALID_HOLDING';end if;
   if action='refund' then
-   if coalesce((select data->>'allowRefund' from public.startoday_settings where class_id=cid and id='main'),'true')='false' then raise exception 'REFUNDS_DISABLED';end if;
+   if coalesce((select data->>'allowRefund' from public.startoday_settings where class_id=cid and id='main'),'true')='false' and auth.uid() is distinct from c.owner_id then raise exception 'REFUNDS_DISABLED';end if;
    if holding.data->>'type'<>'구매' then raise exception 'INVALID_HOLDING';end if;
    update public.startoday_shop_items set data=jsonb_set(data,'{stock}',to_jsonb((data->>'stock')::integer+1)),updated_at=now() where class_id=cid and id=(holding.data->>'itemId')::uuid and data->'stock'<>'null'::jsonb;
    update public.startoday_economy_tx set data=jsonb_set(data,'{status}','"환불됨"'),updated_at=now() where id=holding.id;

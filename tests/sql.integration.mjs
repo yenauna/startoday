@@ -403,3 +403,5 @@ const savedTagSurvey=snap.data.surveys.find(s=>s.id===tagSurvey);
 await assert.rejects(commit([{table:'surveys',id:tagSurvey,data:{...savedTagSurvey,reasonTags:{comfortable:['중복'],uncomfortable:['중복']}}}]),/INVALID_SURVEY_REASON_TAGS/);
 console.log('PASS: 회차별 이유 태그 카탈로그·다중 선택/메모 RPC 보존·미등록/중복/타입 검증·학생 응답 비노출');
 await pg.close();
+// Keep the owner-only refund exception covered by the standard SQL regression command.
+await import('./teacher-refund.sql.mjs');
