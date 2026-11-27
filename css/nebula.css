@@ -1130,7 +1130,6 @@
  #app .constellation-map .star-point{fill:#B9CBE8;opacity:.42}
  #app .constellation-map .star-point.is-lit{fill:#FFF1C4;opacity:1}
  #app .constellation-map .star-glow{fill:#F0D79A;opacity:.26;filter:blur(.9px)}
- #app .constellation-map .constellation-cluster.is-faint{opacity:.3}
  #app .constellation-hero h2,#app .student-profile-header .constellation-heading h2{color:var(--hero-ink)}
  #app .constellation-hero p,#app .constellation-hero small{color:var(--hero-muted)}
  #app .constellation-progress{color:var(--hero-gold)}
@@ -1144,7 +1143,7 @@
  #app .constellation-hero.is-all-complete .constellation-map{filter:drop-shadow(0 0 10px #FFE79DE6) drop-shadow(0 0 24px #F1C45B99)}
  #app .constellation-hero.is-all-complete .star-glow{animation:constellation-bright-pulse 2.6s ease-in-out infinite alternate}
  #app .constellation-hero.is-all-complete .constellation-line.is-lit{stroke:#FFEBB6;stroke-opacity:1}
- #app .constellation-hero.is-zero-progress .constellation-cluster:not(.is-faint) .star-point{fill:#A9C1DE;opacity:.5}
+ #app .constellation-hero.is-zero-progress .constellation-cluster .star-point{fill:#A9C1DE;opacity:.5}
  @media(max-width:760px){
   #app .constellation-hero>.hero-grain span{filter:blur(clamp(14px,4.4vw,26px))}
   #app .constellation-hero .constellation-map{max-height:120px}

@@ -22,32 +22,42 @@ test('주변 별빛은 실제 전체 완료일 때만 렌더링하고 반올림�
  assert.match(constellationHero('나',5,5,'개'),/constellation-sparkles/);assert.doesNotMatch(constellationHero('나',0,0,'개'),/constellation-sparkles/);assert.doesNotMatch(constellationHero('나',199,200,'개'),/constellation-sparkles/);assert.match(constellationHero('나',199,200,'개'),/99% 완료/);
 });
 
-test('학생 별자리는 바탕 틀 위에 같은 좌표로 별이 켜져 모양이 어긋나지 않음',()=>{
- const html=constellationHero('내 별자리',2,4,'개');
- const clusters=[...html.matchAll(/<g class="constellation-cluster( is-faint)?" data-stars="(\d+)" data-lit="(\d+)"[^>]*>(.*?)<\/g>/gs)];
- const frame=clusters.find(match=>match[1]),sky=clusters.find(match=>!match[1]);
- assert.ok(frame&&sky,'학생 화면은 바탕 틀과 실제 별자리를 모두 그린다');
- const coords=markup=>[...markup.matchAll(/<circle class="star-point[^"]*" cx="([\d.]+)" cy="([\d.]+)"/g)].map(match=>`${match[1]},${match[2]}`);
- const frameCoords=new Set(coords(frame[4])),skyCoords=coords(sky[4]);
- assert.equal(Number(frame[2]),16);assert.equal(Number(frame[3]),0);
- assert.equal(skyCoords.length,4);assert.equal(Number(sky[3]),2);
- // 켜지거나 꺼진 별까지 모두 바탕 틀의 좌표 위에 있다
- assert.equal(new Set(skyCoords).size,4);
- for(const coord of skyCoords) assert.ok(frameCoords.has(coord),coord);
- // 교사 화면에는 학생용 바탕 틀을 깔지 않는다
- assert.doesNotMatch(constellationHero('우리 반',3,22),/is-faint/);
- // 오늘 할 일이 없으면 바탕 틀도 그리지 않는다
- assert.doesNotMatch(constellationHero('나',0,0,'개'),/is-faint/);
- // 별 개수가 달라도 켜지는 별은 언제나 바탕 틀 좌표 위에 있다
- for(const [done,total] of [[1,1],[1,2],[2,3],[5,7],[16,16],[13,20]]){
-  const markup=constellationHero('내 별자리',done,total,'개');
-  const groups=[...markup.matchAll(/<g class="constellation-cluster( is-faint)?" data-stars="(\d+)" data-lit="(\d+)"[^>]*>(.*?)<\/g>/gs)];
-  const frameGroup=groups.find(match=>match[1]),skyGroup=groups.find(match=>!match[1]);
-  const points=markupText=>[...markupText.matchAll(/<circle class="star-point[^"]*" cx="([\d.]+)" cy="([\d.]+)"/g)].map(match=>`${match[1]},${match[2]}`);
-  const frameSet=new Set(points(frameGroup[4]));
-  assert.equal(Number(skyGroup[2]),total,total);
-  assert.equal(Number(skyGroup[3]),done,`${done}/${total}`);
-  assert.equal(points(skyGroup[4]).length,total);
-  for(const coord of points(skyGroup[4])) assert.ok(frameSet.has(coord),`${done}/${total} ${coord}`);
+test('학생 별자리는 오늘 할 일 개수만큼만 별과 선을 그리며 앞에서부터 켠다',()=>{
+ const groups=markup=>[...markup.matchAll(/<g class="constellation-cluster" data-stars="(\d+)" data-lit="(\d+)"[^>]*>(.*?)<\/g>/gs)];
+ const points=body=>[...body.matchAll(/<circle class="star-point[^"]*" cx="([\d.]+)" cy="([\d.]+)"/g)].map(match=>`${match[1]},${match[2]}`);
+ const lines=body=>[...body.matchAll(/<path class="constellation-line( is-lit)?"/g)];
+ // 할 일이 1개면 별 1개에 선 0개, 3개면 별 3개에 선 2개짜리 별자리 하나만 그린다.
+ for(const [done,total,litLines] of [[0,1,0],[1,1,0],[1,2,0],[2,3,1],[3,7,2]]){
+  const html=constellationHero('내 별자리',done,total,'개');
+  const all=groups(html);
+  assert.equal(all.length,1,`${done}/${total} 무리 수`);
+  const [group]=all;
+  assert.equal(Number(group[1]),total,`${done}/${total} 별 수`);
+  assert.equal(Number(group[2]),done,`${done}/${total} 켜진 별`);
+  assert.equal(points(group[3]).length,total);
+  assert.equal(lines(group[3]).length,total ? total-1 : 0,`${done}/${total} 선 수`);
+  assert.equal(lines(group[3]).filter(match=>match[1]).length,litLines,`${done}/${total} 켜진 선`);
+  assert.equal((group[3].match(/class="star-point is-lit"/g)||[]).length,done);
+  // 바탕 틀 없이 실제 별만 그린다(고정 16개 고리 없음).
+  assert.doesNotMatch(html,/is-faint/);
  }
+ // 오늘 할 일이 없으면 별자리를 아예 그리지 않는다.
+ assert.doesNotMatch(constellationHero('내 별자리',0,0,'개'),/constellation-cluster|is-faint/);
+ // 별 좌표는 할 일이 적은 날에도 많은 날의 앞쪽 좌표를 그대로 물려받고 서로 겹치지 않는다.
+ const wide=points(groups(constellationHero('내 별자리',0,16,'개'))[0][3]);
+ assert.equal(new Set(wide).size,16);
+ for(const total of [1,3,5,8,12,16]) assert.deepEqual(points(groups(constellationHero('내 별자리',0,total,'개'))[0][3]),wide.slice(0,total),`${total}개`);
+ // 준비된 16개보다 많으면 겹을 더 그려 개수를 정확히 맞춘다.
+ const many=groups(constellationHero('내 별자리',20,20,'개'))[0];
+ assert.equal(Number(many[1]),20);
+ assert.equal(points(many[3]).length,20);
+ assert.equal(new Set(points(many[3])).size,20);
+ // 교사 화면은 학생 수만큼 별을 그리고 학생용 바탕 틀을 깔지 않는다.
+ const teacher=groups(constellationHero('우리 반',3,22));
+ assert.equal(teacher.length,1);
+ assert.equal(Number(teacher[0][1]),22);
+ assert.equal(Number(teacher[0][2]),3);
+ assert.doesNotMatch(constellationHero('우리 반',3,22),/is-faint/);
+ // 모두 마치면 반짝임은 그대로 붙는다.
+ assert.match(constellationHero('내 별자리',3,3,'개'),/constellation-sparkles/);
 });
