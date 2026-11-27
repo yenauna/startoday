@@ -48,7 +48,7 @@ try{
    const b=await button.boundingBox();assert.equal(b.width,38);assert.equal(b.height,38);assert.equal(await button.locator('svg').count(),1);assert.equal(await button.evaluate(e=>getComputedStyle(e).borderRadius),'50%');
   }
   if(!touch){
-   await reclaim.hover();await page.waitForFunction(el=>getComputedStyle(el.querySelector('.tooltip')).top==='-38px',await reclaim.elementHandle());assert.equal(await reclaim.locator('.tooltip').evaluate(e=>getComputedStyle(e).top),'-38px');assert.equal(await reclaim.locator('.tooltip').evaluate(e=>getComputedStyle(e).opacity),'1');
+   await reclaim.hover();await page.waitForFunction(el=>{const style=getComputedStyle(el.querySelector('.tooltip'));return style.top==='-38px'&&style.opacity==='1';},await reclaim.elementHandle());assert.equal(await reclaim.locator('.tooltip').evaluate(e=>getComputedStyle(e).top),'-38px');assert.equal(await reclaim.locator('.tooltip').evaluate(e=>getComputedStyle(e).opacity),'1');
    assert.equal(await reclaim.evaluate(e=>getComputedStyle(e).backgroundColor),await reclaim.locator('.tooltip').evaluate(e=>getComputedStyle(e).backgroundColor));
    assert.equal(await reclaim.locator('.tooltip').evaluate(e=>getComputedStyle(e,'::before').width),'8px');
   }else{
@@ -61,7 +61,7 @@ try{
   const card=page.locator('.economy-item').filter({has:page.getByRole('heading',{name:'보드게임',exact:true})});
   const edit=card.getByRole('button',{name:'수정',exact:true});
   assert.equal(await edit.locator('svg').count(),1);assert.equal((await edit.boundingBox()).width,38);assert.equal((await edit.boundingBox()).height,38);
-  if(!touch){await edit.hover();await page.waitForFunction(el=>getComputedStyle(el.querySelector('.tooltip')).top==='-38px',await edit.elementHandle());assert.equal(await edit.locator('.tooltip').innerText(),'수정');assert.equal(await edit.locator('.tooltip').evaluate(e=>getComputedStyle(e).top),'-38px');assert.equal(await edit.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(51, 65, 85)');}
+  if(!touch){await edit.hover();await page.waitForFunction(el=>{const style=getComputedStyle(el.querySelector('.tooltip'));return style.top==='-38px'&&style.opacity==='1';},await edit.elementHandle());assert.equal(await edit.locator('.tooltip').innerText(),'수정');assert.equal(await edit.locator('.tooltip').evaluate(e=>getComputedStyle(e).top),'-38px');assert.equal(await edit.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(51, 65, 85)');}
   else{assert.equal(await edit.locator('.economy-action-label').innerText(),'수정');assert.equal(await edit.locator('.economy-action-label').isVisible(),true);}
   await page.screenshot({path:`/tmp/edit-action-${width}.png`});
   if(touch)await edit.locator('.economy-action-label').tap();else await edit.click();
