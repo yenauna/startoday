@@ -1,3 +1,4 @@
+import {meetingView,meetingMessage} from '../components/meeting-view.js';
 import {icon} from '../components/icons.js';
 import {notificationStorageKey,unreadNotifications,acknowledgeNotification} from '../components/student-notifications.js';
 import {constellationHero} from '../components/constellation.js';
@@ -100,6 +101,7 @@ export function studentSnapshot(source, student, date = C.today()) {
       equippedTitle: student.equippedTitle || null
     },
     survey: C.surveySnapshot(source,student.id),
+    meeting: C.meetingSnapshot(source,student.id),
     economy: C.studentEconomySnapshot(source, student.id),
     avatar: C.avatarSnapshot(student),
     schoolName: source.settings[0]?.schoolName || '',
@@ -355,6 +357,7 @@ export function renderStudentShell() {
   if (!student) return `<main class="student-shell"><p>학생 정보를 확인할 수 없습니다.</p>${btn('돌아가기', leaveStudentView)}</main>`;
   const data = state.impersonatingStudentId ? studentSnapshot(store.db, student) : state.studentSnapshot;
   if (!data) return `<main class="student-shell">${btn('다시 로그인', leaveStudentView)}</main>`;
+  if(state.impersonatingStudentId&&store.mode==='cloud'&&store.meetingPreview?.studentId===student.id)data.meeting=store.meetingPreview.meeting;
   const scopeEconomy = store.mode + ':' + store.classId + ':' + student.id;
   if (scopeEconomy !== studentEconomyScope) {
     studentEconomyScope = scopeEconomy;
@@ -370,7 +373,7 @@ export function renderStudentShell() {
     studentSection = 'economy';
     render();
     studentFinanceAct('refresh').catch(error=>toast(economyMessage(error)));
-  }, studentSection === 'economy' ? 'active' : '')}${btn('설문',()=>{studentSection='survey';render();},studentSection==='survey'?'active':'')}</nav>`;
+  }, studentSection === 'economy' ? 'active' : '')}${btn('설문',()=>{studentSection='survey';render();},studentSection==='survey'?'active':'')}${btn('학급회의',()=>{studentSection='meeting';render();},studentSection==='meeting'?'active':'')}</nav>`;
   const economyContent = () => studentEconomyView(data.economy, studentEconomyTab, studentEconomyCategory, tab => {
     studentEconomyTab = tab;
     render();
@@ -391,7 +394,7 @@ export function renderStudentShell() {
     const done = ['완료', '늦게완료', '면제'].includes(task.status);
     return `${routine ? `<button type="button" class="student-task student-routine-toggle ${done ? 'is-complete' : 'is-pending'}" data-routine-id="${esc(task.id || '')}" ${task.status === '면제' || !task.id ? 'disabled' : ''} aria-pressed="${done}">` : `<div class="student-task ${task.overdue ? 'is-overdue ' : ''}${done ? 'is-complete' : 'is-pending'}">`}<div><strong class="${routine ? 'student-routine-title' : ''}">${esc(task.title)}</strong>${task.isQuest && task.startDate ? `<small>${esc(C.formatDate(task.startDate))} ~ ${task.endDate ? esc(C.formatDate(task.endDate)) : '무기한'}</small>` : task.date ? `<small>${esc(C.formatDate(task.date))}</small>` : ''}${!routine && task.memo ? `<p class="assignment-public-memo">${esc(task.memo)}</p>` : ''}${!routine && checkerLabel(task.checkerName) ? `<small class="assignment-checker">🔍 확인 : ${checkerLabel(task.checkerName)}</small>` : ''}</div><span>${task.isQuest ? `${task.status === '면제' ? '면제 · ' : ''}🏅 ${task.stamps}/${task.goal}` : (done ? '✓ ' : '') + esc(task.status)}</span>${task.isQuest ? questStampBoard(task.stamps, task.goal) + studentQuestSubtasks(task) : ''}${routine ? '</button>' : '</div>'}`;
   }).join('') || '<p class="muted">오늘 할 일이 없습니다.</p>';
-  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<div class="student-home-topbar"><header class="student-header"><strong class="student-site-name"><img class="student-brand-logo" src="assets/logo-icon.jpg" alt="" width="30" height="30">오늘의 별</strong><small class="student-header-class">${esc(data.schoolName || recentStudentSchool().name || '')} ${esc(data.className)}</small><div class="student-header-actions">${studentNotificationBell(data)}${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView, 'student-logout')}</div></header>${economyNavigation}</div>${studentSection === 'survey' ? `<main class="student-survey-main"><div class="row">${btn('설문 새로고침',()=>studentEconomyAct('refresh'))}</div>${studentSurveyView(data.survey,student.id,submitStudentSurvey)}</main>` : studentSection === 'avatar' ? studentAvatarView(data) : studentSection === 'economy' ? `<main class="student-economy">${economyContent()}</main>` : `<main class="student-dashboard student-home-village">${profileCard}<section class="student-card student-timetable-card"><h2 class="student-card-title">${icon('calendar')}<span>오늘의 일정</span></h2><div class="student-today-events">${studentTodayEvents(data)}</div>${studentDaySchedule(data)}</section><section class="student-card student-tasks-card"><h2 class="student-card-title">${icon('assignments')}<span>오늘의 과제 &amp; 루틴</span></h2><h3 class="student-section-heading">오늘의 과제</h3>${taskList(data.tasks.filter(task => !task.isQuest))}<h3 class="student-section-heading">매일 루틴</h3>${taskList(data.routines, true)}${(data.checkingAssignments || []).map(a => btn('🔍 내가 확인할 친구 과제: ' + esc(a.title), () => openCheckerChecklist(a.id), 'peer-checker-card')).join('')}</section><section class="student-card student-calendar-card"><h2 class="student-card-title">${icon('calendar')}<span>과제·일정 달력</span></h2>${studentCalendarView(data, student.id)}</section><section class="student-card student-long-assignments"><h2 class="student-card-title">${icon('book')}<span>장기과제</span></h2>${studentLongAssignments(data.tasks.filter(task => task.isQuest))}</section><section class="student-card student-praise-card"><h2 class="student-card-title">${icon('medal')}<span>선생님의 칭찬 편지함</span></h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><div class="record-content-line">${C.recordAreas(r).map(area => `<span class="badge">${esc(area)}</span>`).join('')}<span class="body">${esc(r.text)}</span></div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main>`}</div>`;
+  return `<div class="student-shell">${state.impersonatingStudentId ? `<aside class="student-preview-banner">👁️ 선생님 대리 접속 모드${btn('교사 화면으로 돌아가기', leaveStudentView)}</aside>` : ''}<div class="student-home-topbar"><header class="student-header"><strong class="student-site-name"><img class="student-brand-logo" src="assets/logo-icon.jpg" alt="" width="30" height="30">오늘의 별</strong><small class="student-header-class">${esc(data.schoolName || recentStudentSchool().name || '')} ${esc(data.className)}</small><div class="student-header-actions">${studentNotificationBell(data)}${state.impersonatingStudentId ? '' : btn('로그아웃', leaveStudentView, 'student-logout')}</div></header>${economyNavigation}</div>${studentSection === 'meeting' ? `<main class="student-meeting-main">${meetingView(data.meeting,studentMeetingAct,render,store.mode+':'+store.classId)}</main>` : studentSection === 'survey' ? `<main class="student-survey-main"><div class="row">${btn('설문 새로고침',()=>studentEconomyAct('refresh'))}</div>${studentSurveyView(data.survey,student.id,submitStudentSurvey)}</main>` : studentSection === 'avatar' ? studentAvatarView(data) : studentSection === 'economy' ? `<main class="student-economy">${economyContent()}</main>` : `<main class="student-dashboard student-home-village">${profileCard}<section class="student-card student-timetable-card"><h2 class="student-card-title">${icon('calendar')}<span>오늘의 일정</span></h2><div class="student-today-events">${studentTodayEvents(data)}</div>${studentDaySchedule(data)}</section><section class="student-card student-tasks-card"><h2 class="student-card-title">${icon('assignments')}<span>오늘의 과제 &amp; 루틴</span></h2><h3 class="student-section-heading">오늘의 과제</h3>${taskList(data.tasks.filter(task => !task.isQuest))}<h3 class="student-section-heading">매일 루틴</h3>${taskList(data.routines, true)}${(data.checkingAssignments || []).map(a => btn('🔍 내가 확인할 친구 과제: ' + esc(a.title), () => openCheckerChecklist(a.id), 'peer-checker-card')).join('')}</section><section class="student-card student-calendar-card"><h2 class="student-card-title">${icon('calendar')}<span>과제·일정 달력</span></h2>${studentCalendarView(data, student.id)}</section><section class="student-card student-long-assignments"><h2 class="student-card-title">${icon('book')}<span>장기과제</span></h2>${studentLongAssignments(data.tasks.filter(task => task.isQuest))}</section><section class="student-card student-praise-card"><h2 class="student-card-title">${icon('medal')}<span>선생님의 칭찬 편지함</span></h2>${(data.praise || []).filter(r => r.kind === '칭찬').map(r => `<article class="student-praise"><small>${esc(C.formatDate(r.date))}${r.period ? ' ' + esc(r.period) : ''}</small><div class="record-content-line">${C.recordAreas(r).map(area => `<span class="badge">${esc(area)}</span>`).join('')}<span class="body">${esc(r.text)}</span></div></article>`).join('') || '<p class="student-empty">선생님의 따뜻한 칭찬이 여기에 차곡차곡 쌓여요! 오늘도 힘내요 ⭐</p>'}</section></main>`}</div>`;
 }
 let studentCalendarScope = '',
   studentCalendarDate = '',
@@ -746,6 +749,21 @@ function questStampBoard(stamps, goal) {
   return `<div class="quest-stamp-board" aria-label="스탬프 ${stamps}/${goal}">${Array.from({
     length: Math.min(goal, 30)
   }, (_, i) => `<span class="${i < stamps ? 'is-stamped' : ''}" aria-hidden="true">${i < stamps ? '★' : '☆'}</span>`).join('')}${goal > 30 ? `<small>${stamps}/${goal}</small>` : ''}</div>`;
+}
+let studentMeetingSaving=false;
+async function studentMeetingAct(action,payload={},background=false){
+ if(studentMeetingSaving)throw Error('처리 중입니다. 잠시 후 다시 시도하세요.');
+ const id=state.impersonatingStudentId||state.studentUser?.id,credentials=checkerCredentials,preview=!!state.impersonatingStudentId;studentMeetingSaving=true;
+ try{
+  if(preview||['demo','local'].includes(store.mode)){
+   if(!preview){const raw=localStorage.getItem('startoday-demo-v1');if(raw)store.db=C.normalizeDB(JSON.parse(raw));const student=credentials&&localStudentMatch(credentials.identity),info=student&&studentPasswordInfo(student,store.db.settings[0]);if(student?.id!==id||!info||info.mustChangePassword||info.password!==credentials.password)throw Error('다시 로그인해 주세요.');}
+   await store.meetingAction(action,payload,id);
+   if(!preview&&credentials===checkerCredentials&&id===state.studentUser?.id)state.studentSnapshot=studentSnapshot(store.db,store.db.students.find(s=>s.id===id));
+  }else{
+   if(!credentials||!store.client)throw Error('다시 로그인해 주세요.');const {data,error}=await store.client.rpc('startoday_student_meeting',{...studentRpcIdentity(credentials.identity),p_password:credentials.password,p_action:action,p_payload:payload});if(error)throw error;if(credentials!==checkerCredentials||id!==state.studentUser?.id)throw Error('화면이 변경되었습니다.');if(!data?.snapshot?.student)throw Error('다시 로그인해 주세요.');state.studentSnapshot=data.snapshot;store.signalChange('cloud',data.classId,data.revision);
+  }
+  if(!background||!document.querySelector('#modal[open]'))render();
+ }catch(error){throw Error(meetingMessage(error));}finally{studentMeetingSaving=false;}
 }
 async function studentFinanceAct(action,payload={}) {
  if(studentEconomySaving)throw Error('처리 중입니다. 잠시 후 다시 시도하세요.');

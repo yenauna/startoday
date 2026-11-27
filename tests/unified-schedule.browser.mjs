@@ -72,8 +72,9 @@ try{
  await page.waitForTimeout(400);
  assert((await page.locator('.schedule-routine').first().locator('.schedule-routine-count').innerText()).includes('0/20'));
  // 시간표 드래그 교환
+ await page.locator('.schedule-card-events').getByRole('button',{name:'+ 교시 추가',exact:true}).click();
  const before=await page.evaluate(()=>JSON.parse(localStorage.getItem('startoday-demo-v1')).timetables.map(t=>`${t.period}:${t.subjectCode}`).join(','));
- await page.locator('.schedule-period[data-drag]').first().dragTo(page.locator('.schedule-period[data-drop]').nth(3));
+ await page.locator('.schedule-period-main[data-drag]').first().dragTo(page.locator('.schedule-period[data-drop]').nth(3));
  await page.waitForTimeout(500);
  const after=await page.evaluate(()=>JSON.parse(localStorage.getItem('startoday-demo-v1')).timetables.map(t=>`${t.period}:${t.subjectCode}`).join(','));
  assert.notEqual(before,after,'드래그로 교시가 바뀐다');

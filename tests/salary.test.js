@@ -109,6 +109,7 @@ test('월급: 지급 메모에 기간·산식 요약을 남긴다', () => {
 
 test('월급: 지급은 설정과 거래를 한 묶음으로 만들고, 지급 뒤 남은 기간은 다시 세지 않는다', () => {
   const db = fixture();
+  const offset=Math.round((Date.parse(C.today())-Date.parse(DAY))/86400000);for(const record of db.records)record.date=C.addDays(record.date,offset);
   const settings = { ...db.settings[0], pointMode: 'salary', salary: { period: '2week', basis: 'praise', multiplier: 10, jobs: true, jobWages: { s1: { name: '우유 당번', amount: 50 } } } };
   const result = C.salaryPayOps(db, settings, ['s1', 's2'], C.today());
   assert.equal(result.memo, '[월급] 2주 · 칭찬×10 + 직업');

@@ -1,3 +1,5 @@
+import {MEETING_TABLES} from './meetings.js';
+export * from './meetings.js';
 import {FINANCE_TABLES,financeSnapshot,financeConfig,validateFinanceState} from './finance.js';
 export * from './finance.js';
 import {icon as uiIcon} from './components/icons.js';
@@ -223,7 +225,7 @@ export function studentCalendarData(database, id) {
   };
 }
 export function initialDB() {
-  const db = Object.fromEntries([...TABLES,...FINANCE_TABLES].map(t => [t, []]));
+  const db = Object.fromEntries([...TABLES,...FINANCE_TABLES,...MEETING_TABLES].map(t => [t, []]));
   db.areas = defaultAreas();
   db.settings = [{
     id: 'main',
@@ -376,7 +378,7 @@ export function taskStateOps(db, a, d, s, status, memo = '') {
 export function applyOps(db, ops) {
   const copy = structuredClone(db);
   for (const op of ops) {
-    if (![...TABLES,...FINANCE_TABLES].includes(op.table) || !op.id) throw Error('지원하지 않는 데이터입니다.');
+    if (![...TABLES,...FINANCE_TABLES,...MEETING_TABLES].includes(op.table) || !op.id) throw Error('지원하지 않는 데이터입니다.');
     const list = copy[op.table] ??= [],
       i = list.findIndex(x => x.id === op.id);
     if (op.remove) {
@@ -690,6 +692,7 @@ export function areaNames(db, includeDeleted = false) {
   return areaRows(db, includeDeleted).map(a => a.name);
 }
 export function normalizeDB(db) {
+  for(const table of MEETING_TABLES)db[table]??=[];
   for(const table of FINANCE_TABLES) db[table] ??= [];
   db.surveys ??= [];
   db.survey_responses ??= [];
@@ -2604,4 +2607,10 @@ export function scheduleEventMoveOps(database, eventId, date) {
   const event = database.events.find(row => row.id === eventId);
   if (!event || event.academic || event.date === date) return [];
   return [{table: 'events', id: event.id, data: {...event, date, updatedAt: now()}}];
+}
+
+export function timetableVisiblePeriods(database,date,expanded=false){
+ if(expanded)return [1,2,3,4,5,6];
+ const periods=[...(database.timetables||[]).filter(t=>t.date===date).map(t=>t.period),...calendarEvents(database).filter(e=>e.date===date).map(e=>eventTimePeriod(e))].filter(p=>Number.isInteger(p)&&p>=1&&p<=6);
+ return Array.from({length:Math.max(1,...periods)},(_,i)=>i+1);
 }
