@@ -10,39 +10,22 @@ const CLASS_SKY = [
   {stars: [[196,150],[232,166],[272,156],[306,172],[338,158],[268,138],[300,132]], edges: [[0,1],[1,2],[2,3],[3,4],[2,5],[5,6]]},
   {stars: [[58,46],[88,28],[120,44],[146,20],[112,80],[74,72]], edges: [[0,1],[1,2],[2,3],[2,4],[4,5],[5,0]]}
 ];
-const MY_SKY = [[214,58],[268,44],[316,74],[338,120],[292,140],[238,132],[186,104],[150,72],[172,36],[224,22],[282,18],[332,40],[352,86],[342,158],[286,176],[218,166]];
+/* 내 별자리: 오늘 할 일이 몇 개든 앞에서부터 하나씩 이어지는 자유 좌표 별자리다.
+   고리처럼 닫지 않고, 그린 별끼리만 선을 이어 할 일이 1~3개여도 그 개수만큼의 별자리가 된다. */
+const MY_SKY = [
+  {stars: [[132,104],[168,78],[206,92],[238,60],[274,74],[306,52],[336,78]], edges: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]]},
+  {stars: [[300,110],[264,126],[226,120],[196,140],[164,132]], edges: [[0,1],[1,2],[2,3],[3,4]]},
+  {stars: [[120,58],[98,86],[82,54],[60,76]], edges: [[0,1],[1,2],[2,0],[2,3]]}
+];
 const SPARKLES = [[348,44,8],[124,76,5.6],[330,182,6.2],[58,40,4.4],[300,16,5]];
 
-/* 내 별자리: MY_SKY 좌표를 순서대로 이어 마지막 별에서 다시 첫 별로 닫는 고리 별자리다.
-   오늘 별이 몇 개든 켜지는 별은 언제나 이 별자리의 앞쪽 좌표 위에 하나씩 놓인다. */
-function personalEdges(count) {
-  const edges = [];
-  for (let i = 1; i < count; i += 1) edges.push([i - 1, i]);
-  if (count >= MY_SKY.length) edges.push([MY_SKY.length - 1, 0]);
-  return edges;
-}
-
-function personalSky(count) {
-  const stars = [];
-  for (let i = 0; i < count; i += 1) {
-    const layer = Math.floor(i / MY_SKY.length);
-    const [x, y] = MY_SKY[i % MY_SKY.length];
-    stars.push({x: x + layer * 4, y: y + layer * 6});
-  }
-  return {stars, edges: personalEdges(count)};
-}
-
-/* 바탕 별자리 틀: 오늘 별이 적어도 윤곽이 보이도록 내 별자리 전체를 같은 좌표에 흐릿하게 깐다.
-   켜지는 별은 이 틀의 좌표 위에 정확히 겹치므로 바탕 모양과 별이 뜬 모양이 어긋나지 않는다. */
-function personalFrame(count) {
-  return personalSky(Math.max(MY_SKY.length, count));
-}
-
-function classSky(count) {
+/* 별 무리 목록에서 앞에서부터 count개만 꺼내고, 그려진 별끼리만 선을 잇는다.
+   그리지 않은 별로 향하는 선은 아예 만들지 않아 별과 선의 개수가 함께 줄어든다. */
+function skyFrom(clusters, count) {
   const stars = [];
   const edges = [];
   let cursor = 0;
-  for (const cluster of CLASS_SKY) {
+  for (const cluster of clusters) {
     const start = cursor;
     for (const [x, y] of cluster.stars) {
       if (stars.length >= count) break;
@@ -52,9 +35,9 @@ function classSky(count) {
     const taken = cursor - start;
     for (const [a, b] of cluster.edges) if (a < taken && b < taken) edges.push([start + a, start + b]);
   }
-  // 별이 모두 들어간 무리(30개)보다 학생이 많으면 같은 무리를 한 겹 더 그려 이어 붙인다.
+  // 준비된 별보다 많으면 같은 무리를 한 겹 더 그려 이어 붙인다.
   if (count > stars.length) {
-    const pool = CLASS_SKY.flatMap(cluster => cluster.stars.map(([x, y]) => ({x, y})));
+    const pool = clusters.flatMap(cluster => cluster.stars.map(([x, y]) => ({x, y})));
     while (stars.length < count) {
       const layer = Math.floor(stars.length / pool.length);
       const base = pool[stars.length % pool.length];
@@ -65,21 +48,30 @@ function classSky(count) {
   return {stars, edges};
 }
 
-function clusterMarkup({stars, edges}, lit, faint = false) {
+function classSky(count) {
+  return skyFrom(CLASS_SKY, count);
+}
+
+/* 내 별자리: 오늘 할 일 개수만큼만 그린다. 할 일이 없으면 빈 하늘 그대로 둔다. */
+function personalSky(count) {
+  return skyFrom(MY_SKY, count);
+}
+
+function clusterMarkup({stars, edges}, lit) {
   if (!stars.length) return '';
   const lines = edges.map(([a, b]) => {
     const from = stars[a], to = stars[b];
     if (!from || !to) return '';
     const d = `M${from.x} ${from.y}L${to.x} ${to.y}`;
-    const on = !faint && a < lit && b < lit;
+    const on = a < lit && b < lit;
     return `<path class="constellation-halo" d="${d}"/><path class="constellation-line${on ? ' is-lit' : ''}" d="${d}"/>`;
   }).join('');
   const points = stars.map(({x, y}, index) => {
-    const on = !faint && index < lit;
+    const on = index < lit;
     const glow = on ? `<circle class="star-glow" cx="${x}" cy="${y}" r="7.2"/>` : '';
     return `${glow}<circle class="star-point${on ? ' is-lit' : ''}" cx="${x}" cy="${y}" r="${on ? 3.2 : 2.4}"/>`;
   }).join('');
-  return `<g class="constellation-cluster${faint ? ' is-faint' : ''}" data-stars="${stars.length}" data-lit="${faint ? 0 : lit}"${faint ? ' aria-hidden="true"' : ''}>${lines}${points}</g>`;
+  return `<g class="constellation-cluster" data-stars="${stars.length}" data-lit="${lit}">${lines}${points}</g>`;
 }
 
 function sparklePath(x, y, size) {
@@ -120,11 +112,10 @@ export function constellationHero(title, done, total, unit = '명', options = {}
   const progress = student
     ? (n ? `${Math.min(allDone ? 100 : 99, Math.round(complete / n * 100))}% 완료` : '오늘 등록된 과제가 없어요')
     : `${complete}명 완료`;
+  // 학생 화면은 오늘 할 일 개수만큼만, 교사 화면은 학생 수만큼만 별을 그린다.
   const sky = student ? personalSky(n) : classSky(n);
-  // 학생 화면의 바탕은 내 별자리 전체 윤곽이다. 다른 무리를 깔지 않아 별이 뜨는 자리와 1:1로 맞는다.
-  const faint = student && n ? clusterMarkup(personalFrame(n), 0, true) : '';
   const sparkles = allDone
     ? `<g class="constellation-sparkles" aria-hidden="true">${SPARKLES.map(([x, y, size], i) => `<path d="${sparklePath(x, y, size)}" style="--sparkle-delay:${(i * 0.37).toFixed(2)}s"/>`).join('')}</g>`
     : '';
-  return `<section class="constellation-hero ${options.className || ''} ${allDone ? 'is-all-complete' : student && n > 0 && complete === 0 ? 'is-zero-progress' : ''}" aria-label="${C.esc(title)}" data-progress-done="${complete}" data-progress-total="${n}"><div class="hero-grain" aria-hidden="true"><span></span><span></span><span></span><span></span></div><svg class="constellation-sky" viewBox="0 0 1200 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">${dustMarkup()}</svg>${options.top || ''}<div class="constellation-copy">${options.content || ''}<div class="constellation-heading"><h2>${C.esc(title)}</h2><strong class="constellation-progress ${student && !n ? 'is-empty' : ''}">${progress}</strong></div>${options.controls || ''}</div><svg class="constellation-map" viewBox="0 0 380 200" preserveAspectRatio="xMaxYMid meet" role="img" aria-label="${C.esc(progress)}">${faint}${clusterMarkup(sky, complete)}${sparkles}</svg></section>`;
+  return `<section class="constellation-hero ${options.className || ''} ${allDone ? 'is-all-complete' : student && n > 0 && complete === 0 ? 'is-zero-progress' : ''}" aria-label="${C.esc(title)}" data-progress-done="${complete}" data-progress-total="${n}"><div class="hero-grain" aria-hidden="true"><span></span><span></span><span></span><span></span></div><svg class="constellation-sky" viewBox="0 0 1200 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">${dustMarkup()}</svg>${options.top || ''}<div class="constellation-copy">${options.content || ''}<div class="constellation-heading"><h2>${C.esc(title)}</h2><strong class="constellation-progress ${student && !n ? 'is-empty' : ''}">${progress}</strong></div>${options.controls || ''}</div><svg class="constellation-map" viewBox="0 0 380 200" preserveAspectRatio="xMaxYMid meet" role="img" aria-label="${C.esc(progress)}">${clusterMarkup(sky, complete)}${sparkles}</svg></section>`;
 }
