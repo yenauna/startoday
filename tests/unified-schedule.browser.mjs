@@ -26,7 +26,7 @@ try{
  await page.getByRole('button',{name:'가상 명단으로 먼저 살펴보기',exact:true}).click();
  const seed=await page.evaluate(async()=>{
   const {store,state}=await import('/js/shared/state.js'),C=await import('/js/core.js');
-  const d=store.db,date=C.today(),tomorrow=C.addDays(date,1);
+  const d=store.db,date='2026-11-23',tomorrow=C.addDays(date,1);
   Object.assign(d.settings[0],{grade:5,className:'행복한 우리 반 5학년 1반'});
   d.timetables=[1,2,3].map(p=>({id:`${date}-${p}`,date,period:p,subjectCode:['국어','수학','과학'][p-1],publicMemo:p===2?'분수 나눗셈 준비물':'',teacherMemo:p===1?'받아쓰기 채점':''}));
   d.events=[{id:'e1',date,timeOfDay:'morning',title:'아침 독서',isImportant:true}];
@@ -53,7 +53,7 @@ try{
  await page.locator(`[data-schedule-date="${seed.tomorrow}"] .day-head`).click();
  await page.waitForTimeout(200);
  assert.equal(await page.evaluate(async()=>(await import('/js/shared/state.js')).state.date),seed.tomorrow);
- assert((await page.locator('.schedule-card-events h3').innerText()).includes('11.25'));
+ assert((await page.locator('.schedule-card-events h3').innerText()).includes(await page.evaluate(async d=>(await import('/js/core.js')).formatDate(d),seed.tomorrow)));
  assert.equal(await page.locator('.schedule-routine.is-exempt').count(),1,'루틴 쉬는 날 표시');
  await page.locator(`[data-schedule-date="${seed.date}"] .day-head`).click();
  await page.waitForTimeout(200);

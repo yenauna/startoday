@@ -1,5 +1,6 @@
 import {btn,esc} from '../shared/ui.js';
 const ACTIONS={
+ refund:{label:'환불',path:'M8 4 3 9l5 5M3 9h11a6 6 0 0 1 0 12h-3M16 5v6m-2-4h4'},
  edit:{label:'수정',path:'M16 3a2.8 2.8 0 0 1 4 4L7 20l-4 1 1-4L16 3z M14 5l4 4'},
  gift:{label:'선물',path:'M3 8h18v4H3z M5 12v9h14v-9 M12 8v13 M12 8H8.5A3.5 3.5 0 1 1 12 4.5V8Zm0 0h3.5A3.5 3.5 0 1 0 12 4.5'},
  reclaim:{label:'회수',path:'M8 4 3 9l5 5 M3 9h11a6 6 0 0 1 0 12h-3'},
