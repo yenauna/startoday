@@ -1,3 +1,4 @@
+import {financeOrderOps,financeSettleOps,validSymbol} from './finance.js';
 import { surveySubmitOps, TABLES, normalizeDB, initialDB, applyOps, uid, now, assignmentPolicyOps, areaMigrationOps, mergeRewardTitles, demoDB, DEMO_INITIAL_PASSWORD, shopBuyOps, shopRefundOps, shopUseOps, teacherGiftOps, teacherBalanceAdjustOps, shopFundGroupBuyOps, shopUseGroupBuyOps, teacherReclaimOps, teacherUndoGiftOps } from './core.js';
 export class Store {
   async submitLocalSurvey(studentId,surveyId,placements){
@@ -322,6 +323,35 @@ export class Store {
       this.busy = false;
     }
   }
+  async financeAction(action, studentId = null, payload = {}) {
+    const scope = this.mode + ':' + this.classId + ':' + (this.user?.id || '');
+    const valid = () => scope === this.mode + ':' + this.classId + ':' + (this.user?.id || '');
+    const execute = async () => {
+      if (!valid()) throw Error('화면이 변경되었습니다.');
+      if (this.mode === 'cloud') {
+        if (this.busy) throw Error('저장 중입니다.');
+        this.busy = true;
+        try {
+          const {data,error} = await this.client.rpc('startoday_teacher_finance',{p_class_id:this.classId,p_student_id:studentId,p_action:action,p_payload:payload});
+          if (error) throw error;
+          if (!valid()) throw Error('화면이 변경되었습니다.');
+          this.db=normalizeDB(data.data);this.revision=data.revision;this.publishSync();
+        } finally {this.busy=false;}
+      } else {
+        if (!['demo','local'].includes(this.mode)) throw Error('로그인이 필요합니다.');
+        const saved=localStorage.getItem('startoday-demo-v1');if(saved)this.db=normalizeDB(JSON.parse(saved));
+        let ops;
+        if(action==='quote') {
+          if(!validSymbol(payload.symbol)||(typeof payload.name!=='string'||!payload.name.trim())||payload.name.length>80||!Number.isFinite(payload.priceKrw)||payload.priceKrw<=0||payload.priceKrw>1000000000||Number(payload.priceKrw.toFixed(4))!==payload.priceKrw)throw Error('종목과 가격을 확인하세요.');
+          ops=[{table:'stock_quotes',id:payload.symbol,data:{id:payload.symbol,...payload,updatedAt:now(),source:'manual',changeKrw:0,changePercent:0}},...financeSettleOps(this.db)];
+        } else ops=action==='refresh'?financeSettleOps(this.db):financeOrderOps(this.db,studentId,action,payload);
+        if(ops.length)await this.commitSnapshot(ops);
+      }
+      return this.db;
+    };
+    if(typeof navigator!=='undefined'&&navigator.locks)return navigator.locks.request('startoday-economy:'+this.mode+':'+this.classId,execute);
+    return execute();
+  }
   async economyAction(action, studentId, target = null, amount = 0, memo = '', {teacherRefund = false} = {}) {
     const scope = this.mode + ':' + this.classId + ':' + (this.user?.id || '');
     const valid = () => scope === this.mode + ':' + this.classId + ':' + (this.user?.id || '');
@@ -358,6 +388,7 @@ export class Store {
         if (!['demo', 'local'].includes(this.mode)) throw Error('로그인이 필요합니다.');
         const saved = localStorage.getItem('startoday-demo-v1');
         if (saved) this.db = normalizeDB(JSON.parse(saved));
+        const maturityOps=financeSettleOps(this.db);if(maturityOps.length)await this.commitSnapshot(maturityOps);
         const makers = {
           buy: shopBuyOps,
           refund: (database,id,target)=>shopRefundOps(database,id,target,teacherRefund),

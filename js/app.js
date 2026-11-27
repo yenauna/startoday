@@ -1,3 +1,5 @@
+import {financeSettleOps} from './finance.js';
+import {syncFinanceTimer} from './components/finance-view.js';
 import {incidentsView} from './tabs/incidents.js';
 import {syncViewportPreview} from './components/viewport-preview.js';
 import {dismissDateRange} from './components/date-range.js';
@@ -72,7 +74,18 @@ window.addEventListener('hashchange', () => {
 });
 readTabHash();
 let lastStudentScrollKey = null;
+let localFinanceRefresh=null;
+function settleLocalFinance(){
+ if(localFinanceRefresh||!['local','demo'].includes(store.mode)||!store.db||store.busy||!financeSettleOps(store.db).length)return;
+ const scope=store.mode+':'+store.classId;
+ localFinanceRefresh=store.financeAction('refresh').then(()=>{
+  if(scope!==store.mode+':'+store.classId)return;
+  if(state.studentUser&&!state.impersonatingStudentId){const student=store.db.students.find(s=>s.id===state.studentUser.id);if(student)state.studentSnapshot=studentSnapshot(store.db,student);}
+  render();
+ }).catch(error=>toast(error.message)).finally(()=>{localFinanceRefresh=null;});
+}
 export function render() {
+  settleLocalFinance();
   stopMobileRecordBar();
   syncViewportPreview(!!db()&&!(state.studentPasswordPending||state.viewMode==='student'||state.studentUser||state.impersonatingStudentId));
   dismissDateRange();
@@ -88,6 +101,7 @@ export function render() {
     const scrollY = window.scrollY;
     $('#app').innerHTML = renderStudentShell();
     syncGroupBuyDialog();
+    syncFinanceTimer();
     const titleSnapshot = state.studentSnapshot;
     if (titleSnapshot?.student && !state.impersonatingStudentId) {
       syncTitleUnlock(titleSnapshot, `${store.mode}:${store.classId}:${titleSnapshot.student.id}`);
@@ -123,6 +137,7 @@ export function render() {
   animateSelectionMotion(selectionBefore);
   bindTimetableDrag();
   syncGroupBuyDialog();
+  syncFinanceTimer();
 }
 window.addEventListener('startoday-sync', () => {
   if (state.locked) {

@@ -1,0 +1,61 @@
+// Public RPC integration against the actual PostgreSQL engine, including replay and tenant isolation.
+import {createRequire} from 'node:module';
+import {readFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+import * as C from '../js/core.js';
+const require=createRequire(import.meta.url),{PGlite}=require(process.env.PGLITE_MODULE||'@electric-sql/pglite'),{pgcrypto}=require('@electric-sql/pglite/contrib/pgcrypto');
+const pg=new PGlite({extensions:{pgcrypto}});
+try{
+ await pg.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated;grant execute on function auth.uid() to authenticated;`);
+ const schema=readFileSync(new URL('../schema.sql',import.meta.url),'utf8');await pg.exec(schema);await pg.exec(schema);
+ const owner='00000000-0000-0000-0000-000000000001',other='00000000-0000-0000-0000-000000000002';await pg.query('insert into auth.users(id) values($1),($2)',[owner,other]);
+ const as=async(role,id='')=>{await pg.exec(`set role ${role}`);await pg.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);};
+ await as('authenticated',owner);const snapshot=async()=>(await pg.query('select public.startoday_snapshot() as data')).rows[0].data;let snap=await snapshot();const cid=snap.class_id,d=C.initialDB();
+ Object.assign(d.settings[0],{schoolName:'가상금융학교',schoolCode:'FINANCE001',grade:5,classGroup:'1',defaultStudentPassword:'바람123',pointMode:'salary',stockConfig:{...C.financeConfig().stock,open:'00:00',close:'23:59'}});
+ d.students=[{id:'s',no:1,name:'가온'},{id:'other',no:2,name:'나래'}];d.records=Array.from({length:10},(_,i)=>({id:'p'+i,studentIds:['s'],kind:'칭찬',areas:['생활'],text:'칭찬',date:C.today(),createdAt:C.now()}));
+ await pg.query('select public.startoday_commit($1,$2,$3::jsonb)',[cid,snap.revision,JSON.stringify(C.TABLES.flatMap(t=>d[t].map(data=>({table:t,id:data.id,data}))))]);
+ const teacher=async(action,student=null,payload={})=>(await pg.query('select public.startoday_teacher_finance($1,$2,$3,$4::jsonb) as data',[cid,student,action,JSON.stringify(payload)])).rows[0].data;
+ await pg.query("select public.startoday_economy_action($1,'s','adjust',null,1000,'元金')",[cid]);
+ await as('anon');await pg.query("select public.startoday_student_change_password('FINANCE001','5','1',1,'바람123','별빛123')");
+ const student=async(action,payload={})=>(await pg.query("select public.startoday_student_finance('FINANCE001','5','1',1,'별빛123',$1,$2::jsonb) as data",[action,JSON.stringify(payload)])).rows[0].data;
+ await assert.rejects(pg.query("select public.startoday_student_finance('FINANCE001','5','1',1,'오류123','refresh','{}')"),/AUTH_REQUIRED/);
+ await assert.rejects(pg.query('select * from public.startoday_bank_deposits'),/permission denied/);
+ await assert.rejects(pg.query('select public.startoday_finance_settle($1)',[cid]),/permission denied/);
+ const deposit=C.uid(),payload={requestId:deposit,principal:100,weeks:4};let result=await student('deposit',payload);assert.equal(result.snapshot.economy.balance,900);assert.equal(result.snapshot.economy.finance.deposits[0].ratePercent,3);assert.equal(result.snapshot.economy.finance.deposits[0].interest,6);
+ await student('deposit',payload);await assert.rejects(student('deposit',{...payload,principal:101}),/REQUEST_CONFLICT/);await assert.rejects(student('deposit',{requestId:C.uid(),principal:1.5,weeks:2}),/INVALID_DEPOSIT/);
+ await pg.exec('reset role');await pg.query("update public.startoday_bank_deposits set matures_at=clock_timestamp()-interval '1 second' where id=$1",[deposit]);
+ await as('anon');result=await student('refresh');assert.equal(result.snapshot.economy.balance,1006);assert.equal(result.snapshot.economy.finance.deposits[0].status,'matured');await student('refresh');
+ await as('authenticated',owner);snap=await snapshot();assert.equal(snap.data.economy_tx.filter(t=>t.type==='예금만기').length,1);
+ await assert.rejects(pg.query("update public.startoday_bank_deposits set principal=999 where id=$1",[deposit]),/permission denied/);
+ // KST boundary checks use a pure helper, never a client-supplied clock in the order RPC.
+ await pg.exec('reset role');const open=async t=>(await pg.query("select public.startoday_stock_market_open('{\"open\":\"09:00\",\"close\":\"14:30\"}',$1) as ok",[t])).rows[0].ok;
+ assert(await open('2026-11-27T00:00:00Z'));assert(await open('2026-11-27T05:30:59Z'));assert(!await open('2026-11-27T05:31:00Z'));assert(!await open('2026-11-28T01:00:00Z'));
+ await pg.exec(`create or replace function public.startoday_stock_market_open(config jsonb,stamp timestamptz) returns boolean language sql immutable set search_path=public,pg_temp as $$select '10:00' between config->>'open' and config->>'close'$$`);
+ await as('authenticated',owner);await teacher('quote',null,{symbol:'005930.KS',name:'삼성전자',priceKrw:70000});
+ const buy=C.uid();await as('anon');result=await student('buy',{requestId:buy,symbol:'005930.KS',amountPoints:100});assert.equal(result.snapshot.economy.balance,906);assert.equal(result.snapshot.economy.finance.holdings.length,0);let order=result.snapshot.economy.finance.orders[0];assert.equal(Number(order.shares),.1428);assert.equal(order.amountPoints,100);assert.equal(Date.parse(order.settleAt)-Date.parse(order.createdAt),80*60000);
+ await student('buy',{requestId:buy,symbol:'005930.KS',amountPoints:100});await assert.rejects(student('buy',{requestId:buy,symbol:'005930.KS',amountPoints:101}),/REQUEST_CONFLICT/);await assert.rejects(student('sell',{requestId:C.uid(),symbol:'005930.KS',shares:.1}),/INSUFFICIENT_SHARES/);
+ await pg.exec('reset role');await pg.query("update public.startoday_stock_orders set settle_at=clock_timestamp()-interval '1 second' where id=$1",[buy]);
+ await as('anon');result=await student('refresh');assert.equal(Number(result.snapshot.economy.finance.holdings[0].shares),.1428);assert.equal(result.snapshot.economy.balance,906);
+ const sell=C.uid();result=await student('sell',{requestId:sell,symbol:'005930.KS',shares:.1});assert.equal(Number(result.snapshot.economy.finance.holdings[0].shares),.0428);assert.equal(result.snapshot.economy.balance,906);await assert.rejects(student('sell',{requestId:C.uid(),symbol:'005930.KS',shares:.1}),/INSUFFICIENT_SHARES/);
+ await pg.exec('reset role');await pg.query("update public.startoday_stock_orders set settle_at=clock_timestamp()-interval '1 second' where id=$1",[sell]);
+ await as('authenticated',owner);snap=await teacher('refresh');assert.equal(snap.data.economy_tx.filter(t=>t.type==='주식정산').length,2);assert.equal(snap.data.economy_tx.find(t=>t.type==='주식정산'&&t.originalTxId===sell).amount,70);
+ // A different teacher can neither mutate this class nor override the public market cache.
+ await as('authenticated',other);await assert.rejects(teacher('quote',null,{symbol:'005930.KS',name:'악의적 수정',priceKrw:1}),/FORBIDDEN/);assert.equal((await pg.query('select * from public.startoday_stock_orders')).rows.length,0);assert.equal((await pg.query('select * from public.startoday_stock_quotes')).rows.length,0);
+ await as('authenticated',owner);snap=await snapshot();const cfg={...snap.data.settings[0],stockConfig:{...d.settings[0].stockConfig,settlementMinutes:0}};
+ await pg.query('select public.startoday_commit($1,$2,$3::jsonb)',[cid,snap.revision,JSON.stringify([{table:'settings',id:'main',data:cfg}])]);
+ await as('anon');result=await student('buy',{requestId:C.uid(),symbol:'005930.KS',amountPoints:100});assert.equal(result.snapshot.economy.finance.orders.filter(o=>o.status==='pending').length,0);assert.equal(Number(result.snapshot.economy.finance.holdings[0].shares),.1856);
+ await as('authenticated',owner);snap=await snapshot();await pg.query('select public.startoday_commit($1,$2,$3::jsonb)',[cid,snap.revision,JSON.stringify([{table:'settings',id:'main',data:{...cfg,stockConfig:{...cfg.stockConfig,open:'23:58',close:'23:59'}}}])]);
+ await as('anon');await assert.rejects(student('buy',{requestId:C.uid(),symbol:'005930.KS',amountPoints:1}),/MARKET_CLOSED/);
+ await as('authenticated',owner);snap=await snapshot();
+ await assert.rejects(pg.query('select public.startoday_commit($1,$2,$3::jsonb)',[cid,snap.revision,JSON.stringify([{table:'settings',id:'main',data:{...cfg,stockConfig:{...cfg.stockConfig,krwPerPoint:1.5}}}])]),/INVALID_FINANCE_CONFIG/);
+ await pg.query('select public.startoday_commit($1,$2,$3::jsonb)',[cid,snap.revision,JSON.stringify([{table:'settings',id:'main',data:cfg}])]);
+ await pg.exec('reset role');await pg.query("update public.startoday_stock_quotes set updated_at=clock_timestamp()-interval '31 minutes' where class_id=$1",[cid]);
+ await as('anon');await assert.rejects(student('buy',{requestId:C.uid(),symbol:'005930.KS',amountPoints:1}),/QUOTE_STALE/);
+ const peer=(await pg.query("select public.startoday_student_change_password('FINANCE001','5','1',2,'바람123','다른별123') as data")).rows[0].data;
+ assert.equal(peer.economy.finance.deposits.length,0);assert.equal(peer.economy.finance.orders.length,0);assert.equal(peer.economy.finance.holdings.length,0);
+ await assert.rejects(pg.query("select public.startoday_student_finance('FINANCE001','5','1',2,'다른별123','quote',$1::jsonb)",[JSON.stringify({requestId:C.uid(),symbol:'005930.KS',priceKrw:1})]),/INVALID_FINANCE_ACTION/);
+ await pg.exec('reset role');
+ const columns=(await pg.query("select numeric_precision,numeric_scale from information_schema.columns where table_name='startoday_stock_orders' and column_name='shares'")).rows[0];assert.equal(columns.numeric_precision,14);assert.equal(columns.numeric_scale,4);
+ await pg.exec(schema);await as('authenticated',owner);snap=await snapshot();assert.equal(snap.data.bank_deposits.length,1);assert.equal(snap.data.stock_orders.length,3);assert.equal(snap.data.economy_tx.filter(t=>t.type==='예금만기').length,1);
+ console.log('PASS finance PostgreSQL: migration replay, bank tiers/1x maturity, public student auth, KST boundaries, fractional market buy/sell, locked 80-minute settlement, instant settlement, retry safety, RLS and owner-only quotes');
+}finally{await pg.close();}

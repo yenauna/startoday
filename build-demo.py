@@ -5,15 +5,19 @@ import base64
 import mimetypes
 root=next(p for p in (Path(__file__).resolve().parent,Path(__file__).resolve().parents[1]) if (p/'index.html').exists())
 core=(root/'js/core.js').read_text()
-names=re.findall(r'export (?:const|function) (\w+)',core)
-# Core title rendering shares the standalone-safe SVG source.
+finance=(root/'js/finance.js').read_text()
+names=re.findall(r'export (?:const|function) (\w+)',core+finance)
+# Finance and core share one module namespace in the standalone build.
 icons=(root/'js/components/icons.js').read_text().replace('export ','')
-core=icons+'\nconst uiIcon=icon;\n'+re.sub(r'^import .*?;\n','',core,flags=re.M).replace('export ','')
+core=icons+'\nconst uiIcon=icon;\n'+re.sub(r'^import .*?;\n|^export \* from .*?;\n','',finance+'\n'+core,flags=re.M).replace('export ','')
 store=(root/'js/store.js').read_text()
-store=re.sub(r'^import .*?;\n','const {surveySubmitOps,TABLES,normalizeDB,initialDB,applyOps,uid,now,assignmentPolicyOps,areaMigrationOps,mergeRewardTitles,demoDB,shopBuyOps,shopRefundOps,shopUseOps,teacherGiftOps,teacherBalanceAdjustOps,shopFundGroupBuyOps,shopUseGroupBuyOps,teacherReclaimOps,teacherUndoGiftOps}=C;\n',store,flags=re.M).replace('export class Store','class Store')
+store_names=[]
+for group in re.findall(r'^import \{(.*?)\} from .*?;\n',store,re.M):
+    store_names.extend(x.strip() for x in group.split(','))
+store='const {'+','.join(dict.fromkeys(store_names))+'}=C;\n'+re.sub(r'^import .*?;\n','',store,flags=re.M).replace('export class Store','class Store')
 modules={}
 def collect(module):
-    if module in modules or module in ('js/core.js','js/store.js'):
+    if module in modules or module in ('js/core.js','js/store.js','js/finance.js'):
         return
     source=(root/module).read_text()
     modules[module]=source
