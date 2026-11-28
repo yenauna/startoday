@@ -4,8 +4,8 @@ import * as C from '../js/core.js';
 import {Store} from '../js/store.js';
 const day='2026-03-04';
 function noticeFixture(){const d=C.initialDB();d.students=Array.from({length:7},(_,i)=>({id:'s'+i,no:i+1,name:'학생'+i}));d.students[6].deletedAt=C.now();d.assignments=[{id:'task',title:'독서록',date:day,repeat:{type:'none'},target:'all'},{id:'quest',title:'장기과제',date:day,isQuest:true}];d.assignmentStates=['진행중','안함','완료','면제','늦게완료','진행중'].map((status,i)=>({id:C.stateId('task',day,'s'+i),assignmentId:'task',date:day,studentId:'s'+i,status}));d.attendance=[{id:'absent',studentId:'s5',date:day,excluded:true}];d.events=[{id:'e',date:day,title:'학급 사진'},{id:'later',date:'2026-03-06',title:'수학 단원평가'}];d.timetables=[{id:'t',date:day,period:1,subjectCode:'국어',publicMemo:'책 준비',privateMemo:'발표'},{id:'private',date:day,period:2,subjectCode:'체육',privateMemo:'운동화'},{id:'hidden',date:day,period:3,subjectCode:'음악',teacherMemo:'교사만'}];return d;}
-test('생활 문구 200개와 제공 기본 문구·계절 문구를 보존하고 날짜별 추천은 결정적이다',()=>{
- assert.equal(Object.values(C.NOTICE_PHRASES).flat().length,200);assert.equal(new Set(Object.values(C.NOTICE_PHRASES).flat()).size,200);assert(C.NOTICE_PHRASES.general.includes('난 참 괜찮은 사람이야.'));assert(C.NOTICE_PHRASES.general.includes('미세먼지 수치를 확인하고 운동장으로 나갑니다.'));assert.equal(C.NOTICE_PHRASES.summer.length,10);assert.equal(C.NOTICE_PHRASES.winter.length,9);
+test('생활 문구 217개와 제공 기본 문구·계절 문구를 보존하고 날짜별 추천은 결정적이다',()=>{
+ assert.equal(Object.values(C.NOTICE_PHRASES).flat().length,217);assert.equal(new Set(Object.values(C.NOTICE_PHRASES).flat()).size,217);assert(C.NOTICE_PHRASES.general.includes('난 참 괜찮은 사람이야.'));assert(C.NOTICE_PHRASES.general.includes('미세먼지 수치를 확인하고 운동장으로 나갑니다.'));assert.equal(C.NOTICE_PHRASES.summer.length,11);assert.equal(C.NOTICE_PHRASES.winter.length,11);
  for(const month of ['02','04','07','12']){const a=`2026-${month}-12`,b=C.addDays(a,1);assert.equal(C.noticePhrase(a),C.noticePhrase(a));assert.notEqual(C.noticePhrase(a),C.noticePhrase(b));const pool=[...C.NOTICE_PHRASES.general,...(['02','12'].includes(month)?C.NOTICE_PHRASES.winter:month==='07'?C.NOTICE_PHRASES.summer:[])];for(let i=0;i<pool.length;i++)assert(pool.includes(C.noticePhrase(a,i)));}
  assert.throws(()=>C.noticePhrase('2026-02-30'));assert.throws(()=>C.noticePhrase(day,-1));
 });
@@ -32,7 +32,7 @@ test('로컬·체험 저장은 기존 동기화 저장소에서 알림장을 보
  finally{if(previous===undefined)delete globalThis.localStorage;else globalThis.localStorage=previous;}
 });
 test('문구 카탈로그는 기존 상시·계절·기념일 참조와 순서·문구를 보존하며 모든 영역에 분류한다',()=>{
- assert.equal(C.NOTICE_PHRASE_CATALOG.length,212);assert.equal(new Set(C.NOTICE_PHRASE_CATALOG.map(i=>i.id)).size,212);assert.equal(C.NOTICE_PHRASE_CATEGORIES.length,13);for(const category of C.NOTICE_PHRASE_CATEGORIES)assert(C.NOTICE_PHRASE_CATALOG.some(i=>i.category===category));
+ assert.equal(C.NOTICE_PHRASE_CATALOG.length,232);assert.equal(new Set(C.NOTICE_PHRASE_CATALOG.map(i=>i.id)).size,232);assert.equal(C.NOTICE_PHRASE_CATEGORIES.length,13);for(const category of C.NOTICE_PHRASE_CATEGORIES)assert(C.NOTICE_PHRASE_CATALOG.some(i=>i.category===category));
  for(const season of ['general','summer','winter'])assert.deepEqual(C.NOTICE_PHRASE_CATALOG.filter(i=>i.season===season).map(i=>i.text),C.NOTICE_PHRASES[season]);assert.deepEqual(C.NOTICE_PHRASE_CATALOG.filter(i=>i.season==='occasion').map(i=>[i.monthDay,i.text]),C.NOTICE_ANNIVERSARIES);
 });
 test('문구 사용 이력은 작성일에서 365일 전 경계를 포함하고 미래·삭제·잘못된 날짜는 제외한다',()=>{
