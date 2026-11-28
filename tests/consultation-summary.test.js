@@ -83,7 +83,7 @@ test('상담 요약은 네 영역으로 기록을 나누고 출결 제외일을 
   assert.deepEqual(group('academic').latest.map(r => r.id), ['r2', 'r1']);
   assert.deepEqual(group('academic').advice.map(r => r.id), ['r2']);
   assert.equal(group('life').counts.praise, 1);
-  assert.deepEqual(summary.attendance, [{date: '2026-10-05', memo: '병결'}]);
+  assert.deepEqual(summary.attendance, [{date: '2026-10-05', excluded:true, status:'출결 제외', memo: '병결'}]);
   assert.equal(summary.tasks.assignments.total, 6);
   assert.equal(summary.tasks.assignments.done, 1);
   assert.equal(summary.tasks.assignments.rate, 17);
