@@ -1,4 +1,4 @@
-import {jobsManagedWages,jobsSnapshot,jobUnpaidCycles,jobSalaryCounts} from './jobs.js';
+import {jobsSnapshot,jobSalaryCounts} from './jobs.js';
 export * from './jobs.js';
 import {validateNotice} from './notices.js';
 export * from './notices.js';
@@ -1650,13 +1650,11 @@ export function salaryRecordCount(database, studentId, from, to, basis = 'praise
 }
 export function salaryPreview(database, config = database?.settings?.[0] || {}, date = today()) {
   const salary = salaryConfig(config), start = salaryPeriodStart(salary.period, date);
-  let automaticJobWages={};
-  if(config.jobManagedWages){const eligible=automaticJobWages=jobsManagedWages({...database,settings:[config]},date);for(const [id,managed] of Object.entries(config.jobManagedWages)){const row=salary.jobWages[id]||{name:"",amount:0};salary.jobWages[id]={name:eligible[id]?.name||row.name,amount:Math.max(0,row.amount-managed.amount)+(eligible[id]?.amount||0)};}}
   const rows = activeStudents(database).map(student => {
     const window = salaryWindow(database, student.id, salary.period, date),
       counts = jobSalaryCounts(database,student.id,window,salary.basis,start),
-      // 수동 급여는 정산 창에서 한 번, 공고 급여는 활동 월 키로 중복을 막는다.
-      job = salary.jobs ? (window.paidOn ? automaticJobWages[student.id] : salary.jobWages[student.id]) || { name: '', amount: 0 } : { name: '', amount: 0 },
+      // 수동 직업 급여는 정산 창에서 한 번만 지급한다.
+      job = salary.jobs ? (!window.paidOn ? salary.jobWages[student.id] : null) || { name: '', amount: 0 } : { name: '', amount: 0 },
       base = counts.count * salary.multiplier;
     return {
       studentId: student.id,
@@ -1688,7 +1686,6 @@ export function salaryPayOps(database, settings, studentIds, date = today()) {
   const ops = rows.flatMap(row => {
     if (!Number.isSafeInteger(row.total) || row.total < 1 || row.total > 1000000000) throw Error(row.name + ' 학생의 지급액을 확인하세요.');
     const txOps=teacherBalanceAdjustOps(database,row.studentId,row.total,memo);
-    if(row.jobPay>0&&settings.jobManagedWages){const keys=(database.job_posts||[]).filter(p=>p.kind==='regular'&&['selected','completed'].includes(p.status)&&p.selectedIds?.includes(row.studentId)).flatMap(p=>jobUnpaidCycles(database,p,row.studentId,date));for(const op of txOps)if(op.table==='economy_tx')op.data.jobWageKeys=keys;}
     return txOps;
   });
   return { memo, rows, ops: [{ table: 'settings', id: settings.id || 'main', data: { ...settings, pointMode: 'salary', salary } }, ...ops] };
