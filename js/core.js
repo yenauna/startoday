@@ -1,3 +1,5 @@
+import {jobsManagedWages,jobsSnapshot,jobUnpaidCycles,jobSalaryCounts} from './jobs.js';
+export * from './jobs.js';
 import {validateNotice} from './notices.js';
 export * from './notices.js';
 import {MEETING_TABLES} from './meetings.js';
@@ -8,7 +10,7 @@ import {icon as uiIcon} from './components/icons.js';
 export const DEFAULT_AREAS = ['학습', '과제', '관계', '도전', '생활', '알바'];
 export const KINDS = ['칭찬', '지도', '관찰', '추가기록'];
 export const STATUSES = ['진행중', '완료', '늦게완료', '안함', '면제'];
-export const TABLES = ['students', 'incidents', 'records', 'assignments', 'assignmentStates', 'events', 'routines', 'routineStates', 'subject_rules', 'timetables', 'quests', 'settings', 'attendance', 'areas', 'shop_items', 'economy_tx', 'group_buy_contribs', 'surveys', 'survey_responses', 'notices'];
+export const TABLES = ['students', 'incidents', 'records', 'assignments', 'assignmentStates', 'events', 'routines', 'routineStates', 'subject_rules', 'timetables', 'quests', 'settings', 'attendance', 'areas', 'shop_items', 'economy_tx', 'group_buy_contribs', 'surveys', 'survey_responses', 'notices', 'job_posts', 'job_applications'];
 export const uid = () => {
   if (crypto.randomUUID) return crypto.randomUUID();
   const b = crypto.getRandomValues(new Uint8Array(16));
@@ -611,7 +613,7 @@ export function validateBackup(x) {
   x.data.shop_items ??= [];
   x.data.economy_tx ??= [];
   x.data.group_buy_contribs ??= [];
-  x.data.surveys ??= [];x.data.survey_responses ??= [];x.data.notices ??= [];
+  x.data.surveys ??= [];x.data.survey_responses ??= [];x.data.notices ??= [];x.data.job_posts??=[];x.data.job_applications??=[];
   for(const notice of x.data.notices)validateNotice(notice);
   delete x.data.tags;
   for (const row of x.data.records || []) delete row.tagIds;
@@ -696,7 +698,7 @@ export function areaNames(db, includeDeleted = false) {
   return areaRows(db, includeDeleted).map(a => a.name);
 }
 export function normalizeDB(db) {
-  db.notices ??= [];
+  db.notices ??= [];db.job_posts??=[];db.job_applications??=[];
   for(const table of MEETING_TABLES)db[table]??=[];
   for(const table of FINANCE_TABLES) db[table] ??= [];
   db.surveys ??= [];
@@ -1585,11 +1587,8 @@ export function mergeRewardTitles(existing = [], incoming = []) {
 }
 
 // The coin ledger is separate from praise/advice records and never changes star scores.
-// 월급 정산(pointMode='salary')에서는 기간 별 자동 합산을 끄고 지급 원장만 잔액으로 센다.
-export function studentBalance(database, studentId, date = today()) {
-  const ledger = (database.economy_tx || []).filter(t => t.studentId === studentId).reduce((n, t) => n + t.amount, 0);
-  if (pointMode(database.settings?.[0]) === 'salary') return ledger;
-  return scores(database, studentId, pointPeriodStart(database.settings[0], date), date).total * 10 + ledger;
+export function studentBalance(database, studentId) {
+  return (database.economy_tx || []).filter(t=>t.studentId===studentId).reduce((sum,t)=>sum+t.amount,0);
 }
 
 // ---- 학급 월급 ----
@@ -1599,7 +1598,7 @@ export const SALARY_PERIODS = ['2week', 'month'];
 export const SALARY_BASES = ['praise', 'praise-advice'];
 export const SALARY_MEMO_PREFIX = '[월급]';
 export function pointMode(config = {}) {
-  return config?.pointMode === 'salary' ? 'salary' : 'realtime';
+  return 'salary';
 }
 export function salaryConfig(config = {}) {
   const raw = config?.salary && typeof config.salary === 'object' ? config.salary : {};
@@ -1651,11 +1650,13 @@ export function salaryRecordCount(database, studentId, from, to, basis = 'praise
 }
 export function salaryPreview(database, config = database?.settings?.[0] || {}, date = today()) {
   const salary = salaryConfig(config), start = salaryPeriodStart(salary.period, date);
+  let automaticJobWages={};
+  if(config.jobManagedWages){const eligible=automaticJobWages=jobsManagedWages({...database,settings:[config]},date);for(const [id,managed] of Object.entries(config.jobManagedWages)){const row=salary.jobWages[id]||{name:"",amount:0};salary.jobWages[id]={name:eligible[id]?.name||row.name,amount:Math.max(0,row.amount-managed.amount)+(eligible[id]?.amount||0)};}}
   const rows = activeStudents(database).map(student => {
     const window = salaryWindow(database, student.id, salary.period, date),
-      counts = salaryRecordCount(database, student.id, window.from, window.to, salary.basis),
-      // 직업 월급은 한 기간에 한 번만 준다(같은 기간 재지급 때 두 번 붙지 않도록).
-      job = salary.jobs && !window.paidOn ? salary.jobWages[student.id] || { name: '', amount: 0 } : { name: '', amount: 0 },
+      counts = jobSalaryCounts(database,student.id,window,salary.basis,start),
+      // 수동 급여는 정산 창에서 한 번, 공고 급여는 활동 월 키로 중복을 막는다.
+      job = salary.jobs ? (window.paidOn ? automaticJobWages[student.id] : salary.jobWages[student.id]) || { name: '', amount: 0 } : { name: '', amount: 0 },
       base = counts.count * salary.multiplier;
     return {
       studentId: student.id,
@@ -1686,7 +1687,9 @@ export function salaryPayOps(database, settings, studentIds, date = today()) {
   if (!rows.length) throw Error('지급할 학생을 선택하세요.');
   const ops = rows.flatMap(row => {
     if (!Number.isSafeInteger(row.total) || row.total < 1 || row.total > 1000000000) throw Error(row.name + ' 학생의 지급액을 확인하세요.');
-    return teacherBalanceAdjustOps(database, row.studentId, row.total, memo);
+    const txOps=teacherBalanceAdjustOps(database,row.studentId,row.total,memo);
+    if(row.jobPay>0&&settings.jobManagedWages){const keys=(database.job_posts||[]).filter(p=>p.kind==='regular'&&['selected','completed'].includes(p.status)&&p.selectedIds?.includes(row.studentId)).flatMap(p=>jobUnpaidCycles(database,p,row.studentId,date));for(const op of txOps)if(op.table==='economy_tx')op.data.jobWageKeys=keys;}
+    return txOps;
   });
   return { memo, rows, ops: [{ table: 'settings', id: settings.id || 'main', data: { ...settings, pointMode: 'salary', salary } }, ...ops] };
 }
@@ -1839,6 +1842,7 @@ export function studentEconomySnapshot(database, studentId) {
   return {
     studentId,
     finance: financeSnapshot(database,studentId),
+    jobs: jobsSnapshot(database,studentId),
     balance: studentBalance(database, studentId),
     allowRefund: database.settings[0]?.allowRefund !== false,
     items: (database.shop_items || []).filter(i => !i.deletedAt).map(i => ({

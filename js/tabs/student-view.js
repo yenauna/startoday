@@ -1,3 +1,4 @@
+import {jobsMessage} from '../components/jobs-view.js';
 import {meetingView,meetingMessage} from '../components/meeting-view.js';
 import {icon} from '../components/icons.js';
 import {notificationStorageKey,unreadNotifications,acknowledgeNotification} from '../components/student-notifications.js';
@@ -377,11 +378,12 @@ export function renderStudentShell() {
   const economyContent = () => studentEconomyView(data.economy, studentEconomyTab, studentEconomyCategory, tab => {
     studentEconomyTab = tab;
     render();
+    if(tab==='jobs')studentJobsAct('refresh').catch(error=>toast(jobsMessage(error)));
     if(['bank','stocks'].includes(tab))studentFinanceAct('refresh').catch(error=>toast(economyMessage(error)));
   }, category => {
     studentEconomyCategory = category;
     render();
-  }, studentEconomyAct, studentFinanceAct);
+  }, studentEconomyAct, studentFinanceAct, studentJobsAct);
   const titleButton = () => btn(C.kingdomBadge(data.student, data.titleCounts, data.titleConfig)||'칭호도감', openKingdomCodex, 'kingdom-title-button', 'aria-label="칭호도감 열기"');
   const profileAreas = Object.fromEntries(C.areaScoreEntries(data.score.areas || {}));
   const progress=C.studentTodayProgress(data);
@@ -750,6 +752,22 @@ function questStampBoard(stamps, goal) {
     length: Math.min(goal, 30)
   }, (_, i) => `<span class="${i < stamps ? 'is-stamped' : ''}" aria-hidden="true">${i < stamps ? '★' : '☆'}</span>`).join('')}${goal > 30 ? `<small>${stamps}/${goal}</small>` : ''}</div>`;
 }
+let studentJobsSaving=false;
+async function studentJobsAct(action,payload={},background=false){
+ if(studentJobsSaving)throw Error('처리 중입니다. 잠시 후 다시 시도하세요.');
+ const id=state.impersonatingStudentId||state.studentUser?.id,credentials=checkerCredentials,preview=!!state.impersonatingStudentId;studentJobsSaving=true;
+ try{
+  if(preview||['demo','local'].includes(store.mode)){
+   if(!preview){const raw=localStorage.getItem('startoday-demo-v1');if(raw)store.db=C.normalizeDB(JSON.parse(raw));const student=credentials&&localStudentMatch(credentials.identity),info=student&&studentPasswordInfo(student,store.db.settings[0]);if(student?.id!==id||!info||info.mustChangePassword||info.password!==credentials.password)throw Error('다시 로그인해 주세요.');}
+   await store.jobsAction(action,payload,id);
+   if(!preview&&credentials===checkerCredentials&&id===state.studentUser?.id)state.studentSnapshot=studentSnapshot(store.db,store.db.students.find(s=>s.id===id));
+  }else{
+   if(!credentials||!store.client)throw Error('다시 로그인해 주세요.');const {data,error}=await store.client.rpc('startoday_student_jobs',{...studentRpcIdentity(credentials.identity),p_password:credentials.password,p_action:action,p_payload:payload});if(error)throw error;if(credentials!==checkerCredentials||id!==state.studentUser?.id)throw Error('화면이 변경되었습니다.');if(!data?.snapshot?.student)throw Error('다시 로그인해 주세요.');state.studentSnapshot=data.snapshot;store.signalChange('cloud',data.classId,data.revision);
+  }
+  if(!background||!document.querySelector('#modal[open]'))render();
+ }catch(error){throw Error(jobsMessage(error));}finally{studentJobsSaving=false;}
+}
+
 let studentMeetingSaving=false;
 async function studentMeetingAct(action,payload={},background=false){
  if(studentMeetingSaving)throw Error('처리 중입니다. 잠시 후 다시 시도하세요.');

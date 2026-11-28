@@ -51,16 +51,17 @@ function fixture() {
     price: 0,
     stock: null
   }];
+  d.economy_tx=[{id:C.uid(),studentId:"s",type:"지급",amount:10,createdAt:"2000-01-01T00:00:00Z"}];
   return d;
 }
 const apply = (d, ops) => C.applyOps(d, ops);
-test('포인트: 칭찬-지도 점수와 독립 거래 원장을 합산', () => {
-  let d = fixture();
-  assert.equal(C.studentBalance(d, 's'), 10);
+test('포인트: 기록 별과 무관하게 지급 원장만 합산', () => {
+  let d = fixture();d.economy_tx=[];
+  assert.equal(C.studentBalance(d, 's'), 0);
   d = apply(d, C.teacherBalanceAdjustOps(d, 's', 20, '지원'));
-  assert.equal(C.studentBalance(d, 's'), 30);
+  assert.equal(C.studentBalance(d, 's'), 20);
   d = apply(d, C.teacherBalanceAdjustOps(d, 's', -5));
-  assert.equal(C.studentBalance(d, 's'), 25);
+  assert.equal(C.studentBalance(d, 's'), 15);
   assert.equal(C.scores(d, 's', '', C.today()).total, 1);
   assert.equal(C.studentBalance(d, 'other'), 0);
 });
@@ -76,7 +77,7 @@ test('구매는 잔액·유한 재고를 차감하고 보유 목록에 추가', 
 test('무한 재고 및 0원 물품 구매·환불 시 null 유지', () => {
   let d = fixture();
   d = apply(d, C.shopBuyOps(d, 's', d.shop_items[1].id));
-  d = apply(d, C.shopRefundOps(d, 's', d.economy_tx[0].id));
+  d = apply(d, C.shopRefundOps(d, 's', d.economy_tx[1].id));
   assert.equal(d.shop_items[1].stock, null);
   assert.equal(C.studentBalance(d, 's'), 10);
 });
@@ -97,29 +98,29 @@ test('품절·삭제·잘못된 가격·학생은 구매와 선물 차단', () =
 test('환불은 원 구매가 복구·재고 반환·중복 환불 차단, 가격·이름 변경 무관', () => {
   let d = fixture();
   d = apply(d, C.shopBuyOps(d, 's', d.shop_items[0].id));
-  const id = d.economy_tx[0].id;
+  const id = d.economy_tx[1].id;
   d.shop_items[0].price = 99;
   d.shop_items[0].name = '변경';
   d.shop_items[0].deletedAt = C.now();
   d = apply(d, C.shopRefundOps(d, 's', id));
   assert.equal(C.studentBalance(d, 's'), 10);
   assert.equal(d.shop_items[0].stock, 2);
-  assert.equal(d.economy_tx[0].amount, -10);
-  assert.equal(d.economy_tx[1].amount, 10);
-  assert.equal(d.economy_tx[1].itemName, '자리');
+  assert.equal(d.economy_tx[1].amount, -10);
+  assert.equal(d.economy_tx[2].amount, 10);
+  assert.equal(d.economy_tx[2].itemName, '자리');
   assert.throws(() => C.shopRefundOps(d, 's', id));
   assert.equal(C.studentHoldings(d, 's').length, 0);
 });
 test('환불 꺼짐·타인·선물·사용완료 물품 환불 차단', () => {
   let d = fixture();
   d = apply(d, C.shopBuyOps(d, 's', d.shop_items[0].id));
-  const id = d.economy_tx[0].id;
+  const id = d.economy_tx[1].id;
   d.settings[0].allowRefund = false;
   assert.throws(() => C.shopRefundOps(d, 's', id), /허용/);
   d.settings[0].allowRefund = true;
   assert.throws(() => C.shopRefundOps(d, 'other', id));
   d = apply(d, C.shopUseOps(d, 's', id));
-  assert.equal(d.economy_tx[0].status, '사용완료');
+  assert.equal(d.economy_tx[1].status, '사용완료');
   assert.throws(() => C.shopRefundOps(d, 's', id));
   assert.throws(() => C.shopUseOps(d, 's', id));
   d = apply(d, C.teacherGiftOps(d, 's', d.shop_items[0].id));
@@ -130,7 +131,7 @@ test('교사 선물은 0원·유한 재고 차감, 지급/차감은 정수만 �
   d = apply(d, C.teacherGiftOps(d, 'other', d.shop_items[0].id));
   assert.equal(d.shop_items[0].stock, 1);
   assert.equal(C.studentBalance(d, 'other'), 0);
-  assert.equal(d.economy_tx[0].type, '선물');
+  assert.equal(d.economy_tx[1].type, '선물');
   for (const value of [0, 0.1, NaN, Infinity, 1000000001]) assert.throws(() => C.teacherBalanceAdjustOps(d, 's', value));
 });
 test('학생 경제 projection은 타인 거래·비공개 사유·삭제 물품 제외', () => {
@@ -139,10 +140,10 @@ test('학생 경제 projection은 타인 거래·비공개 사유·삭제 물품
   d = apply(d, C.teacherGiftOps(d, 'other', d.shop_items[0].id));
   d.shop_items[1].deletedAt = C.now();
   const snap = C.studentEconomySnapshot(d, 's');
-  assert.equal(snap.transactions.length, 1);
+  assert.equal(snap.transactions.length, 2);
   assert.equal(snap.items.length, 1);
   assert.ok(!JSON.stringify(snap).includes('민감사유'));
-  assert.equal(snap.transactions[0].studentId, undefined);
+  assert(snap.transactions.every(t=>t.studentId===undefined));
 });
 test('과거 백업은 새 경제 빈 배열로 복원하고 신규 원장은 보존', () => {
   const d = fixture();
@@ -185,8 +186,8 @@ test('클라우드 거래 응답 대기 중 로그아웃하면 교사 스냅샷�
 });
 
 test('구매·선물은 원래 상품 카테고리를 저장하며 변경·삭제·환불 뒤에도 보존',()=>{
- let d=fixture();const id=d.shop_items[0].id;d.shop_items[0].category='수학';d.shop_items[0].name='면제';d=C.applyOps(d,C.shopBuyOps(d,'s',id));d=C.applyOps(d,C.teacherGiftOps(d,'other',id));assert.equal(d.economy_tx[0].itemCategory,'수학');assert.equal(d.economy_tx[1].itemCategory,'수학');d.shop_items[0].category='글쓰기';d.shop_items[0].deletedAt=C.now();assert.equal(C.studentEconomySnapshot(d,'s').transactions[0].itemCategory,'수학');assert.equal(C.studentEconomySnapshot(d,'other').transactions[0].itemCategory,'수학');const tx=d.economy_tx[0];d=C.applyOps(d,C.shopRefundOps(d,'s',tx.id));assert.equal(d.economy_tx.at(-1).itemCategory,'수학');assert.equal(C.studentBalance(d,'s'),10);
+ let d=fixture();const id=d.shop_items[0].id;d.shop_items[0].category='수학';d.shop_items[0].name='면제';d=C.applyOps(d,C.shopBuyOps(d,'s',id));d=C.applyOps(d,C.teacherGiftOps(d,'other',id));assert.equal(d.economy_tx[1].itemCategory,'수학');assert.equal(d.economy_tx[2].itemCategory,'수학');d.shop_items[0].category='글쓰기';d.shop_items[0].deletedAt=C.now();assert.equal(C.studentEconomySnapshot(d,'s').transactions.find(t=>t.itemId).itemCategory,'수학');assert.equal(C.studentEconomySnapshot(d,'other').transactions.find(t=>t.itemId).itemCategory,'수학');const tx=d.economy_tx[1];d=C.applyOps(d,C.shopRefundOps(d,'s',tx.id));assert.equal(d.economy_tx.at(-1).itemCategory,'수학');assert.equal(C.studentBalance(d,'s'),10);
 });
 test('옛 거래의 카테고리는 삭제 보관된 원상품에서도 복원하고 정보가 없으면 기타',()=>{
- let d=fixture();const id=d.shop_items[0].id;d.shop_items[0].category='글쓰기';d=C.applyOps(d,C.shopBuyOps(d,'s',id));delete d.economy_tx[0].itemCategory;d.shop_items[0].deletedAt=C.now();assert.equal(C.studentEconomySnapshot(d,'s').transactions[0].itemCategory,'글쓰기');d.shop_items=[];assert.equal(C.studentEconomySnapshot(d,'s').transactions[0].itemCategory,'기타');
+ let d=fixture();const id=d.shop_items[0].id;d.shop_items[0].category='글쓰기';d=C.applyOps(d,C.shopBuyOps(d,'s',id));delete d.economy_tx[1].itemCategory;d.shop_items[0].deletedAt=C.now();assert.equal(C.studentEconomySnapshot(d,'s').transactions.find(t=>t.itemId).itemCategory,'글쓰기');d.shop_items=[];assert.equal(C.studentEconomySnapshot(d,'s').transactions.find(t=>t.itemId).itemCategory,'기타');
 });

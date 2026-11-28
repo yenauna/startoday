@@ -22,7 +22,7 @@ try{
  await page.clock.setFixedTime(new Date('2026-11-27T01:00:00Z'));
  await page.addInitScript(()=>{const interval=window.setInterval;window.setInterval=(fn,ms,...args)=>interval(fn,ms===30000?50:ms,...args);});
  await page.route('https://cdn.jsdelivr.net/**',r=>r.abort());await page.goto(url,{waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'가상 명단으로 먼저 살펴보기',exact:true}).click();
- await page.evaluate(async()=>{const {store}=await import('/js/shared/state.js'),C=await import('/js/core.js');const d=C.initialDB();d.students=[{id:'s',no:1,name:'가온'}];d.attendance=[];d.records=[];d.settings[0].pointMode='salary';d.economy_tx=[{id:C.uid(),studentId:'s',type:'지급',amount:1000,createdAt:C.now()}];store.db=d;localStorage.setItem('startoday-demo-v1',JSON.stringify(d));(await import('/js/app.js')).navigate('경제');});
+ await page.evaluate(async()=>{const {store}=await import('/js/shared/state.js'),C=await import('/js/core.js');const d=C.initialDB();d.students=[{id:'s',no:1,name:'가온'}];d.attendance=[];d.records=[];d.economy_tx=[{id:C.uid(),studentId:'s',type:'지급',amount:1000,createdAt:C.now()}];store.db=d;localStorage.setItem('startoday-demo-v1',JSON.stringify(d));(await import('/js/app.js')).navigate('경제');});
  const close=()=>page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();
  await page.getByRole('button',{name:'은행·주식',exact:true}).click();await page.locator('.teacher-finance').waitFor();
  await page.getByRole('button',{name:'이율표 설정',exact:true}).click();await page.locator('#modal [name=tiers]').fill('0:2\n10:3\n30:4');await page.locator('#modal [type=submit]').click();await page.waitForFunction(()=>!document.querySelector('#modal').open);

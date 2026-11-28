@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import * as C from '../js/core.js';
 const stamp='2026-11-27T01:00:00.000Z';
-function fixture(){const d=C.initialDB();d.students=[{id:'s',no:1,name:'가온'},{id:'other',no:2,name:'나래'}];d.settings[0].pointMode='salary';d.records=[];d.economy_tx=[{id:C.uid(),studentId:'s',type:'지급',amount:1000,createdAt:stamp}];d.stock_quotes=[{id:'005930.KS',symbol:'005930.KS',name:'삼성전자',priceKrw:70000,updatedAt:stamp}];return d;}
+function fixture(){const d=C.initialDB();d.students=[{id:'s',no:1,name:'가온'},{id:'other',no:2,name:'나래'}];d.records=[];d.economy_tx=[{id:C.uid(),studentId:'s',type:'지급',amount:1000,createdAt:stamp}];d.stock_quotes=[{id:'005930.KS',symbol:'005930.KS',name:'삼성전자',priceKrw:70000,updatedAt:stamp}];return d;}
 const apply=(d,action,payload,time=stamp)=>C.applyOps(d,C.financeOrderOps(d,'s',action,{requestId:C.uid(),...payload},time));
 test('별 구간별 2주 단리, 홀수 기간 거부, 기존 가입 이율 고정과 만기 1회 지급',()=>{
  let d=fixture();d.records=Array.from({length:10},(_,i)=>({id:'p'+i,studentIds:['s'],kind:'칭찬',areas:['생활'],date:'2026-11-26',text:'칭찬'}));
