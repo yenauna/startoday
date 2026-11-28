@@ -23,8 +23,8 @@ export function openNavigation(){
  drawer.onpointerdown=e=>{if(e.target===drawer){const r=drawer.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeNavigation();}};
 }
 function navigationDrawer(){
- const menuIcons={'대시보드':'dashboard','기록':'records','사건':'records','일정':'calendar','경제':'economy','학급회의':'meeting','통계':'statistics','수업도구':'tools','자리':'seats','설정':'settings','디자인':'sparkles'};
- const tabs=['대시보드','기록','사건','일정','경제','학급회의','통계','수업도구','자리','설정','디자인'];
+ const menuIcons={'대시보드':'dashboard','기록':'records','사건':'records','일정':'calendar','경제':'economy','알림장':'notice','학급회의':'meeting','통계':'statistics','수업도구':'tools','자리':'seats','설정':'settings','디자인':'sparkles'};
+ const tabs=['대시보드','기록','사건','일정','경제','알림장','학급회의','통계','수업도구','자리','설정','디자인'];
  return `<dialog id="navigation-drawer" class="navigation-drawer" aria-labelledby="navigation-title"><div class="drawer-heading"><h2 id="navigation-title">오늘의 별</h2>${btn('닫기',closeNavigation)}</div><nav class="drawer-tabs" aria-label="주 메뉴">${tabs.map(tab=>btn(icon(menuIcons[tab])+`<span>${tab}</span>`,()=>{closeNavigation();navigate(tab);},state.tab===tab?'active':'',state.tab===tab?'aria-current="page"':'')).join('')}</nav><div class="drawer-footer">${btn('로그아웃',async()=>{closeNavigation();await store.logout();state.selected=[];render();})}</div></dialog>`;
 }
 export function renderLogin() {

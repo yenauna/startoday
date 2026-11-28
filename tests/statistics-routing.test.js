@@ -17,6 +17,7 @@ test('통계·수업도구 탭 라우팅을 지원하고 이전 학생 주소는
     state,
     setupPwa:()=>{},
     meetingsView:()=>'학급회의',
+    noticesView:()=>'알림장',
     dismissDateRange:()=>{},
     initNebulaParallax() {},
     syncToolsVisibility:()=>{},

@@ -1,3 +1,5 @@
+import {validateNotice} from './notices.js';
+export * from './notices.js';
 import {MEETING_TABLES} from './meetings.js';
 export * from './meetings.js';
 import {FINANCE_TABLES,financeSnapshot,financeConfig,validateFinanceState} from './finance.js';
@@ -6,7 +8,7 @@ import {icon as uiIcon} from './components/icons.js';
 export const DEFAULT_AREAS = ['학습', '과제', '관계', '도전', '생활', '알바'];
 export const KINDS = ['칭찬', '지도', '관찰', '추가기록'];
 export const STATUSES = ['진행중', '완료', '늦게완료', '안함', '면제'];
-export const TABLES = ['students', 'incidents', 'records', 'assignments', 'assignmentStates', 'events', 'routines', 'routineStates', 'subject_rules', 'timetables', 'quests', 'settings', 'attendance', 'areas', 'shop_items', 'economy_tx', 'group_buy_contribs', 'surveys', 'survey_responses'];
+export const TABLES = ['students', 'incidents', 'records', 'assignments', 'assignmentStates', 'events', 'routines', 'routineStates', 'subject_rules', 'timetables', 'quests', 'settings', 'attendance', 'areas', 'shop_items', 'economy_tx', 'group_buy_contribs', 'surveys', 'survey_responses', 'notices'];
 export const uid = () => {
   if (crypto.randomUUID) return crypto.randomUUID();
   const b = crypto.getRandomValues(new Uint8Array(16));
@@ -386,6 +388,7 @@ export function applyOps(db, ops) {
     } else {
       if (op.data.id !== op.id) throw Error('데이터 ID가 일치하지 않습니다.');
       const data = structuredClone(op.data);
+      if(op.table==='notices')validateNotice(data);
       if (op.table === 'records') data.createdAt = (i >= 0 && list[i].createdAt) || data.createdAt || now();
       if (op.table === 'students' && i >= 0 && Array.isArray(list[i].rewardTitles)) data.rewardTitles = mergeRewardTitles(list[i].rewardTitles, data.rewardTitles);
       if (op.table === 'students' && i >= 0 && Array.isArray(list[i].avatarOwned)) {
@@ -608,7 +611,8 @@ export function validateBackup(x) {
   x.data.shop_items ??= [];
   x.data.economy_tx ??= [];
   x.data.group_buy_contribs ??= [];
-  x.data.surveys ??= [];x.data.survey_responses ??= [];
+  x.data.surveys ??= [];x.data.survey_responses ??= [];x.data.notices ??= [];
+  for(const notice of x.data.notices)validateNotice(notice);
   delete x.data.tags;
   for (const row of x.data.records || []) delete row.tagIds;
   if (x.data.areas === undefined) x.data.areas = defaultAreas();
@@ -692,6 +696,7 @@ export function areaNames(db, includeDeleted = false) {
   return areaRows(db, includeDeleted).map(a => a.name);
 }
 export function normalizeDB(db) {
+  db.notices ??= [];
   for(const table of MEETING_TABLES)db[table]??=[];
   for(const table of FINANCE_TABLES) db[table] ??= [];
   db.surveys ??= [];

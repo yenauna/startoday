@@ -24,7 +24,7 @@ create policy own_audit on public.startoday_audit for select to authenticated us
 -- 각 기능은 독립 테이블, 필드는 data(JSONB) 내부에 보관합니다.
 -- owner_id/class_id는 DB가 강제하며, 브라우저에서 전달하는 값에 의존하지 않습니다.
 do $$ declare t text; begin
- foreach t in array array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','surveys','survey_responses'] loop
+ foreach t in array array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','surveys','survey_responses','notices'] loop
  execute format('create table if not exists public.%I (class_id uuid not null references public.startoday_classes(id),owner_id uuid not null references auth.users(id),id text not null,data jsonb not null check(jsonb_typeof(data)=''object'' and data->>''id''=id),created_at timestamptz not null default now(),updated_at timestamptz not null default now(),primary key(class_id,id))','startoday_'||t);
  execute format('alter table public.%I enable row level security','startoday_'||t);
  execute format('drop policy if exists own_rows on public.%I','startoday_'||t);
@@ -555,7 +555,7 @@ begin
  perform public.startoday_meeting_close_due(c.id);
  -- 공유 잠금으로 여러 테이블 읽기 도중 다른 기기가 수정하지 못하게 합니다.
  perform 1 from public.startoday_classes where id=c.id for share;
- foreach t in array array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx','group_buy_contribs','surveys','survey_responses'] loop
+ foreach t in array array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx','group_buy_contribs','surveys','survey_responses','notices'] loop
  -- Credentials never leave the database, not even as a hash, in a teacher snapshot or backup.
  if t='students' then
  execute format('select coalesce(jsonb_agg(data-''password''-''passwordHash''),''[]''::jsonb) from public.%I where class_id=$1 and owner_id=$2','startoday_'||t) into rows using c.id,auth.uid();
@@ -598,7 +598,7 @@ end if;end $$;
 
 
 create or replace function public.startoday_commit(p_class_id uuid,p_revision bigint,p_ops jsonb) returns bigint language plpgsql security definer set search_path=public as $$
-declare c public.startoday_classes; op jsonb; t text; v jsonb; old jsonb; n bigint; stamp text; quest jsonb; goal integer;
+declare c public.startoday_classes; op jsonb; t text; v jsonb; old jsonb; n bigint; stamp text; quest jsonb; goal integer; key text; entry jsonb;
 begin
  if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
  select * into c from public.startoday_classes where id=p_class_id and owner_id=auth.uid() for update;
@@ -608,12 +608,27 @@ begin
  stamp:=to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
  for op in select * from jsonb_array_elements(p_ops) loop
  t:=op->>'table';
- if not(t=any(array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx','group_buy_contribs','surveys','survey_responses'])) or coalesce(op->>'id','')='' then raise exception 'INVALID_TABLE_OR_ID'; end if;
+ if not(t=any(array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx','group_buy_contribs','surveys','survey_responses','notices'])) or coalesce(op->>'id','')='' then raise exception 'INVALID_TABLE_OR_ID'; end if;
  if coalesce((op->>'remove')::boolean,false) then
  execute format('delete from public.%I where class_id=$1 and id::text=$2','startoday_'||t) using c.id,op->>'id';
  else
  v:=op->'data';
  if jsonb_typeof(v)<>'object' or v->>'id' is distinct from op->>'id' then raise exception 'INVALID_DATA'; end if;
+ if t='notices' then
+  if v->>'date' is null or v->>'date' !~ '^\d{4}-\d{2}-\d{2}$' or to_char((v->>'date')::date,'YYYY-MM-DD')<>v->>'date' or v->>'id'<>'notice:'||(v->>'date') then raise exception 'INVALID_NOTICE';end if;
+  foreach key in array array['lifeText','extraMemo','renderedText'] loop
+   if jsonb_typeof(v->key) is distinct from 'string' or length(v->>key)>100000 then raise exception 'INVALID_NOTICE';end if;
+  end loop;
+  if jsonb_typeof(v->'updatedAt') is distinct from 'string' or (v->>'updatedAt')::timestamptz is null then raise exception 'INVALID_NOTICE';end if;
+  if v->>'deletedAt' is not null then perform (v->>'deletedAt')::timestamptz;end if;
+  foreach key in array array['todayItems','futureItems'] loop
+   if jsonb_typeof(v->key) is distinct from 'array' or jsonb_array_length(v->key)>500 then raise exception 'INVALID_NOTICE';end if;
+   for entry in select * from jsonb_array_elements(v->key) loop
+    if jsonb_typeof(entry->'key') is distinct from 'string' or length(entry->>'key') not between 1 and 300 or entry->>'kind' is null or entry->>'kind' not in ('event','task','lesson') or jsonb_typeof(entry->'sourceId') is distinct from 'string' or length(entry->>'sourceId')<1 or jsonb_typeof(entry->'text') is distinct from 'string' or length(entry->>'text')>5000 or entry->>'date' is null or entry->>'date' !~ '^\d{4}-\d{2}-\d{2}$' or to_char((entry->>'date')::date,'YYYY-MM-DD')<>entry->>'date' or (key='todayItems' and entry->>'date'<>v->>'date') or (key='futureItems' and entry->>'date'<=v->>'date') or entry ? 'includeMissing' and jsonb_typeof(entry->'includeMissing')<>'boolean' then raise exception 'INVALID_NOTICE';end if;
+   end loop;
+  end loop;
+  if (select count(*) from jsonb_array_elements((v->'todayItems')||(v->'futureItems')))<>(select count(distinct value->>'key') from jsonb_array_elements((v->'todayItems')||(v->'futureItems'))) then raise exception 'INVALID_NOTICE';end if;
+ end if;
  if t='settings' and v ? 'allowRefund' and jsonb_typeof(v->'allowRefund')<>'boolean' then raise exception 'INVALID_REFUND_SETTING';end if;
  if t='settings' and v ? 'pointPeriod' and (jsonb_typeof(v->'pointPeriod') is distinct from 'string' or v->>'pointPeriod' not in ('all','7d','14d','30d','month')) then raise exception 'INVALID_POINT_PERIOD';end if;
  if t='settings' and v ? 'studentPraisePeriod' and (jsonb_typeof(v->'studentPraisePeriod') is distinct from 'string' or v->>'studentPraisePeriod' not in ('all','30d','7d','month','recent3')) then raise exception 'INVALID_STUDENT_PRAISE_PERIOD';end if;
