@@ -14,16 +14,16 @@ export function meetingAutoCloseOps(d,stamp=C.now()){
 function meetingTopicCard(d,t,studentId,teacher){
  const ballots=(d.meeting_ballots||[]).filter(b=>b.topicId===t.id),members=[...new Set([...meetingOfficers(d).chairIds,...meetingOfficers(d).viceChairIds])];
  const result={id:t.id,title:t.title,description:t.description||'',kind:t.kind,options:t.options,maxChoices:t.maxChoices,status:t.status,proposerId:t.proposerId,createdAt:t.createdAt,closesAt:t.closesAt,closedAt:t.closedAt,participated:ballots.length,total:t.electorate.length||meetingActive(d).length,hasVoted:ballots.some(b=>b.studentId===studentId),reviewCount:(t.approvals||[]).filter(id=>members.includes(id)).length,reviewTotal:members.length,reviewed:(t.approvals||[]).includes(studentId)};
- if(teacher||t.status==='closed')result.results=t.options.map(o=>({...o,count:ballots.filter(b=>b.choices.includes(o.id)).length}));return result;
+ if(teacher||t.status==='closed')result.results=t.options.map(o=>({id:o.id,label:o.label,count:ballots.filter(b=>b.choices.includes(o.id)).length,...(teacher?{voters:ballots.filter(b=>b.choices.includes(o.id)).map(b=>d.students.find(s=>s.id===b.studentId)).filter(Boolean).map(({id,no,name})=>({id,no,name})).sort((a,b)=>a.no-b.no||a.id.localeCompare(b.id))}:{})}));return result;
 }
 export function meetingProjection(source,studentId=null,teacher=false){
  const result=structuredClone(source);result.isTeacher=teacher;result.studentId=studentId;result.isChair=result.officers.chairIds.includes(studentId);result.isVice=result.officers.viceChairIds.includes(studentId);
- const clean=t=>{if(!teacher&&t.status!=='closed')delete t.results;return t;};result.topics=result.topics.map(clean);for(const m of result.minutes)m.voteCards=(m.voteCards||[]).map(clean);return result;
+ const clean=t=>{if(!teacher){if(t.status!=='closed')delete t.results;else if(t.results)t.results=t.results.map(({voters,...r})=>r);}return t;};result.topics=result.topics.map(clean);for(const m of result.minutes)m.voteCards=(m.voteCards||[]).map(clean);return result;
 }
 export function meetingSnapshot(d,studentId=null,teacher=false){
  if(d.meeting?.authoritative)return meetingProjection(d.meeting,studentId,teacher);
  const topics=(d.meeting_topics||[]).filter(t=>t.status!=='deleted').map(t=>meetingTopicCard(d,t,studentId,teacher));
- return {officers:meetingOfficers(d),roster:meetingActive(d).map(({id,no,name})=>({id,no,name})),studentId,isTeacher:teacher,isChair:meetingOfficers(d).chairIds.includes(studentId),isVice:meetingOfficers(d).viceChairIds.includes(studentId),topics,minutes:(d.meeting_minutes||[]).map(m=>({...m,...meetingParticipation(m.total,m.absent,m.notAttending),voteCards:(m.voteCards||[]).map(card=>topics.find(t=>t.id===card.id)||{...card,...(!teacher&&card.status!=='closed'?{results:undefined}:{})})}))};
+ return meetingProjection({officers:meetingOfficers(d),roster:meetingActive(d).map(({id,no,name})=>({id,no,name})),studentId,isTeacher:teacher,isChair:meetingOfficers(d).chairIds.includes(studentId),isVice:meetingOfficers(d).viceChairIds.includes(studentId),topics,minutes:(d.meeting_minutes||[]).map(m=>({...m,...meetingParticipation(m.total,m.absent,m.notAttending),voteCards:(m.voteCards||[]).map(card=>topics.find(t=>t.id===card.id)||{...card,...(!teacher&&card.status!=='closed'?{results:undefined}:{})})}))},studentId,teacher);
 }
 export function meetingVoteConfig(payload){
  const kind=payload.kind,options=kind==='yesno'?[{id:'yes',label:'찬성'},{id:'no',label:'반대'}]:payload.options,maxChoices=kind==='yesno'?1:payload.maxChoices;

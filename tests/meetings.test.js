@@ -36,3 +36,14 @@ test('마지막 수업 뒤 빈 교시는 접고 중간 빈 교시와 교시 연�
 test('선생님과 회장은 대기 안건의 선택지·복수 선택 개수를 확정하고 이전 검토를 초기화한다',()=>{
  let d=propose(fixture()),id=d.meeting_topics[0].id;d=act(d,'s2','endorse',{id});const p={id,kind:'custom',options:[{id:'a',label:'첫째'},{id:'b',label:'둘째'},{id:'c',label:'셋째'}],maxChoices:2};assert.throws(()=>act(d,'s4','configure_topic',p));d=act(d,'s1','configure_topic',p);assert.equal(d.meeting_topics[0].maxChoices,2);assert.equal(d.meeting_topics[0].approvals.length,0);
 });
+test('선택자 명단은 교사에게만 번호순으로 제공하고 마감 후 학생·대리 화면·저장 회의록에서도 제거한다',()=>{
+ let d=propose(fixture(),C.uid(),true,{kind:'custom',options:[{id:'a',label:'하나'},{id:'b',label:'둘'},{id:'c',label:'셋'}],maxChoices:2,openNow:true}),id=d.meeting_topics[0].id;
+ d=act(d,'s3','vote',{id,choices:['a','b']});d=act(d,'s1','vote',{id,choices:['a']});
+ let teacher=C.meetingSnapshot(d,null,true);assert.deepEqual(teacher.topics[0].results[0].voters,[{id:'s1',no:1,name:'학생1'},{id:'s3',no:3,name:'학생3'}]);assert.deepEqual(teacher.topics[0].results[1].voters,[{id:'s3',no:3,name:'학생3'}]);assert.deepEqual(teacher.topics[0].results[2].voters,[]);
+ const minute={id:C.uid(),date:'2026-11-28',moderators:['학생1'],recorders:['학생2'],total:4,absent:0,notAttending:0,content:'회의',voteIds:[id]};d=act(d,null,'minutes',minute,true);assert(!JSON.stringify(C.meetingSnapshot(d,'s2')).includes('voters'));
+ d=act(d,null,'close',{id},true);teacher=C.meetingSnapshot(d,null,true);assert.equal(teacher.minutes[0].voteCards[0].results[0].voters.length,2);
+ for(const student of [C.meetingSnapshot(d,'s2'),C.meetingProjection(teacher,'s2')]){assert(!JSON.stringify(student).includes('voters'));assert.equal(student.topics[0].results[0].count,2);assert.equal(student.minutes[0].voteCards[0].results[0].count,2);}
+ const saved=structuredClone(d);saved.meeting_minutes[0].voteCards=teacher.minutes[0].voteCards;saved.meeting_topics=[];
+ assert(!JSON.stringify(C.meetingSnapshot(saved,'s2')).includes('voters'));assert.equal(C.meetingSnapshot(saved,'s2').minutes[0].voteCards[0].results[0].count,2);
+ assert.deepEqual(d.meeting_minutes[0].moderators,['학생1']);assert.deepEqual(d.meeting_minutes[0].recorders,['학생2']);
+});
