@@ -1414,7 +1414,7 @@ export function studentNicknameOps(database, id, nickname) {
   }];
 }
 export function studentLabel(s, studentMode = false) {
-  return s.name + (s.nickname ? studentMode ? ' "' + s.nickname + '"' : '(' + s.nickname + ')' : '');
+  return studentMode ? s.name + (s.nickname ? ' "' + s.nickname + '"' : '') : s.name;
 }
 export function questSubtasks(a) {
   if (a.questSubtasks == null) return [];
@@ -2063,6 +2063,21 @@ function behaviorCompletion(database,studentId,days,from,table) {
   }
   return {total,done,late,rate:total?Math.round(done/total*100):null};
 }
+// Shared evidence for the teacher report and anonymous AI exports. No source mutation.
+export function studentAnalysisContext(database, studentId, from, to) {
+  const inRange = date => date >= from && date <= to;
+  const records = (database.records || []).filter(r => !r.deletedAt && inRange(r.date));
+  const direct = new Set(records.filter(r => r.studentIds?.includes(studentId) && r.incidentId).map(r => r.incidentId));
+  const incidentIds = new Set(direct);
+  for (const incident of database.incidents || []) if (!incident.deletedAt && (direct.has(incident.id) || incident.studentIds?.includes(studentId) && inRange(incident.date))) {
+    for (const id of linkedIncidentIds(database, incident.id)) incidentIds.add(id);
+  }
+  return {
+    attendance: (database.attendance || []).filter(a => !a.deletedAt && a.studentId === studentId && inRange(a.date)).sort((a,b) => a.date.localeCompare(b.date)).map(a => ({date:a.date,excluded:!!a.excluded,status:a.status || (a.excluded?'출결 제외':'출결 기록'),memo:String(a.memo || '')})),
+    incidents: (database.incidents || []).filter(i => !i.deletedAt && incidentIds.has(i.id)).map(i => ({date:i.date,title:i.title || '',status:i.status || '진행중',resolved:i.status === '종결' || i.status === '해결',description:i.description || '',guidance:i.action || i.guidance || '',records:records.filter(r => r.incidentId === i.id).map(r => ({date:r.date,kind:recordLabel(r),text:r.text || '',action:r.action || r.guidance || ''}))})),
+    mind: consultationMindSummary(database, studentId)
+  };
+}
 export function behaviorAnalysis(database,from,to) {
   const days=dates(from,to).filter(d=>d<=today()),roster=activeStudents(database),ids=new Set(roster.map(s=>s.id));
   const candidates=database.records.filter(r=>!r.deletedAt&&r.date>=from&&r.date<=to),groups=new Map();
@@ -2080,15 +2095,17 @@ export function behaviorAnalysis(database,from,to) {
     const counts=rows=>({praise:rows.filter(r=>delta(r)>0).length,advice:rows.filter(r=>delta(r)<0).length,record:rows.filter(r=>delta(r)===0).length});
     const areas=names.map(area=>({area,...counts(records.filter(r=>recordAreas(r).includes(area)))}));
     const patterns=new Map();for(const r of records){const normalized=behaviorTextKey(r.text);if(!normalized)continue;const p=patterns.get(normalized)||{text:r.text,count:0,dates:[]};p.count++;if(!p.dates.includes(r.date))p.dates.push(r.date);patterns.set(normalized,p);}
-    summaries.set(s.id,{from,to,areas,...counts(records),assignments:behaviorCompletion(database,s.id,days,from,'assignments'),routines:behaviorCompletion(database,s.id,days,from,'routines'),patterns:[...patterns.values()].filter(p=>p.dates.length>=2),records:records.map(r=>({date:r.date,kind:recordLabel(r),areas:recordAreas(r),text:r.text||'',action:r.action||''})),meta:{excludedBulkRecords:own.length-records.length,classBulkGroups:bulk.size,classBulkRecords:candidates.filter(r=>bulk.has(key(r))).length,activeStudentCount:roster.length}});
+    const context=studentAnalysisContext(database,s.id,from,to);
+    context.incidents=context.incidents.map(i=>({...i,records:i.records.filter(r=>!bulk.has(key(r)))}));
+    summaries.set(s.id,{from,to,...context,areas,...counts(records),assignments:behaviorCompletion(database,s.id,days,from,'assignments'),routines:behaviorCompletion(database,s.id,days,from,'routines'),patterns:[...patterns.values()].filter(p=>p.dates.length>=2),records:records.map(r=>({date:r.date,kind:recordLabel(r),areas:recordAreas(r),text:r.text||'',action:r.action||r.guidance||''})),meta:{excludedBulkRecords:own.length-records.length,classBulkGroups:bulk.size,classBulkRecords:candidates.filter(r=>bulk.has(key(r))).length,activeStudentCount:roster.length}});
   }
   const all=[...summaries.values()],distribution={studentCount:roster.length,kinds:Object.fromEntries(['praise','advice','record'].map(kind=>[kind,behaviorMetric(all.map(s=>s[kind]))])),areas:names.map(area=>({area,...Object.fromEntries(['praise','advice','record'].map(kind=>[kind,behaviorMetric(all.map(s=>s.areas.find(a=>a.area===area)[kind]))]))})),assignments:behaviorMetric(all.map(s=>s.assignments.rate)),routines:behaviorMetric(all.map(s=>s.routines.rate))};
   for(const s of all)s.relative={kinds:Object.fromEntries(['praise','advice','record'].map(kind=>[kind,behaviorRelative(s[kind],distribution.kinds[kind])])),areas:s.areas.map(a=>({area:a.area,...Object.fromEntries(['praise','advice','record'].map(kind=>[kind,behaviorRelative(a[kind],distribution.areas.find(d=>d.area===a.area)[kind])]))})),assignments:behaviorRelative(s.assignments.rate,distribution.assignments,'percent'),routines:behaviorRelative(s.routines.rate,distribution.routines,'percent')};
-  return {summaries,distribution};
+  return {summaries,distribution,bulkRecordIds:candidates.filter(r=>bulk.has(key(r))).map(r=>r.id)};
 }
 export function behaviorSummary(database,studentId,from,to,analysis=null) {
   const context=analysis||behaviorAnalysis(database,from,to);
-  return context.summaries.get(studentId)||{from,to,areas:[],praise:0,advice:0,record:0,assignments:{total:0,done:0,late:0,rate:null},routines:{total:0,done:0,late:0,rate:null},records:[],patterns:[],meta:{excludedBulkRecords:0,activeStudentCount:context.distribution.studentCount},relative:null};
+  return context.summaries.get(studentId)||{from,to,areas:[],praise:0,advice:0,record:0,assignments:{total:0,done:0,late:0,rate:null},routines:{total:0,done:0,late:0,rate:null},records:[],patterns:[],meta:{excludedBulkRecords:0,activeStudentCount:context.distribution.studentCount},relative:null,...studentAnalysisContext(database,studentId,from,to)};
 }
 export function behaviorDraft(summary) {
   if(!summary.records.length&&!summary.assignments.total&&!summary.routines.total)return '선택한 기간의 관찰 근거가 부족하여 구체적인 학교생활 모습을 확인할 추가 기록이 필요함.';
@@ -2118,10 +2135,12 @@ export function behaviorAIData(database,studentIds,from,to) {
   const substitutions=[...terms].sort((a,b)=>b[0].length-a[0].length).map(([term,labels],i)=>({term,marker:`\uE000${i}\uE001`,label:labels.size===1?[...labels][0]:'학생'}));
   const anonymize=value=>{
     let text=String(value||'');for(const s of substitutions)text=text.split(s.term).join(s.marker);
-    text=text.replace(/\d{1,3}\s*[.·]\s*(?=\uE000)/g,'');text=anonymizeBehaviorText(database,text);
+    text=text.replace(/\d{1,3}\s*[.·]\s*(?=\uE000)/g,'');
+    text=text.replace(/(?:번호\s*[:：]?\s*)?(\d{1,3})\s*번/g,(_,no)=>{const peers=ordered.map((s,i)=>({s,i})).filter(({s})=>Number(s.no)===Number(no));return peers.length===1?`\uE002${peers[0].i}\uE003`:'학생';});text=anonymizeBehaviorText(database,text);
+    text=text.replace(/\uE002(\d+)\uE003/g,(_,i)=>behaviorAlias(Number(i)));
     for(const s of substitutions)text=text.split(s.marker).join(s.label);return text;
   };
-  const scrub=value=>typeof value==='string'?anonymize(value):Array.isArray(value)?value.map(scrub):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).map(([key,v])=>[key,scrub(v)])):value;
+  const scrub=value=>typeof value==='string'?anonymize(value):Array.isArray(value)?value.map(scrub):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).filter(([key])=>!['id','no','studentId','studentIds'].includes(key)).map(([key,v])=>[anonymize(key),scrub(v)])):value;
   return selected.map((s,i)=>({대상:behaviorAlias(i),...scrub(behaviorSummary(database,s.id,from,to,analysis)),classDistribution:scrub(analysis.distribution)}));
 }
 export const BEHAVIOR_PROMPT_INSTRUCTIONS = [
@@ -2129,6 +2148,7 @@ export const BEHAVIOR_PROMPT_INSTRUCTIONS = [
   '기록에 없는 사실이나 개선 결과를 지어내지 말 것. 단 1~2건의 기록을 학생의 고정 성향으로 과장하지 말 것. 원래 기록의 문체와 단어를 임의로 바꾸지 말고 살릴 것.',
   '꾸미는 미사여구는 빼되 근거에 맞는 포괄적 요약 평가어(성실함, 일관됨 등)와 교육과정 어휘는 활용할 수 있습니다. 근거가 없으면 비우거나 근거 부족으로 표시하세요.',
   '학급 일괄 기록은 이미 제외되었습니다. classDistribution과 relative는 전체 활성 학생을 기준으로 계산한 수치입니다. count는 해당 비교의 유효 학생 수이고 이행률 null은 과제·루틴 없음으로 0%가 아닙니다. 유형·분야별 상대 위치는 절대 건수가 아닌 분포와 비교하되, 조언이 많다는 것을 장점으로 해석하지 마세요. 유형·분야의 onlyStudent는 이 학생만 양의 건수가 기록된 항목이지 다른 학생에게 그 행동이 없다는 뜻이 아닙니다. 이행률의 onlyStudent는 적용하지 않아 null입니다.',
+  'attendance는 선택 기간의 출결 기록, incidents는 관련 사건의 해결 여부·추가내용·연결 기록, mind는 기간과 별도로 최신 설문의 교우관계·양방향 이유 태그·메모입니다. 설문 시점과 선택 기간을 구분하고, 진행 중 설문·미응답·소외 신호를 확정된 성향이나 진단으로 단정하지 마세요. 사건의 종결은 갈등 개선의 증거와 같지 않습니다. 비공개 자료는 교사 참고용입니다.',
   '학생별로 반드시 다음 순서를 유지하세요:',
   '1) 과제·루틴 이행률(%)과 간단한 분석. 분모와 완료·늦게완료도 함께 보고 근거 없으면 비교 불가로 표시하세요.',
   '2) 우리 반 안에서 상대적으로 많은 편인지: 반 평균·최소/최대·분포·이 학생만 기록된 항목을 근거로 설명하세요. 관찰·기록량 차이를 실제 능력의 확정 순위로 바꾸지 마세요.',
@@ -2150,6 +2170,9 @@ export function behaviorAnalysisCSV(database,studentIds,from,to) {
     const {대상,records,relative,classDistribution,meta,...summary}=s;
     rows.push([대상,'요약',s.from,s.to,'','','','','',JSON.stringify(summary),JSON.stringify(classDistribution),JSON.stringify(relative),JSON.stringify(meta)]);
     for(const r of records)rows.push([대상,'개별 관찰 기록',s.from,s.to,r.date,r.kind,r.areas.join(' · '),r.text,r.action,'','','','']);
+    for(const a of s.attendance || [])rows.push([대상,'출결',s.from,s.to,a.date,a.status,'',a.memo,'','','','','']);
+    for(const i of s.incidents || [])rows.push([대상,'사건',s.from,s.to,i.date,i.status,'',i.title+' · '+i.description,i.guidance,JSON.stringify(i),'','','']);
+    if(s.mind)rows.push([대상,'최신 마음지도',s.from,s.to,s.mind.survey.createdAt,'','',s.mind.survey.title,'',JSON.stringify(s.mind),'','','']);
   }
   const quote=value=>{const text=String(value??''),escaped=/^[=+\-@\t\r\n]/.test(text)?"'"+text:text;return '"'+escaped.replace(/"/g,'""')+'"';};
   return '\uFEFF'+rows.map(row=>row.map(quote).join(',')).join('\r\n');
@@ -2411,7 +2434,7 @@ export function consultationRecords(database, studentId, from, to) {
     extraType: r.extraType || '',
     areas: recordAreas(r),
     text: String(r.text || ''),
-    action: String(r.action || ''),
+    action: String(r.action || r.guidance || ''),
     printIncluded: r.printIncluded !== false
   }));
 }
@@ -2419,8 +2442,9 @@ export function consultationSummary(database, studentId, from, to) {
   dates(from, to);
   const student = (database.students || []).find(s => s.id === studentId);
   if (!student) throw Error('학생을 찾지 못했습니다.');
+  const analysis = behaviorAnalysis(database,from,to);
   const rows = areaRows(database, true),
-    records = consultationRecords(database, studentId, from, to),
+    records = consultationRecords(database, studentId, from, to).map(r=>({...r,isClassBulk:analysis.bulkRecordIds.includes(r.id)})),
     groups = CONSULTATION_GROUPS.map(group => ({
       ...group,
       areas: [],
@@ -2464,7 +2488,7 @@ export function consultationSummary(database, studentId, from, to) {
     group.latest = [...unique].slice(-3).reverse();
     group.advice = unique.filter(r => r.action || r.kind === '지도').slice(-2).reverse();
   }
-  const behavior = behaviorSummary(database, studentId, from, to),
+  const behavior = behaviorSummary(database, studentId, from, to, analysis),
     score = scores(database, studentId, from, to);
   return {
     student,
@@ -2477,15 +2501,13 @@ export function consultationSummary(database, studentId, from, to) {
       assignments: behavior.assignments,
       routines: behavior.routines
     },
-    attendance: (database.attendance || []).filter(a => a.studentId === studentId && a.excluded && a.date >= from && a.date <= to).sort((a, b) => a.date.localeCompare(b.date)).map(a => ({
-      date: a.date,
-      memo: String(a.memo || '')
-    })),
-    mind: consultationMindSummary(database, studentId)
+    ...studentAnalysisContext(database, studentId, from, to),
+    analysis: behavior
+
   };
 }
 export function consultationMindSummary(database, studentId) {
-  const surveys = [...(database.surveys || [])].filter(s => s && s.id).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  const surveys = [...(database.surveys || [])].filter(s => s && s.id && !s.deletedAt).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
   const survey = surveys[0];
   if (!survey) return null;
   const roster = activeStudents(database),

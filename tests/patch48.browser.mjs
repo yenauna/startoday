@@ -28,18 +28,18 @@ try {
  await page.evaluate(async days=>{const {store,state}=await import('/js/shared/state.js'),C=await import('/js/core.js');const d=C.initialDB();d.students=[{id:'s48-a',no:1,name:'김가온'},{id:'s48-b',no:2,name:'이나래'}];d.records=[{id:'r48-existing',studentIds:['s48-a'],date:days.five,kind:'칭찬',areas:['관계'],text:'급우와 협력함',createdAt:C.now(),updatedAt:C.now()}];d.assignments=[];d.routines=[];store.db=d;localStorage.setItem('startoday-demo-v1',JSON.stringify(d));localStorage.removeItem('startoday-behavior-drafts-v1');state.date=C.today();(await import('/js/app.js')).navigate('통계');},{five:day(5)});
 
  // 1) 초안 자동 저장과 모달 재오픈 복원
- await page.getByRole('button',{name:'행발 문장 변환기',exact:true}).click();
+ await page.getByRole('button',{name:'학생 종합 분석',exact:true}).click();await page.locator('.analysis-export').evaluate(e=>e.open=true);await page.locator('.analysis-picker').evaluate(e=>e.open=true);
  const draftA=page.locator('[data-behavior-draft="s48-a"]');
  const custom='교사가 직접 고친 초안입니다, 쉼표 포함';
  await draftA.fill(custom);
  assert.match(await page.locator('[data-behavior-status="s48-a"]').innerText(),/저장된 초안/);
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('startoday-behavior-drafts-v1'))['demo:demo']['s48-a'].text),custom);
  await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();
- await page.getByRole('button',{name:'행발 문장 변환기',exact:true}).click();
+ await page.getByRole('button',{name:'학생 종합 분석',exact:true}).click();await page.locator('.analysis-export').evaluate(e=>e.open=true);await page.locator('.analysis-picker').evaluate(e=>e.open=true);
  assert.equal(await page.locator('[data-behavior-draft="s48-a"]').inputValue(),custom);
  assert.match(await page.locator('[data-behavior-status="s48-a"]').innerText(),/저장된 초안/);
  // 이미 저장한 초안은 선택 학생 초안 생성으로 덮어쓰지 않음
- await page.getByRole('button',{name:'선택 학생 초안 생성',exact:true}).click();
+ await page.getByRole('button',{name:'분석 보기',exact:true}).click();await page.locator('.analysis-export').evaluate(e=>e.open=true);
  assert.equal(await page.locator('[data-behavior-draft="s48-a"]').inputValue(),custom);
 
  // 2) 전체 초안 CSV / 텍스트 내려받기 (UTF-8 BOM, 따옴표 처리)
@@ -69,7 +69,7 @@ try {
  await page.reload();
  if(await page.getByRole('button',{name:'가상 명단으로 먼저 살펴보기',exact:true}).isVisible())await page.getByRole('button',{name:'가상 명단으로 먼저 살펴보기',exact:true}).click();
  await page.evaluate(async()=>(await import('/js/app.js')).navigate('통계'));
- await page.getByRole('button',{name:'행발 문장 변환기',exact:true}).click();
+ await page.getByRole('button',{name:'학생 종합 분석',exact:true}).click();await page.locator('.analysis-export').evaluate(e=>e.open=true);await page.locator('.analysis-picker').evaluate(e=>e.open=true);
  assert.equal(await page.locator('[data-behavior-draft="s48-a"]').inputValue(),custom);
  const accept=d=>d.accept();page.on('dialog',accept);
  await page.locator('.behavior-result[data-behavior-id="s48-a"]').getByRole('button',{name:'초안 새로 생성(덮어쓰기)',exact:true}).click();
@@ -168,7 +168,7 @@ try {
  assert.equal(await page.locator('.csv-preview-table').evaluate(e=>e.scrollWidth>e.clientWidth+1),false);
  await page.screenshot({path:'/tmp/patch48-import-412.png'});
  await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();
- await page.getByRole('button',{name:'행발 문장 변환기',exact:true}).click();
+ await page.getByRole('button',{name:'학생 종합 분석',exact:true}).click();await page.locator('.analysis-export').evaluate(e=>e.open=true);await page.locator('.analysis-picker').evaluate(e=>e.open=true);
  assert.equal(await page.locator('.dialog-body').evaluate(e=>e.scrollWidth>e.clientWidth+1),false);
  assert.equal(await page.locator('[data-behavior-status]').first().isVisible(),true);
  await page.locator('#modal .dialog-head').getByRole('button',{name:'닫기',exact:true}).click();

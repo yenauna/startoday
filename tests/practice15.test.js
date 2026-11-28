@@ -33,7 +33,7 @@ test('별명은 한글 1~8자만 허용하고 프로필의 비밀번호·교실 
   d = C.applyOps(d, C.studentNicknameOps(d, 's', '반짝별'));
   assert.equal(d.students[0].password, '보존암호7');
   assert.equal(d.students[0].alias, '교사별명');
-  assert.equal(C.studentLabel(d.students[0]), '가온(반짝별)');
+  assert.equal(C.studentLabel(d.students[0]), '가온');
   assert.equal(C.studentLabel(d.students[0], true), '가온 "반짝별"');
   assert.equal(C.applyOps(d, C.studentNicknameOps(d, 's', null)).students[0].nickname, null);
 });
