@@ -14,7 +14,7 @@ test('기념일 당일과 바로 앞 평일 1~2일을 우선 추천하고 다른
  assert.equal(C.noticeFuturePrefix('2027-03-04'),'[3.4.목]');assert.throws(()=>C.noticeFuturePrefix('bad'));
 });
 test('일정·일반 과제·메모1/2만 담고 미제출은 진행중+안함, 제외·완료·면제·늦게완료·삭제 학생을 뺀다',()=>{
- const d=noticeFixture(),items=C.noticeDayItems(d,day);assert.equal(items.length,4);assert(!items.some(i=>['quest','hidden'].includes(i.sourceId)));assert(items.find(i=>i.sourceId==='t').text.includes('책 준비 / 발표'));const task=items.find(i=>i.kind==='task');assert.deepEqual(C.noticeMissingStudents(d,task),['학생0','학생1']);task.includeMissing=true;assert.equal(C.noticeItemText(d,task),'독서록 (미제출: 학생0, 학생1)');d.assignments[0].target={studentIds:['s1']};assert.deepEqual(C.noticeMissingStudents(d,task),['학생1']);
+ const d=noticeFixture(),items=C.noticeDayItems(d,day);assert.equal(items.length,4);assert(!items.some(i=>['quest','hidden'].includes(i.sourceId)));assert.equal(items.find(i=>i.sourceId==='t').text,'1교시 국어: 책 준비 / 발표');const task=items.find(i=>i.kind==='task');assert.deepEqual(C.noticeMissingStudents(d,task),['학생0','학생1']);task.includeMissing=true;assert.equal(C.noticeItemText(d,task),'독서록 (미제출: 학생0, 학생1)');d.assignments[0].target={studentIds:['s1']};assert.deepEqual(C.noticeMissingStudents(d,task),['학생1']);
 });
 test('알림장 CRUD와 저장·복구는 날짜당 한 개를 유지하고 미래 일정은 날짜순으로 렌더링한다',()=>{
  let d=noticeFixture(),draft=C.noticeDraft(d,day);draft.todayItems=C.noticeDayItems(d,day).filter(i=>i.kind==='task');draft.todayItems[0].includeMissing=true;draft.futureItems=[{key:'b',sourceId:'later',kind:'event',date:'2026-03-06',text:'평가'},{key:'a',sourceId:'earlier',kind:'event',date:'2026-03-05',text:'준비'}];draft.extraMemo='<img src=x> 준비물을 확인해요.';

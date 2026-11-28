@@ -39,7 +39,7 @@ export function noticeDraft(database,date=C.today()){
 export function noticeDayItems(database,date){
  const events=C.calendarEvents(database).filter(e=>e.date===date&&!e.deletedAt).map(e=>({key:`event:${e.id}:${date}`,kind:'event',sourceId:e.id,date,text:e.title,detail:e.description||''}));
  const tasks=database.assignments.filter(a=>!a.isQuest&&C.occurs(a,date)).map(a=>({key:`task:${a.id}:${date}`,kind:'task',sourceId:a.id,date,text:a.title,detail:a.memo||'',includeMissing:false}));
- const lessons=database.timetables.filter(t=>t.date===date&&!t.deletedAt&&((t.publicMemo??t.memo)||t.privateMemo)).sort((a,b)=>a.period-b.period).map(t=>({key:`lesson:${t.id}:${date}`,kind:'lesson',sourceId:t.id,date,text:`${t.period}교시 ${t.subjectCode} · ${[(t.publicMemo??t.memo)||'',t.privateMemo||''].filter(Boolean).join(' / ')}`,detail:''}));
+ const lessons=database.timetables.filter(t=>t.date===date&&!t.deletedAt&&((t.publicMemo??t.memo)||t.privateMemo)).sort((a,b)=>a.period-b.period).map(t=>({key:`lesson:${t.id}:${date}`,kind:'lesson',sourceId:t.id,date,text:`${t.period}교시 ${t.subjectCode}: ${[(t.publicMemo??t.memo)||'',t.privateMemo||''].filter(Boolean).join(' / ')}`,detail:''}));
  return [...events,...tasks,...lessons];
 }
 export function noticeMissingStudents(database,item){
