@@ -48,7 +48,7 @@ export function economyView() {
   if (scope !== economyDrawerScope) { economyDrawerScope = scope; openGiftItemId = null; selectedGiftStudentId = null; }
   const data = db(),
     list = students().sort((a,b) => a.no - b.no);
-  return `<div class="toolbar"><h2>경제</h2><span class="muted">월급 정산제 · 지급 원장 기준</span></div><nav class="economy-subtabs" aria-label="경제 관리">${btn('자산 관리', () => {
+  return `<div class="toolbar"><div><h2>경제</h2><span class="muted">월급 정산제 · 지급 원장 기준</span></div></div><nav class="economy-subtabs" aria-label="경제 관리">${btn('자산 관리', () => {
     economyTeacherTab = 'assets';
     render();
   }, economyTeacherTab === 'assets' ? 'active' : '')}${btn('상점 관리', () => {

@@ -2329,3 +2329,136 @@ input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-s
 @media(min-width:1100px){.toolbar{align-items:center;gap:12px}.toolbar>.row{gap:8px;justify-content:flex-end}.toolbar>.row>button,.notice-toolbar>.row>button,.jobs-view>.toolbar>.row>button{white-space:nowrap;flex-shrink:0}.notice-toolbar>.row,.jobs-view>.toolbar>.row,.economy-assets-tools{flex-wrap:wrap;align-items:center}.student-period-controls{gap:6px}.student-period-controls>button{white-space:nowrap}.consult-toolbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto}.consult-range-switch{justify-content:center;flex-wrap:wrap}}
 .analysis-period .date-control{min-width:0;width:100%;padding:8px 24px 8px 8px}.analysis-period .date-display{font-size:12px;min-width:0}.analysis-period .date-control::after{right:6px;font-size:11px}
 @media(max-width:640px){.analysis-period{grid-template-columns:repeat(2,minmax(0,1fr))}.analysis-period>button{grid-column:1/-1;min-height:34px}.analysis-period .date-display{font-size:11px}.analysis-period .date-control{padding:8px 20px 8px 7px}}
+
+/* ── 44차: 전 화면 반응형·줄바꿈·정렬 마감 ─────────────────────────────
+   기능은 그대로 두고, 좁은 폭에서 1~2글자만 다음 줄로 꺾이거나
+   같은 버튼 묶음에서 한두 개만 애매하게 떨어지는 자리만 정리한다. */
+
+/* 1) 한글 어절 보존: 단어 중간에서 꺾이지 않게 하고, 자리가 모자랄 때만 글자 단위로 나눈다.
+      (‘칭찬 편지함 노출 기/간’, ‘아침 독/서 활동’처럼 한 글자만 떨어지는 줄바꿈 제거) */
+:where(button, .btn, label, th, h1, h2, h3, .badge, .pill, .date-display,
+  .schedule-period-title, .student-card-title, .weekday, .notice-calendar-weekday,
+  .economy-subtabs button, .village-economy-tabs button, .student-calendar-pill,
+  .routine-calendar-pill, .student-task, .economy-item h3, .notice-preview) {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* 2) 툴바: 제목·보조문구는 한 덩어리로 붙이고, 버튼 줄은 같은 높이로 정렬한다. */
+.toolbar { gap:10px 12px; }
+.toolbar > div { min-width:0; }
+.toolbar > div > small { display:block; }
+
+/* 3) 일정 상단: 제목 줄과 조작 줄을 위아래로 나눠 조작 버튼이 두 줄로 어정쩡하게 끊기지 않게 한다. */
+@media(max-width:1100px) {
+  #app .schedule-toolbar { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; }
+  #app .schedule-toolbar > .row { justify-content:flex-start; gap:6px; }
+  #app .schedule-toolbar-nav > button, #app .schedule-toolbar-nav > strong { flex:0 0 auto; }
+}
+@media(max-width:640px) {
+  /* 좁은 화면에서는 같은 안내를 달력 아래 한 줄 힌트가 대신한다. */
+  #app .schedule-toolbar > div > small { display:none; }
+  #app .schedule-toolbar-nav { flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:none; padding-bottom:2px; }
+  #app .schedule-toolbar-nav::-webkit-scrollbar { height:0; }
+}
+
+/* 4) 기록 필터: 641~900px에서 날짜·학생·유형·영역은 첫 줄, 검색·조회는 둘째 줄로 고르게 나눈다. */
+@media(min-width:641px) and (max-width:900px) {
+  #app #record-filter { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); align-items:center; gap:8px; }
+  #app #record-filter > .date-range-trigger { grid-column:span 2; }
+  #app #record-filter > input[name=q] { grid-column:span 2; }
+  #app #record-filter > button { grid-column:4; }
+}
+
+/* 5) 통계 상단: 정렬·기간·조회 기간을 같은 높이로 맞추고, 좁은 폭에서는 두 칸 그리드로 묶는다. */
+#app #main .statistics-filters > .student-custom-range { padding:0; background:transparent; border:0; box-shadow:none; }
+#app .statistics-filters .date-range-trigger { min-height:38px; height:38px; }
+@media(max-width:900px) {
+  #app .statistics-filters { gap:8px; margin:10px 0 12px; }
+  #app .statistics-summary { margin:8px 0 10px; }
+}
+@media(max-width:640px) {
+  #app .statistics-filters > .statistics-sort { width:100%; }
+  #app .statistics-filters .sort-control { width:100%; }
+  #app .statistics-filters .sort-control select { width:100%; max-width:none; }
+  #app .student-period-controls { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; width:100%; }
+  #app .student-period-controls > #student-month { grid-column:1/-1; width:100%; }
+  #app .student-period-controls > button { min-width:0; padding-inline:4px; white-space:nowrap; }
+}
+
+/* 6) 설정: 641~800px에서도 폼을 두 칸으로 묶어 한 칸씩 길게 늘어놓지 않는다. */
+@media(min-width:641px) and (max-width:800px) {
+  #app .settings-content .formgrid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(min-width:960px) {
+  /* 학교명 칸은 한 줄을 다 쓰고, 학년·반은 짝을 이뤄 남는 빈칸을 만들지 않는다. */
+  #app #settings-form > [data-settings-category="기본 정보"]:first-child .formgrid > .school-picker { grid-column:1/-1; }
+  #app #settings-form > [data-settings-category="기본 정보"]:first-child .formgrid > label:nth-last-child(-n+2) { grid-column:span 1; }
+  /* 반쪽 폭 패널 안에서는 라벨을 입력칸 위에 두어 글자가 잘리지 않게 한다. */
+  #app #settings-form > [data-settings-category="기본 정보"]:not(:first-child) .formgrid { grid-template-columns:minmax(0,1fr); }
+  #app #settings-form > [data-settings-category="기본 정보"]:not(:first-child) .formgrid > label { grid-template-columns:minmax(0,1fr); align-items:start; }
+}
+@media(max-width:640px) {
+  /* 설정 안쪽 버튼 줄은 네 개가 3+1로 끊기지 않게 두 칸으로 나눈다. */
+  #app .settings-content .toolbar > .row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; gap:6px; }
+  #app .settings-content .toolbar > .row > button { min-width:0; }
+  #app .settings-content .panel > .row { gap:6px; }
+}
+
+/* 7) 루틴 달력: 칸이 손가락보다 좁아 글자가 세로로 쌓이지 않게 옆으로 넘겨 본다. */
+@media(max-width:640px) {
+  .routine-calendar { grid-template-columns:repeat(7,minmax(64px,1fr)); overflow-x:auto; overscroll-behavior-x:contain; gap:3px; padding-bottom:4px; }
+  .routine-calendar > .weekday { padding:5px 0; font-size:11px; }
+}
+#routine-exception > label { flex:1 1 0; min-width:0; }
+#routine-exception :is(select, input) { min-width:0; width:100%; }
+#routine-exception > button { flex:0 0 auto; align-self:end; }
+
+/* 8) 학생 달력: 칸이 좁아 낱글자로 쌓이던 과제·일정 이름은 한 줄로 두고 넘치는 부분만 말줄임한다.
+      (전체 이름은 칸의 title과 날짜를 눌렀을 때의 상세에서 그대로 볼 수 있다.) */
+@media(max-width:640px) {
+  #app .student-calendar-grid.month { grid-template-columns:repeat(7,minmax(0,1fr)); }
+  #app .student-calendar-day .student-calendar-pill { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; white-space:normal; overflow:hidden; max-height:none; font-size:10px; line-height:1.45; }
+}
+
+/* 9) 같은 줄에 놓인 빠른 기록 칸과 버튼은 높이를 맞춘다. */
+#app .quick-controls > label, #app .quick-controls > button { min-height:36px; }
+#app .quick-controls > .quick-date { display:inline-flex; align-items:center; }
+@media(max-width:640px) {
+  #app .quick-controls .quick-date, #app .quick-controls .quick-period-toggle,
+  #app .quick-controls .quick-options-toggle, #app .quick-controls .quick-memo-open,
+  #app .quick-controls .record-action { min-height:36px; display:inline-flex; align-items:center; justify-content:center; }
+}
+
+/* 10) 교실화면 상단 조작 버튼: 이름은 원래 두 줄(수업/도구)로 두되, 폭에 밀려 낱글자로 꺾이지 않게 한다. */
+.classroom-controls button > span { word-break:keep-all; }
+
+/* 11) 카드·표 안의 작은 관리 버튼은 옆의 아이콘 버튼과 높이를 맞춘다. */
+#app .long-assignment-actions button, #app .long-assignment-actions button.icon-button { min-height:32px; padding:3px 9px; }
+#app .routine-table .row > button { min-height:36px; }
+
+/* 12) 화면 맨 위 툴바의 버튼 줄: 줄이 바뀌어도 남는 폭을 나눠 채워 마지막 한두 개가 비어 보이지 않게 한다. */
+#app .economy-assets-tools > button { flex:0 0 auto; }
+@media(max-width:640px) {
+  #app #main > .toolbar > .row > button { flex:1 1 auto; min-width:0; }
+  #app #main > .toolbar.schedule-toolbar > .row > button { flex:0 0 auto; }
+}
+/* 달력 위 표시 항목 고르기는 가장 좁은 폭에서 세 칸으로 나눠 마지막 하나만 떨어지지 않게 한다. */
+@media(max-width:400px) {
+  #app #main > .row.schedule-filters { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; width:100%; }
+  #app .schedule-filters .schedule-filter-hint { grid-column:1/-1; }
+}
+
+/* 13) 학생 상세·학생 종합 분석 상단: 좁은 화면에서도 기간 두 칸이 세로로 쌓이지 않고
+      버튼 줄이 마지막 한 개만 남지 않도록 남는 폭을 나눠 쓴다. */
+@media(max-width:640px) {
+  #modal .student-detail-content > .row > button { flex:1 1 auto; min-width:0; }
+  #modal .student-detail-content > .row > button.icon-button { flex:0 0 auto; }
+  #modal .student-detail-content > .row > span:not(.date-control) { flex:0 0 auto; }
+  #modal .student-detail-content .date-control { min-width:0; flex:1 1 0; padding:7px 20px 7px 8px; }
+  #modal .student-detail-content .date-control .date-display { font-size:12px; }
+  #modal .student-detail-content .date-control::after { right:5px; font-size:11px; }
+}
+
+/* 14) 알림장 크게 보기: 발표 화면답게 창 높이를 채워 위아래 여백에 떠 보이지 않게 한다. */
+#modal.notice-board-modal { height:min(88dvh, 1080px); }
