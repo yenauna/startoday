@@ -27,10 +27,10 @@ function fixture() {
 }
 const rowOf = (preview, id) => preview.rows.find(row => row.studentId === id);
 
-test('월급: 기존 학급은 실시간 합산 방식을 그대로 쓴다', () => {
+test('월급: 기존 학급도 지급 원장 단일 방식을 쓴다', () => {
   const db = fixture();
-  assert.equal(C.pointMode(db.settings[0]), 'realtime');
-  assert.equal(C.studentBalance(db, 's1', DAY), 10);
+  assert.equal(C.pointMode(db.settings[0]), 'salary');
+  assert.equal(C.studentBalance(db, 's1', DAY), 0);
   const config = C.salaryConfig(db.settings[0]);
   assert.deepEqual(config, { period: '2week', basis: 'praise', multiplier: 10, jobs: false, jobWages: {} });
 });

@@ -72,7 +72,7 @@ try {
     await page.locator('#navigation-drawer').getByRole('button', { name, exact: true }).click();
   };
   await openMenu('경제');
-  assert.equal((await page.locator('#main > .toolbar .muted').innerText()).trim(), '별 1개 = 10포인트');
+  assert.equal((await page.locator('#main > .toolbar .muted').innerText()).trim(), '월급 정산제 · 지급 원장 기준');
   await page.getByRole('button', { name: '자산 관리', exact: true }).click();
   const salaryButton = page.getByRole('button', { name: '월급 주기', exact: true });
   assert.equal(await salaryButton.count(), 1);
@@ -85,9 +85,9 @@ try {
   const rowB = modal.locator(`.salary-preview tr[data-salary-student="${seed.b}"]`);
   const cells = async row => (await row.locator('td').allInnerTexts()).map(text => text.replace(/\s+/g, ' ').trim());
 
-  // 실시간 방식에서는 지급할 수 없고, 2주 기준 미리보기가 먼저 맞아야 한다.
-  assert.equal(await pay.isDisabled(), true);
-  assert.equal((await pay.innerText()).trim(), '월급 정산을 먼저 선택');
+  // 원장 단일 방식에서 2주 기준 미리보기와 즉시 지급을 확인한다.
+  assert.equal(await pay.isDisabled(), false);
+  assert.equal(await modal.locator('[name=salary-point-mode]').count(),0);
   assert.match(await modal.locator('[data-salary-range]').innerText(), /2주/);
   let a = await cells(rowA);
   assert.equal(a[3], '칭찬 1');
@@ -117,8 +117,7 @@ try {
   assert.equal(a[6], '20');
   await modal.locator('[name=salary-multiplier]').fill('10');
 
-  // 월급 정산으로 바꾸면 바로 지급할 수 있다.
-  await modal.getByRole('radio', { name: '월급 정산', exact: true }).click();
+  // 운영 방식 전환 없이 바로 지급할 수 있다.
   assert.equal(await pay.isDisabled(), false);
   assert.equal((await pay.innerText()).trim(), '1명에게 지급');
 
@@ -177,7 +176,7 @@ try {
   assert.equal(after.previewAgain.total, 0, '같은 기간에는 다시 지급할 금액이 없다');
 
   // 화면: 월급 정산 표시·잔액·거래 내역이 함께 바뀐다.
-  assert.equal((await page.locator('#main > .toolbar .muted').innerText()).trim(), '월급 정산제 · 별 자동 합산 없음');
+  assert.equal((await page.locator('#main > .toolbar .muted').innerText()).trim(), '월급 정산제 · 지급 원장 기준');
   const balanceText = await page.locator(`tr[data-economy-student="${seed.a}"] .economy-assets-table, tr[data-economy-student="${seed.a}"]`).first().innerText();
   assert.match(balanceText, new RegExp(`★ ${seed.ledger.a + 60}포인트`));
   assert.match(await page.locator('.economy-history').innerText(), /\[월급\] 2주 · 칭찬×10 \+ 직업/);

@@ -5,7 +5,7 @@ import base64
 import mimetypes
 root=next(p for p in (Path(__file__).resolve().parent,Path(__file__).resolve().parents[1]) if (p/'index.html').exists())
 core=(root/'js/core.js').read_text()
-finance=(root/'js/data/notice-phrases.js').read_text()+'\n'+(root/'js/notices.js').read_text()+'\n'+(root/'js/finance.js').read_text()+'\n'+(root/'js/meetings.js').read_text()
+finance=(root/'js/jobs.js').read_text()+'\n'+(root/'js/data/notice-phrases.js').read_text()+'\n'+(root/'js/notices.js').read_text()+'\n'+(root/'js/finance.js').read_text()+'\n'+(root/'js/meetings.js').read_text()
 names=re.findall(r'export (?:const|function) (\w+)',core+finance)
 # Finance and core share one module namespace in the standalone build.
 icons=(root/'js/components/icons.js').read_text().replace('export ','')
@@ -17,7 +17,7 @@ for group in re.findall(r'^import \{(.*?)\} from .*?;\n',store,re.M):
 store='const {'+','.join(dict.fromkeys(store_names))+'}=C;\n'+re.sub(r'^import .*?;\n','',store,flags=re.M).replace('export class Store','class Store')
 modules={}
 def collect(module):
-    if module in modules or module in ('js/core.js','js/store.js','js/finance.js','js/meetings.js','js/notices.js','js/data/notice-phrases.js'):
+    if module in modules or module in ('js/core.js','js/store.js','js/finance.js','js/meetings.js','js/jobs.js','js/notices.js','js/data/notice-phrases.js'):
         return
     source=(root/module).read_text()
     modules[module]=source

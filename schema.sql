@@ -24,7 +24,7 @@ create policy own_audit on public.startoday_audit for select to authenticated us
 -- 각 기능은 독립 테이블, 필드는 data(JSONB) 내부에 보관합니다.
 -- owner_id/class_id는 DB가 강제하며, 브라우저에서 전달하는 값에 의존하지 않습니다.
 do $$ declare t text; begin
- foreach t in array array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','surveys','survey_responses','notices'] loop
+ foreach t in array array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','surveys','survey_responses','notices','job_posts','job_applications'] loop
  execute format('create table if not exists public.%I (class_id uuid not null references public.startoday_classes(id),owner_id uuid not null references auth.users(id),id text not null,data jsonb not null check(jsonb_typeof(data)=''object'' and data->>''id''=id),created_at timestamptz not null default now(),updated_at timestamptz not null default now(),primary key(class_id,id))','startoday_'||t);
  execute format('alter table public.%I enable row level security','startoday_'||t);
  execute format('drop policy if exists own_rows on public.%I','startoday_'||t);
@@ -555,7 +555,7 @@ begin
  perform public.startoday_meeting_close_due(c.id);
  -- 공유 잠금으로 여러 테이블 읽기 도중 다른 기기가 수정하지 못하게 합니다.
  perform 1 from public.startoday_classes where id=c.id for share;
- foreach t in array array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx','group_buy_contribs','surveys','survey_responses','notices'] loop
+ foreach t in array array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx','group_buy_contribs','surveys','survey_responses','notices','job_posts','job_applications'] loop
  -- Credentials never leave the database, not even as a hash, in a teacher snapshot or backup.
  if t='students' then
  execute format('select coalesce(jsonb_agg(data-''password''-''passwordHash''),''[]''::jsonb) from public.%I where class_id=$1 and owner_id=$2','startoday_'||t) into rows using c.id,auth.uid();
@@ -608,7 +608,7 @@ begin
  stamp:=to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
  for op in select * from jsonb_array_elements(p_ops) loop
  t:=op->>'table';
- if not(t=any(array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx','group_buy_contribs','surveys','survey_responses','notices'])) or coalesce(op->>'id','')='' then raise exception 'INVALID_TABLE_OR_ID'; end if;
+ if not(t=any(array['students','incidents','records','assignments','assignmentStates','events','routines','routineStates','subject_rules','timetables','quests','settings','attendance','areas','shop_items','economy_tx','group_buy_contribs','surveys','survey_responses','notices','job_posts','job_applications'])) or coalesce(op->>'id','')='' then raise exception 'INVALID_TABLE_OR_ID'; end if;
  if coalesce((op->>'remove')::boolean,false) then
  execute format('delete from public.%I where class_id=$1 and id::text=$2','startoday_'||t) using c.id,op->>'id';
  else
@@ -791,11 +791,94 @@ create or replace function public.startoday_point_period_start(cid uuid,p_day da
  when '7d' then to_char(p_day-6,'YYYY-MM-DD') when '14d' then to_char(p_day-13,'YYYY-MM-DD') when '30d' then to_char(p_day-29,'YYYY-MM-DD') when 'month' then to_char(date_trunc('month',p_day),'YYYY-MM-DD') else '' end from public.startoday_settings where class_id=cid and id='main'),'')
 $$;
 revoke all on function public.startoday_point_period_start(uuid,date) from public,anon,authenticated;
+create or replace function public.startoday_job_missing(cid uuid,sid text,p jsonb) returns jsonb language plpgsql stable security definer set search_path=public,pg_temp as $$
+declare stars integer;score integer;k text;v jsonb;missing jsonb:='[]';day text:=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD');
+begin
+ select coalesce(sum(case data->>'kind' when '칭찬' then 1 when '지도' then -1 else 0 end),0) into stars from public.startoday_records r where class_id=cid and data->'studentIds' ? sid and data->>'date'<=day and not exists(select 1 from public.startoday_attendance a where a.class_id=cid and a.data->>'studentId'=sid and a.data->>'date'=r.data->>'date' and a.data->>'excluded'='true');
+ for k,v in select * from jsonb_each(coalesce(p->'areaMin','{}')) loop
+ select coalesce(sum(case data->>'kind' when '칭찬' then 1 when '지도' then -1 else 0 end),0) into score from public.startoday_records r where class_id=cid and data->'studentIds' ? sid and public.startoday_area_list(data->'areas') ? k and data->>'date'<=day and not exists(select 1 from public.startoday_attendance a where a.class_id=cid and a.data->>'studentId'=sid and a.data->>'date'=r.data->>'date' and a.data->>'excluded'='true');
+ if score<(v#>>'{}')::integer then missing:=missing||jsonb_build_array(format('%s %s점 이상 (현재 %s점)',k,v#>>'{}',score));end if;end loop;
+ if p->>'minStars' is not null and stars<(p->>'minStars')::integer then missing:=missing||jsonb_build_array(format('보유 별 %s개 이상 (현재 %s개)',p->>'minStars',stars));end if;return missing;
+end $$;
+create or replace function public.startoday_jobs_payload(cid uuid,sid text) returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
+ select jsonb_build_object('isTeacher',false,'studentId',sid,'applications','[]'::jsonb,'roster','[]'::jsonb,'posts',coalesce((select jsonb_agg((p.data-'selectedIds'-'drawIds')||jsonb_build_object('selectedIds',case when p.data->'selectedIds' ? sid then jsonb_build_array(sid) else '[]'::jsonb end,'drawIds','[]'::jsonb,'missing',public.startoday_job_missing(cid,sid,p.data),'application',(select a.data from public.startoday_job_applications a where a.class_id=cid and a.data->>'postId'=p.id and a.data->>'studentId'=sid)) order by p.created_at desc) from public.startoday_job_posts p where p.class_id=cid and p.data->>'status'<>'deleted' and (p.data->>'status'='open' or p.data->'selectedIds' ? sid)),'[]'::jsonb))
+$$;
+create or replace function public.startoday_jobs_mutate(cid uuid,sid text,teacher boolean,action text,p jsonb) returns void language plpgsql security definer set search_path=public,pg_temp as $$
+declare c public.startoday_classes;post jsonb;old jsonb;aid text;ids jsonb;applied jsonb;ops jsonb:='[]';data jsonb;entry jsonb;v_sid text;k text;v jsonb;day text:=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD');stamp text:=to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');cfg jsonb;salary jsonb;wages jsonb;managed jsonb:='{}';prev jsonb;amount bigint;title text;row jsonb;rev bigint;
+begin
+ select * into strict c from public.startoday_classes where id=cid for update;
+ if not teacher and not exists(select 1 from public.startoday_students st where st.class_id=cid and st.id=sid and st.data->>'deletedAt' is null) then raise exception 'JOB_FORBIDDEN';end if;
+ if action='refresh' then return;end if;
+ if p is null or jsonb_typeof(p)<>'object' or octet_length(p::text)>200000 then raise exception 'JOB_INVALID';end if;
+ select j.data into post from public.startoday_job_posts j where j.class_id=cid and j.id=p->>'id';
+ if action='save' then
+ if not teacher then raise exception 'JOB_FORBIDDEN';end if;
+ if post is not null and (post->>'status' not in ('open','closed') or post->'version' is distinct from p->'version') then raise exception 'JOB_CONFLICT';end if;
+ if p->>'id' is null or length(p->>'id') not between 1 and 100 or p->>'kind' is null or p->>'kind' not in ('regular','gig') or jsonb_typeof(p->'title') is distinct from 'string' or length(btrim(p->>'title')) not between 1 and 100 or jsonb_typeof(p->'description') is distinct from 'string' or length(p->>'description')>5000 or jsonb_typeof(p->'conditionText') is distinct from 'string' or length(p->>'conditionText')>2000 or p->>'method' is null or p->>'method' not in ('선착순','추첨','교사 직접 선택','직접 진행') or jsonb_typeof(p->'capacity') is distinct from 'number' or (p->>'capacity')::numeric<>trunc((p->>'capacity')::numeric) or (p->>'capacity')::numeric not between 1 and 999 or jsonb_typeof(p->'wage') is distinct from 'number' or (p->>'wage')::numeric<>trunc((p->>'wage')::numeric) or (p->>'wage')::numeric not between 0 and 1000000000 then raise exception 'JOB_INVALID';end if;
+ foreach k in array array['recruitFrom','recruitTo','activityFrom','activityTo'] loop if p->>k is null or p->>k !~ '^\d{4}-\d{2}-\d{2}$' or to_char((p->>k)::date,'YYYY-MM-DD')<>p->>k then raise exception 'JOB_INVALID';end if;end loop;
+ if p->>'recruitFrom'>p->>'recruitTo' or p->>'activityFrom'>p->>'activityTo' or jsonb_typeof(p->'areaMin') is distinct from 'object' then raise exception 'JOB_INVALID';end if;
+ for k,v in select * from jsonb_each(p->'areaMin') loop if k not in ('학습','과제','관계','도전','생활','알바') or jsonb_typeof(v)<>'number' or (v#>>'{}')::numeric<>trunc((v#>>'{}')::numeric) or (v#>>'{}')::numeric not between 0 and 1000000 then raise exception 'JOB_INVALID';end if;end loop;
+ if p->>'minStars' is not null and (jsonb_typeof(p->'minStars')<>'number' or (p->>'minStars')::numeric<>trunc((p->>'minStars')::numeric) or (p->>'minStars')::numeric not between 0 and 1000000) then raise exception 'JOB_INVALID';end if;
+ data:=jsonb_build_object('id',p->>'id','kind',p->>'kind','title',btrim(p->>'title'),'description',p->>'description','conditionText',p->>'conditionText','capacity',p->'capacity','method',p->>'method','wage',p->'wage','areaMin',p->'areaMin','minStars',p->'minStars','recruitFrom',p->>'recruitFrom','recruitTo',p->>'recruitTo','activityFrom',p->>'activityFrom','activityTo',p->>'activityTo','status',coalesce(post->>'status','open'),'selectedIds','[]'::jsonb,'drawIds','[]'::jsonb,'version',coalesce((post->>'version')::integer,0)+1,'createdAt',coalesce(post->>'createdAt',stamp),'updatedAt',stamp);
+ insert into public.startoday_job_posts(class_id,owner_id,id,data) values(cid,c.owner_id,data->>'id',data) on conflict(class_id,id) do update set data=excluded.data,updated_at=now();
+ else
+ if post is null or post->>'status'='deleted' then raise exception 'JOB_NOT_FOUND';end if;
+ if action in ('apply','cancel') then
+ if teacher or post->>'status'<>'open' or day<post->>'recruitFrom' or day>post->>'recruitTo' then raise exception 'JOB_CLOSED';end if;
+ aid:=(post->>'id')||':'||sid;select a.data into old from public.startoday_job_applications a where a.class_id=cid and a.id=aid;
+ if action='apply' then data:=public.startoday_job_missing(cid,sid,post);if jsonb_array_length(data)>0 then raise exception 'JOB_CONDITIONS: %',data;end if;if old->>'status'='applied' then return;end if;elsif old->>'status' is distinct from 'applied' then raise exception 'JOB_INVALID';end if;
+ data:=jsonb_build_object('id',aid,'postId',post->>'id','studentId',sid,'status',case when action='apply' then 'applied' else 'cancelled' end,'submittedAt',case when action='apply' then stamp else old->>'submittedAt' end,'updatedAt',stamp);
+ insert into public.startoday_job_applications(class_id,owner_id,id,data) values(cid,c.owner_id,aid,data) on conflict(class_id,id) do update set data=excluded.data,updated_at=now();post:=post||jsonb_build_object('drawIds','[]'::jsonb);
+ else
+ if not teacher then raise exception 'JOB_FORBIDDEN';end if;
+ if post->'version' is distinct from p->'version' then raise exception 'JOB_CONFLICT';end if;
+ select coalesce(jsonb_agg(a.data order by a.data->>'submittedAt',a.data->>'studentId'),'[]'::jsonb) into applied from public.startoday_job_applications a where a.class_id=cid and a.data->>'postId'=post->>'id' and a.data->>'status'='applied' and exists(select 1 from public.startoday_students s where s.class_id=cid and s.id=a.data->>'studentId' and s.data->>'deletedAt' is null);
+ if action in ('close','delete') then if post->>'status' not in ('open','closed') then raise exception 'JOB_CLOSED';end if;post:=post||jsonb_build_object('status',case when action='delete' then 'deleted' else 'closed' end);
+ elsif action='draw' then
+ if post->>'method'<>'추첨' or post->>'status' not in ('open','closed') then raise exception 'JOB_INVALID';end if;
+ select coalesce(jsonb_agg(student),'[]'::jsonb) into ids from(select value->>'studentId' student from jsonb_array_elements(applied) order by random() limit (post->>'capacity')::integer) draw;post:=post||jsonb_build_object('drawIds',ids);
+ elsif action='select' then
+ ids:=p->'studentIds';if post->>'status' not in ('open','closed') or jsonb_typeof(ids) is distinct from 'array' or jsonb_array_length(ids) not between 1 and (post->>'capacity')::integer or (select count(distinct value) from jsonb_array_elements(ids))<>jsonb_array_length(ids) or exists(select 1 from jsonb_array_elements_text(ids) chosen where not exists(select 1 from jsonb_array_elements(applied) a where a->>'studentId'=chosen)) then raise exception 'JOB_INVALID_SELECTION';end if;
+ if post->>'method'='선착순' and exists(select 1 from jsonb_array_elements_text(ids) with ordinality x(student,n) where student is distinct from applied->(n::integer-1)->>'studentId') then raise exception 'JOB_FIRST_COME';end if;
+ if post->>'method'='추첨' and not(ids @> (post->'drawIds') and (post->'drawIds') @> ids) then raise exception 'JOB_DRAW_REQUIRED';end if;
+ post:=post||jsonb_build_object('status','selected','selectedIds',ids);
+ update public.startoday_job_applications a set data=a.data||jsonb_build_object('status',case when ids ? (a.data->>'studentId') then 'selected' else 'notSelected' end,'updatedAt',stamp),updated_at=now() where a.class_id=cid and a.data->>'postId'=post->>'id' and a.data->>'status'='applied';
+ elsif action='complete' then
+ if post->>'status'='completed' then return;end if;if post->>'status'<>'selected' or day<post->>'activityFrom' then raise exception 'JOB_INVALID';end if;
+ for v_sid in select * from jsonb_array_elements_text(post->'selectedIds') loop
+ aid:='job:'||(post->>'id')||':'||v_sid;data:=jsonb_build_object('id',aid,'studentIds',jsonb_build_array(v_sid),'date',day,'kind',case when post->>'kind'='gig' then '칭찬' else '관찰' end,'areas',jsonb_build_array('알바'),'text',format('%s 활동 (%s ~ %s)',post->>'title',post->>'activityFrom',post->>'activityTo'),'guidance','','createdAt',stamp,'updatedAt',stamp,'printIncluded',true,'jobPostId',post->>'id');
+ insert into public.startoday_records(class_id,owner_id,id,data) values(cid,c.owner_id,aid,data) on conflict(class_id,id) do nothing;
+ end loop;
+ update public.startoday_job_applications a set data=a.data||jsonb_build_object('status','completed','updatedAt',stamp),updated_at=now() where a.class_id=cid and a.data->>'postId'=post->>'id' and a.data->>'status'='selected';post:=post||jsonb_build_object('status','completed','completedAt',stamp);
+ else raise exception 'JOB_INVALID';end if;
+ end if;
+ post:=post||jsonb_build_object('version',(post->>'version')::integer+1,'updatedAt',stamp);update public.startoday_job_posts j set data=post,updated_at=now() where j.class_id=cid and j.id=post->>'id';
+ end if;
+ if action='select' and post->>'kind'='regular' then
+ select s.data into cfg from public.startoday_settings s where s.class_id=cid and s.id='main';salary:=coalesce(cfg->'salary','{}');wages:=coalesce(salary->'jobWages','{}');prev:=coalesce(cfg->'jobManagedWages','{}');
+ for entry in select j.data from public.startoday_job_posts j where j.class_id=cid and j.data->>'kind'='regular' and j.data->>'status' in ('selected','completed') loop
+ for v_sid in select * from jsonb_array_elements_text(entry->'selectedIds') loop row:=coalesce(managed->v_sid,'{}');managed:=jsonb_set(managed,array[v_sid],jsonb_build_object('name',concat_ws(', ',nullif(row->>'name',''),entry->>'title'),'amount',coalesce((row->>'amount')::bigint,0)+(entry->>'wage')::bigint));end loop;end loop;
+ for v_sid in select key from jsonb_each(prev||managed) loop row:=coalesce(wages->v_sid,'{}');amount:=greatest(0,coalesce((row->>'amount')::bigint,0)-coalesce((prev->v_sid->>'amount')::bigint,0))+coalesce((managed->v_sid->>'amount')::bigint,0);if amount>1000000000 then raise exception 'JOB_WAGE_LIMIT';end if;title:=btrim(replace(coalesce(row->>'name',''),coalesce(prev->v_sid->>'name',''),''),', ');wages:=jsonb_set(wages,array[v_sid],jsonb_build_object('name',left(concat_ws(', ',nullif(title,''),managed->v_sid->>'name'),60),'amount',amount));end loop;
+ cfg:=cfg||jsonb_build_object('pointMode','salary','jobManagedWages',managed,'salary',salary||jsonb_build_object('jobs',true,'jobWages',wages));update public.startoday_settings s set data=cfg,updated_at=now() where s.class_id=cid and s.id='main';
+ end if;
+ update public.startoday_classes set revision=revision+1 where id=cid returning revision into rev;insert into public.startoday_audit(owner_id,class_id,revision,table_name,row_id,operation) values(c.owner_id,cid,rev,'jobs',coalesce(p->>'id',cid::text),action);
+end $$;
+create or replace function public.startoday_teacher_jobs(p_class_id uuid,p_action text default 'refresh',p_payload jsonb default '{}',p_student_id text default null) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+begin if auth.uid() is null or not exists(select 1 from public.startoday_classes where id=p_class_id and owner_id=auth.uid()) then raise exception 'JOB_FORBIDDEN';end if;perform public.startoday_jobs_mutate(p_class_id,p_student_id,p_student_id is null,p_action,p_payload);return public.startoday_snapshot();end $$;
+create or replace function public.startoday_student_jobs(p_school text,p_grade text,p_class text,p_no integer,p_password text,p_action text default 'refresh',p_payload jsonb default '{}') returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
+declare verified jsonb;cid uuid;sid text;snapshot jsonb;
+begin verified:=public.startoday_student_authenticate(p_school,p_grade,p_class,p_no,p_password);if verified is null or verified->>'mustChangePassword'='true' then raise exception 'JOB_AUTH_REQUIRED';end if;cid:=(verified->>'cid')::uuid;sid:=verified->>'sid';perform public.startoday_jobs_mutate(cid,sid,false,p_action,p_payload);snapshot:=public.startoday_student_payload(cid,sid);return jsonb_build_object('classId',cid,'revision',(select revision from public.startoday_classes where id=cid),'snapshot',snapshot);end $$;
+revoke all on function public.startoday_job_missing(uuid,text,jsonb),public.startoday_jobs_payload(uuid,text),public.startoday_jobs_mutate(uuid,text,boolean,text,jsonb) from public,anon,authenticated;
+revoke all on function public.startoday_teacher_jobs(uuid,text,jsonb,text),public.startoday_student_jobs(text,text,text,integer,text,text,jsonb) from public,anon,authenticated;
+grant execute on function public.startoday_teacher_jobs(uuid,text,jsonb,text) to authenticated;
+grant execute on function public.startoday_student_jobs(text,text,text,integer,text,text,jsonb) to anon,authenticated;
+
+
 create or replace function public.startoday_coin_balance(cid uuid,sid text) returns bigint language sql stable security definer set search_path=public,pg_temp as $$
- select (case when coalesce((select data->>'pointMode' from public.startoday_settings where class_id=cid and id='main'),'realtime')='salary' then 0 else coalesce((select sum(case when r.data->>'autoRef' is not null then case when a.data->>'noStar'='true' then 0 when ast.data->>'status'='완료' then 1 when ast.data->>'status'='안함' then -1 else 0 end else case r.data->>'kind' when '칭찬' then 1 when '지도' then -1 else 0 end end)*10 from public.startoday_records r left join public."startoday_assignmentStates" ast on ast.class_id=cid and ast.id=r.data->>'autoRef' and ast.data->>'studentId'=sid left join public.startoday_assignments a on a.class_id=cid and a.id=ast.data->>'assignmentId' where r.class_id=cid and r.data->'studentIds' ? sid and r.data->>'date'>=public.startoday_point_period_start(cid) and r.data->>'date'<=to_char(now() at time zone 'Asia/Seoul','YYYY-MM-DD') and not exists(select 1 from public.startoday_attendance atd where atd.class_id=cid and atd.data->>'studentId'=sid and atd.data->>'date'=r.data->>'date' and atd.data->>'excluded'='true')),0) end)+coalesce((select sum((data->>'amount')::bigint) from public.startoday_economy_tx where class_id=cid and student_id=sid),0)
+ select coalesce((select sum((data->>'amount')::bigint) from public.startoday_economy_tx where class_id=cid and student_id=sid),0)
 $$;
 create or replace function public.startoday_economy_payload(cid uuid,sid text) returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
- select jsonb_build_object('finance',public.startoday_finance_student_data(cid,sid),'studentId',sid,'balance',public.startoday_coin_balance(cid,sid),'allowRefund',coalesce((select data->>'allowRefund' from public.startoday_settings where class_id=cid and id='main'),'true')<>'false',
+ select jsonb_build_object('jobs',public.startoday_jobs_payload(cid,sid),'finance',public.startoday_finance_student_data(cid,sid),'studentId',sid,'balance',public.startoday_coin_balance(cid,sid),'allowRefund',coalesce((select data->>'allowRefund' from public.startoday_settings where class_id=cid and id='main'),'true')<>'false',
  'items',coalesce((select jsonb_agg(jsonb_build_object('id',i.id,'category',i.data->>'category','name',i.data->>'name','description',coalesce(i.data->>'description',''),'price',i.data->'price','stock',i.data->'stock','isGroupBuy',i.is_group_buy,'groupGoal',i.group_goal,'groupCollected',i.group_collected,'isFunded',i.is_funded,'isUsed',i.is_used,
  'contributors',case when i.is_group_buy then coalesce((select jsonb_agg(jsonb_build_object('studentId',gc.student_id,'name',case when st.data->>'deletedAt' is null then coalesce(st.data->>'name','전출 학생') else '전출 학생' end,'amount',gc.amount,'isMe',gc.student_id=sid) order by gc.amount desc,gc.student_id) from public.startoday_group_buy_contribs gc left join public.startoday_students st on st.class_id=gc.class_id and st.id=gc.student_id where gc.class_id=cid and gc.item_id=i.id),'[]'::jsonb) else '[]'::jsonb end) order by i.created_at,i.id) from public.startoday_shop_items i where i.class_id=cid and i.data->>'deletedAt' is null),'[]'::jsonb),
  'transactions',coalesce((select jsonb_agg(jsonb_build_object('id',id,'type',data->>'type','itemId',data->>'itemId','itemName',data->>'itemName','itemCategory',coalesce(nullif(data->>'itemCategory',''),(select i.data->>'category' from public.startoday_shop_items i where i.class_id=cid and i.id::text=etx.data->>'itemId'),'기타'),'amount',data->'amount','status',data->>'status','createdAt',data->>'createdAt') order by created_at,id) from public.startoday_economy_tx etx where class_id=cid and student_id=sid),'[]'::jsonb))

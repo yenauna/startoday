@@ -11,7 +11,7 @@ try{
  const owner='00000000-0000-0000-0000-000000000001',other='00000000-0000-0000-0000-000000000002';await pg.query('insert into auth.users(id) values($1),($2)',[owner,other]);
  const as=async(role,id='')=>{await pg.exec(`set role ${role}`);await pg.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);};
  await as('authenticated',owner);const snapshot=async()=>(await pg.query('select public.startoday_snapshot() as data')).rows[0].data;let snap=await snapshot();const cid=snap.class_id,d=C.initialDB();
- Object.assign(d.settings[0],{schoolName:'가상금융학교',schoolCode:'FINANCE001',grade:5,classGroup:'1',defaultStudentPassword:'바람123',pointMode:'salary',stockConfig:{...C.financeConfig().stock,open:'00:00',close:'23:59'}});
+ Object.assign(d.settings[0],{schoolName:'가상금융학교',schoolCode:'FINANCE001',grade:5,classGroup:'1',defaultStudentPassword:'바람123',stockConfig:{...C.financeConfig().stock,open:'00:00',close:'23:59'}});
  d.students=[{id:'s',no:1,name:'가온'},{id:'other',no:2,name:'나래'}];d.records=Array.from({length:10},(_,i)=>({id:'p'+i,studentIds:['s'],kind:'칭찬',areas:['생활'],text:'칭찬',date:C.today(),createdAt:C.now()}));
  await pg.query('select public.startoday_commit($1,$2,$3::jsonb)',[cid,snap.revision,JSON.stringify(C.TABLES.flatMap(t=>d[t].map(data=>({table:t,id:data.id,data}))))]);
  const teacher=async(action,student=null,payload={})=>(await pg.query('select public.startoday_teacher_finance($1,$2,$3,$4::jsonb) as data',[cid,student,action,JSON.stringify(payload)])).rows[0].data;
