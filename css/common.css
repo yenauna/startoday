@@ -2390,6 +2390,10 @@ input[type="checkbox"]:not(:where([role="switch"],.toggle,.switch,[data-custom-s
 @media(min-width:641px) and (max-width:800px) {
   #app .settings-content .formgrid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
+/* 800px 아래에서도 학교명 칸은 두 칸을 다 쓰고 학년·반이 한 줄에 짝을 이룬다. */
+@media(min-width:641px) and (max-width:959px) {
+  #app #settings-form > [data-settings-category="기본 정보"]:first-child .formgrid > .school-picker { grid-column:1/-1; }
+}
 @media(min-width:960px) {
   /* 학교명 칸은 한 줄을 다 쓰고, 학년·반은 짝을 이뤄 남는 빈칸을 만들지 않는다. */
   #app #settings-form > [data-settings-category="기본 정보"]:first-child .formgrid > .school-picker { grid-column:1/-1; }
