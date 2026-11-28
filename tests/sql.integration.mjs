@@ -407,3 +407,5 @@ await pg.close();
 await import('./teacher-refund.sql.mjs');
 await import('./finance.sql.mjs');
 await import('./meetings.sql.mjs');
+
+await import('./notices.sql.mjs');

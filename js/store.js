@@ -305,6 +305,7 @@ export class Store {
         p_ops: ops
       });
       if (error) {
+        if(ops.some(op=>op.table==='notices')&&error.message.includes('INVALID_TABLE_OR_ID'))throw Error('알림장을 저장하려면 최신 schema.sql을 먼저 적용하세요.');
         if (ops.some(op=>['surveys','survey_responses'].includes(op.table))&&error.message.includes('INVALID_TABLE_OR_ID'))throw Error('설문을 저장하려면 최신 schema.sql을 먼저 적용하세요.');
         if (ops.some(op => op.table === 'areas') && error.message.includes('INVALID_TABLE_OR_ID')) {
           throw Error('분야 종류를 저장하려면 Supabase SQL Editor에서 최신 schema.sql을 먼저 실행하세요.');

@@ -1,3 +1,4 @@
+import {noticesView} from './tabs/notices.js';
 import {syncMeetingRefresh} from './components/meeting-view.js';
 import {meetingsView} from './tabs/meetings.js';
 import {financeSettleOps} from './finance.js';
@@ -31,7 +32,7 @@ if (window.top !== window.self) {
   location.replace('about:blank');
 }
 // 일정·과제·루틴은 하나의 '일정' 탭으로 합쳤다. 옛 주소(#시간표·일정, #과제, #루틴)는 같은 탭으로 이어진다.
-const teacherTabs = ['대시보드', '기록', '사건', '일정', '경제', '학급회의', '통계', '수업도구', '자리', '설정', '디자인'];
+const teacherTabs = ['대시보드', '기록', '사건', '일정', '경제', '알림장', '학급회의', '통계', '수업도구', '자리', '설정', '디자인'];
 const legacyTabAliases = {
   '시간표·일정': '일정',
   '과제': '일정',
@@ -193,6 +194,7 @@ function renderTab() {
     '기록': recordsView,
     '사건': incidentsView,
     '학급회의': meetingsView,
+    '알림장': noticesView,
     '일정': calendarView,
     '통계': studentsView,
     '경제': economyView,
